@@ -30,40 +30,35 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 # Examples
 <p align="center">  
-<img src="./imgs/examples.png" align="center" width="45%">  
-<img src="./imgs/example_fullscreen_model.png" align="center" width="45%">  
-<figcaption align="center">
-<p style="text-align: center;">
-<Strong>Laftel</Strong> default mode(left), full screen mode(right)
+  <img src="./imgs/examples.png" align="center" width="45%">  
+  <img src="./imgs/example_fullscreen_model.png" align="center" width="45%">  
+    <figcaption align="center">
+      <Strong>Laftel</Strong> default mode(left), full screen mode(right) 
+    </figcaption>
 </p>
-</figcaption>
-</p>
+
 <p align="center">  
-<img src="./imgs/netflix_examples.png" align="center" width="90%">  
+  <img src="./imgs/netflix_examples.png" align="center" width="90%">  
  
 
-<figcaption align="center">
-<p style="text-align: center;">
-<Strong>Netflix</strong> Rebel Moon.
-</p>
-</figcaption>
+  <figcaption align="center">
+      <Strong>Netflix</strong> Rebel Moon.
+  </figcaption>
 </p>
 
 <p align="center">  
-<img src="./imgs/discord_examples1.png" align="center" width="90%">  
-<figcaption align="center">
-<p style="text-align: center;">
-<Strong>discord streaming<br></Strong> (default mode)
+  <img src="./imgs/discord_examples1.png" align="center" width="90%">  
+  <figcaption align="center">
+    <Strong>discord streaming<br></Strong> (default mode)
+  </figcaption>
 </p>
-</figcaption>
-<br>
-<img src="./imgs/discord_examples2.png" align="center" width="90%">  
 
-<figcaption align="center">
-<p style="text-align: center;">
-<Strong>discord streaming<br></Strong> (full screen mode)
-</p>
-</figcaption>
+
+<p align="center">  
+  <img src="./imgs/discord_examples2.png" align="center" width="90%">  
+  <figcaption align="center">
+    <Strong>discord streaming<br></Strong> (full screen mode)
+  </figcaption>
 </p>
 
 
