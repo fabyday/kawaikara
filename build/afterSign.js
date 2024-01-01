@@ -13,3 +13,4 @@ exports.default = function (context) {
     console.log('VMP signing complete')
   }
 }
+

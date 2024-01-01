@@ -29,7 +29,7 @@
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
     },
     "afterSign": "./build/afterSign.js",
-   
+
     "win": {
       "certificateFile": "private/fabyday.pfx",
       "verifyUpdateCodeSignature": false,
@@ -37,7 +37,19 @@
         "nsis",
         "zip"
       ],
-      "icon" : "./build/resources/icons/kawaikara.ico"
+      "icon" : "app-kawaikara.png",
+      "extraResources":[
+        {
+          "from" : "./build",
+          "to" : ".",
+          "filter":["**/*.png"]
+        }
+      ]
+      
+    },
+    "directories": {
+      "buildResources": "build",
+      "output": "output_dist"
     }
   }
 }
