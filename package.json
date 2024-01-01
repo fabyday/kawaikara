@@ -1,0 +1,42 @@
+{
+  "name": "kawaikara",
+  "version": "1.0.0",
+  "description": "OTT-viewer",
+  "main": "src/main.js",
+  "repository": "git@github.com:fabyday/kawaikara.git",
+  "author": "fabyday",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "https://github.com/castlabs/electron-releases#v28.0.0+wvcus",
+    "electron-builder": "^24.9.1"
+  },
+  "scripts": {
+    "start": "electron .",
+    "debug": "electron --inspect=8888 .",
+    "build": "electron-builder build",
+    "make-cert" : "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
+  },
+  "dependencies": {
+  },
+
+  "build": {
+    "files": [
+      "**/*"
+    ],
+    "appId": "day.faby.kawaikara",
+    "copyright": "Copyright fabyday",
+    "electronDownload": {
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
+    },
+    "afterSign": "./build/afterSign.js",
+   
+    "win": {
+      "certificateFile": "private/fabyday.pfx",
+      "verifyUpdateCodeSignature": false,
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    }
+  }
+}
