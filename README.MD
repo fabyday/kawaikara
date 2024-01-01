@@ -49,10 +49,10 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 <p align="center">  
   <img src="./imgs/discord_examples1.png" align="center" width="90%">  
-  <figcaption align="center">
-    <center><Strong>discord streaming<br></Strong> (default mode)</center>
-  </figcaption>
 </p>
+  <p align="center">
+    <Strong>discord streaming<br></Strong> (default mode)
+  </p>
 
 
 <p align="center">  
