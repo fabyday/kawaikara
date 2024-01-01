@@ -1,8 +1,11 @@
-const {app, BrowserWindow, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
+const {app, BrowserWindow,dialog, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
 // * `widevinecdm.dll` on Windows.
 // app.commandLine.appendSwitch('widevine-cdm-path', 'C:\\Program Files\\Google\\Chrome\\Application\\120.0.6099.130\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll')
 // // The version of plugin can be got from `chrome://components` page in Chrome.
 // app.commandLine.appendSwitch('widevine-cdm-version', '1.0.2738.0')
+app.commandLine.appendSwitch('auto-detect', 'false');
+app.commandLine.appendSwitch('no-proxy-server')
+
 const path = require('node:path')
 const laftel = require('./scripts/laftel')
 let mainWindow =null
@@ -14,6 +17,15 @@ function check_item(mitem, win, event){
   }else if(mitem.label == "disney"){
     mainWindow.loadURL('https://www.disneyplus.com/');
   }
+}
+
+function show_help(mitem, win, event){
+  const message = 
+  "welcome to KawaiKara.\n\
+  this application is  OTT streaming Viewer\n\
+  if you want to help, write your issue and question on Github Issue conner.\n\
+  github repo : https://github.com/fabyday/kawaikara";
+  dialog.showMessageBox(win, {message: message})
 }
 const menu_templete=[
   {
@@ -38,7 +50,8 @@ const menu_templete=[
     
   },
   {
-    label : "help"
+    label : "help",
+    click : show_help
   }
   
 ];

@@ -36,7 +36,8 @@
       "target": [
         "nsis",
         "zip"
-      ]
+      ],
+      "icon" : "./build/resources/icons/kawaikara.ico"
     }
   }
 }
