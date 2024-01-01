@@ -14,14 +14,8 @@ function fullscreen_video(event){
 
 }
 
-function set_fullscreen_model(){
-    addEventListener("enter-full-screen", null);
-    console.log("test")
-}
-
 
 
 module.exports =  {
-    "set_fullscreen_model" : set_fullscreen_model,
     "fullscreen_video": fullscreen_video
 }
