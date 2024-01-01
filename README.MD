@@ -8,15 +8,17 @@
 <strong>KAWAIKARA</strong> is
 <strong>OTT-Viewer</strong> based on 
 <strong>Electron</strong>
-
 </p>
 
+I'm enjoying Discord broadcasting with my friends. and its service fit to me very weeelll. However there are few problems. Discord acquires only single program window and many streaming services use DRM. watching OTT-streaming by Browser may be an alternative way. But Wathching By Browser waste screen area(I just want fullscreen mode but not actually fullscreen. I just want to remove address bar and scrollbar and other UIs.) That's why I decide to develop super-duper-tight&fit OTT-streaming viewer.
 
 
 
-Available for 
+#### *Available* for 
 
 * **Laftel**
+* **Netflix**
+* **Disney Plus**
 
 ....other OTT-services is completely works. but, I didn't add it due to UI problem.
 
@@ -31,9 +33,31 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 <img src="./imgs/examples.png" align="center" width="45%">  
 <img src="./imgs/example_fullscreen_model.png" align="center" width="45%">  
 <figcaption align="center">
-default mode(left), full screen mode(right)
+<Strong>Laftel</Strong> default mode(left), full screen mode(right)
 </figcaption>
 </p>
+<p align="center">  
+<img src="./imgs/netflix_examples.png" align="center" width="90%">  
+ 
+<figcaption align="center">
+<Strong>Netflix</strong> Rebel Moon.
+</figcaption>
+</p>
+
+## Usage 
+
+### download from release.
+
+*show menu* : ```alt```
+
+*netflix* : ```ctrl+N```
+
+*laftel* : ```ctrl+L```
+
+*disney* : ```ctrl+D```
+
+
+
 
 ## build your own OTT-viewer
 
@@ -49,7 +73,6 @@ yarn make-cert # make your self-signed-cert(offical cert is too expensive...)
 yarn build # it's all done. baby.
 
 ```
-
 
 
 
