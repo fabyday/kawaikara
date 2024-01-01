@@ -1,9 +1,16 @@
 # *KAWAIKARA*
 
+<p align="center">
+  <img src="./imgs/kawaikara.jpg" />
+</p>
 
-![streaming chan](./imgs/kawaikara.jpg)
+<p align="center">
+<strong>KAWAIKARA</strong> is
+<strong>OTT-Viewer</strong> based on 
+<strong>Electron</strong>
 
-***KAWAIKARA*** is **OTT-Viewer** based on **Electron**.
+</p>
+
 
 
 
