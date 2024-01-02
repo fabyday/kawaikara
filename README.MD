@@ -37,8 +37,10 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
   </a>
 </p>
 <p align="center">
-  <Strong>Laftel</Strong> streaming video 
+  <Strong>Laftel</Strong> streaming video examples <a href="https://youtu.be/Pax7wnCTAE8"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/Pax7wnCTAE8">
+</a>
 </p>
+
 
 
 <p align="center">  
