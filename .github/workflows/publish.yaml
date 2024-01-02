@@ -54,7 +54,7 @@ jobs:
       - run: echo running on branch $GITHUB_REF
       - uses: actions/setup-node@v2
         with:
-          node-version: "14.17.0"
+          node-version: "21.5.0"
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -81,9 +81,6 @@ jobs:
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
-
-      - name: Build modules
-        run: yarn modules:build
 
       - run: yarn make-cert
         working-directory: ./
