@@ -34,7 +34,7 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 # Examples
 <p align="center">
 <video width="90%" controls>
-  <source src="https://youtu.be/Pax7wnCTAE8" type="video/webm">
+  <source src="https://youtu.be/Pax7wnCTAE8" type="video/mp4">
 </video>
 <p align="center">
   <Strong>Laftel</Strong> streaming video 
