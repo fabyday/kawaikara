@@ -29,7 +29,12 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 
 # Examples
+click video example. 
+
+[![example video link](http://img.youtube.com/vi/Pax7wnCTAE8/0.jpg)](https://youtu.be/Pax7wnCTAE8)
+
 <p align="center">  
+<br>
   <img src="./imgs/examples.png" align="center" width="45%">  
   <img src="./imgs/example_fullscreen_model.png" align="center" width="45%">  
 </p>
