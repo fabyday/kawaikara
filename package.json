@@ -14,11 +14,13 @@
     "start": "electron .",
     "debug": "electron --inspect=8888 .",
     "build": "electron-builder build",
-    "make-cert" : "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
+    "release" : "electron-builder --publish onTagOrDraft",
+    "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
   "dependencies": {
+    "electron-log": "^5.0.3",
+    "electron-updater": "^6.1.7"
   },
-
   "build": {
     "files": [
       "**/*"
@@ -28,8 +30,8 @@
     "electronDownload": {
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
     },
-    "afterSign": "./build/afterSign.js",
-
+    
+    "afterSign" : "./build/afterSign.js",
     "win": {
       "certificateFile": "private/fabyday.pfx",
       "verifyUpdateCodeSignature": false,
@@ -37,16 +39,20 @@
         "nsis",
         "zip"
       ],
-      "icon" : "kawaikara.ico",
-      "extraResources":[
+      "icon": "kawaikara.ico",
+      "extraResources": [
         {
-          "from" : "./build",
-          "to" : ".",
-          "filter":["**/*.ico"]
+          "from": "./build",
+          "to": ".",
+          "filter": [
+            "**/*.ico"
+          ]
         }
-      ]
-      
+      ],
+      "publish" : ["github"]
     },
+
+
     "directories": {
       "buildResources": "build",
       "output": "output_dist"

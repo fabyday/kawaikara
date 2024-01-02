@@ -100,9 +100,28 @@ This is simple way. Just follow my way. you must prepare *nodejs* environment. I
 before starting. we need to register *castlab* that organization(company ? or not...) provides *CDM* certification.
 
 
+install ```conda``` environment
+sign up castlab 
+```shell
+conda create -n test_env python=3.10
+conda activate test_env
+pip install castlabs_evs
+
+#make castlabs account
+python -m castlabs_evs.account signup
+
+#after signup. login with your computer.
+python -m castlabs_evs.account reauth -A ${your_account} -P ${your password}
+
+ok. then it's done.
+```
+
+
+
 ```shell 
 yarn install # install all deps in package.json 
-yarn make-cert # make your self-signed-cert(offical cert is too expensive...)
+yarn make-cert # make your self-signed-cert(offical cert is too expensive...) 
+
 yarn build # it's all done. baby.
 
 ```

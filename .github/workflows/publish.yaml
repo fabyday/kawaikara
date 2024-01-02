@@ -44,51 +44,7 @@ jobs:
           steps.cache-node-modules.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
 
-  # make-cert specific
-
-  make-cert:
-    needs: [warm-up-cache]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo running on branch $GITHUB_REF
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "21.5.0"
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-      - name: Cache yarn cache
-        uses: actions/cache@v2
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v2
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
-
-      - run: yarn make-cert
-        working-directory: ./
-
-  # BACKEND-ELECTRON specific
-
   # GENERAL electron packaging
-
   electron-package:
     needs: [warm-up-cache]
     runs-on: windows-latest
@@ -126,4 +82,6 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build electron package
-        run: yarn build
+        run: yarn release
+        with : 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
