@@ -37,12 +37,12 @@
         "nsis",
         "zip"
       ],
-      "icon" : "app-kawaikara.png",
+      "icon" : "kawaikara.ico",
       "extraResources":[
         {
           "from" : "./build",
           "to" : ".",
-          "filter":["**/*.png"]
+          "filter":["**/*.ico"]
         }
       ]
       
