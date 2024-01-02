@@ -1,7 +1,7 @@
 # *KAWAIKARA*
 
 <p align="center">
-  <img src="./imgs/kawaikara.jpg" />
+  <img src="./imgs/kawaikara_banner_title3.png" />
 </p>
 
 <p align="center">
@@ -30,15 +30,16 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 
 Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I couldn't directly use *Electron* frameworks. To support DRM product, I used **castlab**'s electron fork.
 
-
 # Examples
 <p align="center">
-<video width="90%" src="https://youtu.be/Pax7wnCTAE8"></video>
+  <a href="https://youtu.be/Pax7wnCTAE8">
+    <img src="https://img.youtube.com/vi/Pax7wnCTAE8/0.jpg" width="90%" >
+  </a>
+</p>
 <p align="center">
   <Strong>Laftel</Strong> streaming video 
 </p>
 
-</p>
 
 <p align="center">  
 <br>
