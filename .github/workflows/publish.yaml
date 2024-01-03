@@ -85,3 +85,4 @@ jobs:
         run: yarn release
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
