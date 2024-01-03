@@ -28,49 +28,49 @@ jobs:
         id: python-cache-dir-path
         run: echo "::set-output name=dir::$(pip cache dir)"
 
-      - name : Cache python cache
-      - uses: actions/cache@v3
-        id: cache-python-cache
-        with:
-          path: ${{ steps.python-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      # - name : Cache python cache
+      # - uses: actions/cache@v3
+      #   id: cache-python-cache
+      #   with:
+      #     path: ${{ steps.python-cache-dir-path.outputs.dir }}
+      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pip-
 
-      - name: Install python dependency
-        if: |
-          steps.cache-python-cache.outputs.cache-hit != 'true'
-        run: pip install -r requirements.txt 
+      # - name: Install python dependency
+      #   if: steps.cache-python-cache.outputs.cache-hit != 'true'
+      #   run: pip install -r requirements.txt 
 
 
-      # yarn setup
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+      # # yarn setup
+      # - name: Get yarn cache directory path
+      #   id: yarn-cache-dir-path
+      #   run: echo "::set-output name=dir::$(yarn cache dir)"
 
-      - name: Cache yarn cache
-        uses: actions/cache@v2
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v2
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
+      # - name: Cache yarn cache
+      #   uses: actions/cache@v2
+      #   id: cache-yarn-cache
+      #   with:
+      #     path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+      #     key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-yarn-
 
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
+      # - name: Cache node_modules
+      #   id: cache-node-modules
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: |
+      #       **/node_modules
+      #     key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
+
+      # - name: Install dependencies
+      #   if: |
+      #     steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+      #     steps.cache-node-modules.outputs.cache-hit != 'true'
+      #   run: yarn install --frozen-lockfile
 
   # GENERAL electron packaging
   electron-package:
