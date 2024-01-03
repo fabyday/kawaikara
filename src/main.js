@@ -32,6 +32,12 @@ function show_help(mitem, win, event){
   github repo : https://github.com/fabyday/kawaikara";
   dialog.showMessageBox(win, {message: message})
 }
+
+var pip_mode = false;
+function pip_mode(){
+  // app.set
+}
+
 const menu_templete=[
   {
     label: 'OTT',
@@ -53,6 +59,15 @@ const menu_templete=[
       }
     ]
     
+  },
+  {
+    label : 'features',
+    submenu:{
+      label: 'PiP(Picture in Picture)',
+      accelerator: 'CommandOrControl+P',
+      click : pip_mode
+    }
+
   },
   {
     label : "help",
