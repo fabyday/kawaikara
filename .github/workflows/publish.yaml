@@ -20,10 +20,13 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v4
-        run : pip install castlabs-evs
-        with:
         with:
           python-version: '3.10'
+
+      - name : install castlabs-evs
+        run : pip install castlabs-evs
+
+
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
