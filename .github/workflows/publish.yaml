@@ -106,6 +106,8 @@ jobs:
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
+      - name : test
+        run : python -m castlabs_evs.vmp 
 
       - name: Build electron package
         run: yarn release
