@@ -17,12 +17,14 @@ jobs:
         with:
           node-version: "21.4.0"
 
-
       - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+          cache: 'pip' # caching pip dependencies
+      - run: pip install -r requirements.txt
+
       - name : Cache python cache
       - uses: actions/cache@v3
         id: cache-python-cache
@@ -32,11 +34,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install python dependency
-        if: steps.cache-python-cache.outputs.cache-hit != 'true'
-        run: pip install -r requirements.txt 
-
-
+   
       # yarn setup
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -67,6 +65,16 @@ jobs:
           steps.cache-node-modules.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
 
+
+
+
+
+
+
+
+
+
+  
   # GENERAL electron packaging
   electron-package:
     needs: [warm-up-cache]
@@ -93,7 +101,7 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
+ 
 
 
       - uses: actions/setup-node@v2
