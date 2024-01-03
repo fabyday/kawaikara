@@ -18,7 +18,7 @@ jobs:
           node-version: "21.4.0"
 
       - name: Set up Python
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         id : setup-python
         with:
