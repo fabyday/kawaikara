@@ -134,8 +134,14 @@ ipcMain.on("fullscreen", ()=>{console.log("fullscreen")});
 
 
 app.whenReady().then(async () => {
-  AutoUpdate_lib.autoUpdater.checkForUpdatesAndNotify();
   await components.whenReady();
   console.log('components ready:', components.status());
   createWindow();
+
+
+  if(app.isPackaged){
+    setTimeout(AutoUpdate_lib, 3000)
+  }else{
+
+  }
 });
