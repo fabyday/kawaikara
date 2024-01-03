@@ -33,6 +33,7 @@
     
     "afterSign" : "./build/afterSign.js",
     "win": {
+      "certificateFile": "private/fabyday.pfx",
       "verifyUpdateCodeSignature": false,
       "target": [
         "nsis",

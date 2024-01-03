@@ -17,6 +17,14 @@ jobs:
         with:
           node-version: "21.4.0"
 
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        run : pip install castlabs-evs
+        with:
+        with:
+          python-version: '3.10'
+
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
         run: echo "::set-output name=dir::$(yarn cache dir)"
