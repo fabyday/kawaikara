@@ -14,7 +14,7 @@
     "start": "electron .",
     "debug": "electron --inspect=8888 .",
     "build": "electron-builder build",
-    "release" : "electron-builder --publish onTagOrDraft",
+    "release" : "electron-builder --publish always",
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
   "dependencies": {
