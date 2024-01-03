@@ -23,10 +23,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      # yarn setup
-      - name: Get python cache directory path
-        id: python-cache-dir-path
-        run: echo "::set-output name=dir::$(pip cache dir)"
+      # # yarn setup
+      # - name: Get python cache directory path
+      #   id: python-cache-dir-path
+      #   run: echo "::set-output name=dir::$(pip cache dir)"
 
       # - name : Cache python cache
       # - uses: actions/cache@v3
