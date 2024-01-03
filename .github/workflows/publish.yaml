@@ -109,8 +109,8 @@ jobs:
       - name : test
         run : powershell.exe ./scripts/reauth.ps1
         env : 
-          ACCOUNT:${{secrets.ACCOUNT}}
-          PASSWORD:${{secrets.PASSWD}}
+          ACCOUNT : ${{secrets.ACCOUNT}}
+          PASSWORD : ${{secrets.PASSWD}}
 
       - name: Build electron package
         run: yarn release
