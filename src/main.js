@@ -34,8 +34,10 @@ function show_help(mitem, win, event){
 }
 
 var pip_mode = false;
-function pip_mode(){
-  // app.set
+function pip_mode(mitem, win, event){
+  pip_mode = !pip_mode
+  console.log(pip_mode)
+  win.setAlwaysOnTop(pip_mode)
 }
 
 const menu_templete=[
@@ -62,11 +64,12 @@ const menu_templete=[
   },
   {
     label : 'features',
-    submenu:{
+    submenu:[{
       label: 'PiP(Picture in Picture)',
       accelerator: 'CommandOrControl+P',
       click : pip_mode
     }
+  ]
 
   },
   {
