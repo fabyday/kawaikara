@@ -23,29 +23,29 @@ jobs:
         with:
           python-version: '3.10'
 
-      # yarn setup
-      - name: Get python cache directory path
-        id: python-cache-dir-path
-        run: echo "::set-output name=dir::$(pip cache dir)"
+      # # yarn setup
+      # - name: Get python cache directory path
+      #   id: python-cache-dir-path
+      #   run: echo "::set-output name=dir::$(pip cache dir)"
 
-      - name : Cache python cache
-      - uses: actions/cache@v2
-        id: cache-python-cache
-        with:
-          path: ${{ steps.python-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      # - name : Cache python cache
+      # - uses: actions/cache@v2
+      #   id: cache-python-cache
+      #   with:
+      #     path: ${{ steps.python-cache-dir-path.outputs.dir }}
+      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pip-
 
       # - name: Install python dependency
       #   if: steps.cache-python-cache.outputs.cache-hit != 'true'
       #   run: pip install -r requirements.txt 
 
 
-      # # yarn setup
-      # - name: Get yarn cache directory path
-      #   id: yarn-cache-dir-path
-      #   run: echo "::set-output name=dir::$(yarn cache dir)"
+      # yarn setup
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
       # - name: Cache yarn cache
       #   uses: actions/cache@v2
