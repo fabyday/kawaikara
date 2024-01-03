@@ -1,4 +1,4 @@
-const {app, BrowserWindow,dialog, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
+const {app, BrowserWindow,dialog,screen, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
 
 // * `widevinecdm.dll` on Windows.
 // app.commandLine.appendSwitch('widevine-cdm-path', 'C:\\Program Files\\Google\\Chrome\\Application\\120.0.6099.130\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll')
@@ -34,10 +34,32 @@ function show_help(mitem, win, event){
 }
 
 var pip_mode = false;
-function pip_mode(mitem, win, event){
+var cur_loc = null;
+function pip_event(mitem, win, event){
   pip_mode = !pip_mode
-  console.log(pip_mode)
-  win.setAlwaysOnTop(pip_mode)
+  
+  const winBounds = win.getBounds();
+  const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
+  if (pip_mode){
+    cur_loc = winBounds
+    new_x = whichScreen.bounds.width - winBounds.width 
+    new_y = 0
+    console.log(new_x)
+    console.log(new_y)
+    
+    // Returns the screen where your window is located
+    console.log(winBounds)
+    console.log(whichScreen)
+    win.setPosition(new_x, new_y)  
+    win.setAlwaysOnTop(pip_mode)
+    win.setMovable(!pip_mode)
+    console.log("Testemnd1")
+  }else{
+    win.setAlwaysOnTop(pip_mode)
+    win.setPosition(cur_loc.x, cur_loc.y)
+    win.setMovable(!pip_mode)
+    console.log("Testemnd2")
+  }
 }
 
 const menu_templete=[
@@ -67,7 +89,7 @@ const menu_templete=[
     submenu:[{
       label: 'PiP(Picture in Picture)',
       accelerator: 'CommandOrControl+P',
-      click : pip_mode
+      click : pip_event
     }
   ]
 
