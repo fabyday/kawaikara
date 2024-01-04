@@ -54,12 +54,13 @@ function pip_event(mitem, win, event){
     win.setPosition(new_x, new_y)  
     win.setAlwaysOnTop(pip_mode)
     win.setMovable(!pip_mode)
+    win.setResizable(!pip_mode)
     console.log("Testemnd1")
   }else{
     win.setAlwaysOnTop(pip_mode)
     win.setPosition(cur_loc.x, cur_loc.y)
     win.setMovable(!pip_mode)
-    console.log("Testemnd2")
+    win.setResizable(!pip_mode)
   }
 }
 
