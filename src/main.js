@@ -1,5 +1,5 @@
 const {app, BrowserWindow,dialog,screen, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
-
+const logger = require('electron-log')
 // * `widevinecdm.dll` on Windows.
 // app.commandLine.appendSwitch('widevine-cdm-path', 'C:\\Program Files\\Google\\Chrome\\Application\\120.0.6099.130\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll')
 // // The version of plugin can be got from `chrome://components` page in Chrome.
@@ -9,7 +9,6 @@ app.commandLine.appendSwitch('no-proxy-server')
 
 const path = require('node:path')
 const laftel = require('./scripts/laftel')
-
 const updater = require("./updater")
 let mainWindow =null
 function check_item(mitem, win, event){
@@ -132,9 +131,11 @@ function createWindow () {
 
   }
   );
-  mainWindow.loadURL('https://laftel.net/');
+  updater.setProgressBar(mainWindow);
+  
+  mainWindow.loadURL('https://netflix.com/');
 
-  mainWindow.setMenu(newMenu)
+  mainWindow.setMenu(newMenu);
 
   mainWindow.on('fullscreenchange', () => {
     console.log("fullscreenchange")
@@ -183,4 +184,5 @@ app.whenReady().then(async () => {
   await components.whenReady();
   console.log('components ready:', components.status());
   createWindow();
+  logger.info("app initialized...")
 });
