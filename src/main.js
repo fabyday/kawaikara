@@ -10,7 +10,7 @@ app.commandLine.appendSwitch('no-proxy-server')
 const path = require('node:path')
 const laftel = require('./scripts/laftel')
 
-const AutoUpdate_lib = require("./kautoupdater")
+const updater = require("./updater")
 let mainWindow =null
 function check_item(mitem, win, event){
   if (mitem.label == "netflix")
@@ -90,6 +90,10 @@ const menu_templete=[
       label: 'PiP(Picture in Picture)',
       accelerator: 'CommandOrControl+P',
       click : pip_event
+    },
+    {
+      label : 'check for update',
+      click : updater.checkForUpdates
     }
   ]
 
@@ -177,11 +181,4 @@ app.whenReady().then(async () => {
   await components.whenReady();
   console.log('components ready:', components.status());
   createWindow();
-
-
-  if(app.isPackaged){
-    setTimeout(AutoUpdate_lib, 3000)
-  }else{
-
-  }
 });
