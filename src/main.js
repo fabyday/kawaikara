@@ -8,8 +8,13 @@ app.commandLine.appendSwitch('auto-detect', 'false');
 app.commandLine.appendSwitch('no-proxy-server')
 
 
-const { ElectronBlocker,ullLists, Request  } =  require('@cliqz/adblocker-webextension');
-const { fetch } = require('cross-fetch'); // required 'fetch'
+const {ElectronBlocker} =  require('@cliqz/adblocker-electron');
+const fetch = require('cross-fetch'); // required 'fetch'
+console.log(ElectronBlocker)
+console.log(fetch)
+ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
+  blocker.enableBlockingInSession(session.defaultSession);
+});
 
 
 const path = require('node:path')

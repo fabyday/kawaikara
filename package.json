@@ -1,6 +1,6 @@
 {
   "name": "kawaikara",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "OTT-viewer",
   "main": "src/main.js",
   "repository": "git@github.com:fabyday/kawaikara.git",
@@ -18,7 +18,7 @@
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
   "dependencies": {
-    "@cliqz/adblocker-webextension": "^1.26.12",
+    "@cliqz/adblocker-electron": "^1.26.12",
     "cross-fetch": "^4.0.0",
     "electron-log": "^5.0.3",
     "electron-updater": "^6.1.7",
