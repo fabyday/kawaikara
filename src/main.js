@@ -1,4 +1,4 @@
-const {app, BrowserWindow,dialog,screen, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
+const {app, BrowserWindow,dialog,screen,session, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
 const logger = require('electron-log')
 // * `widevinecdm.dll` on Windows.
 // app.commandLine.appendSwitch('widevine-cdm-path', 'C:\\Program Files\\Google\\Chrome\\Application\\120.0.6099.130\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll')
@@ -6,6 +6,11 @@ const logger = require('electron-log')
 // app.commandLine.appendSwitch('widevine-cdm-version', '1.0.2738.0')
 app.commandLine.appendSwitch('auto-detect', 'false');
 app.commandLine.appendSwitch('no-proxy-server')
+
+
+const { ElectronBlocker,ullLists, Request  } =  require('@cliqz/adblocker-webextension');
+const { fetch } = require('cross-fetch'); // required 'fetch'
+
 
 const path = require('node:path')
 const laftel = require('./scripts/laftel')
@@ -18,6 +23,8 @@ function check_item(mitem, win, event){
     mainWindow.loadURL('https://laftel.net/');
   }else if(mitem.label == "disney"){
     mainWindow.loadURL('https://www.disneyplus.com/');
+  }else if(mitem.label == "youtube"){
+    mainWindow.loadURL('https://www.youtube.com/');
   }
 }
 
@@ -82,6 +89,10 @@ const menu_templete=[
         label:'disney',
         accelerator: 'CommandOrControl+D',
         click : check_item
+      },{
+        label:'youtube',
+        accelerator: 'CommandOrControl+Y',
+        click : check_item
       }
     ]
     
@@ -113,7 +124,7 @@ let newMenu= Menu.buildFromTemplate(menu_templete);
 
 app.disableHardwareAcceleration();
 
-function createWindow () {
+ function createWindow () {
   mainWindow = new BrowserWindow(
 
     {
@@ -132,6 +143,45 @@ function createWindow () {
 
   }
   );
+  // const blocker =  ElectronBlocker.fromLists(
+  //   fetch,
+  //   fullLists,
+  //   {
+  //     enableCompression: true,
+  //   },
+  //   {
+  //     path: 'engine.bin',
+  //     read: async (...args) => readFileSync(...args),
+  //     write: async (...args) => writeFileSync(...args),
+  //   },
+  // );
+
+  // blocker.enableBlockingInSession(mainWindow.webContents.session);
+
+  // blocker.on('request-blocked', (request) => {
+  //   console.log('blocked', request.tabId, request.url);
+  // });
+
+  // blocker.on('request-redirected', (request) => {
+  //   console.log('redirected', request.tabId, request.url);
+  // });
+
+  // blocker.on('request-whitelisted', (request) => {
+  //   console.log('whitelisted', request.tabId, request.url);
+  // });
+
+  // blocker.on('csp-injected', (request) => {
+  //   console.log('csp', request.url);
+  // });
+
+  // blocker.on('script-injected', (script, url) => {
+  //   console.log('script', script.length, url);
+  // });
+
+  // blocker.on('style-injected', (style, url) => {
+  //   console.log('style', style.length, url);
+  // });
+
   updater.setProgressBar(mainWindow);
   
   mainWindow.loadURL('https://netflix.com/');

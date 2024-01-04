@@ -14,12 +14,15 @@
     "start": "electron .",
     "debug": "electron --inspect=8888 .",
     "build": "electron-builder build",
-    "release" : "electron-builder --publish always",
+    "release": "electron-builder --publish always",
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
   "dependencies": {
+    "@cliqz/adblocker-webextension": "^1.26.12",
+    "cross-fetch": "^4.0.0",
     "electron-log": "^5.0.3",
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "fetch": "^1.1.0"
   },
   "build": {
     "files": [
@@ -30,8 +33,7 @@
     "electronDownload": {
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
     },
-    
-    "afterSign" : "./build/afterSign.js",
+    "afterSign": "./build/afterSign.js",
     "win": {
       "verifyUpdateCodeSignature": false,
       "target": [
@@ -48,10 +50,10 @@
           ]
         }
       ],
-      "publish" : ["github"]
+      "publish": [
+        "github"
+      ]
     },
-
-
     "directories": {
       "buildResources": "build",
       "output": "output_dist"
