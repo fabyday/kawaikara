@@ -26,10 +26,12 @@ function check_item(mitem, win, event){
 
 function show_help(mitem, win, event){
   const message = 
-  "welcome to KawaiKara.\n\
+  `welcome to KawaiKara.\n\
   this application is  OTT streaming Viewer\n\
   if you want to help, write your issue and question on Github Issue conner.\n\
-  github repo : https://github.com/fabyday/kawaikara";
+  github repo : https://github.com/fabyday/kawaikara\n\
+  version : '${app.getVersion()}`;
+
   dialog.showMessageBox(win, {message: message})
 }
 
