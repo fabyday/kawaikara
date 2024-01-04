@@ -1,6 +1,6 @@
 {
   "name": "kawaikara",
-  "version": "v1.1.5",
+  "version": "v1.1.6",
   "description": "OTT-viewer",
   "main": "src/main.js",
   "repository": "git@github.com:fabyday/kawaikara.git",
