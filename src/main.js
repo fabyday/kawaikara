@@ -7,14 +7,24 @@ const logger = require('electron-log')
 app.commandLine.appendSwitch('auto-detect', 'false');
 app.commandLine.appendSwitch('no-proxy-server')
 
+//preferences
+const preference = require('./setting/preference')
 
+
+// addblock
 const {ElectronBlocker} =  require('@cliqz/adblocker-electron');
 const fetch = require('cross-fetch'); // required 'fetch'
-console.log(ElectronBlocker)
-console.log(fetch)
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);
 });
+
+
+
+const open_preference = ({}) =>{
+  preference.show()
+}
+
+
 
 
 const path = require('node:path')
@@ -30,6 +40,14 @@ function check_item(mitem, win, event){
     mainWindow.loadURL('https://www.disneyplus.com/');
   }else if(mitem.label == "youtube"){
     mainWindow.loadURL('https://www.youtube.com/');
+  }else if(mitem.label == "apple music"){
+    mainWindow.loadURL('https://music.apple.com/kr/');
+  } else if(mitem.label == "twitch"){
+    mainWindow.loadURL('https://www.twitch.tv/');
+  }else if(mitem.label == "youtube music"){
+    mainWindow.loadURL('https://music.youtube.com/');
+  }else if(mitem.label == "chzzk"){
+    mainWindow.loadURL('https://chzzk.naver.com/');
   }
 }
 
@@ -41,10 +59,11 @@ function show_help(mitem, win, event){
   this application is  OTT streaming Viewer\n\
   if you want to help, write your issue and question on Github Issue conner.\n\
   github repo : https://github.com/fabyday/kawaikara\n\
-  version : '${app.getVersion()}`;
+  version : ${app.getVersion()}`;
 
   dialog.showMessageBox(win, {message: message})
 }
+app.setName(`${app.getName()} ${app.getVersion()}`);
 
 var pip_mode = false;
 var cur_loc = null;
@@ -77,6 +96,7 @@ function pip_event(mitem, win, event){
 }
 
 const menu_templete=[
+  
   {
     label: 'OTT',
     submenu:[
@@ -98,6 +118,24 @@ const menu_templete=[
         label:'youtube',
         accelerator: 'CommandOrControl+Y',
         click : check_item
+      },
+      {
+        label:'apple music',
+        accelerator: 'Control+A',
+        click : check_item
+      },{
+        label:'youtube music',
+        accelerator: 'Control+A',
+        click : check_item
+      },{
+        label:'twitch',
+        accelerator: 'Control+T',
+        click : check_item
+      },
+      {
+        label:'chzzk',
+        accelerator: 'Control+C',
+        click : check_item
       }
     ]
     
@@ -108,18 +146,25 @@ const menu_templete=[
       label: 'PiP(Picture in Picture)',
       accelerator: 'CommandOrControl+P',
       click : pip_event
+    }
+  ]
+  },
+  {
+    label: "settings",
+    submenu:[{
+      label: 'preferences',
+      accelerator: 'CommandOrControl+P',
+      click : ()=>{preference.show()}
     },
     {
       label : 'check for update',
       click : updater.checkForUpdates
     }
-  ]
-
-  },
+  ]},
   {
     label : "help",
     click : show_help
-  }
+  },
   
 ];
 
@@ -148,48 +193,15 @@ app.disableHardwareAcceleration();
 
   }
   );
-  // const blocker =  ElectronBlocker.fromLists(
-  //   fetch,
-  //   fullLists,
-  //   {
-  //     enableCompression: true,
-  //   },
-  //   {
-  //     path: 'engine.bin',
-  //     read: async (...args) => readFileSync(...args),
-  //     write: async (...args) => writeFileSync(...args),
-  //   },
-  // );
 
-  // blocker.enableBlockingInSession(mainWindow.webContents.session);
-
-  // blocker.on('request-blocked', (request) => {
-  //   console.log('blocked', request.tabId, request.url);
-  // });
-
-  // blocker.on('request-redirected', (request) => {
-  //   console.log('redirected', request.tabId, request.url);
-  // });
-
-  // blocker.on('request-whitelisted', (request) => {
-  //   console.log('whitelisted', request.tabId, request.url);
-  // });
-
-  // blocker.on('csp-injected', (request) => {
-  //   console.log('csp', request.url);
-  // });
-
-  // blocker.on('script-injected', (script, url) => {
-  //   console.log('script', script.length, url);
-  // });
-
-  // blocker.on('style-injected', (style, url) => {
-  //   console.log('style', style.length, url);
-  // });
+  mainWindow.on('page-title-updated', (evt) => {
+    evt.preventDefault();
+  });
+  
 
   updater.setProgressBar(mainWindow);
   
-  mainWindow.loadURL('https://netflix.com/');
+  mainWindow.loadFile('./index.html');
 
   mainWindow.setMenu(newMenu);
 

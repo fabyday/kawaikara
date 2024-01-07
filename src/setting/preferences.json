@@ -1,0 +1,26 @@
+{
+    "shortcuts": {
+        "name": "Control+A",
+        "name2": "Control+B",
+        "Apple_Music": "P",
+        "laftel_shortcut": "Control+A",
+        "netflix_shortcut": "Control+S",
+        "disney_shortcut": "Control+D",
+        "twitch": "Control+A",
+        "apple_music_shortcut": "Control+B",
+        "PiP_shortcut": "Control+C"
+    },
+    "AutoUpdate": {
+        "autoupdate": {
+            "download": false,
+            "install": false
+        }
+    },
+    "theme": {
+        "theme": "dark"
+    },
+    "general": {
+        "width": "1920",
+        "height": "1080"
+    }
+}
