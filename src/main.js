@@ -83,9 +83,12 @@ function pip_event(mitem, win, event){
     console.log(winBounds)
     console.log(whichScreen)
     win.setPosition(new_x, new_y)  
-    win.setAlwaysOnTop(pip_mode)
+    // normal, floating, torn-off-menu, modal-panel, main-menu, status, pop-up-menu, screen-saver
+    win.setAlwaysOnTop(pip_mode, "main-menu")
     win.setMovable(!pip_mode)
+
     win.setResizable(!pip_mode)
+    // win.setIgnoreMouseEvents(true)
     console.log("Testemnd1")
   }else{
     win.setAlwaysOnTop(pip_mode)
@@ -187,13 +190,13 @@ app.disableHardwareAcceleration();
       icon: path.join(__dirname, '../resources/icons/kawaikara.ico'),
 
       webPreferences: {
-        preload: path.join(__dirname, 'preload.js')
+        preload: path.join(__dirname, 'preload.js'),
+        backgroundThrottling :false
       }
-
 
   }
   );
-
+ 
   mainWindow.on('page-title-updated', (evt) => {
     evt.preventDefault();
   });
@@ -225,7 +228,24 @@ mainWindow.on('enter-html-full-screen', () => {
   
  
 })
-
+mainWindow.on('hide', (e) => {
+  console.log("hide")
+  // e.preventDefault();
+  
+  // mainWindow.webContents.executeJavaScript(`addEventListener${laftel.fullscreen_video.toString()})()`);
+})
+mainWindow.on('blur', (e) => {
+  console.log("blur")
+  // e.preventDefault();
+  
+  // mainWindow.webContents.executeJavaScript(`addEventListener${laftel.fullscreen_video.toString()})()`);
+})
+mainWindow.on('show', () => {
+  console.log("shoiw")
+  // e.preventDefault();
+  
+  // mainWindow.webContents.executeJavaScript(`addEventListener${laftel.fullscreen_video.toString()})()`);
+})
 mainWindow.on('enter-full-screen', () => {
   console.log("enter full screen")
   // e.preventDefault();
@@ -244,8 +264,6 @@ mainWindow.webContents.on('will-navigate', ()=>{
 };
 ipcMain.on("open-url", ()=>{console.log("open url")});
 ipcMain.on("fullscreen", ()=>{console.log("fullscreen")});
-
-
 
 
 app.whenReady().then(async () => {
