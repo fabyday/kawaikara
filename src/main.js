@@ -278,7 +278,7 @@ app.whenReady().then(async () => {
   
   
   
-  win = new BrowserWindow({x:10, y:20,width:800, height : 600, preference:{      preload: path.join(__dirname, 'preload_renderer.js')}})
+  win = new BrowserWindow({x:10, y:20,width:800, height : 600, preference:{      preload: path.join(__dirname, 'preload_video.js')}})
   win.loadFile( "src/index.html")
   
   logger.info("second app initialized...")
@@ -286,11 +286,11 @@ app.whenReady().then(async () => {
     console.log("message")
     desktopCapturer.getSources({ types: ['window', 'screen'] }).then(async sources => {
       for (const source of sources) {
-        if (source.name === 'main.js - kawaikara - Visual Studio Code') {
+        // if (source.name === 'kawaikara') {
           console.log("test")
           mainWindow.webContents.send('SET_SOURCE', source.id)
           return
-        }
+        // }
       }
     })}
   
