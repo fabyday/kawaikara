@@ -1,4 +1,4 @@
-const {app, BrowserWindow,dialog,screen,session, components, ipcMain, ipcRenderer, Menu, MenuItem} = require('electron');
+const {app,desktopCapturer, BrowserWindow,dialog,screen,session, components, ipcMain, ipcRenderer, Menu, MenuItem, BrowserView, webContents} = require('electron');
 const logger = require('electron-log')
 // * `widevinecdm.dll` on Windows.
 // app.commandLine.appendSwitch('widevine-cdm-path', 'C:\\Program Files\\Google\\Chrome\\Application\\120.0.6099.130\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll')
@@ -172,7 +172,7 @@ const menu_templete=[
 ];
 
 
-
+   
 let newMenu= Menu.buildFromTemplate(menu_templete);
 
 app.disableHardwareAcceleration();
@@ -204,9 +204,9 @@ app.disableHardwareAcceleration();
 
   updater.setProgressBar(mainWindow);
   
-  mainWindow.loadFile('./index.html');
-
+  mainWindow.loadURL('https://chzzk.naver.com/');
   mainWindow.setMenu(newMenu);
+
 
   mainWindow.on('fullscreenchange', () => {
     console.log("fullscreenchange")
@@ -228,6 +228,8 @@ mainWindow.on('enter-html-full-screen', () => {
   
  
 })
+
+
 mainWindow.on('hide', (e) => {
   console.log("hide")
   // e.preventDefault();
@@ -252,6 +254,7 @@ mainWindow.on('enter-full-screen', () => {
   
   // mainWindow.webContents.executeJavaScript(`addEventListener${laftel.fullscreen_video.toString()})()`);
 })
+
 mainWindow.webContents.on('did-finish-load', () => {
   console.log("didfin");
   // console.log(e);
@@ -265,10 +268,35 @@ mainWindow.webContents.on('will-navigate', ()=>{
 ipcMain.on("open-url", ()=>{console.log("open url")});
 ipcMain.on("fullscreen", ()=>{console.log("fullscreen")});
 
-
+var win = null;
 app.whenReady().then(async () => {
   await components.whenReady();
   console.log('components ready:', components.status());
   createWindow();
   logger.info("app initialized...")
+  console.log(mainWindow.id)
+  
+  
+  
+  win = new BrowserWindow({x:10, y:20,width:800, height : 600, preference:{      preload: path.join(__dirname, 'preload_renderer.js')}})
+  win.loadFile( "src/index.html")
+  
+  logger.info("second app initialized...")
+  const func = ()=>{
+    console.log("message")
+    desktopCapturer.getSources({ types: ['window', 'screen'] }).then(async sources => {
+      for (const source of sources) {
+        if (source.name === 'main.js - kawaikara - Visual Studio Code') {
+          console.log("test")
+          mainWindow.webContents.send('SET_SOURCE', source.id)
+          return
+        }
+      }
+    })}
+  
+  setInterval(func,1000)
+  
+
+
+
 });
