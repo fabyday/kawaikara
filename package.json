@@ -41,11 +41,15 @@
     "electron-preferences": "^2.8.2",
     "electron-updater": "^6.1.7",
     "fetch": "^1.1.0",
+<<<<<<< HEAD
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "typescript": "^5.3.3",
     "web-vitals": "^2.1.4"
+=======
+    "ffi-napi": "^4.0.3"
+>>>>>>> origin/dev
   },
   "build": {
     "files": [
