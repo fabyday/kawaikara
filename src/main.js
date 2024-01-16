@@ -174,7 +174,6 @@ const menu_templete=[
 
    
 let newMenu= Menu.buildFromTemplate(menu_templete);
-
 app.disableHardwareAcceleration();
 
  function createWindow () {
@@ -196,7 +195,20 @@ app.disableHardwareAcceleration();
 
   }
   );
- 
+
+  win = new BrowserWindow({x:10, y:20,width:800, height : 600, 
+    
+    webPreferences:{    
+    
+         preload: path.join(__dirname, 'preload_renderer.js')
+        }
+        })
+    // preload: "/Users/roh/myproject/hobby/2024/kawaikara/src/preload_renderer.js"}})
+  
+  win.loadFile( "src/index.html")
+  win.webContents.openDevTools() 
+
+mainWindow.webContents.openDevTools() 
   mainWindow.on('page-title-updated', (evt) => {
     evt.preventDefault();
   });
@@ -270,32 +282,26 @@ ipcMain.on("fullscreen", ()=>{console.log("fullscreen")});
 
 var win = null;
 app.whenReady().then(async () => {
-  await components.whenReady();
+  tet =await components.whenReady();
   console.log('components ready:', components.status());
   createWindow();
   logger.info("app initialized...")
-  console.log(mainWindow.id)
   
-  
-  
-  win = new BrowserWindow({x:10, y:20,width:800, height : 600, preference:{      preload: path.join(__dirname, 'preload_video.js')}})
-  win.loadFile( "src/index.html")
-  
+
+  console.log(__dirname)
   logger.info("second app initialized...")
   const func = ()=>{
-    console.log("message")
     desktopCapturer.getSources({ types: ['window', 'screen'] }).then(async sources => {
       for (const source of sources) {
-        // if (source.name === 'kawaikara') {
-          console.log("test")
-          mainWindow.webContents.send('SET_SOURCE', source.id)
-          return
-        // }
+        if(source.name === "친구 - Discord"){
+          console.log(source)
+            win.webContents.send('SET_SOURCE', source.id)
+            return
+        }
       }
     })}
   
-  setInterval(func,1000)
-  
+    func();
 
 
 

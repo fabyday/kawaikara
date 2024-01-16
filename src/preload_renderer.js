@@ -1,50 +1,51 @@
-const { ipcRenderer } = require('electron')
+const { ipcRenderer, contextBridge, remote} = require('electron')
+console.log('tes]\ preload')
 
-ipcRenderer.on('SET_SOURCE', async (event, sourceId,scaleFactor,size) => {
-  try {
-    console.log("ipc")
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: sourceId,
-          minWidth: 1280,
-          maxWidth: 10000,
-          minHeight: 720,
-          maxHeight: 4000
-        }
-      }
-    })
-    handleStream(stream,scaleFactor,size)
-  } catch (e) {
-    handleError(e)
+ipcRenderer.on('SET_SOURCE', async (event, sourceId) => {
+    try {
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        cursor:"none",
+        video: {
+          cursor:"none", 
+          
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            width: 800,
+            // maxWidth: 400,
+            height: 600,
+            // maxHeight : 400, 
+            cursor : false
+          }
+        },
+        cursor : false
+      })
+      console.log(stream)
+      stream.getVideoTracks()[0].getSettings().cursor = false;
+      console.log("test")
+     console.log(stream.getVideoTracks()[0].getSettings()) 
+      // console.log(navigator.mediaDevices.getSupportedConstraints())
+      window.stream = stream
+     console.log(stream.getVideoTracks()[0].getSettings().width)
+     console.log(stream.getVideoTracks()[0].getSettings().height)
+     console.log(stream.getVideoTracks())
+      handleStream(stream)
+    } catch (e) {
+      handleError(e)
+    }
+  })
+  
+  function handleStream (stream) {
+    const video = document.querySelector('video')
+    video.srcObject = stream
+    video.width = 800
+    video.height = 600
+    video.cursor = false
+    video.onloadedmetadata = (e) => video.play()
   }
-})
-
-function handleStream (stream,scaleFactor,size) {
-  const video = document.querySelector('video')
-  video.srcObject = stream
-  video.onloadedmetadata = function(e)  
-  {
-    video.play()
-    console.log('video.size',this.videoWidth,this.videoHeight)
-    var canvas = document.getElementById('screenshot-canvas')
-    canvas.width = this.videoWidth 
-    canvas.height = this.videoHeight 
-    var ctx = canvas.getContext('2d')
-    ctx.drawImage(video,0,0,canvas.width,canvas.height)
-    video.remove()
-    document.getElementById('screenshot-img').src = canvas.toDataURL("image/png")
-    document.getElementById('screenshot-img').style.display = "block"
-    console.log('screen-size,scaleFactor',size,scaleFactor)
-    console.log('screenshot-img:size:',
-    canvas.width,
-    canvas.height)
-    
+  
+  function handleError (e) {
+    console.log(e)
   }
-}
-
-function handleError (e) {
-  console.log(e)
-}
