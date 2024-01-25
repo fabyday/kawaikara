@@ -2,9 +2,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <style>
+    .video_container {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%; 
+      color:aqua;
+      overflow: hidden;
+    }
+    .video-container video {
+      /* Make video to at least 100% wide and tall */
+
+    /* Setting width & height to auto prevents the browser from stretching or squishing the video */
+  width: auto;
+  height: auto;
+ 
+    }  
+    </style>
   <title>Document</title>
 </head>
 <body>
-  <video id="video"></video>
+  <div class="video-container">
+    <video ></video>
+    </div>
 </body>
 </html>

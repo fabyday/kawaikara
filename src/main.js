@@ -6,10 +6,9 @@ const logger = require('electron-log')
 // app.commandLine.appendSwitch('widevine-cdm-version', '1.0.2738.0')
 app.commandLine.appendSwitch('auto-detect', 'false');
 app.commandLine.appendSwitch('no-proxy-server')
-
+app.commandLine.appendSwitch("enable-features", "ScreenCaptureKitMac");
 //preferences
 const preference = require('./setting/preference')
-
 
 // addblock
 const {ElectronBlocker} =  require('@cliqz/adblocker-electron');
@@ -19,6 +18,7 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 });
 
 
+var pip_window = null;
 
 const open_preference = ({}) =>{
   preference.show()
@@ -196,8 +196,12 @@ app.disableHardwareAcceleration();
   }
   );
 
-  win = new BrowserWindow({x:10, y:20,width:800, height : 600, 
-    
+  pip_window = new BrowserWindow({x:10, y:20,width:800, height : 600, 
+    alwaysOnTop : true,
+    // resizable : false,
+    titie : "pip",
+    // frame:false,
+    // show:false,
     webPreferences:{    
     
          preload: path.join(__dirname, 'preload_renderer.js')
@@ -205,9 +209,20 @@ app.disableHardwareAcceleration();
         })
     // preload: "/Users/roh/myproject/hobby/2024/kawaikara/src/preload_renderer.js"}})
   
-  win.loadFile( "src/index.html")
-  win.webContents.openDevTools() 
-
+  pip_window.loadFile( "src/index.html")
+  pip_window.webContents.openDevTools() 
+  const func = ()=>{
+    desktopCapturer.getSources({ types: ['window', 'screen'] }).then(async sources => {
+      for (const source of sources) {
+        console.log("main" , mainWindow.getMediaSourceId())
+        console.log("so : " , source.id)
+        if(source.id === mainWindow.getMediaSourceId()){
+            pip_window.webContents.send('SET_SOURCE', source.id)
+            return
+        }
+      }
+    })}
+  
 mainWindow.webContents.openDevTools() 
   mainWindow.on('page-title-updated', (evt) => {
     evt.preventDefault();
@@ -269,6 +284,7 @@ mainWindow.on('enter-full-screen', () => {
 
 mainWindow.webContents.on('did-finish-load', () => {
   console.log("didfin");
+  func();
   // console.log(e);
   // console.log(s);
 });
@@ -290,18 +306,7 @@ app.whenReady().then(async () => {
 
   console.log(__dirname)
   logger.info("second app initialized...")
-  const func = ()=>{
-    desktopCapturer.getSources({ types: ['window', 'screen'] }).then(async sources => {
-      for (const source of sources) {
-        if(source.name === "친구 - Discord"){
-          console.log(source)
-            win.webContents.send('SET_SOURCE', source.id)
-            return
-        }
-      }
-    })}
   
-    func();
 
 
 
