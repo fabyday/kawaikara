@@ -1,9 +1,15 @@
 import React, { MouseEventHandler } from 'react'
 import TextField from '@mui/material/TextField';
+type props = {
+    id: string;
+  };
 
+
+
+  
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
-function ShortcutTextField(id? : string){
+function ShortcutTextField({id}:props){
 
 
     const [ pressing, setPressing ] = React.useState(false);
@@ -34,6 +40,13 @@ function ShortcutTextField(id? : string){
         
         console.log("start")
         event.preventDefault();
+
+        if(!pressing){
+            setKey([])
+            setAccelerator([])
+        }
+
+
 // Clear the value on backspace (8) or delete (46)
         if ((event.which === 8 || event.which === 46))
             return;
@@ -91,9 +104,9 @@ function ShortcutTextField(id? : string){
 	};
     
     const handleOnclick = (e:React.MouseEvent )=>{
-        setCombined("")
-        setAccelerator([])
-        setKey([])
+        // setCombined("")
+        // setAccelerator([])
+        // setKey([])
         console.log("test")
     }
 
@@ -104,6 +117,7 @@ function ShortcutTextField(id? : string){
         onKeyUp={handleKeyUp}
         onClick={handleOnclick}
         value={combined}
+        inputProps={{ style: {textAlign: 'center', caretColor : "transparent"} }}
 
       />
     )
