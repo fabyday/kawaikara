@@ -20,9 +20,10 @@
     "electron-builder": "^24.9.1",
     "wait-on": "^7.2.0"
   },
+  "main" : "ts_build/main.js",
   "scripts": {
-    "start": "electron .",
-    "tsc": "tsc src/*.ts",
+    "start": "yarn compile && electron .",
+    "compile" : "tsc",
     "debug": "electron --inspect=8888 .",
     "build": "electron-builder build",
     "release": "electron-builder --publish always",
