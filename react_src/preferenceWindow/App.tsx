@@ -1,15 +1,12 @@
 import React from 'react'
 import TextField from '@mui/material/TextField';
-
+import GeneralPreference from './generalSetups';
 
 function App(props){
 
 
     return (
-        <TextField
-        helperText="Please enter your name"
-        id="shortcut"
-      />
+        <GeneralPreference></GeneralPreference>
     )
 }
 
