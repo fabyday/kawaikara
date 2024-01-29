@@ -29,9 +29,10 @@ function GeneralPreference({id}: props){
             <Grid item xs={6}><ShortcutTextField id="open_netflix"></ShortcutTextField></Grid>
 
             </Grid>
-            <Grid container sx={rawstack_style} spacing={12}>
+
+            <Grid container sx={rawstack_style} spacing={12} justifyContent="space-between">
             <Grid item xs={6}> <Typography >open Laftel</Typography> </Grid>
-            <Grid item xs={6}><ShortcutTextField id="open_laftel"></ShortcutTextField></Grid>
+            <Grid item  xs={6}><ShortcutTextField id="open_laftel"></ShortcutTextField></Grid>
             </Grid>
             
             <Grid container sx={rawstack_style} spacing={12}>

@@ -41,14 +41,20 @@ function GeneralPreference({id} : props){
 
             </Grid>
             </Grid>
-            
-            <Grid container  spacing={12}>
-            <Grid item xs={6}> <Typography>Render Full size when pip is running</Typography> </Grid>
-            <Grid item alignItems={"right"} xs={6}><Switch></Switch></Grid>
+            <Grid container   spacing={12}>
+            <Grid item justifyContent={"space-between"} xs={6}> <Typography>Render Full size when pip is running</Typography> </Grid>
+            <Grid item justifyContent={"space-between"} xs={6}><Switch></Switch></Grid>
             </Grid>
 
             <Grid container  spacing={12}>
             <Grid item xs={6}> <Typography>Enable AutoUpdate</Typography> </Grid>
+            <Grid item alignContent={"flex-end"} xs={6}><Switch></Switch></Grid>
+            </Grid>
+
+
+            
+            <Grid container  spacing={12}>
+            <Grid item xs={6}> <Typography>Color</Typography> </Grid>
             <Grid item alignContent={"flex-end"} xs={6}><Switch></Switch></Grid>
             </Grid>
 
