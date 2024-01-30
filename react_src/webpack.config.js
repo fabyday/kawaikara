@@ -9,10 +9,11 @@ module.exports = (env, options) => {
 
 return {
   mode : devMode ? "production" : "development",
-  entry: {app : __dirname + "/mainWindow/mainwindow.tsx", worker : __dirname + "/preferenceWindow/preference.tsx"},
+  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx"},
   output : {
     path : __dirname+"/build",
-    filename : "[name].js"
+    filename : "[name].js",
+    publicPath: '/'
   },
   resolve : {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
@@ -20,6 +21,10 @@ return {
   devServer: {
     port: 3000,
     hot: true,
+    open:true,
+
+    historyApiFallback: true,
+    host:'localhost'
   },
   module: {
     rules: [  
@@ -49,8 +54,8 @@ return {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment
                 } : false,
-                filename : "worker.html",
-                chunks : ["worker"]
+                filename : "preference.html",
+                chunks : ["preference"]
     }),
     
     new HtmlWebpackPlugin({
@@ -59,8 +64,8 @@ return {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment
                 } : false,
-                filename : "app.html",
-                chunks : ["app"]
+                filename : "main.html",
+                chunks : ["main"]
     }),
     new CleanWebpackPlugin()
 

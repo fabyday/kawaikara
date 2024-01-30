@@ -2,6 +2,7 @@ import React, { MouseEventHandler } from 'react'
 import TextField from '@mui/material/TextField';
 type props = {
     id: string;
+    shortcut_name_list : [string]
   };
 
 
@@ -9,7 +10,7 @@ type props = {
   
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
-function ShortcutTextField({id}:props){
+function ShortcutTextField({id, shortcut_name_list}:props){
 
 
     const [ pressing, setPressing ] = React.useState(false);
