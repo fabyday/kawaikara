@@ -15,7 +15,8 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
     if ( preferenceWindow === null ){
         preferenceWindow = new BrowserWindow(
             {
-            width: 600,
+            // width: 600,
+            width: 1200,
             height: 800,
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
             // resizable : false,

@@ -8,7 +8,7 @@ import { Configure } from '../../typescript_src/definitions/types';
 
 import { MemoryRouter, Routes, Route, Link} from 'react-router-dom';
 import { ipcRenderer } from 'electron';
-
+import {usePrevConfigureStore, useCurConfigureStore} from "./definition"
 const ContentComponent = styled('div')({
 //    paddingTop : "7%",
    margin : "7%"
@@ -18,20 +18,31 @@ const RootComponent =styled('div')({
     alignItems:"center",
    });
 
+
+
 function App(){
     
-    let [config, set_config] = React.useState<Configure>()
-    let [changed_config, set_changed_config] = React.useState<Configure>({})
 
+    const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
+    const copy_from = useCurConfigureStore((state)=>state.copy_from)
     useEffect(()=>{
-       
-        window.preference_api.get_data().then((res :Configure)=>{
-            set_config(res)
-        })
-    })
+
+        new_fetch(
+            async ()=>{
+                let prev = await window.preference_api.get_data()
+                copy_from(prev)
+                console.log(prev)
+                return prev
+    
+            }
+        )
+    }, [])
 
 
-    let [pref_changed, set_pref_changed] = React.useState(false)
+
+
+    
+
 
     return (
         <RootComponent>
@@ -40,12 +51,12 @@ function App(){
         
         <ContentComponent>
         <Routes>
-            <Route path="/general" element={<GeneralPreference preference_changed = {set_pref_changed} id={"general"}/>} ></Route>
-            <Route path="/shortcut" element={<ShortcutPreference preference_changed = {set_pref_changed} id={"shortcut"}></ShortcutPreference>}></Route>
+            <Route path="/general" element={<GeneralPreference  id={"general"}/>} ></Route>
+            <Route path="/shortcut" element={<ShortcutPreference id={"shortcut"}></ShortcutPreference>}></Route>
             </Routes>
         </ContentComponent>
         </MemoryRouter>
-        <Footer pref_changed = {pref_changed} pref_changed_function={set_pref_changed}></Footer>
+        <Footer/>
         </RootComponent>
     )
 }

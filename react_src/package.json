@@ -29,7 +29,8 @@
     "web-vitals": "^2.1.0",
     "webpack": "^5.90.0",
     "webpack-dev-server": "^4.15.1",
-    "webpack-merge": "^5.10.0"
+    "webpack-merge": "^5.10.0",
+    "zustand": "^4.5.0"
   },
   "scripts": {
     "web": "webpack-dev-server --mode=development --open --hot --progress",

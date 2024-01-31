@@ -49,6 +49,8 @@ const initialize = ():void=>{
     menu : undefined
   }
   global_object.mainWindow!.loadURL("https://www.youtube.com/");
+  global_object.mainWindow!.hide()
+
 }
 
 app.whenReady().then(async () => {

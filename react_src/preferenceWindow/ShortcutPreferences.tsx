@@ -7,7 +7,6 @@ import Divider from '@mui/material/Divider';
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 type props = {
     id: string;
-    preference_changed : Function;
   };
 
 
@@ -16,7 +15,7 @@ type props = {
 const rawstack_style = {
     textAlign :"center",
 };
-function ShortcutPreference({id, preference_changed }: props){
+function ShortcutPreference({id }: props){
 
 
 
