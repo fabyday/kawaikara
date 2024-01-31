@@ -1,7 +1,7 @@
 import React from 'react'
 import TextField from '@mui/material/TextField';
 import GeneralPreference from './GeneralPreferences';
-import ShortcutPreferences from "./ShortcutPreferences"
+import ShortcutPreference from "./ShortcutPreferences"
 import Footer from './Footer';
 import Header from './Header';
 import styled from '@emotion/styled';
@@ -34,7 +34,7 @@ function App(conf : Configure){
         <ContentComponent>
         <Routes>
             <Route path="/general" element={<GeneralPreference preference_changed = {set_pref_changed} id={"general"}/>} ></Route>
-            <Route path="/shortcut" element={<ShortcutPreferences preference_changed = {set_pref_changed} id={"shortcut"}></ShortcutPreferences>}></Route>
+            <Route path="/shortcut" element={<ShortcutPreference preference_changed = {set_pref_changed} id={"shortcut"}></ShortcutPreference>}></Route>
             </Routes>
         </ContentComponent>
         </MemoryRouter>

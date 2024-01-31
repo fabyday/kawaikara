@@ -1,4 +1,4 @@
-import React, { MouseEventHandler } from 'react'
+import React, { MouseEventHandler, useEffect } from 'react'
 import ShortcutTextField from './ShortcutTextfield';
 import { Button, Grid } from '@mui/material';
 import Typography from '@mui/material/Typography';
@@ -16,9 +16,17 @@ type props = {
 const rawstack_style = {
     textAlign :"center",
 };
-function GeneralPreference({id, preference_changed }: props){
+function ShortcutPreference({id, preference_changed }: props){
 
-   
+
+
+
+   useEffect(()=>{
+    
+
+
+
+   });
 
     return (
         <div>
@@ -57,4 +65,4 @@ function GeneralPreference({id, preference_changed }: props){
 }
 
 
-export default GeneralPreference;
+export default ShortcutPreference;
