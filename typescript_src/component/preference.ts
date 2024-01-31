@@ -2,6 +2,7 @@ import {BrowserWindow} from "electron"
 import * as path from 'path'
 import * as fs from 'fs'
 import { Configure } from "../definitions/types";
+import { Event } from "electron/main";
 
 
 let preferenceWindow : BrowserWindow | null   = null;
@@ -29,6 +30,10 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         );
         preferenceWindow.setMenu(null);
         preferenceWindow.loadURL("http://localhost:3000/preference.html")
+        preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
+            preferenceWindow!.webContents.send("setup-configure", conf)
+        })
+        preferenceWindow.webContents.openDevTools();
         // preferenceWindow.hide();
     }
     

@@ -7,6 +7,7 @@ import Switch from '@mui/material/Switch';
 import WindowSizeComponent from './WindowSizeComponent';
 import Box from '@mui/material/Box';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { CGeneral } from '../../typescript_src/definitions/types';
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 
@@ -14,12 +15,14 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 type props = {
     id: string;
+    preference_changed : Function;
+    Prev_GeneralPreference : CGeneral;
   };
   
-function GeneralPreference({id} : props){
-
-   
-
+function GeneralPreference({id, preference_changed , Prev_GeneralPreference} : props){
+    
+    const [pip_enable, set_pip_enable] = React.useState(false);
+    
     return (
         <Box >
         <Typography  fontSize={32}>General</Typography>
@@ -28,7 +31,11 @@ function GeneralPreference({id} : props){
             <Grid item xs={6}> <Typography>Enable PiP(Picture in Picture)</Typography> </Grid>
             <Grid item xs={6}>
                     <Box display="flex" justifyContent="center">
-                        <Switch inputProps={{}} ></Switch>
+                        <Switch checked={pip_enable} onClick={()=>{set_pip_enable(!pip_enable); 
+                        if(pip_enable === Prev_GeneralPreference.pip_mode){
+                            preference_changed(true);
+                        }
+                        }}/>
                     </Box>
                 </Grid>
             </Grid>

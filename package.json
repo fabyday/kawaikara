@@ -11,7 +11,9 @@
     "OTT-viewer",
     "Streaming-Viewer",
     "youtube-viewer",
-    "cho-kawai-viewer"
+    "cho-kawai-viewer",
+    "music-streaming",
+    "Video-viewer"
   ],
   "devDependencies": {
     "concurrently": "^8.2.2",
@@ -21,6 +23,7 @@
     "wait-on": "^7.2.0"
   },
   "scripts": {
+    "web" : "cd react_src && yarn web",
     "start": "yarn compile && electron .",
     "compile": "tsc",
     "debug": "electron --inspect=8888 .",

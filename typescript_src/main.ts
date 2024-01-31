@@ -45,9 +45,10 @@ const initialize = ():void=>{
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
     preferenceWindow : get_preference_window(config),
-    config : config
+    config : config,
+    menu : undefined
   }
-  global_object.mainWindow.loadURL("https://www.youtube.com/");
+  global_object.mainWindow!.loadURL("https://www.youtube.com/");
 }
 
 app.whenReady().then(async () => {

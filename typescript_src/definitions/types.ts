@@ -11,6 +11,7 @@ export type GlobalObject = {
 
 
 export type CWindowSize = {
+    preset_list : [[number, number]],
     width : number ,
     height : number 
 }

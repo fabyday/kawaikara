@@ -7,6 +7,7 @@ import Divider from '@mui/material/Divider';
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 type props = {
     id: string;
+    preference_changed : Function;
   };
 
 
@@ -15,14 +16,14 @@ type props = {
 const rawstack_style = {
     textAlign :"center",
 };
-function GeneralPreference({id}: props){
+function GeneralPreference({id, preference_changed }: props){
 
    
 
     return (
         <div>
         <Typography  fontWeight={"medium"} fontSize={32}>ShortCut</Typography>
-        <Button ></Button>
+        <Button onClick={()=>{preference_changed(true)}}>test</Button>
         <Grid container  sx={rawstack_style} rowGap={1} spacing={1}>
             <Grid container sx={rawstack_style} spacing={12}>
             <Grid item xs={6}> <Typography >open Netflix</Typography> </Grid>

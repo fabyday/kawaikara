@@ -17,8 +17,11 @@ const FooterComponent = styled('div')({
   });
 
 
-
-function Footer(){
+type props ={
+    pref_changed : boolean
+    pref_changed_function : Function
+}
+function Footer({pref_changed, pref_changed_function} : props){
 
 
     return (
@@ -26,8 +29,8 @@ function Footer(){
         <Grid  container justifyContent={"flex-end"} columnGap={1} columns={12}>
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
-        <Button variant="contained">ok</Button>
-        <Button variant="contained" disabled>apply</Button>
+        <Button variant="contained" onClick={()=>{}}>ok</Button>
+        <Button variant="contained" onClick={()=>{pref_changed_function(false)}} disabled={!pref_changed}>apply</Button>
         </Box>
         </Grid>
         </Grid>
