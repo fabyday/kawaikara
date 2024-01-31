@@ -23,7 +23,7 @@
     "wait-on": "^7.2.0"
   },
   "scripts": {
-    "web" : "cd react_src && yarn web",
+    "web": "cd react_src && yarn web",
     "start": "yarn compile && electron .",
     "compile": "tsc",
     "debug": "electron --inspect=8888 .",
@@ -37,6 +37,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
+    "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^16.18.70",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",

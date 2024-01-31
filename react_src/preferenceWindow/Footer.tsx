@@ -5,6 +5,7 @@ import  Grid from '@mui/material/Grid';
 
 import styled from '@emotion/styled';
 import { usePrevConfigureStore, useCurConfigureStore } from './definition';
+import isEqual from 'lodash.isequal';
 
 const FooterComponent = styled('div')({
     color: 'darkslategray',
@@ -26,13 +27,29 @@ function Footer(){
 
     let is_changed = usePrevConfigureStore((state)=>state.is_changed)
     let o = useCurConfigureStore((state)=>state)
-    let [val, val_f] = React.useState(true);
+    let [disabled, val_f] = React.useState(true);
+    const prev_state = usePrevConfigureStore((state)=>state)
+    const unsub = useCurConfigureStore.subscribe((cur_state)=>{
+        console.log(cur_state.general)
+        console.log("======!")
+        console.log(prev_state.general)
+        console.log(isEqual(prev_state, cur_state))
+        if (isEqual(prev_state.general, cur_state.general) &&
+            isEqual(prev_state.shortcut, cur_state.shortcut)
+            ){
+            val_f(true)
+            console.log(" same!")
+
+        }else{
+            val_f(false)
+            console.log("not same!")
+            
+        }
+        console.log("changed!")
+    })
+
     useEffect(
         ()=>{
-            const unsub = useCurConfigureStore.subscribe((state, cur)=>{
-                val_f(false);
-                console.log("changed!")
-            })
             return unsub
         },[]
     )
@@ -42,7 +59,7 @@ function Footer(){
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
         <Button variant="contained" onClick={()=>{}}>ok</Button>
-        <Button variant="contained" onClick={()=>{}} disabled={val}>apply</Button>
+        <Button variant="contained" onClick={()=>{}} disabled={disabled}>apply</Button>
         </Box>
         </Grid>
         </Grid>

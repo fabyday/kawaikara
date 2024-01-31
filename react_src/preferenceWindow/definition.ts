@@ -33,18 +33,3 @@ export const useCurConfigureStore = create<KawaiConf>(context)
 
 export const usePrevConfigureStore = create<KawaiConf>(context)
 
-const test = create<KawaiConf>((set, get)=>({
-
-    is_changed : (old : Configure, new_ : Configure)=> (get() !== new_),
-    fetch : async (f : Function)=>{
-        console.log("fetch!!!!")
-        const response : Configure = await f();
-        console.log(response)
-        console.log("test! end")
-        console.log("fetch!!!! end")
-        set(response)
-    },
-    copy_from : (conf : Configure)=>set(conf),
-    set_pip_mode : (t)=>{}
-})
-)
