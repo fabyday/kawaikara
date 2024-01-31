@@ -12,7 +12,8 @@ const FooterComponent = styled('div')({
     width : "100%",
     position:"fixed",
     bottom: 0,
-    left:0
+    left:0,
+    zIndex : 100,
 
   });
 

@@ -1,4 +1,4 @@
-import {BrowserWindow, ipcMain} from "electron"
+import {BrowserWindow, ipcMain, app, screen} from "electron"
 import * as path from 'path'
 import * as fs from 'fs'
 import { Configure } from "../definitions/types";
@@ -37,6 +37,9 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
 
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
+
+        
+        // conf.general?.pip_location?.preset_monitor_list =  [screen.getAllDisplays()]
         console.log(preferenceWindow.webContents.isDevToolsOpened())
         // preferenceWindow.hide();
         ipcMain.handle("get-data", ()=>conf)

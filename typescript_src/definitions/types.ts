@@ -11,13 +11,14 @@ export type GlobalObject = {
 
 
 export type CWindowSize = {
-    preset_list? : [string],
+    preset_list? : string[],
     width : number ,
     height : number 
 }
 
 export type CPiPLocation = {
-    preset_list? : [string, string],
+    preset_location_list? : string[],
+    preset_monitor_list? : string[],
     location : string ,
     monitor : number 
 }

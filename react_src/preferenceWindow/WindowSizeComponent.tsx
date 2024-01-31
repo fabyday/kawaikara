@@ -8,7 +8,7 @@ import { MenuPaper, Paper } from '@mui/material';
 import Box from "@mui/material/Box"
 type props = {
     id: string;
-    values : [string]
+    values : string[]
     make_appditional? : boolean
   };
 

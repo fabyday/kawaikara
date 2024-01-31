@@ -7,9 +7,9 @@ export const default_configure : Configure= {
 
     general : {
         pip_mode : false,
-        window_size : {preset_list : [[1920, 1080]], width : 1920, height : 1080},
-        pip_location : {location : "top-left", monitor : 0},
-        pip_window_size : {preset_list : [[1920, 1080]], width : 600, height : 400},
+        window_size : {preset_list : ["1920x1080"], width : 1920, height : 1080},
+        pip_location : {preset_monitor_list : ["1","2"], preset_location_list : ["top-left", "top-right", "bottom-left", "bottom-right", "middle", "left-center", "right-center"], location : "top-right", monitor : 0},
+        pip_window_size : {preset_list : ["1920x1080"], width : 600, height : 400},
         render_full_size_when_pip_running : false ,
         enable_autoupdate : true, 
         dark_mode : true

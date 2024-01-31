@@ -22,9 +22,7 @@ function App(){
     
     let [config, set_config] = React.useState<Configure>()
     let [changed_config, set_changed_config] = React.useState<Configure>({})
-    
 
-    let va;
     useEffect(()=>{
        
         window.preference_api.get_data().then((res :Configure)=>{
