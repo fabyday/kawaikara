@@ -9,25 +9,14 @@ module.exports = (env, options) => {
 
 return {
   mode : devMode ? "production" : "development",
-  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx"},
+  entry: {main : __dirname + "react_src/mainWindow/mainwindow.tsx", preference : __dirname + "react_src/preferenceWindow/preference.tsx"},
   output : {
-    path : __dirname+"/build",
+    path : __dirname+"/react_build",
     filename : "[name].js",
     publicPath: '/'
   },
   resolve : {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
-    fallback: {
-      fs: false,
-      tls: false,
-      net: false,
-      path: false,
-      zlib: false,
-      http: false,
-      https: false,
-      stream: false,
-      crypto: false,
-    }
   },
   devServer: {
     port: 3000,
@@ -60,7 +49,7 @@ return {
     React: "react",
 }),
     new HtmlWebpackPlugin({
-      template: './public/index.html',
+      template: './react_src/mainWindow/mainwindow.html',
                 minify: process.env.NODE_ENV === 'production' ? {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment
@@ -70,7 +59,7 @@ return {
     }),
     
     new HtmlWebpackPlugin({
-      template: './public/index.html',
+      template: './react_src/preferenceWindow/preference.html',
                 minify: process.env.NODE_ENV === 'production' ? {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment

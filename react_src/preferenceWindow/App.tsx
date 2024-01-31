@@ -1,5 +1,4 @@
-import React from 'react'
-import TextField from '@mui/material/TextField';
+import React, { useEffect } from 'react'
 import GeneralPreference from './GeneralPreferences';
 import ShortcutPreference from "./ShortcutPreferences"
 import Footer from './Footer';
@@ -8,6 +7,7 @@ import styled from '@emotion/styled';
 import { Configure } from '../../typescript_src/definitions/types';
 
 import { MemoryRouter, Routes, Route, Link} from 'react-router-dom';
+import { ipcRenderer } from 'electron';
 
 const ContentComponent = styled('div')({
 //    paddingTop : "7%",
@@ -18,11 +18,20 @@ const RootComponent =styled('div')({
     alignItems:"center",
    });
 
-function App(conf : Configure){
-    // React.useEffect(()=>{
-    //     window.preference_api.save_and_close();
-    //     window.preference_api.apply_changed_preference();
-    // });
+function App(){
+    
+    let [config, set_config] = React.useState<Configure>()
+    let [changed_config, set_changed_config] = React.useState<Configure>({})
+    
+
+    let va;
+    useEffect(()=>{
+       
+        window.preference_api.get_data().then((res :Configure)=>{
+            set_config(res)
+        })
+    })
+
 
     let [pref_changed, set_pref_changed] = React.useState(false)
 

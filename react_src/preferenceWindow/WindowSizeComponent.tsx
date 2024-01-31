@@ -17,7 +17,7 @@ function WindowSizeComponent({id, values, make_appditional} : props){
 
     let flag = make_appditional === true ? true : false
     const builder =  ()=>{
-
+        
         return ( <Grid container direction="column">
                 <Grid item>
                     <FormControl >
@@ -27,10 +27,13 @@ function WindowSizeComponent({id, values, make_appditional} : props){
                         value={"age"}
                         label="Age"
                         style={{minWidth : "200px"}}
-                        onChange={()=>{}}
-                        
-                        >
-                        <MenuItem value={7}>2560x1440</MenuItem>
+                        onChange={()=>{}}>
+                        {
+                            
+                        <MenuItem value={7}>values[0]</MenuItem>
+
+                            
+                        }
                         <MenuItem value={6}>2460x1080</MenuItem>
                         <MenuItem value={5}>1920x1080</MenuItem>
                         <MenuItem value={4}>1280x720</MenuItem>

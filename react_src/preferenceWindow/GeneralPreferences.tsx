@@ -7,7 +7,7 @@ import Switch from '@mui/material/Switch';
 import WindowSizeComponent from './WindowSizeComponent';
 import Box from '@mui/material/Box';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
-import { CGeneral } from '../../typescript_src/definitions/types';
+import { CGeneral, Configure } from '../../typescript_src/definitions/types';
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 
@@ -16,11 +16,13 @@ import { CGeneral } from '../../typescript_src/definitions/types';
 type props = {
     id: string;
     preference_changed : Function;
-    Prev_GeneralPreference : CGeneral;
+    loaded_config : Configure;
+    generate_config : Configure;
+    set_generate_config : Function;
   };
   
-function GeneralPreference({id, preference_changed , Prev_GeneralPreference} : props){
-    
+function GeneralPreference({id, preference_changed , loaded_config, generate_config, set_generate_config} : props){
+
     const [pip_enable, set_pip_enable] = React.useState(false);
     
     return (
@@ -31,8 +33,8 @@ function GeneralPreference({id, preference_changed , Prev_GeneralPreference} : p
             <Grid item xs={6}> <Typography>Enable PiP(Picture in Picture)</Typography> </Grid>
             <Grid item xs={6}>
                     <Box display="flex" justifyContent="center">
-                        <Switch checked={pip_enable} onClick={()=>{set_pip_enable(!pip_enable); 
-                        if(pip_enable === Prev_GeneralPreference.pip_mode){
+                        <Switch checked={loaded_config.general?.pip_mode} onClick={()=>{
+                        if(pip_enable === loaded_config.general!.pip_mode){
                             preference_changed(true);
                         }
                         }}/>
@@ -44,7 +46,7 @@ function GeneralPreference({id, preference_changed , Prev_GeneralPreference} : p
             <Grid item xs={6}> <Typography>PiP default location</Typography> </Grid>
             <Grid item xs={6}>
                     <Box display="flex" justifyContent="center">
-                    <WindowSizeComponent id = {"pip_window_size"} values = {["1920x1080"]} />
+                    <WindowSizeComponent id = {"pip_window_size"} values = {[...(loaded_config.general!.pip_window_size!.preset_list!), "custom"]} />
                     </Box>
                     <Box display="flex" justifyContent="center">
                     <WindowSizeComponent id = {"pip_window_size"} values = {["1920x1080"]} />

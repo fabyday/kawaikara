@@ -1,4 +1,4 @@
-import {BrowserWindow} from "electron"
+import {BrowserWindow, ipcMain} from "electron"
 import * as path from 'path'
 import * as fs from 'fs'
 import { Configure } from "../definitions/types";
@@ -18,23 +18,28 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
             width: 600,
             height: 800,
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
-            resizable : false,
+            // resizable : false,
             
             webPreferences: {
-              preload: path.join(__dirname, 'predefine/preference_predef.ts'),
+                contextIsolation: true,
+              preload: path.join(__dirname, 'predefine/preference_predef.js'),
               backgroundThrottling : !conf.general!.render_full_size_when_pip_running
             }
       
                 
         }
         );
+
         preferenceWindow.setMenu(null);
         preferenceWindow.loadURL("http://localhost:3000/preference.html")
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
+            preferenceWindow!.webContents.openDevTools();
+
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
-        preferenceWindow.webContents.openDevTools();
+        console.log(preferenceWindow.webContents.isDevToolsOpened())
         // preferenceWindow.hide();
+        ipcMain.handle("get-data", ()=>conf)
     }
     
     return preferenceWindow;
