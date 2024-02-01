@@ -1,8 +1,9 @@
-import React, { MouseEventHandler } from 'react'
+import React, { MouseEventHandler, useEffect } from 'react'
 import TextField from '@mui/material/TextField';
 type props = {
     id: string;
-    shortcut_name_list : [string]
+    get_shortcut_f : Function;
+    set_shortcut_f : Function
   };
 
 
@@ -10,18 +11,18 @@ type props = {
   
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
-function ShortcutTextField({id, shortcut_name_list}:props){
+function ShortcutTextField({id,get_shortcut_f, set_shortcut_f}:props){
 
 
     const [ pressing, setPressing ] = React.useState(false);
 	const [ accelerator , setAccelerator ] = React.useState<string[]>([]);
 	const [ key, setKey ] = React.useState<string[]>([]);
 
-    const [combined, setCombined] = React.useState<string>();
+    const [combined, setCombined] = React.useState<string>(get_shortcut_f());
     const modifierKeyCodes = new Set([ 16, 17, 18, 91, 92, 93 ]);
 	const specialKeyCodes = new Set([ 0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 91, 92, 93, 94, 95 ]);
 
-
+    
     
     let altKeyName = 'Alt';
     let metaKeyName = 'Meta';
@@ -117,6 +118,10 @@ function ShortcutTextField({id, shortcut_name_list}:props){
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onClick={handleOnclick}
+        onBlur={(e)=>{
+            console.log("valuevaluevaluevaluevalue", e.target.value    )
+            set_shortcut_f(e.target.value)
+        }}
         value={combined}
         inputProps={{ style: {textAlign: 'center', caretColor : "transparent"} }}
 

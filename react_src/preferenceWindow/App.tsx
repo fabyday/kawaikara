@@ -51,8 +51,8 @@ function App(){
         
         <ContentComponent>
         <Routes>
-            <Route path="/general" element={<GeneralPreference  id={"general"}/>} ></Route>
-            <Route path="/shortcut" element={<ShortcutPreference id={"shortcut"}></ShortcutPreference>}></Route>
+            <Route path="/general" element={<GeneralPreference/>} ></Route>
+            <Route path="/shortcut" element={<ShortcutPreference ></ShortcutPreference>}></Route>
             </Routes>
         </ContentComponent>
         </MemoryRouter>

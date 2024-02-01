@@ -15,11 +15,9 @@ import { CGeneral, Configure } from '../../typescript_src/definitions/types';
 import KawaiSwitch from './Switch';
 import KawaiAutoCompleteSelector from "./AutoCompleteSelector"
 import { useCurConfigureStore } from './definition';
-type props = {
-    id: string;
-  };
+
   
-function GeneralPreference({id} : props){
+function GeneralPreference(){
 
     const [pip_mode, setPiPmode] = useCurConfigureStore((state)=>[state.general?.pip_mode, state.set_pip_mode])
     return (

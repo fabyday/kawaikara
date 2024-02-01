@@ -2,11 +2,11 @@
     "shortcuts": {
         "name": "Control+A",
         "name2": "Control+B",
-        "Apple_Music": "P",
+        "Apple_Music": "Control+A",
         "laftel_shortcut": "Control+A",
         "netflix_shortcut": "Control+S",
         "disney_shortcut": "Control+D",
-        "twitch": "Control+A",
+        "twitch": "Control+T",
         "apple_music_shortcut": "Control+B",
         "PiP_shortcut": "Control+C"
     },

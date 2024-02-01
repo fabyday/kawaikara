@@ -1,8 +1,9 @@
 import React, { MouseEventHandler, useEffect } from 'react'
 import ShortcutTextField from './ShortcutTextfield';
-import { Button, Grid } from '@mui/material';
+import { Box, Button, Grid } from '@mui/material';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
+import { useCurConfigureStore } from './definition';
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 type props = {
@@ -15,51 +16,31 @@ type props = {
 const rawstack_style = {
     textAlign :"center",
 };
-function ShortcutPreference({id }: props){
+function ShortcutPreference(){
 
+    const shortcut_state = useCurConfigureStore(state => state.shortcut)
+    let setup_f = useCurConfigureStore(state=>state.set_item)
 
-
-
-   useEffect(()=>{
+    let keys :string[] = Object.keys(shortcut_state);
     
 
-
-
-   });
-
     return (
-        <div>
+        <Box>
         <Typography  fontWeight={"medium"} fontSize={32}>ShortCut</Typography>
-        <Button onClick={()=>{preference_changed(true)}}>test</Button>
-        <Grid container  sx={rawstack_style} rowGap={1} spacing={1}>
-            <Grid container sx={rawstack_style} spacing={12}>
-            <Grid item xs={6}> <Typography >open Netflix</Typography> </Grid>
-            <Grid item xs={6}><ShortcutTextField id="open_netflix"></ShortcutTextField></Grid>
-
-            </Grid>
-
-            <Grid container sx={rawstack_style} spacing={12} justifyContent="space-between">
-            <Grid item xs={6}> <Typography >open Laftel</Typography> </Grid>
-            <Grid item  xs={6}><ShortcutTextField id="open_laftel"></ShortcutTextField></Grid>
-            </Grid>
+       
+        {
+            keys.map((id)=>{
+                return (<Grid container  sx={rawstack_style} rowGap={1} spacing={1}>
+                    <Grid container sx={rawstack_style} spacing={12}> </Grid>
+                    <Grid item xs={6}> <Typography >{id}</Typography> </Grid>
+                    <Grid item xs={6}><ShortcutTextField id={id} set_shortcut_f={(e)=>{setup_f("shortcut."+id, e)}} get_shortcut_f={()=>shortcut_state![id]}></ShortcutTextField></Grid>
+                </Grid>)
             
-            <Grid container sx={rawstack_style} spacing={12}>
-            <Grid item xs={6}> <Typography>open Youtube</Typography> </Grid>
-            <Grid item xs={6}><ShortcutTextField id="open_youtube"></ShortcutTextField></Grid>
-            </Grid>
-            
-            <Grid container sx={rawstack_style} spacing={12}>
-            <Grid item xs={6}> <Typography >open Disney</Typography> </Grid>
-            <Grid item xs={6}><ShortcutTextField id="open_disney"></ShortcutTextField></Grid>
-            </Grid>
-
-            <Grid container sx={rawstack_style} spacing={12}>
-            <Grid item xs={6}> <Typography >open AmazonPrime</Typography> </Grid>
-            <Grid item xs={6}><ShortcutTextField id="open_amazonprime"></ShortcutTextField></Grid>
-            </Grid>
-
-        </Grid>
-        </div>
+            })
+        }
+        
+           
+        </Box>
     )
 }
 

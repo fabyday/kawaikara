@@ -30,9 +30,12 @@ function Footer(){
     let [disabled, val_f] = React.useState(true);
     const prev_state = usePrevConfigureStore((state)=>state)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
-        console.log(cur_state.general)
         console.log("======!")
+        console.log(cur_state.general)
         console.log(prev_state.general)
+        console.log("======!")
+        console.log(cur_state.shortcut)
+        console.log(prev_state.shortcut)
         console.log(isEqual(prev_state, cur_state))
         if (isEqual(prev_state.general, cur_state.general) &&
             isEqual(prev_state.shortcut, cur_state.shortcut)

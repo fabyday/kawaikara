@@ -8,47 +8,54 @@ export type GlobalObject = {
     menu? : Object
 }
 
+export type CItem<T> = {
+    id : string;
+    name? : string;
+    item : T;
+}
 
 
 export type CWindowSize = {
-    preset_list? : string[],
-    width : number ,
-    height : number 
+    preset_list? : CItem<string[]>,
+    width : CItem<number> ,
+    height : CItem<number>
 }
 
 export type CPiPLocation = {
-    preset_location_list? : string[],
-    preset_monitor_list? : string[],
-    location : string ,
-    monitor : number 
+    preset_location_list? : CItem<string[]>,
+    preset_monitor_list? : CItem<string[]>,
+    location : CItem<string> ,
+    monitor : CItem<number> 
 }
 export type CGeneral = {
-    default_site? : string,
-    pip_mode? : boolean, 
-    window_size? : CWindowSize,
-    pip_window_size? : CWindowSize,
-    pip_location? : CPiPLocation,
-    render_full_size_when_pip_running? : boolean ,
-    enable_autoupdate? : boolean, 
-    dark_mode? : boolean
+    default_site? : CItem<string>,
+    pip_mode? : CItem<boolean>, 
+    window_size? : CItem<CWindowSize>,
+    pip_window_size? : CItem<CWindowSize>,
+    pip_location? : CItem<CPiPLocation>,
+    render_full_size_when_pip_running? : CItem<boolean> ,
+    enable_autoupdate? : CItem<boolean>, 
+    dark_mode? : CItem<boolean>
 }
 
+
+
 export type CShortcut = {
-    goto_netflix? : string,
-    goto_laftel? : string,
-    goto_youtube? : string,
-    goto_disney? : string,
-    goto_amazonprime? : string,
-    goto_applemusic? : string,
-    goto_main? : string,
-    run_pip? : string
+    goto_netflix? : CItem<string>,
+    goto_laftel? : CItem<string>,
+    goto_youtube? : CItem<string>,
+    goto_disney? : CItem<string>,
+    goto_amazonprime? : CItem<string>,
+    goto_applemusic? : CItem<string>,
+    goto_main? : CItem<string>,
+    run_pip? : CItem<string>
 }
 
 
 
 export type Configure = {
-    general? : CGeneral,
-    shortcut?: CShortcut
+    general? : CItem<CGeneral>,
+    shortcut?: CItem<CShortcut>
 }
 
 
