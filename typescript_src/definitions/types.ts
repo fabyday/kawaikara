@@ -15,6 +15,13 @@ export type CItem<T> = {
 }
 
 
+export enum Locale{
+    KR = "KR",
+    EN = "EN"
+}
+
+
+
 export type CWindowSize = {
     preset_list? : CItem<string[]>,
     width : CItem<number> ,

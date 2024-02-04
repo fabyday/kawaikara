@@ -22,15 +22,15 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
 
         mainView = new BrowserWindow(
             {
-                width: conf.general!.window_size!.width,
-                height: conf.general!.window_size!.height,
+                width: conf.general!.item.window_size!.item.width.item,
+                height: conf.general!.item.window_size!.item.height.item,
                 
                 autoHideMenuBar : true,
                 icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
           
                 webPreferences: {
                   preload: path.join(__dirname, 'predefine/mainview_predef.ts'),
-                  backgroundThrottling : !conf.general!.render_full_size_when_pip_running
+                  backgroundThrottling : !conf.general!.item.render_full_size_when_pip_running?.item
                 }
           
             }

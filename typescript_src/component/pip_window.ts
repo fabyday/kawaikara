@@ -15,8 +15,8 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
     if ( pipWindow === null ){
         pipWindow = new BrowserWindow(
             {
-                width: conf.general!.pip_window_size!.width,
-                height: conf.general!.pip_window_size!.height,
+                width: conf.general!.item!.pip_window_size!.item!.width.item,
+                height: conf.general!.item.pip_window_size!.item.height.item,
                 frame : false
             }
         );
@@ -25,7 +25,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
 
     pipWindow.loadURL("http://youtube.com")
     
-conf.general?.pip_location?.location
+conf.general?.item.pip_location?.item.location.item
 const winBounds = pipWindow.getBounds();
 const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
 
