@@ -19,7 +19,7 @@ let mainView : BrowserWindow | null   = null;
 export const get_instance = (conf : Configure):BrowserWindow =>{
     
     if ( mainView === null ){
-
+      console.log("conf.general!.item.window_size!.item.width.item," , conf.general)
         mainView = new BrowserWindow(
             {
                 width: conf.general!.item.window_size!.item.width.item,

@@ -4,6 +4,8 @@ type Cateogry = {
 
 }
 type Service = {
+    id : string,
+    name : string,
     category : string , 
     link : string
 }
@@ -13,6 +15,7 @@ export const OTT_Category_data = {
     netfilx : {category : "OTT", link: "https://netflix.com/" },
     laftel : {category : "OTT", link: "https://laftel.net/" },
     disney : {category : "OTT", link: "https://www.disneyplus.com/" },
+
 }
 export const Streaming_Category_data = {
     youtube : {category : "Streaming", link: "https://www.youtube.com/" },

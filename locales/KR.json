@@ -1,49 +1,156 @@
 {
-    "name" : "한국어",
+    "id" : "locales",
+    "name" : "KR",
     "locale" : "KR",
-    "general" :{
-        "id": "general",
-        "item" :{
-            "pip_mode" :  {"name" : "PiP 모드"},
-            "window_size" : { 
-                             "name" : "윈도우 사이즈" ,
-                            "preset_list" : {"name" : "프리셋 리스트"}, 
-                            "width" : { "name" :"너비"}, 
-                            "height" : { "name" :"높이"} 
-                            }
+    "item" : [
+        {
+            "id" : "general", 
+            "name" : "일반",
+            "item" : [
+                {
+                    "id" : "default_main",
+                    "name" : "기본 사이트"
+                },
+                {
+                    "id" : "pip_mode",
+                    "name" : "PIP 모드"
+                },
+                {
+                    "id" : "window_size",
+                    "name" : "윈도우 사이즈",
+                    "item" : [
+                        {
+                            "id" : "preset_list",
+                            "name" : "프리셋"
                         },
-            "pip_location" : { "name" : "pip_location", "item" : {
-                                                            "preset_monitor_list" :  { id : "preset_monitor_list", item  : ["1","2"] }, 
-                                                            "preset_location_list" : { id : "preset_location_list", item : ["top-left", "top-right", "bottom-left", "bottom-right", "middle", "left-center", "right-center"]}, 
-                                                            "location" :{"name" : "위치", item : "top-right"},
-                                                            "monitor" :{"name" : "모니터", item : 0},
-                                                        }
-            },
-            "pip_window_size" : {"name" : "PiP 윈도우 사이즈", 
-                "item" : {
-                    "preset_list" : { "name" : "프리셋 리스트", "width": {"name" : "너비", item : 600}, height : {id : "height", item : 400}
-                    }
-            },
-            "render_full_size_when_pip_running" : {"name" : "render_full_size_when_pip_running", item : false} ,
-            "enable_autoupdate" : {"name" : "enable_autoupdate", item : true}, 
-            "dark_mode" : {"name" : "dark_mode", item : false}    
-        } 
-        
-    },
-
-
-    "shortcut":{
-        "name" : "단축키",
-        "item" :  {
-            
-            "goto_netflix" : { "name" : "넷플릭스" },
-            "goto_laftel" : {"name" : "라프텔"},
-            "goto_youtube" : {"name" : "유튜브"},
-            "goto_disney" : {"name" : "디즈니 플러스"},
-            "goto_amazonprime" : {"name" : "아마존 프라임"},
-            "goto_applemusic" : {"name" : "애플뮤직"},
-            "goto_main" : {"name" : "홈으로 가기"},
-            "run_pip" : {"name" : "PiP Mode 전환"}
+                        {
+                            "id": "width",
+                            "name" : "너비"
+                        },
+                        {
+                            "id": "height",
+                            "name" : "높이"
+                        }
+                    ]
+                },
+                {
+                    "id" : "pip_location",
+                    "name" : "",
+                    "item" : [
+                        { 
+                            "id" : "preset_monitor_list", 
+                            "name" : "모니터 프리셋"
+                        },
+                        { 
+                            "id" : "preset_location_list", 
+                            "name" : "위치 프리셋"
+                        },
+                        { 
+                            "id" : "location", 
+                            "name" : "위치"
+                        },
+                        { 
+                            "id" : "monitor", 
+                            "name" : "모니터"
+                        }
+                    ]
+                },
+                {
+                    "id" : "pip_window_size",
+                    "name" : "",
+                    "item" : [
+                        {
+                            "id" : "preset_list", 
+                            "name" : "프리셋"
+                        }, 
+                        {
+                            "id" : "width", 
+                            "name" :  "너비"
+                        }, 
+                        {
+                            "id" : "height", 
+                            "name":"높이" 
+                        }
+                    ]
+                },
+                {
+                    "id" : "render_full_size_when_pip_running",
+                    "name" : "PiP시 풀사이즈 렌더링"
+                },
+                {
+                    "id" : "enable_autoupdate",
+                    "name" : "자동 업데이트"
+                },
+                {
+                    "id" : "dark_mode",
+                    "name" : "다크모드"
+                }
+            ]
+        },
+        {
+            "id" : "shortcut",
+            "name" : "",
+            "item" : [
+                {
+                    "id" : "goto_netflix",
+                    "name" : "넷플릭스"
+                },
+                {
+                    "id" : "goto_laftel",
+                    "name" : "라프텔"
+                },
+                {
+                    "id" : "goto_youtubue",
+                    "name" : "유튜브" 
+                },
+                {
+                    "id" : "goto_disney",
+                    "name" : "디즈니"
+                },
+                {
+                    "id" : "goto_amazonprime",
+                    "name" : "아마존프라임"
+                },
+                {
+                    "id" : "goto_applemusic",
+                    "name" : "애플뮤직"
+                },
+                {
+                    "id" : "goto_chzzk",
+                    "name" : "치지직"
+                },
+                {
+                    "id" : "goto_wavve",
+                    "name" : "웨이브"
+                },
+                {
+                    "id" : "goto_watcha",
+                    "name" : "왓차" 
+                },
+                {
+                    "id" : "coupangplay",
+                    "name" : "쿠팡플레이" 
+                },
+                {
+                    "id" : "goto_tving",
+                    "name" : "티빙"
+                },
+                {
+                    "id" : "goto_twitch",
+                    "name" : "트위치"
+                },
+                {
+                    "id" : "goto_main",
+                    "name" : "메인 페이지"
+                },
+                {
+                    "id" : "run_pip",
+                    "name" : "PiP"
+                }
+            ]
         }
-    }
+    ]
+    
 }
+
+

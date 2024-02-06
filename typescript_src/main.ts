@@ -24,6 +24,7 @@ let global_object : GlobalObject | null;
 
 function read_configure(){
   let jsonData : Configure;
+  console.log(app.getPath("appData"))
   try {
     let rawData = fs.readFileSync(path.join(app.getPath("appData"), config_name), 'utf8');
     jsonData = JSON.parse(rawData);
