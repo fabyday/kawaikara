@@ -59,28 +59,20 @@ function apply_locale_from_file(conf : Configure, file_path:string){
         return jsonData
       }
       
-
     let locale_json_root : LocaleRoot = read_locale_conf();
     if (typeof locale_json_root !== "undefined"){
-        console.log("start locale")
         let current_key_list = [conf.id]
         while(true){
             // combineKey
             let key : undefined| string = current_key_list.pop()
-            console.log("current_key_list" ,key)
             if(typeof key === "undefined")
-            break;
-        
+                break;
             
             let prop = getProperty(conf, key)
             let locale_prop = getLocaleProps(locale_json_root, key)
             if(typeof prop!== "undefined"){
-                console.log("prop" ,prop.id)
                 if(typeof locale_prop !== "undefined"){
-
                     prop.name = locale_prop.name
-                    console.log("prop" ,prop.name)
-                    console.log("prop L" ,locale_prop.name)
                 }
             
                 if(isCItem(prop.item) ){
@@ -95,11 +87,7 @@ function apply_locale_from_file(conf : Configure, file_path:string){
                 }
 
             }
-            
-
         }
-        console.log("conf conf", conf)
-        
     }
     
     return conf;

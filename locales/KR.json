@@ -1,57 +1,57 @@
 {
     "id" : "configure",
-    "name" : "¼³Á¤",
+    "name" : "ì„¸íŒ…",
     "locale" : "KR",
     "item" : [
         {
             "id" : "general", 
-            "name" : "ÀÏ¹İ",
+            "name" : "ì¼ë°˜",
             "item" : [
                 {
                     "id" : "default_main",
-                    "name" : "±âº» »çÀÌÆ®"
+                    "name" : "ê¸°ë³¸ ë©”ì¸ í˜ì´ì§€"
                 },
                 {
                     "id" : "pip_mode",
-                    "name" : "PIP ¸ğµå"
+                    "name" : "PIP ëª¨ë“œ"
                 },
                 {
                     "id" : "window_size",
-                    "name" : "À©µµ¿ì »çÀÌÁî",
+                    "name" : "ìœˆë„ìš° ì‚¬ì´ì¦ˆ",
                     "item" : [
                         {
                             "id" : "preset_list",
-                            "name" : "ÇÁ¸®¼Â"
+                            "name" : "ìœˆë„ìš° í”„ë¦¬ì…‹ ë¦¬ìŠ¤íŠ¸"
                         },
                         {
                             "id": "width",
-                            "name" : "³Êºñ"
+                            "name" : "ë„ˆë¹„"
                         },
                         {
                             "id": "height",
-                            "name" : "³ôÀÌ"
+                            "name" : "ë†’ì´"
                         }
                     ]
                 },
                 {
                     "id" : "pip_location",
-                    "name" : "",
+                    "name" : "PiP ìœ„ì¹˜",
                     "item" : [
                         { 
                             "id" : "preset_monitor_list", 
-                            "name" : "¸ğ´ÏÅÍ ÇÁ¸®¼Â"
+                            "name" : "ëª¨ë‹ˆí„° í”„ë¦¬ì…‹"
                         },
                         { 
                             "id" : "preset_location_list", 
-                            "name" : "À§Ä¡ ÇÁ¸®¼Â"
+                            "name" : "ìœ„ì¹˜ í”„ë¦¬ì…‹"
                         },
                         { 
                             "id" : "location", 
-                            "name" : "À§Ä¡"
+                            "name" : "ìœ„ì¹˜"
                         },
                         { 
                             "id" : "monitor", 
-                            "name" : "¸ğ´ÏÅÍ"
+                            "name" : "ëª¨ë‹ˆí„°"
                         }
                     ]
                 },
@@ -61,91 +61,91 @@
                     "item" : [
                         {
                             "id" : "preset_list", 
-                            "name" : "ÇÁ¸®¼Â"
+                            "name" : "PiP ìœ„ì¹˜ í”„ë¦¬ì…‹"
                         }, 
                         {
                             "id" : "width", 
-                            "name" :  "³Êºñ"
+                            "name" :  "ë„ˆë¹„"
                         }, 
                         {
                             "id" : "height", 
-                            "name":"³ôÀÌ" 
+                            "name":"ë†’ì´" 
                         }
                     ]
                 },
                 {
                     "id" : "render_full_size_when_pip_running",
-                    "name" : "PiP½Ã Ç®»çÀÌÁî ·»´õ¸µ"
+                    "name" : "PiP ì‹œ ë Œë”ë§ ì‚¬ì´ì¦ˆ ìœ ì§€"
                 },
                 {
                     "id" : "enable_autoupdate",
-                    "name" : "ÀÚµ¿ ¾÷µ¥ÀÌÆ®"
+                    "name" : "ìë™ ì—…ë°ì´íŠ¸"
                 },
                 {
                     "id" : "dark_mode",
-                    "name" : "´ÙÅ©¸ğµå"
+                    "name" : "ë‹¤í¬ ëª¨ë“œ"
                 }
             ]
         },
         {
             "id" : "shortcut",
-            "name" : "",
+            "name" : "ë‹¨ì¶•í‚¤",
             "item" : [
                 {
                     "id" : "goto_netflix",
-                    "name" : "³İÇÃ¸¯½º"
+                    "name" : "ë„·í”Œë¦­ìŠ¤ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_laftel",
-                    "name" : "¶óÇÁÅÚ"
+                    "name" : "ë¼í”„í…” ì—´ê¸°"
                 },
                 {
                     "id" : "goto_youtubue",
-                    "name" : "À¯Æ©ºê" 
+                    "name" : "ìœ íŠœë¸Œ ì—´ê¸°" 
                 },
                 {
                     "id" : "goto_disney",
-                    "name" : "µğÁî´Ï"
+                    "name" : "ë””ì¦ˆë‹ˆí”ŒëŸ¬ìŠ¤ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_amazonprime",
-                    "name" : "¾Æ¸¶Á¸ÇÁ¶óÀÓ"
+                    "name" : "ì•„ë§ˆì¡´í”„ë¼ì„ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_applemusic",
-                    "name" : "¾ÖÇÃ¹ÂÁ÷"
+                    "name" : "ì• í”Œë®¤ì§ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_chzzk",
-                    "name" : "Ä¡ÁöÁ÷"
+                    "name" : "ì¹˜ì§€ì§ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_wavve",
-                    "name" : "¿şÀÌºê"
+                    "name" : "ì›¨ì´ë¸Œ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_watcha",
-                    "name" : "¿ÓÂ÷" 
+                    "name" : "ì™“ì°¨ ì—´ê¸°" 
                 },
                 {
                     "id" : "coupangplay",
-                    "name" : "ÄíÆÎÇÃ·¹ÀÌ" 
+                    "name" : "ì¿ íŒ¡ í”Œë ˆì´ ì—´ê¸°" 
                 },
                 {
                     "id" : "goto_tving",
-                    "name" : "Æ¼ºù"
+                    "name" : "í‹°ë¹™ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_twitch",
-                    "name" : "Æ®À§Ä¡"
+                    "name" : "íŠ¸ìœ„ì¹˜ ì—´ê¸°"
                 },
                 {
                     "id" : "goto_main",
-                    "name" : "¸ŞÀÎ ÆäÀÌÁö"
+                    "name" : "ë©”ì¸í˜ì´ì§€ ì—´ê¸°"
                 },
                 {
                     "id" : "run_pip",
-                    "name" : "PiP"
+                    "name" : "PiP ì‹¤í–‰"
                 }
             ]
         }

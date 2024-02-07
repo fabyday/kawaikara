@@ -7,11 +7,20 @@ export type GlobalObject = {
     config? : Configure
     menu? : Object
 }
-type ItemType = CItem | CItem[] | number | boolean | string[] | string;
+export type ItemType = CItem | CItem[] | number | boolean | string[] | string;
 
+enum item_meta{
+    bool  = "boolean",
+    CItem  = "CItem",
+    CItemList  = "CItemList",
+    number = "number",
+    stringList = "StringLIst",
+    string = "string",
+}
+
+// item_meta : item_meta
 export type CItem = {
     [key: string]:  ItemType,
-
     id : string;
     name : string;
     item : ItemType;
@@ -20,20 +29,34 @@ export enum Locale{
     KR = "KR",
     EN = "EN"
 }
+
 export type LocaleItemType = LocaleItem | LocaleItem [] | LocaleItem| string 
 
+export type LocaleRoot = {
+    [key: string]: LocaleItemType
+    id : string,
+    name : string, 
+    locale: string
+    item : LocaleItem | LocaleItem[]
+}
+export type LocaleItem = {
+    id:string,
+    name : string,
+    item? : LocaleItem | LocaleItem[]
+}
+
 export function isLocale(obj : any) : obj is LocaleItem{
-    return (obj as LocaleItem).name !== "undefined" && (obj as LocaleItem).id !== "undefined"
+    return (obj as LocaleItem).name !== undefined && (obj as LocaleItem).id !== undefined
 }
 
 export function isLocaleRoot(obj : any) : obj is LocaleRoot{
-    return (obj as LocaleRoot).locale !== "undefined"
+    return (obj as LocaleRoot).locale !== undefined 
 }
 export function isLocaleList(obj : any) : obj is LocaleItem[]{
+    
     return Array.isArray(obj) && obj.every(it => isLocale((it) ))
 }
 export function getLocaleProps(obj : LocaleRoot | LocaleItem | LocaleItem[], id : string[] | string) : LocaleRoot | LocaleItem | undefined{
-    console.log("locale id : " , id)
     let id_list : string[]
     if(typeof id === "string"){
         id_list = id.split(".")
@@ -52,38 +75,36 @@ export function getLocaleProps(obj : LocaleRoot | LocaleItem | LocaleItem[], id 
     }else{
         return undefined;
     }
-    console.log("key", key)
+    
+    
     let next_id_length = next_id.length
     if(isLocaleRoot(obj)){
         if(key === obj.id){
             if(next_id_length === 0){
-                console.log("locale root return")
                 return obj
             }
             else{
-                console.log("find from locale root items")
                 return getLocaleProps(obj.item, next_id)
             }
         }
 
-    }else if(isLocale(obj)){
+    }
+    else if(isLocale(obj)){
+
         if(key === obj.id){
             if(next_id_length === 0){
-                console.log("return Locale", obj.id)
                 return obj 
             }
             else{
-                console.log("check available locale item or list", obj.id)
                 if(isLocale(obj.item) || isLocaleList(obj.item)){
-                    console.log("searching locale item or list", obj.id)
                     return getLocaleProps(obj.item, next_id)
                 }
             }
         }
 
-    }else if(isLocaleList(obj)){
+    }
+    else if(isLocaleList(obj)){
         let q : undefined | LocaleItem
-        console.log("check locale list")
         for(let t of obj){
             if(t.id === key){
                 q = t;
@@ -92,40 +113,22 @@ export function getLocaleProps(obj : LocaleRoot | LocaleItem | LocaleItem[], id 
         }
         
         if (typeof q === "undefined"){
-            console.log("fund q but undeinfed")
             return undefined
         }
-        console.log("find q", q.id)
         
         if(next_id_length === 0){
-            console.log("return it q", q.id)
             return q;
         }else{
-            console.log("try to find inner item")
             if(isLocale(q.item) || isLocaleList(q.item)){
-                console.log("going in")
                 return getLocaleProps(q.item, next_id);
             }
         }
     }
-    console.log("im gone")
-
+    
     return undefined
 }
 
 
-export type LocaleRoot = {
-    [key: string]: LocaleItemType
-    id : string,
-    name : string, 
-    locale: string
-    item : LocaleItem | LocaleItem[]
-}
-export type LocaleItem = {
-    id:string,
-    name : string,
-    item? : LocaleItem
-}
 
 export type Configure = {
     [key: string]: ItemType;
@@ -151,7 +154,6 @@ export function isCItemArray(obj : any) :obj is CItem[] {
 }
 
 export function getProperty(obj : CItem | CItem[] | Configure, id : string | string[]) : undefined  | CItem {
-    let re_flag = false
     let id_list : string[]
     if(typeof id === "string"){
         id_list = id.split(".")

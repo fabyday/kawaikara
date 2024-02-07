@@ -25,18 +25,20 @@ function App(){
 
     const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
     const copy_from = useCurConfigureStore((state)=>state.copy_from)
-    useEffect(()=>{
-
-        new_fetch(
-            async ()=>{
-                let prev = await window.preference_api.get_data()
-                copy_from(prev)
-                console.log(prev)
-                return prev
+   
     
-            }
-        )
-    }, [])
+    // useEffect(()=>{
+
+    //     new_fetch(
+    //         async ()=>{
+    //             let prev = await window.preference_api.get_data()
+    //             copy_from(prev)
+    //             console.log(prev)
+    //             return prev
+    
+    //         }
+    //     )
+    // }, [])
 
 
 
@@ -46,17 +48,17 @@ function App(){
 
     return (
         <RootComponent>
-        <MemoryRouter initialEntries={["/general"]}>
-        <Header />
+        {/* <MemoryRouter initialEntries={["/general"]}> */}
+        {/* <Header /> */}
         
-        <ContentComponent>
-        <Routes>
-            <Route path="/general" element={<GeneralPreference/>} ></Route>
-            <Route path="/shortcut" element={<ShortcutPreference ></ShortcutPreference>}></Route>
-            </Routes>
-        </ContentComponent>
-        </MemoryRouter>
-        <Footer/>
+        {/* <ContentComponent> */}
+        {/* <Routes> */}
+            {/* <Route path="/general" element={<GeneralPreference/>} ></Route> */}
+            {/* <Route path="/shortcut" element={<ShortcutPreference ></ShortcutPreference>}></Route> */}
+            {/* </Routes> */}
+        {/* </ContentComponent> */}
+        {/* </MemoryRouter> */}
+        {/* <Footer/> */}
         </RootComponent>
     )
 }

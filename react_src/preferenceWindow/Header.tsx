@@ -4,6 +4,7 @@ import Box from "@mui/material/Box"
 import  Grid from '@mui/material/Grid';
 import styled from '@emotion/styled';
 import { Link } from 'react-router-dom';
+import { useCurConfigureStore } from './definition';
 
 
 
@@ -23,21 +24,27 @@ const HeaderComponent = styled(Box)({
 
 
   type props = {
-    button_names : [string]
-    button_ids : [string]
-    link_paths : [string]
+    button_names : string[]
+    button_ids : string[]
+    link_paths : string[]
   }
 
-function Header({button_names, button_ids, link_paths} : props){
+function Header(){
 
-
-    button_names = ["General", "Shortcut"];
-    button_ids = ["gen", "short"]
-    link_paths = ["general", "shortcut"]
-    const var_type : [string]= ["contained", "outlined"]
+    
+    let button_names = ["General", "Shortcut"];
+    let button_ids = ["gen", "short"]
+    let link_paths = ["general", "shortcut"]
+    const var_type : string[]= ["contained", "outlined"]
     const [selected_btn, set_sel_btn] = React.useState(0);
+    const get_property = useCurConfigureStore((state)=>state.get_property)
+    
+    const general = get_property("configure.general")
+    const shortcut = get_property("configure.shortcut")
+    console.log("test")
+    console.log(general)
 
-    const button_clicked = (id : int) : void =>{
+    const button_clicked = (id : number) : void =>{
         set_sel_btn(id)
         
     }
@@ -49,13 +56,18 @@ function Header({button_names, button_ids, link_paths} : props){
         let button;
         let style = {background : "white"};
         let new_variant:string = "outlined"
-          if(selected_btn == i){
+          if(selected_btn === i){
             new_variant = "contained"
-            style = {}
+            console.log("selected_btn", selected_btn)
           }
-            button = (<Link to={link_paths[i]} ><Button style={style} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>
-            {button_names[i]}
-            </Button></Link>);
+
+            button = (
+                    <Link to={link_paths[i]} >
+           <Button style={style} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>
+                                                    {button_names[i]}
+                      </Button>
+                    </Link>);
+
         buttons.push(button)
       }
       return buttons;

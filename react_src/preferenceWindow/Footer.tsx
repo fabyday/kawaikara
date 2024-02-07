@@ -19,10 +19,7 @@ const FooterComponent = styled('div')({
   });
 
 
-type props ={
-    pref_changed : boolean
-    pref_changed_function : Function
-}
+
 function Footer(){
 
     let is_changed = usePrevConfigureStore((state)=>state.is_changed)
