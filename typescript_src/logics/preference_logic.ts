@@ -1,7 +1,7 @@
 
 
 
-import {GlobalObject, CItem, CPiPLocation, CGeneral, CShortcut, Configure, CWindowSize, Locale, getProperty} from "../definitions/types"
+import {GlobalObject, CItem, CPiPLocation,  Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps} from "../definitions/types"
 import { BrowserWindow, app } from "electron"
 
 import * as path from "node:path"
@@ -35,11 +35,11 @@ function apply_render_full_size_when_pip_running(gobj:GlobalObject, enable : boo
 
 
 
-function apply_general(gobj : GlobalObject, general_conf : CGeneral){
+function apply_general(gobj : GlobalObject, general : CItem){
 
 }
 
-function apply_shortcuts(gobj : GlobalObject, shortcuts : CShortcut){
+function apply_shortcuts(gobj : GlobalObject, shortcuts : CItem){
 
 }
 
@@ -49,7 +49,7 @@ function apply_locale_from_file(conf : Configure, file_path:string){
         let jsonData : any;
         console.log(app.getPath("appData"))
         try {
-          let rawData = fs.readFileSync(file_path, 'utf8');
+          let rawData = fs.readFileSync(file_path, 'utf-8');
           jsonData = JSON.parse(rawData);
       
         } catch (err) {
@@ -60,19 +60,45 @@ function apply_locale_from_file(conf : Configure, file_path:string){
       }
       
 
-
-    let locale_json_root = read_locale_conf();
+    let locale_json_root : LocaleRoot = read_locale_conf();
     if (typeof locale_json_root !== "undefined"){
-        let this_name = conf.name
-        let locale = locale_json_root
-        for(let item of conf.item){
-            item.name
-            getProperty(conf, this_name)
-            let id = item.id
-            let locale_name :string = locale[id]
-            item.name = locale_name;
-        }
+        console.log("start locale")
+        let current_key_list = [conf.id]
+        while(true){
+            // combineKey
+            let key : undefined| string = current_key_list.pop()
+            console.log("current_key_list" ,key)
+            if(typeof key === "undefined")
+            break;
+        
+            
+            let prop = getProperty(conf, key)
+            let locale_prop = getLocaleProps(locale_json_root, key)
+            if(typeof prop!== "undefined"){
+                console.log("prop" ,prop.id)
+                if(typeof locale_prop !== "undefined"){
 
+                    prop.name = locale_prop.name
+                    console.log("prop" ,prop.name)
+                    console.log("prop L" ,locale_prop.name)
+                }
+            
+                if(isCItem(prop.item) ){
+                    current_key_list.push(combineKey(key!,prop.item.id))
+                    
+                }else if(isCItemArray(prop.item)){
+                    for(let item of prop.item)
+                        current_key_list.push(combineKey(key!, item.id))
+                }
+                else{
+                    current_key_list.pop()
+                }
+
+            }
+            
+
+        }
+        console.log("conf conf", conf)
         
     }
     

@@ -1,35 +1,35 @@
 {
-    "id" : "locales",
-    "name" : "KR",
+    "id" : "configure",
+    "name" : "¼³Á¤",
     "locale" : "KR",
     "item" : [
         {
             "id" : "general", 
-            "name" : "ì¼ë°˜",
+            "name" : "ÀÏ¹İ",
             "item" : [
                 {
                     "id" : "default_main",
-                    "name" : "ê¸°ë³¸ ì‚¬ì´íŠ¸"
+                    "name" : "±âº» »çÀÌÆ®"
                 },
                 {
                     "id" : "pip_mode",
-                    "name" : "PIP ëª¨ë“œ"
+                    "name" : "PIP ¸ğµå"
                 },
                 {
                     "id" : "window_size",
-                    "name" : "ìœˆë„ìš° ì‚¬ì´ì¦ˆ",
+                    "name" : "À©µµ¿ì »çÀÌÁî",
                     "item" : [
                         {
                             "id" : "preset_list",
-                            "name" : "í”„ë¦¬ì…‹"
+                            "name" : "ÇÁ¸®¼Â"
                         },
                         {
                             "id": "width",
-                            "name" : "ë„ˆë¹„"
+                            "name" : "³Êºñ"
                         },
                         {
                             "id": "height",
-                            "name" : "ë†’ì´"
+                            "name" : "³ôÀÌ"
                         }
                     ]
                 },
@@ -39,19 +39,19 @@
                     "item" : [
                         { 
                             "id" : "preset_monitor_list", 
-                            "name" : "ëª¨ë‹ˆí„° í”„ë¦¬ì…‹"
+                            "name" : "¸ğ´ÏÅÍ ÇÁ¸®¼Â"
                         },
                         { 
                             "id" : "preset_location_list", 
-                            "name" : "ìœ„ì¹˜ í”„ë¦¬ì…‹"
+                            "name" : "À§Ä¡ ÇÁ¸®¼Â"
                         },
                         { 
                             "id" : "location", 
-                            "name" : "ìœ„ì¹˜"
+                            "name" : "À§Ä¡"
                         },
                         { 
                             "id" : "monitor", 
-                            "name" : "ëª¨ë‹ˆí„°"
+                            "name" : "¸ğ´ÏÅÍ"
                         }
                     ]
                 },
@@ -61,29 +61,29 @@
                     "item" : [
                         {
                             "id" : "preset_list", 
-                            "name" : "í”„ë¦¬ì…‹"
+                            "name" : "ÇÁ¸®¼Â"
                         }, 
                         {
                             "id" : "width", 
-                            "name" :  "ë„ˆë¹„"
+                            "name" :  "³Êºñ"
                         }, 
                         {
                             "id" : "height", 
-                            "name":"ë†’ì´" 
+                            "name":"³ôÀÌ" 
                         }
                     ]
                 },
                 {
                     "id" : "render_full_size_when_pip_running",
-                    "name" : "PiPì‹œ í’€ì‚¬ì´ì¦ˆ ë Œë”ë§"
+                    "name" : "PiP½Ã Ç®»çÀÌÁî ·»´õ¸µ"
                 },
                 {
                     "id" : "enable_autoupdate",
-                    "name" : "ìë™ ì—…ë°ì´íŠ¸"
+                    "name" : "ÀÚµ¿ ¾÷µ¥ÀÌÆ®"
                 },
                 {
                     "id" : "dark_mode",
-                    "name" : "ë‹¤í¬ëª¨ë“œ"
+                    "name" : "´ÙÅ©¸ğµå"
                 }
             ]
         },
@@ -93,55 +93,55 @@
             "item" : [
                 {
                     "id" : "goto_netflix",
-                    "name" : "ë„·í”Œë¦­ìŠ¤"
+                    "name" : "³İÇÃ¸¯½º"
                 },
                 {
                     "id" : "goto_laftel",
-                    "name" : "ë¼í”„í…”"
+                    "name" : "¶óÇÁÅÚ"
                 },
                 {
                     "id" : "goto_youtubue",
-                    "name" : "ìœ íŠœë¸Œ" 
+                    "name" : "À¯Æ©ºê" 
                 },
                 {
                     "id" : "goto_disney",
-                    "name" : "ë””ì¦ˆë‹ˆ"
+                    "name" : "µğÁî´Ï"
                 },
                 {
                     "id" : "goto_amazonprime",
-                    "name" : "ì•„ë§ˆì¡´í”„ë¼ì„"
+                    "name" : "¾Æ¸¶Á¸ÇÁ¶óÀÓ"
                 },
                 {
                     "id" : "goto_applemusic",
-                    "name" : "ì• í”Œë®¤ì§"
+                    "name" : "¾ÖÇÃ¹ÂÁ÷"
                 },
                 {
                     "id" : "goto_chzzk",
-                    "name" : "ì¹˜ì§€ì§"
+                    "name" : "Ä¡ÁöÁ÷"
                 },
                 {
                     "id" : "goto_wavve",
-                    "name" : "ì›¨ì´ë¸Œ"
+                    "name" : "¿şÀÌºê"
                 },
                 {
                     "id" : "goto_watcha",
-                    "name" : "ì™“ì°¨" 
+                    "name" : "¿ÓÂ÷" 
                 },
                 {
                     "id" : "coupangplay",
-                    "name" : "ì¿ íŒ¡í”Œë ˆì´" 
+                    "name" : "ÄíÆÎÇÃ·¹ÀÌ" 
                 },
                 {
                     "id" : "goto_tving",
-                    "name" : "í‹°ë¹™"
+                    "name" : "Æ¼ºù"
                 },
                 {
                     "id" : "goto_twitch",
-                    "name" : "íŠ¸ìœ„ì¹˜"
+                    "name" : "Æ®À§Ä¡"
                 },
                 {
                     "id" : "goto_main",
-                    "name" : "ë©”ì¸ í˜ì´ì§€"
+                    "name" : "¸ŞÀÎ ÆäÀÌÁö"
                 },
                 {
                     "id" : "run_pip",

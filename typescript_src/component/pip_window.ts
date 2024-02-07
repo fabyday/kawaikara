@@ -1,9 +1,10 @@
 import {BrowserWindow, screen, app} from "electron"
 import * as path from 'path'
 import * as fs from 'fs'
-import { Configure } from "../definitions/types";
+import { Configure, getProperty } from "../definitions/types";
 
 let pipWindow : BrowserWindow | null   = null;
+
 
 
 
@@ -15,8 +16,8 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
     if ( pipWindow === null ){
         pipWindow = new BrowserWindow(
             {
-                width: conf.general!.item!.pip_window_size!.item!.width.item,
-                height: conf.general!.item.pip_window_size!.item.height.item,
+                width: (getProperty(conf, "configure.general.pip_window_size.width")!).item as number,
+                height: (getProperty(conf, "configure.general.pip_window_size.height")!).item as number,
                 frame : false
             }
         );
@@ -25,7 +26,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
 
     pipWindow.loadURL("http://youtube.com")
     
-conf.general?.item.pip_location?.item.location.item
 const winBounds = pipWindow.getBounds();
 const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
 

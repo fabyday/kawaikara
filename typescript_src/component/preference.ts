@@ -1,7 +1,7 @@
 import {BrowserWindow, ipcMain, app, screen} from "electron"
 import * as path from 'path'
 import * as fs from 'fs'
-import { Configure } from "../definitions/types";
+import { Configure, getProperty } from "../definitions/types";
 import { Event } from "electron/main";
 import { apply_locale } from "../logics/preference_logic";
 
@@ -10,9 +10,10 @@ let preferenceWindow : BrowserWindow | null   = null;
 
 
 
-
 export const get_instance = (conf:Configure):BrowserWindow =>{
     if ( preferenceWindow === null ){
+        apply_locale(conf, "KR")
+
         preferenceWindow = new BrowserWindow(
             {
             // width: 600,
@@ -24,13 +25,11 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
             webPreferences: {
                 contextIsolation: true,
               preload: path.join(__dirname, 'predefine/preference_predef.js'),
-              backgroundThrottling : !conf.general!.item.render_full_size_when_pip_running!.item
             }
       
                 
         }
         );
-        apply_locale(conf, "KR")
         console.log("locale check!")
         preferenceWindow.setMenu(null);
         preferenceWindow.loadURL("http://localhost:3000/preference.html")

@@ -4,27 +4,27 @@ export const config_name = "kawai-config.json"
 
 
 export const default_configure : Configure = {
-    id : "default-configure",
+    id : "configure",
     name : "default-configure",
     locale : "None",
     item : [
         {
             id : "general", 
-            name : "",
+            name : "General",
             item : [
                 {
                     id : "default_main",
-                    name : "",
+                    name : "Main Page",
                     item : ""
                 },
                 {
                     id : "pip_mode",
-                    name : "",
+                    name : "PiP Mode(Picture in Picture)",
                     item : true
                 },
                 {
                     id : "window_size",
-                    name : "",
+                    name : "Main Window Size",
                     item : [
                         {
                             id : "preset_list",
@@ -39,27 +39,27 @@ export const default_configure : Configure = {
                         {
                             id: "height",
                             name : "",
-                            item : 640
+                            item : 600
                         }
                     ]
                 },
                 {
                     id : "pip_location",
-                    name : "",
+                    name : "PiP location",
                     item : [
                         { 
                             id : "preset_monitor_list", 
-                            name : "",
+                            name : "Available monitors",
                             item  : [] 
                         },
                         { 
                             id : "preset_location_list", 
-                            name : " ",
+                            name : "Preset Locations",
                             item  : [] 
                         },
                         { 
                             id : "location", 
-                            name : " ",
+                            name : "Select PiP Location",
                             item  : "top-right" 
                         },
                         { 
@@ -71,38 +71,38 @@ export const default_configure : Configure = {
                 },
                 {
                     id : "pip_window_size",
-                    name : "",
+                    name : "PiP Window Size",
                     item : [
                         {
                             id : "preset_list", 
-                            name : "",
+                            name : "Preset List",
                             item : ["1920x1080"]
                         }, 
                         {
                             id : "width", 
-                            name :  "",
+                            name :  "Width",
                             item : 600
                         }, 
                         {
                             id : "height", 
-                            name:"", 
+                            name:"Height", 
                             item : 400
                         }
                     ]
                 },
                 {
                     id : "render_full_size_when_pip_running",
-                    name : "",
+                    name : "Background rendering Mode when PiP is Running",
                     item : false
                 },
                 {
                     id : "enable_autoupdate",
-                    name : "",
+                    name : "Enable Autoupdate",
                     item : true
                 },
                 {
                     id : "dark_mode",
-                    name : "",
+                    name : "Enable DarkMode",
                     item : false
                 },
             ],
@@ -110,76 +110,76 @@ export const default_configure : Configure = {
         },
         {
             id : "shortcut",
-            name : "",
+            name : "Shortcut",
             item : [
                 {
                     id : "goto_netflix",
-                    name : "", 
+                    name : "Open Netflix", 
                     item : "Ctrl+N"
                 },
                 {
                     id : "goto_laftel",
-                    name : "", 
+                    name : "Open Laftel", 
                     item : ""
                 },
                 {
                     id : "goto_youtubue",
-                    name : "", 
+                    name : "Open Youtube", 
                     item : ""
                 },
                 {
                     id : "goto_disney",
-                    name : "", 
+                    name : "Open DisneyPlus", 
                     item : ""
                 },
                 {
                     id : "goto_amazonprime",
-                    name : "", 
+                    name : "Open AmazonPrime", 
                     item : ""
                 },
                 {
                     id : "goto_applemusic",
-                    name : "", 
+                    name : "Open AppleMusic", 
                     item : ""
                 },
                 {
                     id : "goto_chzzk",
-                    name : "", 
+                    name : "Open Chzzk", 
                     item : ""
                 },
                 {
                     id : "goto_wavve",
-                    name : "", 
+                    name : "Open Wavve", 
                     item : ""
                 },
                 {
                     id : "goto_watcha",
-                    name : "", 
+                    name : "Open Watcha", 
                     item : ""
                 },
                 {
                     id : "coupangplay",
-                    name : "", 
+                    name : "Open CoupangPlay", 
                     item : ""
                 },
                 {
                     id : "goto_tving",
-                    name : "", 
+                    name : "Open Tving", 
                     item : ""
                 },
                 {
                     id : "goto_twitch",
-                    name : "", 
+                    name : "Open Twitch", 
                     item : ""
                 },
                 {
                     id : "goto_main",
-                    name : "", 
+                    name : "Open Main", 
                     item : ""
                 },
                 {
                     id : "run_pip",
-                    name : "", 
+                    name : "Run PiP Mode", 
                     item : ""
                 }
             ]
