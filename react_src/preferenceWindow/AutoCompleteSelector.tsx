@@ -12,18 +12,20 @@ import React from 'react';
 import WindowSizeComponent from './WindowSizeComponent';
 
 
-type onclick_prop = (boolean)=>void 
+type onclick_prop = (a : boolean)=>void 
 type props = {
     id: string;
     title : string
-    values : string[]
-    custom_size? : boolean
+    preset_list : string[]
+    additional_textedit? : boolean
+    select_f : (text : string)=>void;
+    onselected_customize_f? : (index : number, width : number )=>void;
   };
 
 
 
 
-function KawaiAutoCompleteSelector({id, title, values, custom_size} : props){
+function KawaiAutoCompleteSelector({id, title, preset_list, select_f, onselected_customize_f, additional_textedit} : props){
 
 
   
@@ -34,7 +36,12 @@ return (
             <Grid item xs={6}> <Typography>{title}</Typography> </Grid>
             <Grid item xs={6}>
                     <Box display="flex" justifyContent="center">
-                    <WindowSizeComponent id = {"pip_window_size"} values = {values} make_appditional={custom_size}/>
+                    <WindowSizeComponent id = {id} 
+                            preset_list = {preset_list} 
+                            default_value={0}
+                            onSelect_f={select_f}
+                            onselected_customize_f={onselected_customize_f}
+                            customizable={additional_textedit}/>
                     </Box>
                 </Grid>
             </Grid>

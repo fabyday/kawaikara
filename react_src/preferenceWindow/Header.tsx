@@ -5,6 +5,7 @@ import  Grid from '@mui/material/Grid';
 import styled from '@emotion/styled';
 import { Link } from 'react-router-dom';
 import { useCurConfigureStore } from './definition';
+import { CItem } from '../../typescript_src/definitions/types';
 
 
 
@@ -32,15 +33,21 @@ const HeaderComponent = styled(Box)({
 function Header(){
 
     
-    let button_names = ["General", "Shortcut"];
-    let button_ids = ["gen", "short"]
-    let link_paths = ["general", "shortcut"]
+    // let button_names = ["General", "Shortcut"];
+    // let button_ids = ["gen", "short"]
+    // let link_paths = ["general", "shortcut"]
     const var_type : string[]= ["contained", "outlined"]
     const [selected_btn, set_sel_btn] = React.useState(0);
     const get_property = useCurConfigureStore((state)=>state.get_property)
     
-    const general = get_property("configure.general")
-    const shortcut = get_property("configure.shortcut")
+    const general :CItem | undefined   = get_property("configure.general")
+    const shortcut :CItem |undefined = get_property("configure.shortcut") 
+    let button_names:string[] = []
+    let link_paths:string[] = []
+    if(typeof general !== "undefined" && typeof shortcut !== "undefined"){
+      button_names = [general.name, shortcut.name]
+      link_paths = [general.id, shortcut.id]
+    }
     console.log("test")
     console.log(general)
 
@@ -57,10 +64,11 @@ function Header(){
         let style = {background : "white"};
         let new_variant:string = "outlined"
           if(selected_btn === i){
+            style = {background : "blue"}
             new_variant = "contained"
             console.log("selected_btn", selected_btn)
           }
-
+            console.log(new_variant)
             button = (
                     <Link to={link_paths[i]} >
            <Button style={style} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>

@@ -10,33 +10,49 @@ import { useCurConfigureStore, usePrevConfigureStore } from './definition';
 import { ChangeEvent, useState } from 'react';
 type props = {
     id: string;
-    values : string[]
-    default_index : number;
-    default_width_height_string : string
-    onSelect_f : (id :string, value:string )=>void;
-    onSelect_width_f? : (id :string, value:string )=>void;
-    onSelect_height_f? :(id :string, value:string )=>void;
-    make_appditional? : boolean
+    preset_list : string[];
+    default_value : number | string;
+    onSelect_f : (str :  string )=>void;
+    onselected_customize_f? : (index : number, value : number )=>void;
+    customizable? : boolean
   };
 
-const sep:string = "x"
 
-function WindowSizeComponent({id, values, default_index, default_width_height_string, onSelect_f,onSelect_width_f, onSelect_height_f, make_appditional} : props){
-    // 
-    default_width_height_string = "1x100";
+function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onselected_customize_f, customizable} : props){
     
-    let [w_str, h_str] = default_width_height_string.split("x")
+    let inputs : number[] = [] ;
+    let flag = customizable ? true : false
 
-    let flag = make_appditional === true ? true : false
-
-    const [width, setWidth] = useState(Number(w_str));
-    const [height, setHeight] = useState(Number(h_str));
+    const [args, set_args] = useState(inputs);
 
     let [disable, set_disable] = useState(true)
-    const handleChange = (e, setup_f) => {
+    let [selected_index, set_selected_index] = useState(0)
+
+
+    if(typeof default_value  === "string"){ //this type is key
+        if( customizable ){
+            let v = preset_list.filter((value, index)=>(value === default_value))
+            let sp :string[] = default_value.split("x")
+            inputs = sp.map((v)=>Number(v));
+            if(v.length !== 0 ){
+                set_disable(false)
+                set_args(inputs)    
+                set_selected_index(preset_list.length)
+            }
+        }else{
+            inputs = [Number(default_value)]
+        }
+    }
+    else if (typeof default_value === "number"){
+        inputs = [default_value]
+    }
+
+
+
+    const handleChange = (e : ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, setup_f :(a : number)=>void) => {
         const regex = /^[0-9\b]+$/;
         if (e.target.value === "" || regex.test(e.target.value)) {
-            setup_f(e.target.value);
+            setup_f( Math.abs(Number(e.target.value)));
         }
       };
     const builder =  ()=>{
@@ -47,24 +63,25 @@ function WindowSizeComponent({id, values, default_index, default_width_height_st
                         <Select
                         labelId="demo-simple-select-label"
                         id={id}
-                        value={values[default_index]}
+                        value={preset_list[selected_index]}
                         style={{minWidth : "200px"}}
-                        defaultValue={values[default_index]}
+                        defaultValue={preset_list[selected_index]}
 
                         onChange={(e : SelectChangeEvent)=>{
                             if (e.target.value==="custom"){
                                 set_disable(false)
                             }else{
-                                onSelect_f(id, e.target.value)
+                                // let [width, height] = e.target.value.split("x").map((v)=>Number(v))
+                                onSelect_f(e.target.value)
                             }
                         }}>
                         {
-                            values.map((v, i, a)=>(
-                                <MenuItem value={v}>{v}</MenuItem>
+                            preset_list.map((v, i, a)=>(
+                                <MenuItem id={String(i)} value={v}>{v}</MenuItem>
                                 ))
                                 
                             }
-                            <MenuItem value={"custom"}>Custom</MenuItem>
+                            <MenuItem id={"-1"} value={"custom"}>Custom</MenuItem>
                         </Select>
                     </FormControl>
                     </Grid>
@@ -76,13 +93,15 @@ function WindowSizeComponent({id, values, default_index, default_width_height_st
                         label="width"
                         defaultValue="1920"
                         variant="filled" 
-                        value = {width}
+                        value = {args[0]}
                         onBlur={(e)=>{
-                            onSelect_width_f!(id, e.target.value)
+                            let width = Number(e.target.value)
+                            set_args([width, args[1]])
+                            onselected_customize_f!(0, width)
                         }}
 
                         onChange={(e)=>{
-                            handleChange(e, setWidth)
+                            handleChange(e, (w)=>{set_args([w, args[1]])})
                             
                         }}
                         InputProps={{
@@ -96,10 +115,11 @@ function WindowSizeComponent({id, values, default_index, default_width_height_st
                         defaultValue="1080"
                         variant="filled"
                         onBlur={(e)=>{
-                            onSelect_height_f!(id, e.target.value)
+                            let height = Number(e.target.value)
+                            onselected_customize_f!(1, height)
                         }}
-                        onChange={(e)=>{handleChange(e, setHeight)}} 
-                        value = {height}
+                        onChange={(e)=>{handleChange(e, (h)=>{set_args([args[0], h]) } )}} 
+                        value = {args[1]}
                         InputProps={{
                             style: {margin:1, maxWidth: "100px" }
                         }}

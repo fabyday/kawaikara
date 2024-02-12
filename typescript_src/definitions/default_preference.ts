@@ -50,12 +50,12 @@ export const default_configure : Configure = {
                         { 
                             id : "preset_monitor_list", 
                             name : "Available monitors",
-                            item  : [] 
+                            item  : ["1920x1080"] 
                         },
                         { 
                             id : "preset_location_list", 
                             name : "Preset Locations",
-                            item  : [] 
+                            item  : ["1920x1080", "qqqq"] 
                         },
                         { 
                             id : "location", 

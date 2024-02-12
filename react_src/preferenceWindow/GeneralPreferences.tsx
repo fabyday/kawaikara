@@ -7,7 +7,6 @@ import Switch from '@mui/material/Switch';
 import WindowSizeComponent from './WindowSizeComponent';
 import Box from '@mui/material/Box';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
-import { CGeneral, Configure } from '../../typescript_src/definitions/types';
 
 // see also
 
@@ -19,21 +18,62 @@ import { useCurConfigureStore } from './definition';
   
 function GeneralPreference(){
 
-    const [pip_mode, setPiPmode] = useCurConfigureStore((state)=>[state.general?.pip_mode, state.set_pip_mode])
+    const [set_property, get_property] = useCurConfigureStore((state)=>[state.set_property, state.get_property])
+
+    const f = (value : string)=>{
+        const [width, height] = value.split("x").map((v)=>Number(v))
+        set_property("configure.general.pip_location.preset_location_list.width", width)
+        set_property("configure.general.pip_location.preset_location_list.width", height)
+
+    }
+
     return (
         <Box >
-        <Typography  fontSize={32}>General</Typography>
+        <Typography  fontSize={32}>{get_property("configure.general")?.name}</Typography>
         <Grid container style={{maxHeight: '80%', overflow: 'auto'}} justifyContent="center" rowGap={1} spacing={1} >
-            <KawaiSwitch onclick={(e)=>{
-                const l = pip_mode
-                setPiPmode(!l)}} id = {"enable-pip"} title={"Enable PiP(Picture in Picture)"}/>
-            <KawaiAutoCompleteSelector id ={"pip-default-location"} title={"PiP default location"} values={["1920"]}/>
-            <KawaiAutoCompleteSelector id ={""} title={"Default Start Service"} values={["1920"]}/>
-            <KawaiAutoCompleteSelector id ={"pip-win-size"} title={"PiP window Size"} values={["1920"]} custom_size={true}/>
-            <KawaiAutoCompleteSelector id ={"win-size"} title={"Window Size"} values={["1920"]} custom_size={true}/>
-            <KawaiSwitch onclick={(e)=>{}} id = {"render-fullsize-mode"} title={"Render Full size when pip is running"}/>
-            <KawaiSwitch onclick={(e)=>{}} id = {"enable-autoupdate"} title={"Enable AutoUpdate"}/>
-            <KawaiSwitch onclick={(e)=>{}} id = {"enable-darkmode"} title={"Dark Mode"}/>
+            <KawaiSwitch onclick={(e)=>{ set_property("configure.general.pip_mode", !(get_property("configure.general.pip_mode")?.item as boolean)) }} 
+                id = {get_property("configure.general.pip_mode")?.id as string} 
+                title={get_property("configure.general.pip_mode")?.name as string}/>
+
+            <KawaiAutoCompleteSelector 
+                id ={get_property("configure.general.pip_location.location")?.id as string} 
+                title={get_property("configure.general.pip_location.location")?.name as string} 
+                preset_list={get_property("configure.general.pip_location.preset_location_list")?.item as string[] ?? ["test2","test"] }
+                additional_textedit = {true}
+                select_f={}
+                onselected_customize_f={}
+
+                />
+
+{/* 
+            <KawaiAutoCompleteSelector 
+                id ={get_property("configure.general.default_main")?.id as string} 
+                title={get_property("configure.general.default_main")?.name as string} 
+                values={["1"]}/>
+
+            <KawaiAutoCompleteSelector 
+                id ={get_property("configure.general.pip_window_size")?.id as string} 
+                title={get_property("configure.general.pip_window_size")?.name as string} 
+                values={["1920"]} 
+                custom_size={true}/>
+
+            <KawaiAutoCompleteSelector 
+                id ={get_property("configure.general.window_size")?.id as string} 
+                title={get_property("configure.general.window_size")?.name as string} 
+                values={get_property("configure.general.window_size.preset_list")?.item as string[] ?? [""]}
+                custom_size={true}/>
+
+            <KawaiSwitch onclick={(e)=>{}} 
+                id = { get_property("configure.general.render_full_size_when_pip_running")?.id as string} 
+                title={get_property("configure.general.render_full_size_when_pip_running")?.name as string}/>
+
+            <KawaiSwitch onclick={(e)=>{}} 
+                id = {get_property("configure.general.enable_autoupdate")?.id as string} 
+                title={get_property("configure.general.enable_autoupdate")?.name as string}/>
+
+            <KawaiSwitch onclick={(e)=>{}} 
+                id = {get_property("configure.general.dark_mode")?.id as string} 
+                title={get_property("configure.general.dark_mode")?.name as string}/> */}
         </Grid>
         </Box>
     )
