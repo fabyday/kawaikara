@@ -30,15 +30,27 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
     const [combined, setCombined] = React.useState<string>(get_shortcut_f());
     const modifierKeyCodes = new Set([ 16, 17, 18, 91, 92, 93 ]);
 	const specialKeyCodes = new Set([ 0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 91, 92, 93, 94, 95 ]);
-    useEffect(()=>{
-        let t = shourtcut_map.get(combined)
+    const unset = save_flag.subscribe((state)=>{
+        console.log(state.shortcut_to_id_map)
+        let t = state.shortcut_to_id_map.get(combined)
         if(typeof t !== "undefined")
         if(t!.size >=2 && t?.has(id)){
                 console.log("suer man helper!")
                 setError(true)
                 setHelpText(helper_text)
-            }
-    }, [shourtcut_map])
+            }else if(t!.size === 1 && t?.has(id)){
+                console.log("suer reset helper!")
+                setError(false)
+            setHelpText("")
+        }
+
+
+
+    })
+    useEffect(()=>{
+        
+        return unset
+    }, [])
     const key_mapper = {Control : "Ctrl", Meta : "Win", Alt : "Alt", Shift : "Shift"}
     type mapper_key = keyof typeof key_mapper;
     let altKeyName = 'Alt';

@@ -21,26 +21,32 @@ const FooterComponent = styled('div')({
 
 
 function Footer(){
-    const valid_save_flag = save_flag(state=>state.check_whole_shortcut)
     let is_changed = usePrevConfigureStore((state)=>state.is_changed)
     let o = useCurConfigureStore((state)=>state)
     let [disabled, val_f] = React.useState(true);
     const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
         if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
-            console.log("valid_save_flag", valid_save_flag())
-            if(!valid_save_flag())
                 val_f(true)
         }else{
             val_f(false)
         }
     })
-
+    let save_flag_unsub = save_flag.subscribe(state=>{
+        if(state.valid_save){
+            val_f(true)
+        }else{
+            val_f(false)
+        }
+    })
     useEffect(
         ()=>{
             return unsub
         },[])
-
+    useEffect(
+        ()=>{
+            return save_flag_unsub
+        },[])
     
     return (
         <FooterComponent>

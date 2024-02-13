@@ -18,16 +18,24 @@ export let save_flag = create<save_flag>((set, get)=>({
     shortcut_to_id_map : new Map<string, Set<string>>(),
     shortcut_id_to_shortcut_map : new Map<string, string>(),
     check_dupshortcut : (id:string, shortcut_text:string)=>{
-        let tmp = get().shortcut_to_id_map
+        let tmp_sc2id = get().shortcut_to_id_map
         let tmp_id2shortcut = get().shortcut_id_to_shortcut_map
         let flag = false 
-        if(tmp.has(shortcut_text)){
-            let the_set = tmp.get(shortcut_text)
+        if(shortcut_text === ""){ // if "" do nothing.
+            let prev_shortcut_key = tmp_id2shortcut.get(id)
+            tmp_id2shortcut.delete(id)
+            tmp_sc2id.get(prev_shortcut_key!)?.delete(id)
+        }
+        else if(tmp_sc2id.has(shortcut_text)){ // tmp has shortcut
+            let the_set = tmp_sc2id.get(shortcut_text)
             let last_size = the_set!.size
+           
             the_set!.add(id)
-
+            
             let item = tmp_id2shortcut.get(id)
-            tmp.get(item!)?.delete(id)
+            console.log("item!", tmp_id2shortcut)
+            console.log("item!", item!)
+            tmp_sc2id.get(item!)?.delete(id)
 
             tmp_id2shortcut.set(id, shortcut_text)
             if( the_set!.size > 0 && the_set!.size > last_size ){
@@ -37,17 +45,21 @@ export let save_flag = create<save_flag>((set, get)=>({
             }
                 
         }else{
+            let sc_key = tmp_id2shortcut.get(id)
             tmp_id2shortcut.set(id, shortcut_text)
-            tmp.set(shortcut_text, new Set<string>(id))
+            tmp_sc2id.get(sc_key!)?.delete(id)
+            tmp_sc2id.set(shortcut_text, new Set<string>())
+            tmp_sc2id.get(shortcut_text)?.add(id)
             flag = false
         }
-
+        console.log(tmp_sc2id)
         set(state=>({...state, 
             shortcut_id_to_shortcut_map : lodash.cloneDeep(tmp_id2shortcut), 
-            shortcut_to_id_map : lodash.cloneDeep(tmp)}
+            shortcut_to_id_map : lodash.cloneDeep(tmp_sc2id)}
         ))
         return flag
     },
+
     check_whole_shortcut : ()=>{
         let flag = true
         for(let item of Array.from(get().shortcut_to_id_map)){
@@ -56,6 +68,7 @@ export let save_flag = create<save_flag>((set, get)=>({
         set((state)=>({...state, valid_save : flag}))
         return flag
     },
+
     reset_from_conf : (conf :Configure) =>{
         let shortcut_list = getProperty(conf, "configure.shortcut")?.item
         let tmp_id_2_sc = get().shortcut_id_to_shortcut_map
@@ -65,15 +78,19 @@ export let save_flag = create<save_flag>((set, get)=>({
         if(typeof shortcut_list !== "undefined"){
             if( isCItemArray(shortcut_list)){
                 shortcut_list.map(vv=>{ 
-                    if(tmp_sc_2_id.size === 0){
-                        tmp_sc_2_id.set(vv.item as string, new Set<string>(vv.id as string))
-                        tmp_id_2_sc.set(vv.id as  string, vv.item as string)
-                    }
-                    else{
+                    if(vv.item as string !== ""){
+
+                        if(tmp_sc_2_id.size === 0){
+                            tmp_sc_2_id.set(vv.item as string, new Set<string>())
+                            tmp_sc_2_id.get(vv.item as string)?.add(vv.id as string)
+                            tmp_id_2_sc.set(vv.id as  string, vv.item as string)
+                        }
+                        else{
                             tmp_sc_2_id.get(vv.item as string)!.add(vv.id as string)
                             tmp_id_2_sc.set(vv.id as string, vv.item as string)
-
+                            
                         }
+                    }
                     }
                 )
             }
