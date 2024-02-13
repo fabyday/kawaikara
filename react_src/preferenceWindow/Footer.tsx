@@ -21,22 +21,23 @@ const FooterComponent = styled('div')({
 
 
 function Footer(){
-    let is_changed = usePrevConfigureStore((state)=>state.is_changed)
     let o = useCurConfigureStore((state)=>state)
     let [disabled, val_f] = React.useState(true);
+    let [disabled2, val_f2] = React.useState(true);
     const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
         if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
-                val_f(true)
+            val_f(true)
         }else{
             val_f(false)
         }
     })
     let save_flag_unsub = save_flag.subscribe(state=>{
         if(state.valid_save){
-            val_f(true)
+            console.log("is invalid")
+            val_f2(true)
         }else{
-            val_f(false)
+            val_f2(false)
         }
     })
     useEffect(
@@ -54,7 +55,7 @@ function Footer(){
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
         <Button variant="contained" onClick={()=>{}}>ok</Button>
-        <Button variant="contained" onClick={()=>{}} disabled={disabled}>apply</Button>
+        <Button variant="contained" onClick={()=>{}} disabled={disabled2}>apply</Button>
         </Box>
         </Grid>
         </Grid>
