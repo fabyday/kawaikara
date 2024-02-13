@@ -1,6 +1,8 @@
 import React, { MouseEventHandler, useEffect } from 'react'
 import TextField from '@mui/material/TextField';
 import { save_flag } from './definition';
+import lodash from "lodash"
+
 type props = {
     id: string;
     get_shortcut_f : Function;
@@ -24,8 +26,8 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
     const helper_text = "Duplication Error"
 
     const [ pressing, setPressing ] = React.useState(false);
-	const [ accelerator , setAccelerator ] = React.useState<string[]>([]);
-	const [ key, setKey ] = React.useState<string[]>([]);
+	const [ accelerator , setAccelerator ] = React.useState<Set<string>>(new Set<string>());
+	const [ key, setKey ] = React.useState<Set<string>>(new Set<string>());
 
     const [combined, setCombined] = React.useState<string>(get_shortcut_f());
     const modifierKeyCodes = new Set([ 16, 17, 18, 91, 92, 93 ]);
@@ -52,7 +54,9 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
         return unset
     }, [])
     const key_mapper = {Control : "Ctrl", Meta : "Win", Alt : "Alt", Shift : "Shift"}
+    const key_mapper_inverse = {Ctrl : "Control", Win : "Meta", Alt : "Alt", Shift : "Shift"}
     type mapper_key = keyof typeof key_mapper;
+    type key_mapper_invert = keyof typeof key_mapper_inverse;
     let altKeyName = 'Alt';
     let metaKeyName = 'Meta';
 	if (navigator.userAgent.indexOf('Mac') !== -1) {
@@ -72,8 +76,9 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
         event.preventDefault();
 
         if(!pressing){
-            setKey([])
-            setAccelerator([])
+            setPressing(true)
+            setKey(new Set<string>())
+            setAccelerator(new Set<string>())
         }
 
 
@@ -84,52 +89,59 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
         let res_key="";
 
         if(modifierKeyCodes.has(event.keyCode)){
-            if(!accelerator.includes(event.key))
+            if(!accelerator!.has(event.key))
             {
                 const name = event.key as mapper_key
-                accelerator.push(key_mapper[name])
+                accelerator!.add(key_mapper[name])
                 setAccelerator(accelerator)
             }
         }else{
-            if(!key.includes(event.key) && accelerator.length !== 0){
-                key.push(event.key.toUpperCase())
+            if(!key.has(event.key.toUpperCase()) && accelerator!.size !== 0){
+                key.add(event.key.toUpperCase())
                 setKey(key)
-            }else{
-                setKey([])
             }
+            // else{
+            //     console.log("oug")
+            //     setKey([])
+            // }
         }
 
-        const f = (v:string,i:number,a:string[])=>{
+        const f = (v:string)=>{
             if(res_key.length===0)
                 res_key += v
             else 
                 res_key += "+" + v
         }
-        accelerator.forEach(f)
+        accelerator!.forEach(f)
         key.forEach(f)
         setCombined(res_key)
 };
 
 	const handleKeyUp = (event : React.KeyboardEvent) => {
+
+        
+        console.log(event)
         event.preventDefault();
+        
         if(modifierKeyCodes.has(event.keyCode)){
-            if(accelerator.includes(event.key))
+            let key = key_mapper[event.key as mapper_key]
+            if(accelerator!.has(key))
             {
-                const idx = accelerator.indexOf(event.key)
-                accelerator.splice(idx)
-                setAccelerator(accelerator)
+                accelerator!.delete(key)
+                setAccelerator(lodash.cloneDeep(accelerator) )
             }
         }else{
-            if(key.includes(event.key)){
+            if(key.has(event.key.toUpperCase())){
                 
-                const idx = key.indexOf(event.key)
-                key.splice(idx)
-                setKey(key)
+                key.delete(event.key.toUpperCase())
+                setKey(  lodash.cloneDeep(key) )
             }
         }
-
-        if (key.length === 0 && accelerator.length === 0)
+        
+        if (key.size === 0 && accelerator!.size === 0){
             setPressing(false);
+
+        }
 
 
 	};

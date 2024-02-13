@@ -22,8 +22,9 @@ const FooterComponent = styled('div')({
 
 function Footer(){
     let o = useCurConfigureStore((state)=>state)
-    let [disabled, val_f] = React.useState(true);
-    let [disabled2, val_f2] = React.useState(true);
+    let [disabled_flag1, val_f] = React.useState(true);
+    let [disabled_flag2, val_f2] = React.useState(true);
+    let [disable_apply, val_f3] = React.useState(true);
     const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
         if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
@@ -33,7 +34,8 @@ function Footer(){
         }
     })
     let save_flag_unsub = save_flag.subscribe(state=>{
-        if(state.valid_save){
+        console.log("is vaild", state.valid_save)
+        if(state.check_whole_shortcut()){
             console.log("is invalid")
             val_f2(true)
         }else{
@@ -49,13 +51,26 @@ function Footer(){
             return save_flag_unsub
         },[])
     
+    useEffect(()=>{
+        console.log("testestse", disabled_flag1 || disabled_flag2)
+        console.log("testestse", disabled_flag1 , disabled_flag2)
+        if(disabled_flag1){
+            if(disabled_flag2)
+                val_f3(disabled_flag2)
+            else 
+                val_f3(disabled_flag1)
+        }
+    },[disabled_flag1, disabled_flag2])
+    
     return (
         <FooterComponent>
         <Grid  container justifyContent={"flex-end"} columnGap={1} columns={12}>
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
         <Button variant="contained" onClick={()=>{}}>ok</Button>
-        <Button variant="contained" onClick={()=>{}} disabled={disabled2}>apply</Button>
+        <Button variant="contained" onClick={()=>{}} >{disabled_flag1?"true":"false"}</Button>
+        <Button variant="contained" onClick={()=>{}} >{disabled_flag2?"true":"false"}</Button>
+        <Button variant="contained" onClick={()=>{}} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>
         </Grid>

@@ -5,68 +5,37 @@ import lodash from "lodash"
 
 let t = new Map<string, Set<string>>()
 interface save_flag {
-    valid_save : boolean
+    shortcut_validation : boolean
     shortcut_to_id_map :  Map<string, Set<String>>; // [shortcut string, set of id strings ]
     shortcut_id_to_shortcut_map :  Map<string, string>; // [shortcut string, set of id strings ]
-    check_dupshortcut : (id:string, shortcut:string)=>boolean;
+    check_duplication_shortcut : (id:string, shortcut:string)=>boolean;
     check_whole_shortcut : ()=>boolean
     reset_from_conf : (Configure : Configure)=>void
     // check_dupshortcut : (id : string, shortcut : string)=>boolean
 }
 export let save_flag = create<save_flag>((set, get)=>({
-    valid_save : true,
+    shortcut_validation : true,
     shortcut_to_id_map : new Map<string, Set<string>>(),
     shortcut_id_to_shortcut_map : new Map<string, string>(),
-    check_dupshortcut : (id:string, shortcut_text:string)=>{
-        let tmp_sc2id = get().shortcut_to_id_map
-        let tmp_id2shortcut = get().shortcut_id_to_shortcut_map
-        let flag = false 
-        if(shortcut_text === ""){ // if "" do nothing.
-            let prev_shortcut_key = tmp_id2shortcut.get(id)
-            tmp_id2shortcut.delete(id)
-            tmp_sc2id.get(prev_shortcut_key!)?.delete(id)
-        }
-        else if(tmp_sc2id.has(shortcut_text)){ // tmp has shortcut
-            let the_set = tmp_sc2id.get(shortcut_text)
-            let last_size = the_set!.size
-           
-            the_set!.add(id)
-            
-            let item = tmp_id2shortcut.get(id)
-            console.log("item!", tmp_id2shortcut)
-            console.log("item!", item!)
-            tmp_sc2id.get(item!)?.delete(id)
+    check_duplication_shortcut : (id:string, shortcut_text:string)=>{
+        
+        let shortcut_id_to_key = get().shortcut_id_to_shortcut_map
+        let shortcut_key_to_id = get().shortcut_to_id_map
 
-            tmp_id2shortcut.set(id, shortcut_text)
-            if( the_set!.size > 0 && the_set!.size > last_size ){
-                flag = true
-            }else{
-                flag = false
-            }
-                
-        }else{
-            let sc_key = tmp_id2shortcut.get(id)
-            tmp_id2shortcut.set(id, shortcut_text)
-            tmp_sc2id.get(sc_key!)?.delete(id)
-            tmp_sc2id.set(shortcut_text, new Set<string>())
-            tmp_sc2id.get(shortcut_text)?.add(id)
-            flag = false
+        let prev_shortcut_key = shortcut_id_to_key.get(id)
+        shortcut_id_to_key.set(id, shortcut_text)
+        let ids_duplicate_shortcut_key = shortcut_key_to_id.get(shortcut_text)
+
+        if(prev_shortcut_key === undefined || prev_shortcut_key == ""){
+            
         }
-        console.log(tmp_sc2id)
-        set(state=>({...state, 
-            shortcut_id_to_shortcut_map : lodash.cloneDeep(tmp_id2shortcut), 
-            shortcut_to_id_map : lodash.cloneDeep(tmp_sc2id)}
-        ))
-        return flag
+
+        return true;
+
     },
 
     check_whole_shortcut : ()=>{
-        let flag = true
-        for(let item of Array.from(get().shortcut_to_id_map)){
-            flag &&= item[1].size === 1
-        }
-        set((state)=>({...state, valid_save : flag}))
-        return flag
+       
     },
 
     reset_from_conf : (conf :Configure) =>{
@@ -80,7 +49,7 @@ export let save_flag = create<save_flag>((set, get)=>({
                 shortcut_list.map(vv=>{ 
                     if(vv.item as string !== ""){
 
-                        if(tmp_sc_2_id.size === 0){
+                        if(tmp_sc_2_id.get(vv.item as string)?.size === undefined){
                             tmp_sc_2_id.set(vv.item as string, new Set<string>())
                             tmp_sc_2_id.get(vv.item as string)?.add(vv.id as string)
                             tmp_id_2_sc.set(vv.id as  string, vv.item as string)
@@ -96,7 +65,7 @@ export let save_flag = create<save_flag>((set, get)=>({
             }
         }
         set(state=>({...state, shortcut_id_to_shortcut_map : tmp_id_2_sc, shortcut_to_id_map : tmp_sc_2_id  }))
-        set(state=>({...state,valid_save : get().check_whole_shortcut() }))
+        set(state=>({...state, shortcut_validation : get().check_whole_shortcut() }))
     }
    
 
