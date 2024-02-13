@@ -27,14 +27,15 @@ function App(){
     
 
     const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
-    const copy_from = useCurConfigureStore((state)=>state.copy_from)
+    const [cur_state, copy_from] = useCurConfigureStore((state)=>[state, state.copy_from])
 
     useEffect(()=>{
         new_fetch(
             async ()=>{
                 let prev = await window.preference_api.get_data()
-                copy_from(prev)
-                console.log(prev)
+                if(typeof cur_state.configure === "undefined")
+                    copy_from(prev)
+                console.log("prev", prev)
                 return prev
     
             }

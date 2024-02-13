@@ -55,16 +55,16 @@ export const default_configure : Configure = {
                         { 
                             id : "preset_location_list", 
                             name : "Preset Locations",
-                            item  : ["1920x1080", "qqqq"] 
+                            item  : ["top-left", "top-right", "bottom-left", "bottom-right"] 
                         },
                         { 
                             id : "location", 
                             name : "Select PiP Location",
-                            item  : "top-right" 
+                            item  : "top-right"
                         },
                         { 
                             id : "monitor", 
-                            name : " ",
+                            name : "",
                             item  : 0 
                         },
                     ]

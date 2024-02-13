@@ -56,7 +56,9 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
         }
       };
     const builder =  ()=>{
-        
+        let custom_btn;
+        if(customizable)
+            custom_btn = <MenuItem id={id+"custom"} value={"custom"}>{"Custom"}</MenuItem>
         return ( <Grid container direction="column">
                 <Grid item>
                     <FormControl >
@@ -72,6 +74,7 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                                 set_disable(false)
                             }else{
                                 // let [width, height] = e.target.value.split("x").map((v)=>Number(v))
+                                set_disable(true)
                                 onSelect_f(e.target.value)
                             }
                         }}>
@@ -81,7 +84,7 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                                 ))
                                 
                             }
-                            <MenuItem id={"-1"} value={"custom"}>Custom</MenuItem>
+                            {custom_btn}
                         </Select>
                     </FormControl>
                     </Grid>
@@ -110,7 +113,7 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                         />
                         <TextField
                         disabled = {disable}
-                        id="filled-disabled"
+                        // id="filled-disabled"
                         label="height"
                         defaultValue="1080"
                         variant="filled"

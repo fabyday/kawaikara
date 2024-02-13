@@ -48,12 +48,9 @@ function Header(){
       button_names = [general.name, shortcut.name]
       link_paths = [general.id, shortcut.id]
     }
-    console.log("test")
-    console.log(general)
 
     const button_clicked = (id : number) : void =>{
         set_sel_btn(id)
-        
     }
 
 
@@ -66,12 +63,10 @@ function Header(){
           if(selected_btn === i){
             style = {background : "blue"}
             new_variant = "contained"
-            console.log("selected_btn", selected_btn)
           }
-            console.log(new_variant)
             button = (
                     <Link to={link_paths[i]} >
-           <Button style={style} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>
+           <Button key={"button"+String(i)} style={style} id={"button"+String(i)} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>
                                                     {button_names[i]}
                       </Button>
                     </Link>);
@@ -84,15 +79,14 @@ function Header(){
 
 
     return (
-        <HeaderComponent>        
-        <Grid   container columnGap={1} columns={12}>
+        <HeaderComponent id="header">        
+        <Grid container columnGap={1} columns={12}>
 
-        <Grid  xs={6} item>
-        <Box columnGap={1} display="flex" justifyContent="flex-start">
-        {button_generater()}
-        
-        </Box>
-        </Grid>
+          <Grid  xs={6} item>
+            <Box columnGap={1} display="flex" justifyContent="flex-start">
+              {button_generater()}
+            </Box>
+          </Grid>
         </Grid>
         </HeaderComponent>
     )

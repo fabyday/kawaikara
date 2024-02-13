@@ -4,7 +4,7 @@ import Box from "@mui/material/Box"
 import  Grid from '@mui/material/Grid';
 
 import styled from '@emotion/styled';
-import { usePrevConfigureStore, useCurConfigureStore } from './definition';
+import { usePrevConfigureStore, useCurConfigureStore, save_flag } from './definition';
 import isEqual from 'lodash.isequal';
 
 const FooterComponent = styled('div')({
@@ -21,38 +21,27 @@ const FooterComponent = styled('div')({
 
 
 function Footer(){
-
+    const valid_save_flag = save_flag(state=>state.check_whole_shortcut)
     let is_changed = usePrevConfigureStore((state)=>state.is_changed)
     let o = useCurConfigureStore((state)=>state)
     let [disabled, val_f] = React.useState(true);
-    const prev_state = usePrevConfigureStore((state)=>state)
+    const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
-        console.log("======!")
-        console.log(cur_state.general)
-        console.log(prev_state.general)
-        console.log("======!")
-        console.log(cur_state.shortcut)
-        console.log(prev_state.shortcut)
-        console.log(isEqual(prev_state, cur_state))
-        if (isEqual(prev_state.general, cur_state.general) &&
-            isEqual(prev_state.shortcut, cur_state.shortcut)
-            ){
-            val_f(true)
-            console.log(" same!")
-
+        if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
+            console.log("valid_save_flag", valid_save_flag())
+            if(!valid_save_flag())
+                val_f(true)
         }else{
             val_f(false)
-            console.log("not same!")
-            
         }
-        console.log("changed!")
     })
 
     useEffect(
         ()=>{
             return unsub
-        },[]
-    )
+        },[])
+
+    
     return (
         <FooterComponent>
         <Grid  container justifyContent={"flex-end"} columnGap={1} columns={12}>
