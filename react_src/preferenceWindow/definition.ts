@@ -78,9 +78,7 @@ export let save_flag = create<save_flag>((set, get)=>({
                 )
             }
         }
-
         set(state=>({...state, shortcut_id_to_shortcut_map : tmp_id_2_sc, shortcut_to_id_map : tmp_sc_2_id  }))
-        
         set(state=>({...state,valid_save : get().check_whole_shortcut() }))
     }
    

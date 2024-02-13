@@ -33,8 +33,7 @@ function App(){
         new_fetch(
             async ()=>{
                 let prev = await window.preference_api.get_data()
-                if(typeof cur_state.configure === "undefined")
-                    copy_from(prev)
+                copy_from(prev)
                 console.log("prev", prev)
                 return prev
     
