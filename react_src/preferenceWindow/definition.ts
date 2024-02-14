@@ -3,7 +3,6 @@ import { CItem, Configure, ItemType, getProperty, isCItemArray, isEqualConfigure
 import produce from 'immer';
 import lodash from "lodash"
 
-let t = new Map<string, Set<string>>()
 interface save_flag {
     shortcut_validation : boolean
     shortcut_to_id_map :  Map<string, Set<String>>; // [shortcut string, set of id strings ]
@@ -18,17 +17,21 @@ export let save_flag = create<save_flag>((set, get)=>({
     shortcut_to_id_map : new Map<string, Set<string>>(),
     shortcut_id_to_shortcut_map : new Map<string, string>(),
     check_duplication_shortcut : (id:string, shortcut_text:string)=>{
-        
+        // if duplication problem exsits, then return true
+        // else return false
         let shortcut_id_to_key = get().shortcut_id_to_shortcut_map
         let shortcut_key_to_id = get().shortcut_to_id_map
 
         let prev_shortcut_key = shortcut_id_to_key.get(id)
         shortcut_id_to_key.set(id, shortcut_text)
         let ids_duplicate_shortcut_key = shortcut_key_to_id.get(shortcut_text)
-
+        let re_flag = false
         if(prev_shortcut_key === undefined || prev_shortcut_key == ""){
-            
+            return false
         }
+
+
+
 
         return true;
 

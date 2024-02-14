@@ -8,7 +8,7 @@ import { Configure } from '../../typescript_src/definitions/types';
 
 import { MemoryRouter, Routes, Route, Link} from 'react-router-dom';
 import { ipcRenderer } from 'electron';
-import {usePrevConfigureStore, useCurConfigureStore} from "./definition"
+import {usePrevConfigureStore, useCurConfigureStore, save_flag} from "./definition"
 import {testa} from "./definition"
 import { create } from 'zustand';
 import { Button } from '@mui/material';
@@ -28,12 +28,13 @@ function App(){
 
     const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
     const [cur_state, copy_from] = useCurConfigureStore((state)=>[state, state.copy_from])
-
+    const reset_from_conf = save_flag(state=>state.reset_from_conf)
     useEffect(()=>{
         new_fetch(
             async ()=>{
                 let prev = await window.preference_api.get_data()
                 copy_from(prev)
+                reset_from_conf(prev)
                 console.log("prev", prev)
                 return prev
     
