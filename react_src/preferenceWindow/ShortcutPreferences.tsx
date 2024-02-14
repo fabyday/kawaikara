@@ -18,7 +18,7 @@ const rawstack_style = {
     textAlign :"center",
 };
 function ShortcutPreference(){
-    const save_checker = save_flag((state)=>state.check_dupshortcut)
+    const save_checker = save_flag((state)=>state.check_duplication_shortcut)
     
     const [get_property, set_property] = useCurConfigureStore(state => [state.get_property, state.set_property])
     let root_id  : string = "configure.shortcut"

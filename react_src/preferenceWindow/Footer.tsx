@@ -22,8 +22,8 @@ const FooterComponent = styled('div')({
 
 function Footer(){
     let o = useCurConfigureStore((state)=>state)
-    let [disabled_flag1, val_f] = React.useState(true);
-    let [disabled_flag2, val_f2] = React.useState(true);
+    let [is_changed, val_f] = React.useState(false);
+    let [is_validate_shortcut, val_f2] = React.useState(true);
     let [disable_apply, val_f3] = React.useState(true);
     const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
@@ -34,9 +34,8 @@ function Footer(){
         }
     })
     let save_flag_unsub = save_flag.subscribe(state=>{
-        console.log("is vaild", state.valid_save)
         if(state.check_whole_shortcut()){
-            console.log("is invalid")
+            console.log("is valid")
             val_f2(true)
         }else{
             val_f2(false)
@@ -52,15 +51,22 @@ function Footer(){
         },[])
     
     useEffect(()=>{
-        console.log("testestse", disabled_flag1 || disabled_flag2)
-        console.log("testestse", disabled_flag1 , disabled_flag2)
-        if(disabled_flag1){
-            if(disabled_flag2)
-                val_f3(disabled_flag2)
-            else 
-                val_f3(disabled_flag1)
+        if(is_changed){
+            console.log("test", is_changed)
+            val_f3(true)
+            // if(is_validate_shortcut)
+            // if(disabled_flag2)
+            //     val_f3(false)
+        }else{
+            if(is_validate_shortcut){
+                val_f3(false)
+
+            }
+            else{
+                val_f3(true)
+            }
         }
-    },[disabled_flag1, disabled_flag2])
+    },[is_validate_shortcut, is_changed])
     
     return (
         <FooterComponent>
@@ -68,8 +74,6 @@ function Footer(){
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
         <Button variant="contained" onClick={()=>{}}>ok</Button>
-        <Button variant="contained" onClick={()=>{}} >{disabled_flag1?"true":"false"}</Button>
-        <Button variant="contained" onClick={()=>{}} >{disabled_flag2?"true":"false"}</Button>
         <Button variant="contained" onClick={()=>{}} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>

@@ -19,26 +19,53 @@ export let save_flag = create<save_flag>((set, get)=>({
     check_duplication_shortcut : (id:string, shortcut_text:string)=>{
         // if duplication problem exsits, then return true
         // else return false
-        let shortcut_id_to_key = get().shortcut_id_to_shortcut_map
-        let shortcut_key_to_id = get().shortcut_to_id_map
+        let shortcut_id_to_key = lodash.cloneDeep(get().shortcut_id_to_shortcut_map)
+        let shortcut_key_to_id = lodash.cloneDeep(get().shortcut_to_id_map)
 
         let prev_shortcut_key = shortcut_id_to_key.get(id)
         shortcut_id_to_key.set(id, shortcut_text)
-        let ids_duplicate_shortcut_key = shortcut_key_to_id.get(shortcut_text)
+        let ids_duplicate_shortcut_key  = shortcut_key_to_id.get(shortcut_text)
+ 
         let re_flag = false
-        if(prev_shortcut_key === undefined || prev_shortcut_key == ""){
-            return false
+        
+        
+        // if prev shortcut key exists, then delete this infos.
+        // and I don't track "" and undefined.
+        if(prev_shortcut_key !== "" && prev_shortcut_key !== undefined){
+            let prev_ids_duplicate_shortcut_key = shortcut_key_to_id.get(prev_shortcut_key)
+            if(prev_ids_duplicate_shortcut_key !== undefined){
+                prev_ids_duplicate_shortcut_key.delete(id)
+                if(prev_ids_duplicate_shortcut_key.size === 0)
+                    shortcut_key_to_id.delete(prev_shortcut_key)
+        }
+    }
+        if(ids_duplicate_shortcut_key === undefined || ids_duplicate_shortcut_key.size == 0){
+            shortcut_key_to_id.set(shortcut_text, new Set<string>())
+            // re flag is false
+            re_flag = false
+        }
+        if(shortcut_text !== "" && shortcut_text !== undefined){
+            ids_duplicate_shortcut_key = shortcut_key_to_id.get(shortcut_text)
+            ids_duplicate_shortcut_key!.add(id)
+            let size = ids_duplicate_shortcut_key!.size
+            if (size >1 ){
+                re_flag = true
+            }
         }
 
-
-
-
-        return true;
-
+        set(state=>({...state, shortcut_id_to_shortcut_map : shortcut_id_to_key,  shortcut_to_id_map : shortcut_key_to_id}))
+        return re_flag;
     },
 
     check_whole_shortcut : ()=>{
-       
+        let flag  = true
+        let shortcut_to_id = get().shortcut_to_id_map
+        for( let s of shortcut_to_id){
+            if(s[1].size > 1){
+                flag &&= false
+            }
+        }
+        return flag;
     },
 
     reset_from_conf : (conf :Configure) =>{
