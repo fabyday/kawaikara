@@ -1,4 +1,4 @@
-import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components} from 'electron'
+import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components, nativeTheme} from 'electron'
 import { ipcMain, ipcRenderer, Menu, MenuItem, BrowserView, webContents} from 'electron'
 
 import * as path from "path";
@@ -17,8 +17,6 @@ import lodash from 'lodash';
 const logger = require('electron-log')
 
 
-
-const base_url = 'http://localhost:3000'
 
 
 
@@ -53,6 +51,7 @@ function init_default_prefernece(conf :Configure){
                     ]
     
     let all_displays = screen.getAllDisplays()
+    console.log(all_displays)
     let max_disp_index = -1;
     let max_volume = 0
     for(let i =0; i < all_displays.length; i++ ){
@@ -82,6 +81,17 @@ function init_default_prefernece(conf :Configure){
     let string_list = sel_preset.map((v)=>
       String(v[0])+"x"+String([v[1]])
     )
+    let monitor_preset_item = getProperty(conf, "configure.general.pip_location.preset_monitor_list")
+    monitor_preset_item!.item = all_displays.map(v=>v.label)
+    
+    let monitor = getProperty(conf, "configure.general.pip_location.monitor")
+    if(monitor!.item === ""){
+      monitor!.item = screen.getPrimaryDisplay().label
+    }
+    
+    console.log("asdadaasdasdadsad", screen.getPrimaryDisplay())
+    
+    console.log(monitor_preset_item)
     let win_preset_item = getProperty(conf, "configure.general.window_size.preset_list")
     win_preset_item!.item = string_list
     let pip_preset_item = getProperty(conf, "configure.general.pip_window_size.preset_list")
@@ -102,15 +112,16 @@ const initialize = ():void=>{
     menu : undefined
   }
   global_object.mainWindow!.loadURL("https://www.youtube.com/");
-  global_object.mainWindow!.hide()
-
+  // global_object.mainWindow!.hide()
+  nativeTheme.themeSource = "light"
   ipcMain.handle("get-data", ()=>config)
   ipcMain.handle("close", ()=>{ 
       global_object?.preferenceWindow?.close()
   })
   ipcMain.handle('apply-changed-preference', (event, new_conf : Configure)=>{
-      global_object!.config = new_conf
-      apply_all(global_object!, config)
+      global_object!.config = lodash.cloneDeep(new_conf)
+      apply_all(global_object!, global_object!.config)
+      return new_conf
   })
 }
 

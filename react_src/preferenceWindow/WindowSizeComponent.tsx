@@ -28,8 +28,8 @@ function WindowSizeComponent({id, preset_list, get_default_value, onSelect_f, on
     let [disable, set_disable] = useState(true)
     let [selected_index, set_selected_index] = useState(0)
     
-    
     useEffect(()=>{ 
+        console.log(id, preset_list)
         let idx = preset_list.findIndex((v)=>v === get_default_value)
         if(idx !== -1)
             set_selected_index(idx)

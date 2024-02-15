@@ -44,6 +44,23 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
 
+## available for 
+- OTT
+  - **Netflix**
+  - **Lafetel**
+  - **Youtube**
+  - **Disney plus**
+  - **Amazonprime**
+  - **Wavve**
+  - **Watcha**
+  - **Coupangplay**
+  - **Tving**
+- Music
+  - **Apple music**
+  - **Youtube music**
+- streaming
+  - **Chzzk**
+  - **Twitch**
 
 
 

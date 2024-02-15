@@ -47,6 +47,16 @@ function GeneralPreference(){
 
                 />
                 <KawaiAutoCompleteSelector 
+                id ={get_property("configure.general.pip_location.monitor")?.id as string} 
+                title={get_property("configure.general.pip_location.monitor")?.name as string} 
+                preset_list={get_property("configure.general.pip_location.preset_monitor_list")?.item as string[] ?? ["0", "1"]}
+                get_default_value={get_property("configure.general.pip_location.monitor")?.item as string ?? "0"}
+                select_f={(text : string)=>{ set_property("configure.general.pip_location.monitor", text)}}
+                
+               
+
+                />
+                <KawaiAutoCompleteSelector 
                     id ={get_property("configure.general.pip_window_size")?.id as string} 
                     title={get_property("configure.general.pip_window_size")?.name as string} 
                     preset_list={get_property("configure.general.pip_window_size.preset_list")?.item as string[] ?? []} 
@@ -108,14 +118,14 @@ function GeneralPreference(){
             <KawaiSwitch 
                 id = {get_property("configure.general.enable_autoupdate")?.id as string} 
                 title={get_property("configure.general.enable_autoupdate")?.name as string}
-                onclick={(e)=>{ set_property("configure.general.enable_autoupdate", !(get_property("configure.general.enable_autoupdate")?.item as boolean)) }} 
+                onclick={(e)=>{ set_property("configure.general.enable_autoupdate", e) }} 
                 defaultchecked = {get_property("configure.general.enable_autoupdate")?.item as boolean}
                 />
 
             <KawaiSwitch 
                 id = {get_property("configure.general.dark_mode")?.id as string} 
                 title={get_property("configure.general.dark_mode")?.name as string}
-                onclick={(e)=>{ set_property("configure.general.dark_mode", !(get_property("configure.general.dark_mode")?.item as boolean)) }} 
+                onclick={(e)=>{ set_property("configure.general.dark_mode", e) }} 
                 defaultchecked = {get_property("configure.general.dark_mode")?.item as boolean}
                 />
         </Grid>

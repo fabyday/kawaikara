@@ -2,12 +2,16 @@
 
 
 import { GlobalObject, CItem, CPiPLocation, Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps } from '../definitions/types';
-import { BrowserWindow, app } from "electron"
+import { BrowserWindow, app, nativeTheme } from "electron"
 
 import * as path from "node:path"
 import * as fs from "node:fs"
 import { Config } from "@cliqz/adblocker-electron";
-function apply_resize_window(gobj : BrowserWindow, conf : Configure){
+import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
+function apply_resize_window(gobj : GlobalObject, conf : Configure){
+
+}
+function apply_pip_window_size(gobj : GlobalObject, conf : Configure){
 
 }
 
@@ -21,12 +25,23 @@ function apply_pipmode(gobj : GlobalObject, conf : Configure){
 
 function apply_autoupdate(gobj : GlobalObject, conf : Configure){
 
-
+    if(getProperty(conf, "configure.general.enable_autoupdate")!.item){
+        set_autoupdater()
+    }else{
+        unset_autoupdater()
+    }
 
 }
 
 function apply_darkmode(gobj : GlobalObject, conf : Configure){
-
+    console.log(getProperty(conf, "configure.general.dark_mode"))
+    if(getProperty(conf, "configure.general.dark_mode")!.item){
+        nativeTheme.themeSource = 'dark'
+    }
+    else{
+        nativeTheme.themeSource = 'light'
+    }
+    gobj.mainWindow?.reload()
 }
 
 function apply_render_full_size_when_pip_running(gobj:GlobalObject, conf : Configure){
@@ -36,17 +51,19 @@ function apply_render_full_size_when_pip_running(gobj:GlobalObject, conf : Confi
 
 
 
-function apply_general(gobj : GlobalObject, conf : CItem){
+function apply_general(gobj : GlobalObject, conf : Configure){
+    apply_autoupdate(gobj, conf)
+    apply_darkmode(gobj, conf)
+    apply_resize_window(gobj, conf)
 
 }
 
-function apply_shortcuts(gobj : GlobalObject, conf : CItem){
+function apply_shortcuts(gobj : GlobalObject, conf : Configure){
 
 }
 
 export function apply_all(gobj : GlobalObject, conf : Configure){
-    getProperty(conf, "configure.general")
-    getProperty(conf, "configure.shortcut")
+    apply_general(gobj, conf)
 }
 
 function apply_locale_from_file(conf : Configure, file_path:string){

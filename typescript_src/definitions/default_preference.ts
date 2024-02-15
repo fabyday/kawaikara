@@ -65,7 +65,7 @@ export const default_configure : Configure = {
                         { 
                             id : "monitor", 
                             name : "",
-                            item  : 0 
+                            item  : "" 
                         },
                     ]
                 },

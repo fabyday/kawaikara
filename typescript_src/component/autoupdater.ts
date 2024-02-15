@@ -20,9 +20,8 @@ export function setup_pogress_bar(window : BrowserWindow){
       window.setProgressBar(progress.percent*0.01)
   })
 }
-  
 
-autoUpdater.on('update-available', () => {
+const on_update_available =() => {
   log.info('updater')
   dialog.showMessageBox({
     type: 'info',
@@ -44,16 +43,14 @@ autoUpdater.on('update-available', () => {
     //   updater = null
     }
   })
-})
-
-autoUpdater.on('update-not-available', () => {
+}
+const on_update_not_available = () => {
   dialog.showMessageBox({
     title: 'No Updates',
     message: 'Current version is up-to-date.'
   })
-})
-
-autoUpdater.on('update-downloaded', () => {
+}
+const on_update_downloaded =() => {
   log.info("update downloaded...")
   dialog.showMessageBox({
     title: 'Install Updates',
@@ -62,13 +59,25 @@ autoUpdater.on('update-downloaded', () => {
     log.info("update install...")
     setImmediate(() => autoUpdater.quitAndInstall())
   })
-})
+}
 
+
+export function unset_autoupdater(){
+    autoUpdater.removeListener('update-available', on_update_available)
+    autoUpdater.removeListener('update-not-available',on_update_not_available)
+    autoUpdater.removeListener('update-downloaded',on_update_downloaded)
+}
+
+export function set_autoupdater(){
+autoUpdater.on('update-available', on_update_available)
+
+autoUpdater.on('update-not-available', on_update_not_available)
+
+autoUpdater.on('update-downloaded', on_update_downloaded)
+}
 
 
 // export this to MenuItem click callback
 export function checkForUpdates (menuItem : any, focusedWindow : any, event : any) {
-//   updater = menuItem
-//   updater.enabled = false
   autoUpdater.checkForUpdates()
 }
