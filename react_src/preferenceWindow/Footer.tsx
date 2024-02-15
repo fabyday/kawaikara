@@ -87,6 +87,7 @@ function Footer(){
             }}>Cancel</Button>
         <Button variant="contained" onClick={()=>{
             window.preference_api.apply_changed_preference(o.configure)
+            val_f(true)
         }} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>

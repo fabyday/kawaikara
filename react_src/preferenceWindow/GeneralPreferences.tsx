@@ -39,9 +39,8 @@ function GeneralPreference(){
             <KawaiAutoCompleteSelector 
                 id ={get_property("configure.general.pip_location.location")?.id as string} 
                 title={get_property("configure.general.pip_location.location")?.name as string} 
-                preset_list={get_property("configure.general.pip_location.preset_location_list")?.item as string[] ?? ["test2","test"] }
-                default_value={get_property("configure.general.pip_location.location")?.item as string}
-                // additional_textedit = {true}
+                preset_list={get_property("configure.general.pip_location.preset_location_list")?.item as string[] ?? []}
+                get_default_value={get_property("configure.general.pip_location.location")?.item as string ?? "bottom-left"}
                 select_f={(text : string)=>{ set_property("configure.general.pip_location.location", text)}}
                 
                
@@ -51,9 +50,11 @@ function GeneralPreference(){
                     id ={get_property("configure.general.pip_window_size")?.id as string} 
                     title={get_property("configure.general.pip_window_size")?.name as string} 
                     preset_list={get_property("configure.general.pip_window_size.preset_list")?.item as string[] ?? []} 
-                    default_value={
+                    get_default_value={(
+
+                    
                         (get_property("configure.general.pip_window_size.width")?.item as string)+"x"
-                        +(get_property("configure.general.pip_window_size.height")?.item as string)
+                        +(get_property("configure.general.pip_window_size.height")?.item as string))
                         }
 
                     select_f={(text : string)=>{
@@ -79,9 +80,9 @@ function GeneralPreference(){
                 id ={get_property("configure.general.window_size")?.id as string} 
                 title={get_property("configure.general.window_size")?.name as string} 
                 preset_list={get_property("configure.general.window_size.preset_list")?.item as string[] ?? [""]}
-                default_value={
+                get_default_value={(
                     (get_property("configure.general.window_size.width")?.item as string)+"x"
-                    +(get_property("configure.general.window_size.height")?.item as string)
+                    +(get_property("configure.general.window_size.height")?.item as string))
                 }
 
                 select_f={(text : string)=>{

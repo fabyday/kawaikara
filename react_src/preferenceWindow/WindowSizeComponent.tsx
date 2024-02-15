@@ -7,65 +7,67 @@ import Grid from '@mui/material/Grid'
 import { MenuPaper, Paper } from '@mui/material';
 import Box from "@mui/material/Box"
 import { useCurConfigureStore, usePrevConfigureStore } from './definition';
-import { ChangeEvent, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 type props = {
     id: string;
     preset_list : string[];
-    default_value? : number | string;
+    get_default_value : string;
     onSelect_f : (str :  string )=>void;
     onselected_customize_f? : (index : number, value : number )=>void;
     customizable? : boolean
   };
 
 
-function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onselected_customize_f, customizable} : props){
+function WindowSizeComponent({id, preset_list, get_default_value, onSelect_f, onselected_customize_f, customizable} : props){
     
     let inputs : number[] = [] ;
     let flag = customizable ? true : false
 
     const [args, set_args] = useState(inputs);
-    let ind = 0;
-    
+    const [default_value, set_default_value] = useState(get_default_value)
     let [disable, set_disable] = useState(true)
     let [selected_index, set_selected_index] = useState(0)
+    
+    
+    useEffect(()=>{ 
+        let idx = preset_list.findIndex((v)=>v === get_default_value)
+        if(idx !== -1)
+            set_selected_index(idx)
 
+        let sel_preset = preset_list[idx]
+        let [w, h] = [0,0];
+        try{
+            [w,h] = sel_preset.split("x").map(v=>Number(v))
+            set_args([w,h])
 
-    if(typeof default_value  === "string"){ //this type is key
-        if(typeof default_value !== "undefined"){
-            let i = preset_list.findIndex((value, index)=>(value === default_value))
-            set_selected_index(i)
-        
-        if( customizable ){
-
+        }catch{
             
-            console.log("default val", default_value)
-            let v = preset_list.filter((value, index)=>(value === default_value))
-            let sp :string[] = v[0].split("x")
-            console.log(sp)
-            inputs = sp.map((v)=>Number(v));
-            if(v.length !== 0 ){
-                set_disable(false)
-                set_args(inputs)    
-                set_selected_index(preset_list.length)
-            }
-        }else{
-            inputs = [Number(default_value)]
-        }
-    }
-    }
-    else if (typeof default_value === "number"){
-        inputs = [default_value]
-    }
 
+        }finally{
+            
+            set_default_value(preset_list[idx])
+        }
+      
+    }, [get_default_value])
+
+    
+    
 
 
     const handleChange = (e : ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, setup_f :(a : number)=>void) => {
-        const regex = /^[0-9\b]+$/;
+        const regex = /^[0-9\b]*$/;
         if (e.target.value === "" || regex.test(e.target.value)) {
-            setup_f( Math.abs(Number(e.target.value)));
+
+            let fx = Math.abs(Number(e.target.value))
+            
+            setup_f( fx);
         }
       };
     const builder =  ()=>{
+
+        
+
+        
         let custom_btn;
         if(customizable)
             custom_btn = <MenuItem id={id+"custom"} value={"custom"}>{"Custom"}</MenuItem>
@@ -73,15 +75,15 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                 <Grid item>
                     <FormControl >
                         <Select
-                        labelId="demo-simple-select-label"
+                        labelId="sels"
                         id={id}
-                        value={preset_list[selected_index]}
+                        value={default_value}
                         style={{minWidth : "200px"}}
-                        defaultValue={preset_list[selected_index]}
 
                         onChange={(e : SelectChangeEvent)=>{
                             if (e.target.value==="custom"){
                                 set_disable(false)
+                                set_default_value("custom")
                             }else{
                                 // let [width, height] = e.target.value.split("x").map((v)=>Number(v))
                                 set_disable(true)
@@ -104,7 +106,7 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                         
                         disabled ={disable}
                         label="width"
-                        defaultValue="1920"
+                        defaultValue="0"
                         variant="filled" 
                         value = {args[0]}
                         onBlur={(e)=>{
@@ -114,7 +116,13 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                         }}
 
                         onChange={(e)=>{
-                            handleChange(e, (w)=>{set_args([w, args[1]])})
+                            handleChange(e, (w)=>{
+                                let [mw,mh] = preset_list[preset_list.length-1].split("x").map(v=>Number(v))
+                                if(w>mw){
+                                    w = mw
+                                }
+                                set_args([w, args[1]])
+                            })
                             
                         }}
                         InputProps={{
@@ -131,7 +139,15 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
                             let height = Number(e.target.value)
                             onselected_customize_f!(1, height)
                         }}
-                        onChange={(e)=>{handleChange(e, (h)=>{set_args([args[0], h]) } )}} 
+                        onChange={(e)=>{handleChange(e, (h)=>{
+                            let [mw,mh] = preset_list[preset_list.length-1].split("x").map(v=>Number(v))
+                                if(h>mw){
+                                    h = mh
+                                }
+                            set_args([args[0], h]) 
+                            
+                        } )
+                        }} 
                         value = {args[1]}
                         InputProps={{
                             style: {margin:1, maxWidth: "100px" }
