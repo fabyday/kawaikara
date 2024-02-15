@@ -1,48 +1,53 @@
 
 
 
-import {GlobalObject, CItem, CPiPLocation,  Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps} from "../definitions/types"
+import { GlobalObject, CItem, CPiPLocation, Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps } from '../definitions/types';
 import { BrowserWindow, app } from "electron"
 
 import * as path from "node:path"
 import * as fs from "node:fs"
-function apply_resize_window(gobj : BrowserWindow, size : CWindowSize){
+import { Config } from "@cliqz/adblocker-electron";
+function apply_resize_window(gobj : BrowserWindow, conf : Configure){
 
 }
 
 
 
-function apply_pipmode(gobj : GlobalObject, enable : boolean){
+function apply_pipmode(gobj : GlobalObject, conf : Configure){
 
 
 
 }
 
-function apply_autoupdate(gobj : GlobalObject, enable : boolean){
+function apply_autoupdate(gobj : GlobalObject, conf : Configure){
 
 
 
 }
 
-function apply_darkmode(gobj : GlobalObject, enable : boolean){
+function apply_darkmode(gobj : GlobalObject, conf : Configure){
 
 }
 
-function apply_render_full_size_when_pip_running(gobj:GlobalObject, enable : boolean){
+function apply_render_full_size_when_pip_running(gobj:GlobalObject, conf : Configure){
 
 }
 
 
 
 
-function apply_general(gobj : GlobalObject, general : CItem){
+function apply_general(gobj : GlobalObject, conf : CItem){
 
 }
 
-function apply_shortcuts(gobj : GlobalObject, shortcuts : CItem){
+function apply_shortcuts(gobj : GlobalObject, conf : CItem){
 
 }
 
+export function apply_all(gobj : GlobalObject, conf : Configure){
+    getProperty(conf, "configure.general")
+    getProperty(conf, "configure.shortcut")
+}
 
 function apply_locale_from_file(conf : Configure, file_path:string){
     function read_locale_conf(){
@@ -62,6 +67,7 @@ function apply_locale_from_file(conf : Configure, file_path:string){
     let locale_json_root : LocaleRoot = read_locale_conf();
     if (typeof locale_json_root !== "undefined"){
         let current_key_list = [conf.id]
+        console.log("start at... ", current_key_list)
         while(true){
             // combineKey
             let key : undefined| string = current_key_list.pop()
@@ -70,26 +76,27 @@ function apply_locale_from_file(conf : Configure, file_path:string){
             
             let prop = getProperty(conf, key)
             let locale_prop = getLocaleProps(locale_json_root, key)
-            if(typeof prop!== "undefined"){
+            if(typeof prop !== "undefined"){
                 if(typeof locale_prop !== "undefined"){
                     prop.name = locale_prop.name
+
                 }
             
                 if(isCItem(prop.item) ){
                     current_key_list.push(combineKey(key!,prop.item.id))
                     
                 }else if(isCItemArray(prop.item)){
-                    for(let item of prop.item)
+                    for(let item of prop.item){
                         current_key_list.push(combineKey(key!, item.id))
+                    }
                 }
-                else{
-                    current_key_list.pop()
-                }
+                
 
             }
         }
     }
-    
+    console.log(conf.item[0])
+
     return conf;
 }
 

@@ -23,7 +23,7 @@ function GeneralPreference(){
     const f = (value : string)=>{
         const [width, height] = value.split("x").map((v)=>Number(v))
         set_property("configure.general.pip_location.preset_location_list.width", width)
-        set_property("configure.general.pip_location.preset_location_list.width", height)
+        set_property("configure.general.pip_location.preset_location_list.height", height)
 
     }
 
@@ -40,6 +40,7 @@ function GeneralPreference(){
                 id ={get_property("configure.general.pip_location.location")?.id as string} 
                 title={get_property("configure.general.pip_location.location")?.name as string} 
                 preset_list={get_property("configure.general.pip_location.preset_location_list")?.item as string[] ?? ["test2","test"] }
+                default_value={get_property("configure.general.pip_location.location")?.item as string}
                 // additional_textedit = {true}
                 select_f={(text : string)=>{ set_property("configure.general.pip_location.location", text)}}
                 
@@ -50,6 +51,11 @@ function GeneralPreference(){
                     id ={get_property("configure.general.pip_window_size")?.id as string} 
                     title={get_property("configure.general.pip_window_size")?.name as string} 
                     preset_list={get_property("configure.general.pip_window_size.preset_list")?.item as string[] ?? []} 
+                    default_value={
+                        (get_property("configure.general.pip_window_size.width")?.item as string)+"x"
+                        +(get_property("configure.general.pip_window_size.height")?.item as string)
+                        }
+
                     select_f={(text : string)=>{
                         const [width, height] = text.split("x").map((v)=>Number(v))
                         set_property("configure.general.pip_window_size.width", width)
@@ -73,6 +79,11 @@ function GeneralPreference(){
                 id ={get_property("configure.general.window_size")?.id as string} 
                 title={get_property("configure.general.window_size")?.name as string} 
                 preset_list={get_property("configure.general.window_size.preset_list")?.item as string[] ?? [""]}
+                default_value={
+                    (get_property("configure.general.window_size.width")?.item as string)+"x"
+                    +(get_property("configure.general.window_size.height")?.item as string)
+                }
+
                 select_f={(text : string)=>{
                     const [width, height] = text.split("x").map((v)=>Number(v))
                     set_property("configure.general.window_size.width", width)
@@ -90,6 +101,7 @@ function GeneralPreference(){
                 id = { get_property("configure.general.render_full_size_when_pip_running")?.id as string} 
                 title={get_property("configure.general.render_full_size_when_pip_running")?.name as string}
                 onclick={(e)=>{ set_property("configure.general.render_full_size_when_pip_running", !(get_property("configure.general.render_full_size_when_pip_running")?.item as boolean)) }} 
+                defaultchecked = {get_property("configure.general.render_full_size_when_pip_running")?.item as boolean}
                 />
 
             <KawaiSwitch 

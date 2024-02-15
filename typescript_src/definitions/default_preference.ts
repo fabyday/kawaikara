@@ -50,7 +50,7 @@ export const default_configure : Configure = {
                         { 
                             id : "preset_monitor_list", 
                             name : "Available monitors",
-                            item  : ["1920x1080"] 
+                            item  : [] 
                         },
                         { 
                             id : "preset_location_list", 
@@ -76,7 +76,7 @@ export const default_configure : Configure = {
                         {
                             id : "preset_list", 
                             name : "Preset List",
-                            item : ["1920x1080"]
+                            item : []
                         }, 
                         {
                             id : "width", 

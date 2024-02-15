@@ -16,7 +16,8 @@ type onclick_prop = (a : boolean)=>void
 type props = {
     id: string;
     title : string
-    preset_list : string[]
+    preset_list : string[],
+    default_value : string,
     additional_textedit? : boolean
     select_f : (text : string)=>void;
     onselected_customize_f? : (index : number, width : number )=>void;
@@ -25,7 +26,7 @@ type props = {
 
 
 
-function KawaiAutoCompleteSelector({id, title, preset_list, select_f, onselected_customize_f, additional_textedit} : props){
+function KawaiAutoCompleteSelector({id, title, preset_list, default_value , select_f, onselected_customize_f, additional_textedit} : props){
 
 
   
@@ -38,7 +39,7 @@ return (
                     <Box display="flex" justifyContent="center">
                     <WindowSizeComponent id = {id} 
                             preset_list = {preset_list} 
-                            default_value={0}
+                            default_value={default_value}
                             onSelect_f={select_f}
                             onselected_customize_f={onselected_customize_f}
                             customizable={additional_textedit}/>

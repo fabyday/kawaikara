@@ -73,8 +73,21 @@ function Footer(){
         <Grid  container justifyContent={"flex-end"} columnGap={1} columns={12}>
         <Grid  xs={6} item>
         <Box columnGap={1} display="flex" justifyContent="center">
-        <Button variant="contained" onClick={()=>{}}>ok</Button>
-        <Button variant="contained" onClick={()=>{}} disabled={( disable_apply)}>apply</Button>
+        <Button variant="contained" onClick={()=>{
+            if(disable_apply){
+                window.preference_api.just_close_preference_window()
+            }else{
+                window.preference_api.apply_changed_preference(o.configure)
+                window.preference_api.just_close_preference_window()
+            }
+        }}>OK</Button>
+        <Button variant="contained" 
+        onClick={()=>{
+            window.preference_api.just_close_preference_window()
+            }}>Cancel</Button>
+        <Button variant="contained" onClick={()=>{
+            window.preference_api.apply_changed_preference(o.configure)
+        }} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>
         </Grid>

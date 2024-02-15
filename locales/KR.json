@@ -57,7 +57,7 @@
                 },
                 {
                     "id" : "pip_window_size",
-                    "name" : "",
+                    "name" : "PiP 윈도우 사이즈",
                     "item" : [
                         {
                             "id" : "preset_list", 

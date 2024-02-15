@@ -11,7 +11,7 @@ import { ChangeEvent, useState } from 'react';
 type props = {
     id: string;
     preset_list : string[];
-    default_value : number | string;
+    default_value? : number | string;
     onSelect_f : (str :  string )=>void;
     onselected_customize_f? : (index : number, value : number )=>void;
     customizable? : boolean
@@ -24,15 +24,24 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
     let flag = customizable ? true : false
 
     const [args, set_args] = useState(inputs);
-
+    let ind = 0;
+    
     let [disable, set_disable] = useState(true)
     let [selected_index, set_selected_index] = useState(0)
 
 
     if(typeof default_value  === "string"){ //this type is key
+        if(typeof default_value !== "undefined"){
+            let i = preset_list.findIndex((value, index)=>(value === default_value))
+            set_selected_index(i)
+        
         if( customizable ){
+
+            
+            console.log("default val", default_value)
             let v = preset_list.filter((value, index)=>(value === default_value))
-            let sp :string[] = default_value.split("x")
+            let sp :string[] = v[0].split("x")
+            console.log(sp)
             inputs = sp.map((v)=>Number(v));
             if(v.length !== 0 ){
                 set_disable(false)
@@ -42,6 +51,7 @@ function WindowSizeComponent({id, preset_list, default_value, onSelect_f, onsele
         }else{
             inputs = [Number(default_value)]
         }
+    }
     }
     else if (typeof default_value === "number"){
         inputs = [default_value]
