@@ -125,7 +125,7 @@ function GeneralPreference(){
             <KawaiSwitch 
                 id = {get_property("configure.general.dark_mode")?.id as string} 
                 title={get_property("configure.general.dark_mode")?.name as string}
-                onclick={(e)=>{ set_property("configure.general.dark_mode", e) }} 
+                onclick={(e)=>{ set_property("configure.general.dark_mode", e ) }} 
                 defaultchecked = {get_property("configure.general.dark_mode")?.item as boolean}
                 />
         </Grid>

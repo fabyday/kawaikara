@@ -166,7 +166,7 @@ export function getProperty(obj : CItem | CItem[] | Configure, id : string | str
     let id_length = id_list.length;
 
     if(id_length >= 1){
-
+        
         key = id_list[0]
         if(id_length > 1)
             next_id = id_list.slice(1)
