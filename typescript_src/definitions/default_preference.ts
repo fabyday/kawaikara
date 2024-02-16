@@ -123,7 +123,7 @@ export const default_configure : Configure = {
                     item : ""
                 },
                 {
-                    id : "goto_youtubue",
+                    id : "goto_youtube",
                     name : "Open Youtube", 
                     item : ""
                 },

@@ -12,8 +12,7 @@ let preferenceWindow : BrowserWindow | null   = null;
 
 export const get_instance = (conf:Configure):BrowserWindow =>{
     if ( preferenceWindow === null ){
-        apply_locale(conf, "KR")
-
+        
         preferenceWindow = new BrowserWindow(
             {
             // width: 600,

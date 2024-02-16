@@ -60,7 +60,7 @@ return {
     React: "react",
 }),
     new HtmlWebpackPlugin({
-      template: './public/index.html',
+      template: './preferenceWindow/preference.html',
                 minify: process.env.NODE_ENV === 'production' ? {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment

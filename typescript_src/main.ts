@@ -10,7 +10,7 @@ import { get_instance as get_pip_window } from './component/pip_window';
 import {default_configure, config_name} from "./definitions/default_preference"
 import * as autoUpdater from "./component/autoupdater"
 import { Configure, GlobalObject, getProperty } from './definitions/types';
-import { apply_all } from './logics/preference_logic';
+import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
 
 
@@ -104,6 +104,7 @@ function init_default_prefernece(conf :Configure){
 const initialize = ():void=>{
   let config = read_configure();
   init_default_prefernece(config)
+  apply_locale(config, config.locale)
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
@@ -111,9 +112,9 @@ const initialize = ():void=>{
     config : config,
     menu : undefined
   }
-  global_object.mainWindow!.loadURL("https://www.youtube.com/");
+  apply_all(global_object, config)
+  global_object.mainWindow!.loadURL("https://music.apple.com/kr");
   // global_object.mainWindow!.hide()
-  nativeTheme.themeSource = "light"
   ipcMain.handle("get-data", ()=>config)
   ipcMain.handle("close", ()=>{ 
       global_object?.preferenceWindow?.close()

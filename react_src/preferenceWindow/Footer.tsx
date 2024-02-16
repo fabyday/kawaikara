@@ -22,8 +22,8 @@ const FooterComponent = styled('div')({
 
 function Footer(){
     const reset_from_conf = save_flag(state=>state.reset_from_conf)
-    const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
-    const [cur_state, copy_from] = useCurConfigureStore((state)=>[state, state.copy_from])
+    const copyfrom = usePrevConfigureStore((state)=>state.copy_from)
+    const [cur_state, cur_config] = useCurConfigureStore((state)=>[state, state.configure])
     let o = useCurConfigureStore((state)=>state)
     let [is_changed, val_f] = React.useState(false);
     let [is_validate_shortcut, val_f2] = React.useState(true);
@@ -91,19 +91,9 @@ function Footer(){
         <Button variant="contained" onClick={()=>{
 
          window.preference_api.apply_changed_preference(o.configure)
-                
-                new_fetch(
-                    async ()=>{
-                        let prev = await window.preference_api.get_data()
-                        copy_from(prev)
-                        reset_from_conf(prev)
-                        console.log("prev", prev)
-                        return prev
-
-                    }
-                )
-            
-            val_f(true)
+        copyfrom(cur_config!)
+        reset_from_conf(cur_config!)
+        val_f(true)
         }} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>
