@@ -1,16 +1,18 @@
 import { BrowserWindow } from "electron"
 
 type Cateogry = {
+    id : string,
     name : string,
-    item : Service[]
+    item : Cateogry|Service[]
 }
 type Service = {
     id : string,
     name : string,
     category : string, 
-    link : string
+    link : string | Function
 }
 export const Link_data = [{
+    id : "ott",
     name : "OTT",
     item : [
         {
@@ -36,76 +38,78 @@ export const Link_data = [{
         {
             id : "amazonprime",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://www.primevideo.com/"
         },
         {
             id : "wavve",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://www.wavve.com/"
         },
         {
             id : "watcha",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://watcha.com/"
         },
         {
             id : "coupangplay",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://www.coupangplay.com/"
         },
         {
             id : "tving",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://www.tving.com/"
         },
     ]
     
 },
 {
-    name : "Streaming",
+    id : "streaming",
     item : [
         {
             id : "chzzk",
             name : "",
-            link : "https://netflix.com/"
+            link : "https://chzzk.naver.com/"
         },
         {
             id : "twitch",
             name : "",
-            
-            link : "https://netflix.com/"
+            link : "https://www.twitch.tv/"
         },
     ]
 },
 {
-    name : "Music",
+    id : "music",
     item : [
         {
-            name : "applemusic",
-            link : "https://netflix.com/"
+            id : "applemusic",
+            name : "",
+            link : "https://music.apple.com/"
         },
     ]
+},
+{
+    
+        id : "option",
+        item : [
+            {
+                "id" : "appinfo",
+                "name" : "소개"
+            },
+            {
+                "id" :"preference",
+                "name" : "설정"
+            },
+            {
+                "id" : "check_update",
+                "name" : "업데이트 체크"
+            },
+            {
+                "id" : "github",
+                "name" : "깃허브"
+            }
+
+        ]
+    
 }]
 
-// export const OTT_Category_data = {
-//     netfilx : {category : "OTT", link: "https://netflix.com/" },
-//     laftel : {category : "OTT", link: "https://laftel.net/" },
-//     disney : {category : "OTT", link:  },
-
-// }
-// export const Streaming_Category_data = {
-//     youtube : {category : "Streaming", link: "https://www.youtube.com/" },
-//     twitch : {category : "Streaming", link: "https://www.twitch.tv/" },
-//     chzzk : {category : "Streaming", link : "https://chzzk.naver.com/"}
-// }
-
-// export const Music_Category_data = {
-//     applemusic : {category : "Music", link: "https://music.apple.com/kr/" },
-// }
-
-
-
-// const Setting_Category_data = {
-//     preference : {category : "setting"}
-
-// }

@@ -81,7 +81,7 @@ function apply_locale_from_file(conf : Configure, file_path:string){
         return jsonData
       }
       
-    let locale_json_root : LocaleRoot = read_locale_conf();
+    let locale_json_root : LocaleRoot = read_locale_conf()["configure"];
     if (typeof locale_json_root !== "undefined"){
         let current_key_list = [conf.id]
         console.log("start at... ", current_key_list)
