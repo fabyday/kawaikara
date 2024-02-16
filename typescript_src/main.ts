@@ -113,7 +113,12 @@ const initialize = ():void=>{
     menu : undefined
   }
   apply_all(global_object, config)
-  global_object.mainWindow!.loadURL("https://music.apple.com/kr");
+  global_object.mainWindow!.loadURL("http://localhost:3000/main.html");
+
+  global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
+    global_object!.mainWindow!.webContents.openDevTools();
+})
+
   // global_object.mainWindow!.hide()
   ipcMain.handle("get-data", ()=>config)
   ipcMain.handle("close", ()=>{ 

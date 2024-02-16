@@ -70,7 +70,7 @@ return {
     }),
     
     new HtmlWebpackPlugin({
-      template: './public/index.html',
+      template: './mainWindow/mainwindow.html',
                 minify: process.env.NODE_ENV === 'production' ? {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment
