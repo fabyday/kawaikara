@@ -59,7 +59,7 @@ function apply_general(gobj : GlobalObject, conf : Configure){
 }
 
 function apply_shortcuts(gobj : GlobalObject, conf : Configure){
-
+    
 }
 
 export function apply_all(gobj : GlobalObject, conf : Configure){
