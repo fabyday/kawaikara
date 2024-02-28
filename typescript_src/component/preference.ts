@@ -30,14 +30,15 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         }
         );
         preferenceWindow.setMenu(null);
-        preferenceWindow.loadURL("http://localhost:3000/preference.html")
+        
+
+        preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
             preferenceWindow!.webContents.openDevTools();
 
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
 
-        
         // conf.general?.pip_location?.preset_monitor_list =  [screen.getAllDisplays()]
         console.log(preferenceWindow.webContents.isDevToolsOpened())
         // preferenceWindow.hide();

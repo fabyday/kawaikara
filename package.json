@@ -24,7 +24,7 @@
   },
   "scripts": {
     "web": "cd react_src && yarn web",
-    "start": "yarn compile && electron .",
+    "start": "yarn compile && cross-env-shell IS_DEV=true electron .",
     "compile": "tsc",
     "debug": "electron --inspect=8888 .",
     "build": "electron-builder build",

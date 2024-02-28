@@ -17,16 +17,17 @@ import lodash from 'lodash';
 const logger = require('electron-log')
 
 
-
-
-
 let global_object : GlobalObject | null;
+
+
 
 function read_configure(){
   let jsonData : Configure;
   console.log(app.getPath("appData"))
+
+  let root_path = process.env.IS_DEV ? "" : app.getPath("appData")
   try {
-    let rawData = fs.readFileSync(path.join(app.getPath("appData"), config_name), 'utf8');
+    let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
     jsonData = JSON.parse(rawData);
 
   } catch (err) {
@@ -35,6 +36,7 @@ function read_configure(){
     fs.writeFileSync(path.join(app.getPath("appData"), config_name), user_json)
     jsonData = default_configure
   }
+  console.log(jsonData)
   return jsonData
 }
 
@@ -89,9 +91,10 @@ function init_default_prefernece(conf :Configure){
       monitor!.item = screen.getPrimaryDisplay().label
     }
     
-    console.log("asdadaasdasdadsad", screen.getPrimaryDisplay())
     
-    console.log(monitor_preset_item)
+
+    
+
     let win_preset_item = getProperty(conf, "configure.general.window_size.preset_list")
     win_preset_item!.item = string_list
     let pip_preset_item = getProperty(conf, "configure.general.pip_window_size.preset_list")
@@ -99,12 +102,27 @@ function init_default_prefernece(conf :Configure){
     pip_preset_item!.item = pip_preset
 }
 
+function init_locales(conf : Configure){
+  let locale_preset = getProperty(conf, "configure.general.locales.locale_preset")
+  let locale = getProperty(conf, "configure.general.locales.locale")
 
+  let locale_names : string[]
+  let locale_dir_path = process.env.IS_DEV?path.join(__dirname +"/../locales"):""
+  locale_names = fs.readdirSync(locale_dir_path)
+  locale_names.push("system locale")
+  locale_names.forEach((f)=>{console.log(f)})
+  locale_preset!.item = locale_names
+  
+  // locale_preset.item
+
+}
 
 const initialize = ():void=>{
   let config = read_configure();
   init_default_prefernece(config)
-  apply_locale(config, config.locale)
+  init_locales(config)
+  console.log(getProperty(config, "configure.general.selected_locale"))
+  apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
@@ -113,7 +131,7 @@ const initialize = ():void=>{
     menu : undefined
   }
   apply_all(global_object, config)
-  global_object.mainWindow!.loadURL("http://localhost:3000/main.html");
+  global_object.mainWindow!.loadURL(process.env.IS_DEV?"http://localhost:3000/main.html" : "");
 
   global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
     global_object!.mainWindow!.webContents.openDevTools();
@@ -129,12 +147,16 @@ const initialize = ():void=>{
       apply_all(global_object!, global_object!.config)
       return new_conf
   })
+  ipcMain.handle('app-version', ()=>{
+    return app.getVersion()
+})
 }
 
 app.whenReady().then(async () => {
   await components.whenReady();
-  console.log('components ready:', components.status());
+  logger.info('components ready:', components.status());
   initialize();
   console.log(__dirname)
   logger.info("app initialized...")
+
 });

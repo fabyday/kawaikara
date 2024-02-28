@@ -128,7 +128,9 @@ console.log(locale_dir)
         case Locale.KR:
             conf = apply_locale_from_file(conf, path.join(locale_dir, "EN.json"))
             break;
-        default : 
+        default : // System Locale
+        
+            conf = apply_locale_from_file()
             break;
     }
     return conf;

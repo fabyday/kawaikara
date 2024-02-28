@@ -28,7 +28,8 @@ export type CItem = {
 }
 export enum Locale{
     KR = "KR",
-    EN = "EN"
+    EN = "EN",
+    Sys = "System Locale"
 }
 
 export type LocaleItemType = LocaleItem | LocaleItem [] | LocaleItem| string 
@@ -135,7 +136,6 @@ export type Configure = {
     [key: string]: ItemType;
     id:string,
     name : string,
-    locale : string,
     item : CItem[]
 }
 

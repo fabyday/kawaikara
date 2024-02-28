@@ -26,14 +26,19 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
                 icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
           
                 webPreferences: {
-                  preload: path.join(__dirname, 'predefine/mainview_predef.ts'),
+                  preload: path.join(__dirname, 'predefine/mainview_predef.js'),
                   backgroundThrottling : !(getProperty(conf, "configure.general.render_full_size_when_pip_running")!.item as boolean)
                 }
           
             }
         );
 
+        
+        mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
 
+        
+
+        
 
 
     }

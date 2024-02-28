@@ -1,23 +1,35 @@
 import { useEffect, useState } from "react";
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
 
 const App: React.FC = () => {
-    const [a, setup] = useState("test desu")
+    const [post, setup] = useState("test desu")
+    
     useEffect(()=>{
-        fetch("https://raw.githubusercontent.com/fabyday/kawaikara/main/README.MD").then((e)=>e.blob()).then((v)=>v.text()).then(v=>setup(v))
+        window.main_api.get_version().then((version_string : string)=>{
+
+            const version = "v"+version_string
+            const readme_url = `https://raw.githubusercontent.com/fabyday/kawaikara/${version}/README.MD`
+            const raws_root = `https://github.com/fabyday/kawaikara/raw/${version}`
+            fetch(readme_url).then((e)=>e.blob()).then((v)=>v.text()).then(v=>{
+                const re =  /(\<img[^\/][\s]*[\w]*src=)["'](\.)(.*)["']/g
+                v = v.replaceAll(re, `$1"${raws_root}/$3"`)
+                setup(v)
+            })
+        })
 
     }, [])
-    let s = `
-    ## MarkdownPreview
     
-    ## Header 2
-    
-    ### Header 3
-    `
     return (
         
-            <Markdown rehypePlugins={[rehypeRaw]}>{a}</Markdown>
+            <Markdown 
+            remarkPlugins={[remarkGfm]} 
+            rehypePlugins={[rehypeRaw]}
+            components={{img:({node,...props})=><img style={{maxWidth:'100%'}}{...props}/>}}
+            >
+                {post}
+            </Markdown>
     )
 };
 

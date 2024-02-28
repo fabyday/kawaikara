@@ -6,16 +6,54 @@ export const config_name = "kawai-config.json"
 export const default_configure : Configure = {
     id : "configure",
     name : "default-configure",
-    locale : "None",
     item : [
         {
             id : "general", 
             name : "General",
             item : [
                 {
+                    id : "locales",
+                    name : "Locales",
+                    item : [
+                        {
+                            id : "selected_locale",
+                            name : "selected locale",
+                            item : [
+                                {
+                                    id : "locale_native_name",
+                                    name : "locale native name",
+                                    item : ""
+                                },
+                                {
+                                    id : "locale_identifier",
+                                    name : "locale identifier",
+                                    item : ""
+                                }
+                            ]
+                        },
+                        {
+                            id : "locale_preset",
+                            name : "locale preset",
+                            item : ["system locale"]
+                        }
+                    ]
+                },
+
+                {
                     id : "default_main",
                     name : "Main Page",
-                    item : ""
+                    item : [
+                        {
+                            id : "default_main_id",
+                            name : "default main page",
+                            item : ""
+                        },
+                        {
+                            id : "default_main_page_preset",
+                            name : "Default Main page preset",
+                            item : []
+                        }
+                    ]
                 },
                 {
                     id : "pip_mode",
