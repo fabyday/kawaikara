@@ -22,12 +22,7 @@ export const default_configure : Configure = {
                                 {
                                     id : "locale_native_name",
                                     name : "locale native name",
-                                    item : ""
-                                },
-                                {
-                                    id : "locale_identifier",
-                                    name : "locale identifier",
-                                    item : ""
+                                    item : "system locale"
                                 }
                             ]
                         },
@@ -196,7 +191,7 @@ export const default_configure : Configure = {
                     item : ""
                 },
                 {
-                    id : "coupangplay",
+                    id : "goto_coupangplay",
                     name : "Open CoupangPlay", 
                     item : ""
                 },

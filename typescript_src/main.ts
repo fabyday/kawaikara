@@ -12,13 +12,14 @@ import * as autoUpdater from "./component/autoupdater"
 import { Configure, GlobalObject, getProperty } from './definitions/types';
 import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
+import { attach_menu } from './component/menu';
+import { setup_menu_funtionality } from './definitions/data';
 
 
 const logger = require('electron-log')
 
 
-let global_object : GlobalObject | null;
-
+let global_object : GlobalObject | null = null;
 
 
 function read_configure(){
@@ -113,7 +114,6 @@ function init_locales(conf : Configure){
   locale_names.forEach((f)=>{console.log(f)})
   locale_preset!.item = locale_names
   
-  // locale_preset.item
 
 }
 
@@ -122,7 +122,8 @@ const initialize = ():void=>{
   init_default_prefernece(config)
   init_locales(config)
   console.log(getProperty(config, "configure.general.selected_locale"))
-  apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
+  // apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
+  
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
@@ -131,7 +132,6 @@ const initialize = ():void=>{
     menu : undefined
   }
   apply_all(global_object, config)
-  global_object.mainWindow!.loadURL(process.env.IS_DEV?"http://localhost:3000/main.html" : "");
 
   global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
     global_object!.mainWindow!.webContents.openDevTools();
@@ -150,6 +150,8 @@ const initialize = ():void=>{
   ipcMain.handle('app-version', ()=>{
     return app.getVersion()
 })
+setup_menu_funtionality(global_object, config )
+attach_menu(global_object, config)
 }
 
 app.whenReady().then(async () => {

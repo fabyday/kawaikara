@@ -20,7 +20,6 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
             height: 800,
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
             // resizable : false,
-            
             webPreferences: {
                 contextIsolation: true,
               preload: path.join(__dirname, 'predefine/preference_predef.js'),
@@ -30,16 +29,17 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         }
         );
         preferenceWindow.setMenu(null);
-        
+        let html_path =  path.resolve(__dirname, "../../public/preference.html")
+        // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
+        preferenceWindow.loadURL(process.env.IS_DEV?html_path : html_path)
 
-        preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
+        // preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
             preferenceWindow!.webContents.openDevTools();
 
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
 
-        // conf.general?.pip_location?.preset_monitor_list =  [screen.getAllDisplays()]
         console.log(preferenceWindow.webContents.isDevToolsOpened())
         // preferenceWindow.hide();
         

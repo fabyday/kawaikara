@@ -31,24 +31,24 @@ function GeneralPreference(){
         <Box >
         <Typography  fontSize={32}>{get_property("configure.general")?.name}</Typography>
         <Grid container style={{maxHeight: '80%', overflow: 'auto'}} justifyContent="center" rowGap={1} spacing={1} >
-            <KawaiSwitch onclick={(e)=>{ set_property("configure.general.pip_mode", e) }} 
+            {/* <KawaiSwitch onclick={(e)=>{ set_property("configure.general.pip_mode", e) }} 
                 id = {get_property("configure.general.pip_mode")?.id as string} 
                 title={get_property("configure.general.pip_mode")?.name as string}
-                defaultchecked = { get_property("configure.general.pip_mode")?.item as boolean}/>
-            <KawaiAutoCompleteSelector 
+                defaultchecked = { get_property("configure.general.pip_mode")?.item as boolean}/> */}
+            {/* <KawaiAutoCompleteSelector 
             id ={get_property("configure.general.locales")?.id as string} 
             title={get_property("configure.general.locales")?.name as string} 
             preset_list={get_property("configure.general.locales.locale_preset")?.item as string[] ?? []}
-            get_default_value={get_property("configure.general.locales.selected_locale")?.item as string ?? ""}
-            select_f={(text : string)=>{ set_property("configure.general.locales.selected_locale", text)}}
+            get_default_value={get_property("configure.general.locales.selected_locale.locale_native_name")?.item as string ?? ""}
+            select_f={(text : string)=>{ set_property("configure.general.locales.locale_native_name", text)}}
             />
             <KawaiAutoCompleteSelector 
                 id ={get_property("configure.general.default_main.default_main")?.id as string} 
-                title={get_property("configure.general.default_main.default_main")?.name as string} 
+                title={get_property("configure.general.default_main")?.name as string} 
                 preset_list={get_property("configure.general.default_main.default_main_page_preset")?.item as string[] ?? []}
-                get_default_value={get_property("configure.general.default_main.default_main_id")?.item as string ?? ""}
-                select_f={(text : string)=>{ set_property("configure.general.default_main.default_main_id", text)}}
-                />
+                get_default_value={get_property("configure.general.default_main_id")?.item as string ?? ""}
+                select_f={(text : string)=>{ set_property("configure.general.default_main_id", text)}}
+                /> */}
             <KawaiAutoCompleteSelector 
                 id ={get_property("configure.general.pip_location.location")?.id as string} 
                 title={get_property("configure.general.pip_location.location")?.name as string} 
@@ -118,12 +118,12 @@ function GeneralPreference(){
                 }}      
                 additional_textedit={true}/>
 
-            <KawaiSwitch 
+            {/* <KawaiSwitch 
                 id = { get_property("configure.general.render_full_size_when_pip_running")?.id as string} 
                 title={get_property("configure.general.render_full_size_when_pip_running")?.name as string}
                 onclick={(e)=>{ set_property("configure.general.render_full_size_when_pip_running", !(get_property("configure.general.render_full_size_when_pip_running")?.item as boolean)) }} 
                 defaultchecked = {get_property("configure.general.render_full_size_when_pip_running")?.item as boolean}
-                />
+                /> */}
 
             <KawaiSwitch 
                 id = {get_property("configure.general.enable_autoupdate")?.id as string} 

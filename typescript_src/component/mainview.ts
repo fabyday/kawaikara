@@ -1,4 +1,4 @@
-import {BrowserWindow, app, session} from "electron"
+import {BrowserWindow, app, session, shell} from "electron"
 
 
 import * as path from 'path'
@@ -33,10 +33,16 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
             }
         );
 
-        
-        mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
-
-        
+        let html_path =  path.resolve(__dirname, "../../public/main.html")
+        // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
+        mainView.loadURL(process.env.IS_DEV?html_path : html_path)
+        mainView.webContents.on("will-navigate", (e, url)=>{e.preventDefault(); shell.openExternal(url)})
+        mainView.webContents.setWindowOpenHandler((details) => {
+          // console.log("default opended", details)
+          console.log("default opended", details.url)
+          // shell.openExternal(details.url); // Open URL in user's browser.
+          return { action: "deny" }; // Prevent the app from opening the URL.
+        })
 
         
 

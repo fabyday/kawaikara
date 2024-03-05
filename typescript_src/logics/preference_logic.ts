@@ -9,22 +9,56 @@ import * as fs from "node:fs"
 import { Config } from "@cliqz/adblocker-electron";
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 function apply_resize_window(gobj : GlobalObject, conf : Configure){
-
+    
+    gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.width"))?.item as number ?? 800,  
+                                getProperty(conf, combineKey("configure.general.height"))?.item as number ?? 600
+                                )
 }
 function apply_pip_window_size(gobj : GlobalObject, conf : Configure){
 
 }
 
 
-
 function apply_pipmode(gobj : GlobalObject, conf : Configure){
+//     gobj.mainWindow?.setAlwaysOnTop
+    
+// var pip_mode = false;
+// var cur_loc = null;
+// function pip_event(mitem, win, event){
+//   pip_mode = !pip_mode
+  
+//   const winBounds = win.getBounds();
+//   const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
+//   if (pip_mode){
+//     cur_loc = winBounds
+//     new_x = whichScreen.bounds.width - winBounds.width 
+//     new_y = 0
+//     console.log(new_x)
+//     console.log(new_y)
+    
+//     // Returns the screen where your window is located
+//     console.log(winBounds)
+//     console.log(whichScreen)
+//     win.setPosition(new_x, new_y)  
+//     // normal, floating, torn-off-menu, modal-panel, main-menu, status, pop-up-menu, screen-saver
+//     win.setAlwaysOnTop(pip_mode, "main-menu")
+//     win.setMovable(!pip_mode)
 
-
+//     win.setResizable(!pip_mode)
+//     // win.setIgnoreMouseEvents(true)
+//     console.log("Testemnd1")
+//   }else{
+//     win.setAlwaysOnTop(pip_mode)
+//     win.setPosition(cur_loc.x, cur_loc.y)
+//     win.setMovable(!pip_mode)
+//     win.setResizable(!pip_mode)
+//   }
+// }
 
 }
 
 function apply_autoupdate(gobj : GlobalObject, conf : Configure){
-
+    console.log("apply auto update")
     if(getProperty(conf, "configure.general.enable_autoupdate")!.item){
         set_autoupdater()
     }else{
@@ -64,6 +98,7 @@ function apply_shortcuts(gobj : GlobalObject, conf : Configure){
 
 export function apply_all(gobj : GlobalObject, conf : Configure){
     apply_general(gobj, conf)
+    apply_shortcuts(gobj, conf)
 }
 
 function apply_locale_from_file(conf : Configure, file_path:string){
@@ -117,9 +152,20 @@ function apply_locale_from_file(conf : Configure, file_path:string){
     return conf;
 }
 
+function locale_file_mapper(locale_name : string){
+    switch(locale_name){
+        case "en-US" :
+            return "EN.json"
+        case "ko":
+            return "KR.json"
+        default:
+            return "EN.json"
+    }
+}
 
 export function apply_locale(conf : Configure, locale : (string | Locale)  ){
 let locale_dir =  path.join(__dirname, "../../locales")
+
 console.log(locale_dir)
     switch(locale){
         case Locale.KR:
@@ -129,8 +175,9 @@ console.log(locale_dir)
             conf = apply_locale_from_file(conf, path.join(locale_dir, "EN.json"))
             break;
         default : // System Locale
-        
-            conf = apply_locale_from_file()
+            const system_locale_fname = locale_file_mapper(app.getSystemLocale())
+            console.log("locL", app.getSystemLocale())
+            conf = apply_locale_from_file(conf, path.join(locale_dir, system_locale_fname))
             break;
     }
     return conf;
@@ -138,6 +185,7 @@ console.log(locale_dir)
 
 
 export function apply_configure(gobj : GlobalObject, conf : Configure){
+    apply_all(gobj, conf)
     // if(conf.general !== undefined){
     //     apply_general(gobj, conf.general)
     // }

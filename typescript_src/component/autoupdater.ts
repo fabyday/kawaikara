@@ -78,6 +78,6 @@ autoUpdater.on('update-downloaded', on_update_downloaded)
 
 
 // export this to MenuItem click callback
-export function checkForUpdates (menuItem : any, focusedWindow : any, event : any) {
+export function checkForUpdates () {
   autoUpdater.checkForUpdates()
 }

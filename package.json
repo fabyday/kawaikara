@@ -25,9 +25,9 @@
   "scripts": {
     "web": "cd react_src && yarn web",
     "start": "yarn compile && cross-env-shell IS_DEV=true electron .",
-    "compile": "tsc",
+    "compile": "tsc && cd react_src && yarn web-build",
     "debug": "electron --inspect=8888 .",
-    "build": "electron-builder build",
+    "build": "yarn compile && electron-builder build",
     "release": "electron-builder --publish always",
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
