@@ -6,28 +6,19 @@ const webpack = require('webpack');
 
 module.exports = (env, options) => {
     const devMode = options.mode === 'production';
-
+    
 return {
+  target:  ["web", 'electron-renderer'],
   mode : devMode ? "production" : "development",
   entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx"},
   output : {
-    path : __dirname+"/build",
+    path : __dirname+"/../public",
     filename : "[name].js",
-    publicPath: '/'
+    publicPath: './'
   },
   resolve : {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
-    fallback: {
-      fs: false,
-      tls: false,
-      net: false,
-      path: false,
-      zlib: false,
-      http: false,
-      https: false,
-      stream: false,
-      crypto: false,
-    }
+    
   },
   devServer: {
     port: 3000,
