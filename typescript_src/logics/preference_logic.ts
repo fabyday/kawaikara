@@ -9,9 +9,12 @@ import * as fs from "node:fs"
 import { Config } from "@cliqz/adblocker-electron";
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 function apply_resize_window(gobj : GlobalObject, conf : Configure){
-    
-    gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.width"))?.item as number ?? 800,  
-                                getProperty(conf, combineKey("configure.general.height"))?.item as number ?? 600
+    console.log("apply resize window")
+    console.log(getProperty(conf, combineKey("configure.general.window_size.width"))?.item)
+    console.log(getProperty(conf, combineKey("configure.general.Height"))?.item)
+
+    gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number ?? 800,  
+                                getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number ?? 600
                                 )
 }
 function apply_pip_window_size(gobj : GlobalObject, conf : Configure){

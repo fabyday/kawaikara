@@ -25,17 +25,21 @@ let global_object : GlobalObject | null = null;
 function read_configure(){
   let jsonData : Configure;
   console.log(app.getPath("appData"))
-
-  let root_path = process.env.IS_DEV ? "" : app.getPath("appData")
+  let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
   try {
+    
     let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
     jsonData = JSON.parse(rawData);
 
   } catch (err) {
+    console.log("fukctest")
     console.log(err)
+    if(!fs.existsSync(root_path))
+      fs.mkdirSync(root_path)
     let user_json = JSON.stringify(default_configure)
-    fs.writeFileSync(path.join(app.getPath("appData"), config_name), user_json)
+    fs.writeFileSync(path.join(root_path, config_name), user_json)
     jsonData = default_configure
+    console.log("fukc")
   }
   console.log(jsonData)
   return jsonData
@@ -108,7 +112,8 @@ function init_locales(conf : Configure){
   let locale = getProperty(conf, "configure.general.locales.locale")
 
   let locale_names : string[]
-  let locale_dir_path = process.env.IS_DEV?path.join(__dirname +"/../locales"):""
+  let locale_dir_path = process.env.IS_DEV?path.join(__dirname ,"../locales"):path.join(__dirname ,"../locales")
+  console.log("locale_dir_path", locale_dir_path)
   locale_names = fs.readdirSync(locale_dir_path)
   locale_names.push("system locale")
   locale_names.forEach((f)=>{console.log(f)})
@@ -124,6 +129,7 @@ const initialize = ():void=>{
   console.log(getProperty(config, "configure.general.selected_locale"))
   // apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
   
+  console.log("fstest")
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
