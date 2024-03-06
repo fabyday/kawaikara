@@ -53,7 +53,7 @@ export const default_configure : Configure = {
                 {
                     id : "pip_mode",
                     name : "PiP Mode(Picture in Picture)",
-                    item : true
+                    item : false
                 },
                 {
                     id : "window_size",

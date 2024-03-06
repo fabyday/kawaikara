@@ -32,7 +32,11 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           
             }
         );
-
+        mainView.on("closed", ()=>{
+          if (process.platform !== 'darwin')
+              app.quit()
+        })
+        
         let html_path =  path.resolve(__dirname, "../../public/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         mainView.loadURL(process.env.IS_DEV?html_path : html_path)

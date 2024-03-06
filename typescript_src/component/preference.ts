@@ -31,12 +31,16 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         preferenceWindow.setMenu(null);
         let html_path =  path.resolve(__dirname, "../../public/preference.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
-        preferenceWindow.loadURL(process.env.IS_DEV?html_path : html_path)
+        
+        console.log("process.env.IS_DEV :", process.env.IS_DEV)
+        preferenceWindow.loadURL(process.env.IS_DEV ? "http://localhost:3000/preference.html" : html_path)
+        
 
+        preferenceWindow.on("closed", ()=>{preferenceWindow = null; })
         // preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
-            preferenceWindow!.webContents.openDevTools();
-
+            if(process.env.IS_DEV)
+                preferenceWindow!.webContents.openDevTools();
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
 
