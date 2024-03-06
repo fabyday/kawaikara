@@ -22,7 +22,7 @@ function apply_pip_window_size(gobj : GlobalObject, conf : Configure){
 function apply_pipmode(gobj : GlobalObject, conf : Configure){
 //     gobj.mainWindow?.setAlwaysOnTop
 
-    const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item as number ?? 800
+    const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item as boolean ?? false
     const width = getProperty(conf, "configure.general.pip_window_size.width")!.item as number ?? 800
     const height = getProperty(conf, "configure.general.pip_window_size.height")!.item as number ?? 600
 // var pip_mode = false;
