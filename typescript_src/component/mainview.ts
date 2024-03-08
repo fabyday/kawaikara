@@ -8,6 +8,7 @@ import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
 import { Configure, getProperty } from "../definitions/types";
+import { Link_data } from "../definitions/data";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
@@ -37,16 +38,51 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
               app.quit()
         })
         
+
+        // regex for extracting site names.
+        const re = /https:\/\/(.*\..*)\/.*/
+        let table:string[] = []
+          Link_data.map((v)=>{
+            if(typeof v.item === "undefined"){
+
+            }
+            else if(Array.isArray(v.item)){
+              for(let vv of v.item){
+                if(typeof vv.link === "string"){
+                  
+                  let arr = re.exec(vv.link)
+                  if(arr !== null){
+                    table.push(arr[1])
+                  }
+                }
+              }
+            }
+          })
+        console.log(table)
         let html_path =  path.resolve(__dirname, "../../public/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
-        mainView.loadURL(process.env.IS_DEV?html_path : html_path)
-        mainView.webContents.on("will-navigate", (e, url)=>{e.preventDefault(); shell.openExternal(url)})
-        mainView.webContents.setWindowOpenHandler((details) => {
-          // console.log("default opended", details)
-          console.log("default opended", details.url)
-          // shell.openExternal(details.url); // Open URL in user's browser.
-          return { action: "deny" }; // Prevent the app from opening the URL.
+        console.log("is dev?", process.env.IS_DEV)
+        mainView.loadURL(process.env.IS_DEV? html_path : html_path)
+        mainView.webContents.on("will-navigate", (e, url)=>{ 
+          
+          console.log(table)
+          e.preventDefault(); 
+          let flag
+          let arr = re.exec(url)
+          if(arr !== null){
+            if(table.includes(arr[1]))
+              return;
+          }
+
+          shell.openExternal(url)
         })
+       
+        // mainView.webContents.setWindowOpenHandler((details) => {
+        //   // console.log("default opended", details)
+        //   console.log("default opended", details.url)
+        //   // shell.openExternal(details.url); // Open URL in user's browser.
+        //   return { action: "deny" }; // Prevent the app from opening the URL.
+        // })
 
         
 

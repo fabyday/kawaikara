@@ -103,7 +103,7 @@ function init_default_prefernece(conf :Configure){
     let win_preset_item = getProperty(conf, "configure.general.window_size.preset_list")
     win_preset_item!.item = string_list
     let pip_preset_item = getProperty(conf, "configure.general.pip_window_size.preset_list")
-    let pip_preset = ["400x300", "600x400"].concat(lodash.cloneDeep(string_list))
+    let pip_preset = ["400x300", "600x400"].concat(lodash.cloneDeep(string_list.slice(0, string_list.length - 2 > 0 ?string_list.length - 2 : undefined)))
     pip_preset_item!.item = pip_preset
 }
 

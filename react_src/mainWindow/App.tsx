@@ -4,7 +4,7 @@ import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 
 const App: React.FC = () => {
-    const [post, setup] = useState("test desu")
+    const [post, setup] = useState("")
     
     useEffect(()=>{
         window.main_api.get_version().then((version_string : string)=>{

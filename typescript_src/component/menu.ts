@@ -24,9 +24,10 @@ import { Menu } from "electron";
             for(let item of category.item){
                 if(isCService(item)){
                     let url : string = item.link as string
-                    let id = combineKey("configure.shortcut", item.id)
                     let shortcut : string = getProperty(conf, combineKey("configure.shortcut", item.id))!.item  as string
-                    submenu.push({label : item.name,  accelerator : shortcut , click : ()=>{gobj.mainWindow?.loadURL(url) }})
+                    submenu.push({label : item.name,  accelerator : shortcut , click : ()=>{
+                      gobj.mainWindow?.loadURL(url) }
+                    })
                     
                 }
             }
@@ -37,10 +38,15 @@ import { Menu } from "electron";
         
         let option_submenu = []
         for(let item of options.item){
-            option_submenu.push({label : item.name, click : item.link as ()=>void })
+            let shortcut  = getProperty(conf, combineKey("configure.shortcut", item.id))
+            if(typeof shortcut === "undefined"){
+              option_submenu.push({label : item.name, click : item.link as ()=>void })
+            }else{
+              option_submenu.push({label : item.name, accelerator : shortcut, click : item.link as ()=>void })
+            }
         }
-        menu.push({label : options.name, submenu : option_submenu})
-        let newMenu= Menu.buildFromTemplate( menu  );
-
+        menu.push({label : options.name,  submenu : option_submenu})
+        let newMenu= Menu.buildFromTemplate( menu as any  );
+        
         gobj.mainWindow?.setMenu(newMenu)
   }

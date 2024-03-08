@@ -39,7 +39,7 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         preferenceWindow.on("closed", ()=>{preferenceWindow = null; })
         // preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
-            if(process.env.IS_DEV)
+            if(process.env.IS_DEV){}
                 preferenceWindow!.webContents.openDevTools();
             preferenceWindow!.webContents.send("setup-configure", conf)
         })

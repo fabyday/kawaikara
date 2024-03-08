@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron"
+import { BrowserWindow, app, dialog } from "electron"
 
 type Cateogry = {
     id : string,
@@ -13,9 +13,10 @@ type Service = {
 }
 
 import { shell } from "electron"
-import { Configure, GlobalObject } from "./types"
+import { CItem, Configure, GlobalObject, getProperty } from "./types"
 import { checkForUpdates } from "../component/autoupdater"
 import { get_instance } from "../component/preference"
+import { apply_pipmode } from "../logics/preference_logic"
 const app_info_f = ()=>{
 
 }
@@ -56,7 +57,7 @@ export const Link_data = [{
         {
             id : "goto_youtube",
             name : "youtubue",
-            link : "https://netflix.com/"
+            link : "https://youtube.com/"
         },
         {
             id : "goto_amazonprime",
@@ -129,6 +130,11 @@ export const Link_data = [{
                 link : open_preference_f
             },
             {
+                id :"run_pip",
+                name : "PiP Mode",
+                link : open_preference_f
+            },
+            {
                 id : "check_update",
                 name : "check update",
                 link : check_update_f
@@ -147,8 +153,11 @@ export const Link_data = [{
 
 export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
     const app_info_f = ()=>{
-        
+                const message = 
+        `Welcome to Kawaikara ${app.getVersion()}. This application is OTT Streaming Viewer`;
+        dialog.showMessageBox(gobj!.mainWindow!, {title : "Kawaikara Info",message :`Kawaikara v${app.getVersion()}`, detail: message})
     }
+
     const open_preference_f = ()=>{
         gobj.preferenceWindow = get_instance(conf)
         gobj.preferenceWindow.show()
@@ -159,7 +168,13 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
     const goto_github_f = ()=>{
         shell.openExternal("https://github.com/fabyday/kawaikara")
     }
-
+    const apply_pip_mode_f = ()=>{
+        const pipmode_info = getProperty(conf!, "configure.general.pip_mode")! as CItem
+        console.log("pip ; ", pipmode_info.item)
+        pipmode_info.item = !pipmode_info.item
+        console.log("pip", pipmode_info.item)
+        apply_pipmode(gobj, conf)
+    }
 
     for(let item of Link_data[Link_data.length - 1].item ){
 
@@ -176,6 +191,8 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
             case "github":
                 item.link = goto_github_f
                 break;
+            case "run_pip":
+                item.link = apply_pip_mode_f
         }
     }
 

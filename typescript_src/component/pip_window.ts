@@ -29,7 +29,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
 const winBounds = pipWindow.getBounds();
 const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
 
-let cur_loc = winBounds
 let new_x = whichScreen.bounds.width - winBounds.width 
 let new_y = 0
 

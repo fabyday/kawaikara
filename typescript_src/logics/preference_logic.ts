@@ -2,65 +2,112 @@
 
 
 import { GlobalObject, CItem, CPiPLocation, Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps } from '../definitions/types';
-import { BrowserWindow, app, nativeTheme } from "electron"
+import { BrowserWindow, app, nativeTheme, screen } from "electron"
 
 import * as path from "node:path"
 import * as fs from "node:fs"
 import { Config } from "@cliqz/adblocker-electron";
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
+import { attach_menu } from '../component/menu';
 function apply_resize_window(gobj : GlobalObject, conf : Configure){
     console.log("apply resize window")
     console.log(getProperty(conf, combineKey("configure.general.window_size.width"))?.item)
     console.log(getProperty(conf, combineKey("configure.general.Height"))?.item)
+    const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
+    console.log("Test", pip_mode)
+    if(!pip_mode){
+        gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number ?? 800,  
+                                    getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number ?? 600
+                                    )
 
-    gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number ?? 800,  
-                                getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number ?? 600
-                                )
+    }
 }
 function apply_pip_window_size(gobj : GlobalObject, conf : Configure){
 
 }
 
 
-function apply_pipmode(gobj : GlobalObject, conf : Configure){
+
+let main_loc_x = 2 
+let main_loc_y = 2 
+
+
+export function apply_pipmode(gobj : GlobalObject, conf : Configure){
 //     gobj.mainWindow?.setAlwaysOnTop
 
-    const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item as boolean ?? false
+    const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
     const width = getProperty(conf, "configure.general.pip_window_size.width")!.item as number ?? 800
     const height = getProperty(conf, "configure.general.pip_window_size.height")!.item as number ?? 600
-// var pip_mode = false;
-// var cur_loc = null;
-// function pip_event(mitem, win, event){
-//   pip_mode = !pip_mode
-  
-//   const winBounds = win.getBounds();
-//   const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
-//   if (pip_mode){
-//     cur_loc = winBounds
-//     new_x = whichScreen.bounds.width - winBounds.width 
-//     new_y = 0
-//     console.log(new_x)
-//     console.log(new_y)
+    const location = getProperty(conf, "configure.general.pip_location.location")!.item as string
+    const monitor_label = getProperty(conf, "configure.general.pip_location.monitor")!.item as string
     
-//     // Returns the screen where your window is located
-//     console.log(winBounds)
-//     console.log(whichScreen)
-//     win.setPosition(new_x, new_y)  
-//     // normal, floating, torn-off-menu, modal-panel, main-menu, status, pop-up-menu, screen-saver
-//     win.setAlwaysOnTop(pip_mode, "main-menu")
-//     win.setMovable(!pip_mode)
+    //   const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
+    //   if (pip_mode){
+        //     cur_loc = winBounds
+    
+    const all_displays = screen.getAllDisplays()
+    const prev_win_bounds = gobj.mainWindow!.getBounds();
+    gobj.mainWindow?.setSize(width, height, true);
+    
+    const winBounds = gobj.mainWindow!.getBounds();
+    let max_disp_index = -1;
+    let max_volume = 0
+    let min_padding = 2
+    for(let display of all_displays){
+        if(display.label === monitor_label){
 
-//     win.setResizable(!pip_mode)
-//     // win.setIgnoreMouseEvents(true)
-//     console.log("Testemnd1")
-//   }else{
-//     win.setAlwaysOnTop(pip_mode)
-//     win.setPosition(cur_loc.x, cur_loc.y)
-//     win.setMovable(!pip_mode)
-//     win.setResizable(!pip_mode)
-//   }
-// }
+            let left_pos_x = min_padding
+            let left_pos_y = min_padding
+            console.log("location", location)
+            switch(location){
+                case "top-right":{
+                    left_pos_x = display.bounds.x + display.bounds.width - winBounds.width - min_padding
+                    left_pos_y = display.bounds.y + min_padding
+                    break;
+                }
+                case "top-left":{
+                    left_pos_x = display.bounds.x + min_padding
+                    left_pos_y = display.bounds.y + min_padding
+                    break;
+                }
+                case "bottom-left":{
+                    left_pos_x = display.bounds.x + min_padding 
+                    left_pos_y = display.bounds.y  + display.bounds.height - winBounds.height - min_padding
+                    
+                    break; 
+                }
+                case "bottom-right":{
+                    left_pos_x = display.bounds.x + display.bounds.width - winBounds.width - min_padding
+                    left_pos_y = display.bounds.y + display.bounds.height - winBounds.height - min_padding
+                    break;
+                }
 
+                
+                
+                
+            }
+        
+        gobj.mainWindow?.setMovable(!pip_mode)
+        gobj.mainWindow?.setResizable(!pip_mode)
+        gobj.mainWindow?.setAlwaysOnTop(pip_mode, "main-menu")
+        if(pip_mode){
+            
+            main_loc_x  = winBounds.x
+            main_loc_y  = winBounds.y
+            gobj.mainWindow?.setPosition(left_pos_x, left_pos_y, true)
+
+            
+        }else{
+            apply_resize_window(gobj, conf)
+            gobj.mainWindow?.setPosition(main_loc_x, main_loc_y, true)
+        }
+        // gobj.mainWindow?.setIgnoreMouseEvents(true)
+        
+ 
+
+
+}
+    }
 }
 
 function apply_autoupdate(gobj : GlobalObject, conf : Configure){
@@ -99,7 +146,7 @@ function apply_general(gobj : GlobalObject, conf : Configure){
 }
 
 function apply_shortcuts(gobj : GlobalObject, conf : Configure){
-    
+    attach_menu(gobj, conf)
 }
 
 export function apply_all(gobj : GlobalObject, conf : Configure){
