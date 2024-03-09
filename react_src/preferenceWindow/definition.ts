@@ -118,7 +118,8 @@ let context = (set :set_type, get : get_type)=>({
     is_changed : (new_ : Configure)=>{
         let c = get()
         if(typeof c.configure === "undefined")
-            return typeof new_ === "undefined"
+            // return typeof new_ === "undefined"
+            return false
         return isEqualConfigure(c.configure, new_) 
     },
     fetch : async (f :  ()=>Promise<any>)=>{

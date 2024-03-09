@@ -170,9 +170,10 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
     }
     const apply_pip_mode_f = ()=>{
         const pipmode_info = getProperty(conf!, "configure.general.pip_mode")! as CItem
-        console.log("pip ; ", pipmode_info.item)
+        console.log("pip bb ; ", pipmode_info.item)
         pipmode_info.item = !pipmode_info.item
-        console.log("pip", pipmode_info.item)
+        console.log("pip bb", pipmode_info.item)
+        console.log("pip bb really saved?", getProperty(conf!, "configure.general.pip_mode")!.item as any)
         apply_pipmode(gobj, conf)
     }
 

@@ -6,15 +6,15 @@ const webpack = require('webpack');
 
 module.exports = (env, options) => {
     const devMode = options.mode === 'production';
-    
-return {
-  target:  ["web", 'electron-renderer'],
+    console.log(options.mode)
+  return {
+  target: devMode ? ["web", 'electron-renderer'] : ["web"] ,
   mode : devMode ? "production" : "development",
   entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx"},
   output : {
     path : __dirname+"/../public",
     filename : "[name].js",
-    publicPath: './'
+    publicPath:devMode ? './' : '/'
   },
   resolve : {
     extensions: [".js", ".jsx", ".ts", ".tsx"],

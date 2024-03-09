@@ -9,7 +9,6 @@ import { Configure } from '../../typescript_src/definitions/types';
 import { MemoryRouter, Routes, Route, Link} from 'react-router-dom';
 import { ipcRenderer } from 'electron';
 import {usePrevConfigureStore, useCurConfigureStore, save_flag} from "./definition"
-import {testa} from "./definition"
 import { create } from 'zustand';
 import { Button } from '@mui/material';
 const ContentComponent = styled('div')({

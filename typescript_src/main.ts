@@ -32,11 +32,10 @@ function read_configure(){
     jsonData = JSON.parse(rawData);
 
   } catch (err) {
-    console.log("fukctest")
     console.log(err)
     if(!fs.existsSync(root_path))
       fs.mkdirSync(root_path)
-    let user_json = JSON.stringify(default_configure)
+    let user_json = JSON.stringify(default_configure, null, "\t")
     fs.writeFileSync(path.join(root_path, config_name), user_json)
     jsonData = default_configure
     console.log("fukc")
@@ -144,13 +143,21 @@ const initialize = ():void=>{
 })
 
   // global_object.mainWindow!.hide()
-  ipcMain.handle("get-data", ()=>config)
+  ipcMain.handle("get-data", ()=>global_object!.config)
   ipcMain.handle("close", ()=>{ 
       global_object?.preferenceWindow?.close()
   })
   ipcMain.handle('apply-changed-preference', (event, new_conf : Configure)=>{
+      // console.log("new_conf", new_conf)
+      let user_json = JSON.stringify(new_conf, null, "\t")
+      getProperty(new_conf, "configure.general.pip_mode")!.item = getProperty(global_object!.config!, "configure.general.pip_mode")!.item
+      console.log("saved", user_json)
       global_object!.config = lodash.cloneDeep(new_conf)
+      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general")!.item, null, "\t"))
+      
+
       apply_all(global_object!, global_object!.config)
+      
       return new_conf
   })
   ipcMain.handle('app-version', ()=>{

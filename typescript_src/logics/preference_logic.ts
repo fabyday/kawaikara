@@ -2,7 +2,7 @@
 
 
 import { GlobalObject, CItem, CPiPLocation, Configure, CWindowSize, Locale, getProperty, LocaleRoot, combineKey, isCItem, isCItemArray, getLocaleProps } from '../definitions/types';
-import { BrowserWindow, app, nativeTheme, screen } from "electron"
+import { BrowserWindow, Display, app, nativeTheme, screen } from "electron"
 
 import * as path from "node:path"
 import * as fs from "node:fs"
@@ -16,8 +16,8 @@ function apply_resize_window(gobj : GlobalObject, conf : Configure){
     const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
     console.log("Test", pip_mode)
     if(!pip_mode){
-        gobj.mainWindow?.setSize(   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number ?? 800,  
-                                    getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number ?? 600
+        gobj.mainWindow?.setSize (   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number,  
+                                    getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number
                                     )
 
     }
@@ -32,82 +32,100 @@ let main_loc_x = 2
 let main_loc_y = 2 
 
 
+let is_pip_mode_running = false
 export function apply_pipmode(gobj : GlobalObject, conf : Configure){
 //     gobj.mainWindow?.setAlwaysOnTop
 
     const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
-    const width = getProperty(conf, "configure.general.pip_window_size.width")!.item as number ?? 800
-    const height = getProperty(conf, "configure.general.pip_window_size.height")!.item as number ?? 600
+    const width = getProperty(conf, "configure.general.pip_window_size.width")!.item as number 
+    const height = getProperty(conf, "configure.general.pip_window_size.height")!.item as number 
     const location = getProperty(conf, "configure.general.pip_location.location")!.item as string
     const monitor_label = getProperty(conf, "configure.general.pip_location.monitor")!.item as string
+    console.log("pip_mode", pip_mode)
+    console.log("pip_mode", width)
+    console.log("pip_mode", height)
+    console.log("pip_mode", location)
+    console.log(monitor_label)
     
-    //   const whichScreen = screen.getDisplayNearestPoint({x: winBounds.x, y: winBounds.y});
-    //   if (pip_mode){
-        //     cur_loc = winBounds
+    
+    
     
     const all_displays = screen.getAllDisplays()
     const prev_win_bounds = gobj.mainWindow!.getBounds();
+    console.log(prev_win_bounds)
+    gobj.mainWindow?.setMovable(true)
+    gobj.mainWindow?.setResizable(true)
     gobj.mainWindow?.setSize(width, height, true);
-    
     const winBounds = gobj.mainWindow!.getBounds();
-    let max_disp_index = -1;
-    let max_volume = 0
+    console.log(winBounds)
     let min_padding = 2
+    let selected_display : Display|null = null
     for(let display of all_displays){
         if(display.label === monitor_label){
+            selected_display = display
+            
 
-            let left_pos_x = min_padding
-            let left_pos_y = min_padding
+             break;   
+                
+                
+            }
+        }
+        
+
+        let left_pos_x = min_padding
+        let left_pos_y = min_padding
+        if(selected_display){
             console.log("location", location)
             switch(location){
                 case "top-right":{
-                    left_pos_x = display.bounds.x + display.bounds.width - winBounds.width - min_padding
-                    left_pos_y = display.bounds.y + min_padding
+                    console.log("sel dis ", selected_display.bounds)
+                    console.log("sel dis ", left_pos_x)
+                    console.log("sel dis ", width)
+                    left_pos_x = selected_display.bounds.x + selected_display.bounds.width - width - min_padding
+                    console.log("sel dis ", left_pos_x)
+                    console.log("sel dis ", left_pos_x+width)
+                    left_pos_y = selected_display.bounds.y + min_padding
                     break;
                 }
                 case "top-left":{
-                    left_pos_x = display.bounds.x + min_padding
-                    left_pos_y = display.bounds.y + min_padding
+                    left_pos_x = selected_display.bounds.x + min_padding
+                    left_pos_y = selected_display.bounds.y + min_padding
                     break;
                 }
                 case "bottom-left":{
-                    left_pos_x = display.bounds.x + min_padding 
-                    left_pos_y = display.bounds.y  + display.bounds.height - winBounds.height - min_padding
+                    left_pos_x = selected_display.bounds.x + min_padding 
+                    left_pos_y = selected_display.bounds.y  + selected_display.bounds.height - height - min_padding
                     
                     break; 
                 }
                 case "bottom-right":{
-                    left_pos_x = display.bounds.x + display.bounds.width - winBounds.width - min_padding
-                    left_pos_y = display.bounds.y + display.bounds.height - winBounds.height - min_padding
+                    left_pos_x = selected_display.bounds.x + selected_display.bounds.width - width - min_padding
+                    left_pos_y = selected_display.bounds.y + selected_display.bounds.height - height - min_padding
                     break;
                 }
-
-                
-                
-                
             }
-        
+        }
         gobj.mainWindow?.setMovable(!pip_mode)
         gobj.mainWindow?.setResizable(!pip_mode)
         gobj.mainWindow?.setAlwaysOnTop(pip_mode, "main-menu")
-        if(pip_mode){
-            
-            main_loc_x  = winBounds.x
-            main_loc_y  = winBounds.y
+        if(pip_mode && !is_pip_mode_running){
+            is_pip_mode_running = !is_pip_mode_running
+            main_loc_x  = prev_win_bounds.x
+            main_loc_y  = prev_win_bounds.y
             gobj.mainWindow?.setPosition(left_pos_x, left_pos_y, true)
-
             
-        }else{
+            
+        }else if (pip_mode && is_pip_mode_running){
+            gobj.mainWindow?.setPosition(left_pos_x, left_pos_y, true)
+            
+        }
+        else{
+            is_pip_mode_running = !is_pip_mode_running
             apply_resize_window(gobj, conf)
             gobj.mainWindow?.setPosition(main_loc_x, main_loc_y, true)
         }
-        // gobj.mainWindow?.setIgnoreMouseEvents(true)
+        console.log("bb", gobj.mainWindow?.getBounds())
         
- 
-
-
-}
-    }
 }
 
 function apply_autoupdate(gobj : GlobalObject, conf : Configure){
@@ -142,6 +160,7 @@ function apply_general(gobj : GlobalObject, conf : Configure){
     apply_autoupdate(gobj, conf)
     apply_darkmode(gobj, conf)
     apply_resize_window(gobj, conf)
+    apply_pipmode(gobj, conf)
 
 }
 

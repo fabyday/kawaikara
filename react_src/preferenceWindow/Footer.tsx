@@ -25,23 +25,28 @@ function Footer(){
     const copyfrom = usePrevConfigureStore((state)=>state.copy_from)
     const [cur_state, cur_config] = useCurConfigureStore((state)=>[state, state.configure])
     let o = useCurConfigureStore((state)=>state)
-    let [is_changed, val_f] = React.useState(false);
-    let [is_validate_shortcut, val_f2] = React.useState(true);
-    let [disable_apply, val_f3] = React.useState(true);
-    const prev_is_changed_state = usePrevConfigureStore((state)=>state.is_changed)
+    let [is_changed, conf_change_set_f] = React.useState(false);
+    let [is_validate_shortcut, valid_shortcut_f] = React.useState(true);
+    let [disable_apply, disable_apply_f] = React.useState(true);
+    const [prev_state, prev_is_changed_state] = usePrevConfigureStore((state)=>[state.configure, state.is_changed])
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
+
+        console.log(cur_state.configure)
+        console.log(prev_state)
         if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
-            val_f(true)
+            console.log("true")
+            conf_change_set_f(false)
         }else{
-            val_f(false)
+            console.log("false")
+            conf_change_set_f(true)
         }
     })
     let save_flag_unsub = save_flag.subscribe(state=>{
         if(state.check_whole_shortcut()){
             console.log("is valid")
-            val_f2(true)
+            valid_shortcut_f(true)
         }else{
-            val_f2(false)
+            valid_shortcut_f(false)
         }
     })
     useEffect(
@@ -54,20 +59,33 @@ function Footer(){
         },[])
     
     useEffect(()=>{
+        // if(is_changed){
+        //     console.log("test", is_changed)
+        //     val_f3(true)
+        //     // if(is_validate_shortcut)
+        //     // if(disabled_flag2)
+        //     //     val_f3(false)
+        // }else{
+        //     if(is_validate_shortcut){
+        //         console.log("testv", is_changed)
+        //         // val_f3(false)
+                
+        //     }
+        //     else{
+        //         console.log("testtest", is_changed)
+        //         val_f3(true)
+        //     }
+        // }
+        console.log("test", is_changed)
         if(is_changed){
-            console.log("test", is_changed)
-            val_f3(true)
-            // if(is_validate_shortcut)
-            // if(disabled_flag2)
-            //     val_f3(false)
-        }else{
-            if(is_validate_shortcut){
-                val_f3(false)
-
-            }
-            else{
-                val_f3(true)
-            }
+            console.log("test1", is_changed)
+            disable_apply_f(false)
+        }
+        
+        console.log("test1", is_validate_shortcut)
+        if(!is_validate_shortcut){
+            console.log("testv", is_changed)
+            disable_apply_f(true)
         }
     },[is_validate_shortcut, is_changed])
     
@@ -93,7 +111,9 @@ function Footer(){
          window.preference_api.apply_changed_preference(o.configure)
         copyfrom(cur_config!)
         reset_from_conf(cur_config!)
-        val_f(true)
+        conf_change_set_f(false)
+        disable_apply_f(true)
+        valid_shortcut_f(true)
         }} disabled={( disable_apply)}>apply</Button>
         </Box>
         </Grid>
