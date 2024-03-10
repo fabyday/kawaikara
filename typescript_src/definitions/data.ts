@@ -169,12 +169,12 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
         shell.openExternal("https://github.com/fabyday/kawaikara")
     }
     const apply_pip_mode_f = ()=>{
-        const pipmode_info = getProperty(conf!, "configure.general.pip_mode")! as CItem
+        const pipmode_info = getProperty(gobj.config!, "configure.general.pip_mode")! as CItem
         console.log("pip bb ; ", pipmode_info.item)
         pipmode_info.item = !pipmode_info.item
         console.log("pip bb", pipmode_info.item)
-        console.log("pip bb really saved?", getProperty(conf!, "configure.general.pip_mode")!.item as any)
-        apply_pipmode(gobj, conf)
+        console.log("pip bb really saved?", getProperty(gobj.config!, "configure.general.pip_mode")!.item as any)
+        apply_pipmode(gobj, gobj.config!)
     }
 
     for(let item of Link_data[Link_data.length - 1].item ){

@@ -153,7 +153,7 @@ const initialize = ():void=>{
       getProperty(new_conf, "configure.general.pip_mode")!.item = getProperty(global_object!.config!, "configure.general.pip_mode")!.item
       console.log("saved", user_json)
       global_object!.config = lodash.cloneDeep(new_conf)
-      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general")!.item, null, "\t"))
+      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general.pip_mode")!.item, null, "\t"))
       
 
       apply_all(global_object!, global_object!.config)

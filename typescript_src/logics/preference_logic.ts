@@ -12,7 +12,7 @@ import { attach_menu } from '../component/menu';
 function apply_resize_window(gobj : GlobalObject, conf : Configure){
     console.log("apply resize window")
     console.log(getProperty(conf, combineKey("configure.general.window_size.width"))?.item)
-    console.log(getProperty(conf, combineKey("configure.general.Height"))?.item)
+    console.log(getProperty(conf, combineKey("configure.general.window_size.height"))?.item)
     const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
     console.log("Test", pip_mode)
     if(!pip_mode){
@@ -46,7 +46,6 @@ export function apply_pipmode(gobj : GlobalObject, conf : Configure){
     console.log("pip_mode", height)
     console.log("pip_mode", location)
     console.log(monitor_label)
-    
     
     
     
@@ -109,9 +108,10 @@ export function apply_pipmode(gobj : GlobalObject, conf : Configure){
         gobj.mainWindow?.setResizable(!pip_mode)
         gobj.mainWindow?.setAlwaysOnTop(pip_mode, "main-menu")
         if(pip_mode && !is_pip_mode_running){
-            is_pip_mode_running = !is_pip_mode_running
+            is_pip_mode_running = true
             main_loc_x  = prev_win_bounds.x
             main_loc_y  = prev_win_bounds.y
+            console.log("main_loc x y",main_loc_x, " ", main_loc_y)
             gobj.mainWindow?.setPosition(left_pos_x, left_pos_y, true)
             
             
@@ -120,7 +120,7 @@ export function apply_pipmode(gobj : GlobalObject, conf : Configure){
             
         }
         else{
-            is_pip_mode_running = !is_pip_mode_running
+            is_pip_mode_running = false
             apply_resize_window(gobj, conf)
             gobj.mainWindow?.setPosition(main_loc_x, main_loc_y, true)
         }
@@ -160,6 +160,7 @@ function apply_general(gobj : GlobalObject, conf : Configure){
     apply_autoupdate(gobj, conf)
     apply_darkmode(gobj, conf)
     apply_resize_window(gobj, conf)
+
     apply_pipmode(gobj, conf)
 
 }
