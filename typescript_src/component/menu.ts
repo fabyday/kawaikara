@@ -42,9 +42,13 @@ import { Menu } from "electron";
             if(typeof shortcut === "undefined"){
               option_submenu.push({label : item.name, click : item.link as ()=>void })
             }else{
-              option_submenu.push({label : item.name, accelerator : shortcut, click : item.link as ()=>void })
+              
+              option_submenu.push({label : item.name, accelerator : shortcut.item, click : item.link as ()=>void })
+
             }
+
         }
+        console.log(option_submenu)
         menu.push({label : options.name,  submenu : option_submenu})
         let newMenu= Menu.buildFromTemplate( menu as any  );
         

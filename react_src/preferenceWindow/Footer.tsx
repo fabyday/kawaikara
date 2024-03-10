@@ -30,15 +30,17 @@ function Footer(){
     let [disable_apply, disable_apply_f] = React.useState(true);
     const [prev_state, prev_is_changed_state] = usePrevConfigureStore((state)=>[state.configure, state.is_changed])
     const unsub = useCurConfigureStore.subscribe((cur_state)=>{
-
+        console.log("======sent!")
         console.log(cur_state.configure)
         console.log(prev_state)
-        if (typeof cur_state.configure !=="undefined" && prev_is_changed_state(cur_state.configure)){
-            console.log("true")
-            conf_change_set_f(false)
-        }else{
-            console.log("false")
-            conf_change_set_f(true)
+        if(typeof cur_state.configure !=="undefined"){
+            if (prev_is_changed_state(cur_state.configure)){
+                console.log("true")
+                conf_change_set_f(false)
+            }else{
+                console.log("false")
+                conf_change_set_f(true)
+            }
         }
     })
     let save_flag_unsub = save_flag.subscribe(state=>{
@@ -59,34 +61,26 @@ function Footer(){
         },[])
     
     useEffect(()=>{
-        // if(is_changed){
-        //     console.log("test", is_changed)
-        //     val_f3(true)
-        //     // if(is_validate_shortcut)
-        //     // if(disabled_flag2)
-        //     //     val_f3(false)
-        // }else{
-        //     if(is_validate_shortcut){
-        //         console.log("testv", is_changed)
-        //         // val_f3(false)
-                
-        //     }
-        //     else{
-        //         console.log("testtest", is_changed)
-        //         val_f3(true)
-        //     }
-        // }
-        console.log("test", is_changed)
+
+        console.log("is changed?", is_changed)
         if(is_changed){
+            console.log("wwww", is_changed)
             console.log("test1", is_changed)
             disable_apply_f(false)
+            console.log("tewwwst", is_changed)
+        }else{
+            disable_apply_f(true)
+
         }
         
-        console.log("test1", is_validate_shortcut)
-        if(!is_validate_shortcut){
-            console.log("testv", is_changed)
-            disable_apply_f(true)
-        }
+        // console.log("validate key", is_validate_shortcut)
+        // if(!is_validate_shortcut){
+        //     disable_apply_f(true)
+        // }else{
+        //     disable_apply_f(false)
+        // }
+        console.log(disable_apply)
+
     },[is_validate_shortcut, is_changed])
     
     return (
@@ -114,7 +108,7 @@ function Footer(){
         conf_change_set_f(false)
         disable_apply_f(true)
         valid_shortcut_f(true)
-        }} disabled={( disable_apply)}>apply</Button>
+        }} disabled={disable_apply}>apply</Button>
         </Box>
         </Grid>
         </Grid>

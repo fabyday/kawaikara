@@ -25,13 +25,14 @@ const RootComponent =styled('div')({
 function App(){
     
 
-    const [new_fetch, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.is_changed])
+    const [new_fetch, copy_from_p, compare_with] = usePrevConfigureStore((state)=>[state.fetch, state.copy_from, state.is_changed])
     const [cur_state, copy_from] = useCurConfigureStore((state)=>[state, state.copy_from])
     const reset_from_conf = save_flag(state=>state.reset_from_conf)
     useEffect(()=>{
         new_fetch(
             async ()=>{
                 let prev = await window.preference_api.get_data()
+                copy_from_p(prev)
                 copy_from(prev)
                 reset_from_conf(prev)
                 console.log("prev", prev)
