@@ -4,6 +4,7 @@ import * as fs from 'fs'
 import { Configure, getProperty, GlobalObject } from '../definitions/types';
 import { Event } from "electron/main";
 import { apply_all, apply_locale } from "../logics/preference_logic";
+import { script_root_path } from "./constants";
 
 let preferenceWindow : BrowserWindow | null   = null;
 
@@ -28,8 +29,9 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
                 
         }
         );
+        
         preferenceWindow.setMenu(null);
-        let html_path =  path.resolve(__dirname, "./public/preference.html")
+        let html_path =  path.resolve(script_root_path, "./pages/preference.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         
         console.log("process.env.IS_DEV :", process.env.IS_DEV)

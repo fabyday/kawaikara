@@ -60,8 +60,7 @@
   },
   "build": {
     "files": [
-      "public/**/*",
-      "node_modules/**/*"
+      "**/*"
     ],
     "extends": null,
     "appId": "day.faby.kawaikara",

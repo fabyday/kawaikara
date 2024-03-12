@@ -57,7 +57,6 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Tving**
 - Music
   - **Apple music**
-  - **Youtube music**
 - streaming
   - **Chzzk**
   - **Twitch**
@@ -159,7 +158,7 @@ ok. then it's done.
 ```shell 
 yarn install # install all deps in package.json 
 yarn make-cert # make your self-signed-cert(offical cert is too expensive...) 
-
+# package_local_only rename to 
 yarn build # it's all done. baby.
 
 ```

@@ -25,11 +25,11 @@ const logger = require('electron-log')
 
 let global_object : GlobalObject | null = null;
 
+let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
 
 function read_configure(){
   let jsonData : Configure;
   console.log(app.getPath("appData"))
-  let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
   try {
     
     let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
@@ -143,7 +143,8 @@ const initialize = ():void=>{
   apply_all(global_object, config)
 
   global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
-    global_object!.mainWindow!.webContents.openDevTools();
+    if(process.env.IS_DEV)
+      global_object!.mainWindow!.webContents.openDevTools();
 })
 
   // global_object.mainWindow!.hide()
@@ -156,9 +157,13 @@ const initialize = ():void=>{
       let user_json = JSON.stringify(new_conf, null, "\t")
       getProperty(new_conf, "configure.general.pip_mode")!.item = getProperty(global_object!.config!, "configure.general.pip_mode")!.item
       console.log("saved", user_json)
-      global_object!.config = lodash.cloneDeep(new_conf)
-      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general.pip_mode")!.item, null, "\t"))
       
+      global_object!.config = lodash.cloneDeep(new_conf)
+      let save_conf = lodash.cloneDeep(new_conf)
+      getProperty(save_conf, "configure.general.pip_mode")!.item = false
+      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general.pip_mode")!.item, null, "\t"))
+      fs.writeFileSync(path.join(root_path, config_name), JSON.stringify(save_conf, null, "\t"))
+
 
       apply_all(global_object!, global_object!.config)
       

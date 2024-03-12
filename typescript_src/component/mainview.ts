@@ -9,6 +9,7 @@ import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
 import { Configure, getProperty } from "../definitions/types";
 import { Link_data } from "../definitions/data";
+import { script_root_path } from "./constants";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
@@ -59,7 +60,8 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
             }
           })
         console.log(table)
-        let html_path =  path.resolve(__dirname, "./public/main.html")
+        script_root_path
+        let html_path =  path.resolve(script_root_path, "./pages/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
         mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/preference.html" : html_path)
