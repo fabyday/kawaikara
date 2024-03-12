@@ -19,25 +19,6 @@
 I'm enjoying Discord broadcasting with my friends. and its service fit to me very weeelll. However there are few problems. Discord acquires only single program window and many streaming services use DRM. watching OTT-streaming by Browser may be an alternative way. But Wathching By Browser waste screen area(I just want fullscreen mode but not actually fullscreen. I just want to remove address bar and scrollbar and other UIs.) That's why I decide to develop super-duper-tight&fit OTT-streaming viewer.
 
 
-#### *Available* for 
-
-
-* **Laftel**
-* **Netflix**
-* **Disney Plus**
-* **youtube**
-
-#### *Available Music Streaming Service* for 
-
-* **Apple Music**
-
-#### *Available Video Streaming Service* for 
-
-* **Twitch**
-* **chzzk**
-
-....other OTT-services is completely works. but, I didn't add it due to UI problem.
-
 ## Features
 
 * **adblock** for youtube
@@ -118,13 +99,8 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 ### download from release.
 
-*show menu* : ```alt```
+You can Use ```alt``` key to see Menubar
 
-*netflix* : ```ctrl+N```
-
-*laftel* : ```ctrl+L```
-
-*disney* : ```ctrl+D```
 
 
 
@@ -154,7 +130,7 @@ ok. then it's done.
 ```
 
 
-
+You must run this script on powershell.(funtion that generating certification file use powershell functions.)
 ```shell 
 yarn install # install all deps in package.json 
 yarn make-cert # make your self-signed-cert(offical cert is too expensive...) 
