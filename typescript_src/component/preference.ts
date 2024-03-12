@@ -38,6 +38,7 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
 
         preferenceWindow.on("closed", ()=>{preferenceWindow = null; })
         preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
+        
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
             if(process.env.IS_DEV){
                 preferenceWindow?.setSize(1200, 600)
