@@ -41,7 +41,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         
 
         // regex for extracting site names.
-        const re = /https:\/\/(.*\..*)\/.*/
+        const re = /https:\/\/(.*\.)*(.*)\..*(com|net|tv).*/
         let table:string[] = []
           Link_data.map((v)=>{
             if(typeof v.item === "undefined"){
@@ -52,6 +52,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
                 if(typeof vv.link === "string"){
                   
                   let arr = re.exec(vv.link)
+                  console.log(arr)
                   if(arr !== null){
                     table.push(arr[1])
                   }
@@ -65,19 +66,19 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
         mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/preference.html" : html_path)
-        mainView.webContents.on("will-navigate", (e, url)=>{ 
+        // mainView.webContents.on("will-navigate", (e, url)=>{ 
           
-          console.log(table)
-          e.preventDefault(); 
-          let flag
-          let arr = re.exec(url)
-          if(arr !== null){
-            if(table.includes(arr[1]))
-              return;
-          }
+        //   console.log(table)
+        //   e.preventDefault(); 
+        //   let arr = re.exec(url)
+        //   console.log(arr)
+        //   if(arr !== null){
+        //     if(table.includes(arr[1]))
+        //       return;
+        //   }
 
-          shell.openExternal(url)
-        })
+        //   shell.openExternal(url)
+        // })
        
         // mainView.webContents.setWindowOpenHandler((details) => {
         //   // console.log("default opended", details)
