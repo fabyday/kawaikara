@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES5", 
-    "outDir" : "./ts_build",
+    "outDir" : "./public",
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,

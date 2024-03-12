@@ -59,10 +59,10 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
             }
           })
         console.log(table)
-        let html_path =  path.resolve(__dirname, "../../public/main.html")
+        let html_path =  path.resolve(__dirname, "./public/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
-        mainView.loadURL(process.env.IS_DEV? html_path : html_path)
+        mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/preference.html" : html_path)
         mainView.webContents.on("will-navigate", (e, url)=>{ 
           
           console.log(table)

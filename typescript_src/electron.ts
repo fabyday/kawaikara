@@ -14,9 +14,13 @@ import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
 import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
+import { script_root_path } from './component/constants';
 
 
 const logger = require('electron-log')
+
+
+
 
 
 let global_object : GlobalObject | null = null;
@@ -38,7 +42,6 @@ function read_configure(){
     let user_json = JSON.stringify(default_configure, null, "\t")
     fs.writeFileSync(path.join(root_path, config_name), user_json)
     jsonData = default_configure
-    console.log("fukc")
   }
   console.log(jsonData)
   return jsonData
@@ -132,7 +135,8 @@ const initialize = ():void=>{
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
-    preferenceWindow : get_preference_window(config),
+    // preferenceWindow : get_preference_window(config),
+    preferenceWindow : undefined,
     config : config,
     menu : undefined
   }

@@ -12,7 +12,7 @@ module.exports = (env, options) => {
   mode : devMode ? "production" : "development",
   entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx"},
   output : {
-    path : __dirname+"/../public",
+    path : __dirname+"/../public/pages",
     filename : "[name].js",
     publicPath:devMode ? './' : '/'
   },

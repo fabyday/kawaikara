@@ -71,6 +71,7 @@
     },
     "afterSign": "./build/afterSign.js",
     "win": {
+      "certificateFile": "private/fabyday.pfx",
       "verifyUpdateCodeSignature": false,
       "target": [
         "nsis",
@@ -92,7 +93,7 @@
     },
     "directories": {
       "buildResources": "build",
-      "output": "output_dist"
+      "output": "output_dist2"
     }
   }
 }

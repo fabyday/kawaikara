@@ -16,7 +16,7 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         preferenceWindow = new BrowserWindow(
             {
             // width: 600,
-            width: 1200,
+            width: 600,
             height: 800,
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
             // resizable : false,
@@ -29,18 +29,21 @@ export const get_instance = (conf:Configure):BrowserWindow =>{
         }
         );
         preferenceWindow.setMenu(null);
-        let html_path =  path.resolve(__dirname, "../../public/preference.html")
+        let html_path =  path.resolve(__dirname, "./public/preference.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         
         console.log("process.env.IS_DEV :", process.env.IS_DEV)
-        preferenceWindow.loadURL(process.env.IS_DEV ? "http://localhost:3000/preference.html" : html_path)
+        // preferenceWindow.loadURL(process.env.IS_DEV ? "http://localhost:3000/preference.html" : html_path)
         
 
         preferenceWindow.on("closed", ()=>{preferenceWindow = null; })
-        // preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : "./public/")
+        preferenceWindow.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         preferenceWindow.webContents.on("did-finish-load", (evt : Event)=>{
-            if(process.env.IS_DEV){}
+            if(process.env.IS_DEV){
+                preferenceWindow?.setSize(1200, 600)
                 preferenceWindow!.webContents.openDevTools();
+
+            }
             preferenceWindow!.webContents.send("setup-configure", conf)
         })
 
