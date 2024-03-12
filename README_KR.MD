@@ -36,10 +36,10 @@
   - **Amazonprime**
   - **Wavve**
   - **Watcha**
-  - **Coupangplay**
+  - **Coupangplay** (현재 문제가 있음)
   - **Tving**
 - 음악
-  - **Apple music**
+  - **Apple music** (현재 문제가 있음)
 - 스트리밍
   - **Chzzk**
   - **Twitch**
@@ -55,8 +55,8 @@
 
 # 사용 예시
 <p align="center">
-  <a href="https://youtu.be/Pax7wnCTAE8">
-    <img src="https://img.youtube.com/vi/Pax7wnCTAE8/0.jpg" width="90%" >
+  <a href="https://youtu.be/yXAcddQrgCg">
+    <img src="https://img.youtube.com/vi/yXAcddQrgCg/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
@@ -105,7 +105,7 @@
 ### 릴리즈(Release)에서 다운받으세요.
 디스코드가 메뉴를 같이 캡쳐하기 때문에 기본적으로 메뉴는 숨겨져 있습니다. 
 
-따라서 메뉴를 나타나게 하려면 아래의 단축키들을 활용하세요.
+따라서 메뉴를 나타나게 하려면 아래의 단축키를 활용하세요.
 
 ```메뉴 보기``` : ```alt```
 

@@ -34,10 +34,10 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Amazonprime**
   - **Wavve**
   - **Watcha**
-  - **Coupangplay**
+  - **Coupangplay** (Connection Issue Exists)
   - **Tving**
 - Music
-  - **Apple music**
+  - **Apple music** (Connection Issue Exists)
 - streaming
   - **Chzzk**
   - **Twitch**
@@ -50,8 +50,8 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 # Examples
 <p align="center">
-  <a href="https://youtu.be/Pax7wnCTAE8">
-    <img src="https://img.youtube.com/vi/Pax7wnCTAE8/0.jpg" width="90%" >
+  <a href="https://youtu.be/yXAcddQrgCg">
+    <img src="https://img.youtube.com/vi/yXAcddQrgCg/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
