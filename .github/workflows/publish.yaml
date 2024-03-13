@@ -92,6 +92,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
+
       - name: Cache node_modules
         id: cache-node-modules
         uses: actions/cache@v2
@@ -105,7 +106,9 @@ jobs:
         if: |
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile && cd react_src && yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile 
+      - name: Install dependencies yarn
+        run: cd react_src && yarn install --frozen-lockfile
 
       - name : test
         run : powershell.exe ./scripts/reauth.ps1
