@@ -10,6 +10,7 @@ import fetch from 'cross-fetch'; // required 'fetch'
 import { Configure, getProperty } from "../definitions/types";
 import { Link_data } from "../definitions/data";
 import { script_root_path } from "./constants";
+import { setup_pogress_bar } from "./autoupdater";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
@@ -39,7 +40,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
               app.quit()
         })
         
-
+        
         // regex for extracting site names.
         const re = /https:\/\/(.*\.)*(.*)\..*(com|net|tv).*/
         let table:string[] = []
@@ -61,7 +62,9 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
             }
           })
         console.log(table)
-        script_root_path
+        
+        mainView.setFullScreenable(false)
+        setup_pogress_bar(mainView)
         let html_path =  path.resolve(script_root_path, "./pages/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
