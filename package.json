@@ -31,7 +31,7 @@
     "compile:local": "tsc && cd react_src && yarn web-build",
     "debug": "electron --inspect=8888 .",
     "build": "yarn compile:local && electron-builder ",
-    "release": "electron-builder --publish always",
+    "release": "yarn build && electron-builder --publish always",
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
   },
   "dependencies": {
