@@ -47,6 +47,7 @@ function read_configure(){
   return jsonData
 }
 
+app.disableHardwareAcceleration();
 
 function init_default_prefernece(conf :Configure){
     let preset_size = [
