@@ -1,4 +1,4 @@
-import {BrowserWindow, app, session, shell} from "electron"
+import {BrowserWindow, app, screen, session, shell} from "electron"
 
 
 import * as path from 'path'
@@ -19,11 +19,14 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 let mainView : BrowserWindow | null   = null;
 export const get_instance = (conf : Configure):BrowserWindow =>{
   
+  let target_width = (getProperty(conf, "configure.general.window_size.width")!).item as number
+  let target_height = (getProperty(conf, "configure.general.window_size.height")!).item as number
+
   if ( mainView === null ){
         mainView = new BrowserWindow(
             {
-              width: (getProperty(conf, "configure.general.window_size.width")!).item as number,
-              height: (getProperty(conf, "configure.general.window_size.height")!).item as number,
+              width: target_width,
+              height: target_height,
                 
                 autoHideMenuBar : true,
                 icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),

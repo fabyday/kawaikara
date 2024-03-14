@@ -9,16 +9,35 @@ import * as fs from "node:fs"
 import { Config } from "@cliqz/adblocker-electron";
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 import { attach_menu } from '../component/menu';
+
+
+
+let main_loc_x = -1
+let main_loc_y = -1
+
 function apply_resize_window(gobj : GlobalObject, conf : Configure){
     console.log("apply resize window")
     console.log(getProperty(conf, combineKey("configure.general.window_size.width"))?.item)
     console.log(getProperty(conf, combineKey("configure.general.window_size.height"))?.item)
     const pip_mode = getProperty(conf, "configure.general.pip_mode")!.item! as boolean 
-    console.log("Test", pip_mode)
+
+
+    let x = screen.getPrimaryDisplay().bounds.x
+    let y = screen.getPrimaryDisplay().bounds.y
+    let s_w  = screen.getPrimaryDisplay().bounds.width
+    let s_h  = screen.getPrimaryDisplay().bounds.height
+    let target_width = getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number
+    let target_height = getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number
+    let new_x = ((s_w - x) - target_width)/2
+    let new_y = ((s_h - y) - target_height)/2
+    
     if(!pip_mode){
-        gobj.mainWindow?.setSize (   getProperty(conf, combineKey("configure.general.window_size.width"))?.item as number,  
-                                    getProperty(conf, combineKey("configure.general.window_size.height"))?.item as number
+        gobj.mainWindow?.setSize (  target_width,  
+                                    target_height
                                     )
+        if(main_loc_x === -1)
+            main_loc_x = new_x
+            main_loc_y = new_y
 
     }
 }
@@ -26,10 +45,6 @@ function apply_pip_window_size(gobj : GlobalObject, conf : Configure){
 
 }
 
-
-
-let main_loc_x = 2 
-let main_loc_y = 2 
 
 
 let is_pip_mode_running = false
@@ -41,11 +56,6 @@ export function apply_pipmode(gobj : GlobalObject, conf : Configure){
     const height = getProperty(conf, "configure.general.pip_window_size.height")!.item as number 
     const location = getProperty(conf, "configure.general.pip_location.location")!.item as string
     const monitor_label = getProperty(conf, "configure.general.pip_location.monitor")!.item as string
-    console.log("pip_mode", pip_mode)
-    console.log("pip_mode", width)
-    console.log("pip_mode", height)
-    console.log("pip_mode", location)
-    console.log(monitor_label)
     
     
     

@@ -126,7 +126,7 @@ export const default_configure : Configure = {
                 {
                     id : "render_full_size_when_pip_running",
                     name : "Background rendering Mode when PiP is Running",
-                    item : false
+                    item : true
                 },
                 {
                     id : "enable_autoupdate",
