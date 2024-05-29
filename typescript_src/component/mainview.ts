@@ -16,6 +16,11 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
 });  
 
+
+
+// about chrome extension installation 
+// https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
+
 let mainView : BrowserWindow | null   = null;
 export const get_instance = (conf : Configure):BrowserWindow =>{
   
@@ -42,11 +47,18 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           if (process.platform !== 'darwin')
               app.quit()
         })
+        //see also https://www.electronjs.org/docs/latest/tutorial/devtools-extension
+        
+        const google_chrome_extension_root_path = path.normalize("%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Extensions\\gighmmpiobklfepjocnamgkkbiglidom")
+        console.log("path si :", google_chrome_extension_root_path)
+        // mainView.webContents.session.loadExtension(google_chrome_extension_root_path).then(()=>{
+        //   console.log("test")
+        // }).catch(()=>{console.log("failed")})
+        
         
         mainView.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
           details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
           details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-          console.log(details.requestHeaders)
           callback({ requestHeaders: details.requestHeaders })
         })
         
@@ -77,7 +89,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         let html_path =  path.resolve(script_root_path, "./pages/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
-        mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/preference.html" : html_path)
+        mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
         // mainView.webContents.on("will-navigate", (e, url)=>{ 
           
         //   console.log(table)

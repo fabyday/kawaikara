@@ -26,7 +26,7 @@
 * **유뷰트 & 유튜브 광고 제거**
 * **PiP** (Picture in Picture)
 * 영상 **풀스크린 모드**를 **사용자 지정화면**에 맞도록 변환
-
+* **크롬 익스텐션(현재 개발 중)**
 ## 사용가능한 서비스들 
 - OTT
   - **Netflix**
@@ -36,7 +36,7 @@
   - **Amazonprime**
   - **Wavve**
   - **Watcha**
-  - **Coupangplay** (현재 문제가 있음)
+  - **Coupangplay** 
   - **Tving**
 - 음악
   - **Apple music** (현재 문제가 있음)

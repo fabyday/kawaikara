@@ -24,7 +24,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 * **adblock** for youtube
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
-
+* **Chrome extension (Now Developing)**
 ## available for 
 - OTT
   - **Netflix**
@@ -34,7 +34,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Amazonprime**
   - **Wavve**
   - **Watcha**
-  - **Coupangplay** (Connection Issue Exists)
+  - **Coupangplay** 
   - **Tving**
 - Music
   - **Apple music** (Connection Issue Exists)
