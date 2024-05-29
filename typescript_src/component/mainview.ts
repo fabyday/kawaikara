@@ -43,6 +43,12 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
               app.quit()
         })
         
+        mainView.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+          details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
+          details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          console.log(details.requestHeaders)
+          callback({ requestHeaders: details.requestHeaders })
+        })
         
         // regex for extracting site names.
         const re = /https:\/\/(.*\.)*(.*)\..*(com|net|tv).*/

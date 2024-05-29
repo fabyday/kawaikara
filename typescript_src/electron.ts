@@ -15,12 +15,9 @@ import lodash from 'lodash';
 import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
 import { script_root_path } from './component/constants';
-
-
+     
+  
 const logger = require('electron-log')
-
-
-
 
 
 let global_object : GlobalObject | null = null;
@@ -178,10 +175,14 @@ attach_menu(global_object, config)
 }
 
 app.whenReady().then(async () => {
+  
   await components.whenReady();
   logger.info('components ready:', components.status());
   initialize();
   console.log(__dirname)
   logger.info("app initialized...")
+  // let newMenu= Menu.buildFromTemplate(menu_templete);
+  
+
 
 });
