@@ -1,0 +1,218 @@
+{
+   "add_site_to_list": {
+      "message": "Aggiungi sito all'elenco"
+   },
+   "auto_day_at_location": {
+      "message": "Automatico (giorno in loco)"
+   },
+   "auto_day_time": {
+      "message": "Automatico (diurno)"
+   },
+   "auto_night_at_location": {
+      "message": "Auto (notte sul posto)"
+   },
+   "auto_night_time": {
+      "message": "Automatico (notturno)"
+   },
+   "auto_system_is_dark": {
+      "message": "Auto (il sistema è spento)"
+   },
+   "auto_system_is_light": {
+      "message": "Auto (il sistema è leggero)"
+   },
+   "automation": {
+      "message": "Automazione"
+   },
+   "brightness": {
+      "message": "Luminosità"
+   },
+   "change_browser_theme": {
+      "message": "Modifica il tema del browser"
+   },
+   "click_to_set_shortcut": {
+      "message": "Fare clic per impostare il collegamento"
+   },
+   "configure_automation": {
+      "message": "Configura l'automazione"
+   },
+   "configure_site_toggle": {
+      "message": "Configura la commutazione del sito web"
+   },
+   "contrast": {
+      "message": "Contrasto"
+   },
+   "custom_browser_theme_off": {
+      "message": "Predefinito"
+   },
+   "custom_browser_theme_on": {
+      "message": "Personalizzato"
+   },
+   "dark": {
+      "message": "Scuro"
+   },
+   "dark_theme_detected": {
+      "message": "Tema scuro rilevato"
+   },
+   "detect_dark_theme": {
+      "message": "Rileva tema scuro"
+   },
+   "detect_website_dark_theme": {
+      "message": "Rileva il tema scuro del sito web"
+   },
+   "donate": {
+      "message": "Dona"
+   },
+   "enable_for_all_sites_by_default": {
+      "message": "Abilitato per tutti i siti Web per impostazione predefinita"
+   },
+   "enabled_by_default": {
+      "message": "Abilitato per impostazione predefinita"
+   },
+   "engine_dynamic": {
+      "message": "Dinamico"
+   },
+   "engine_filter": {
+      "message": "Filtro"
+   },
+   "engine_filter_plus": {
+      "message": "Filtro+"
+   },
+   "engine_static": {
+      "message": "Statico"
+   },
+   "extension_description": {
+      "message": "Tema scuro per ogni sito. Prenditi cura dei tuoi occhi, usa Dark Reader per navigare giorno e notte."
+   },
+   "extension_toggle_shortcut": {
+      "message": "Scorciatoia da tastiera per attivare/disattivare l'estensione"
+   },
+   "filter": {
+      "message": "Filtra"
+   },
+   "grayscale": {
+      "message": "Scala di grigi"
+   },
+   "help": {
+      "message": "Aiuto"
+   },
+   "invert_listed_only": {
+      "message": "Inverti solo"
+   },
+   "latitude": {
+      "message": "Latitudine"
+   },
+   "light": {
+      "message": "Chiaro"
+   },
+   "loading_please_wait": {
+      "message": "Sto caricando, attendere prego"
+   },
+   "local_files_forbidden": {
+      "message": "Non è consentito l'accesso\nfile locali"
+   },
+   "longitude": {
+      "message": "Longitudine"
+   },
+   "mobile_link": {
+      "message": "Mobile Dark Reader è disponibile. Saperne di più"
+   },
+   "mode": {
+      "message": "Modalità"
+   },
+   "more": {
+      "message": "Di più"
+   },
+   "news": {
+      "message": "Notizie"
+   },
+   "not_invert_listed": {
+      "message": "Non invertire solo"
+   },
+   "off": {
+      "message": "Spenta"
+   },
+   "on": {
+      "message": "Accesa"
+   },
+   "only_for": {
+      "message": "Solo per"
+   },
+   "only_for_description": {
+      "message": "Applica le configurazioni solo al sito attuale"
+   },
+   "open_dev_tools": {
+      "message": "Strumenti"
+   },
+   "page_in_dark_list": {
+      "message": "Questo sito è nella\nDark List globale"
+   },
+   "page_protected": {
+      "message": "Questa pagina è protetta\ndal browser"
+   },
+   "privacy": {
+      "message": "Privacy"
+   },
+   "read_more": {
+      "message": "Scopri di più"
+   },
+   "select_font": {
+      "message": "Seleziona un font"
+   },
+   "sepia": {
+      "message": "Seppia"
+   },
+   "set_active_hours": {
+      "message": "Imposta l'orario di attività"
+   },
+   "set_location": {
+      "message": "Attiva dopo il tramonto a posizione"
+   },
+   "setup_add_site_hotkey": {
+      "message": "Tasti di scelta rapida per aggiungere un sito"
+   },
+   "setup_hotkey_toggle_extension": {
+      "message": "Tasti di scelta rapida\ndell'estensione"
+   },
+   "setup_hotkey_toggle_site": {
+      "message": "Tasti di scelta rapida\nper il sito attuale"
+   },
+   "site_list": {
+      "message": "Lista dei siti"
+   },
+   "site_toggle": {
+      "message": "Cambio sito"
+   },
+   "store_listing": {
+      "message": "Questa estensione si prende cura dei tuoi occhi e ti consente di creare al volo un tema scuro in modalità notturna per ogni sito. Dark Reader inverte i colori più luminosi rendendoli ad alto contrasto e più semplici da leggere la notte.\n\nPuoi modificare luminosità, contrasto, filtro seppia, modalità notturna, caratteri e lista di siti da ignorare.\n\nPotremmo chiederti di sostenere lo sviluppo dell'app con una donazione. Potresti vedere notizie su Dark Reader nel popup delle impostazioni. Sono disponibili strumenti per sviluppatori per utenti esperti.\n\nDark Reader non mostra pubblicità e non invia i dati dell'utente da nessuna parte. È pienamente open-source https://github.com/darkreader/darkreader\n\nPrima di installare disabilita altre estensioni simili. Buona lettura!"
+   },
+   "support_out_work": {
+      "message": "Sostieni il nostro lavoro"
+   },
+   "system_dark_mode": {
+      "message": "Usa schema di colori del sistema"
+   },
+   "system_dark_mode_chromium_warning": {
+      "message": "This option might not work due to\na bug in your browser"
+   },
+   "system_dark_mode_description": {
+      "message": "Attiva quando la modalità scura sistema è acceso"
+   },
+   "text_stroke": {
+      "message": "Contorno del testo"
+   },
+   "theme_generation_mode": {
+      "message": "Modalità di generazione del tema"
+   },
+   "toggle_current_site": {
+      "message": "Inverti il sito attuale"
+   },
+   "toggle_extension": {
+      "message": "(Dis)abilita estensione"
+   },
+   "try_experimental_theme_engines": {
+      "message": "Prova gli interpreti dei temi **sperimentali**:\n**Filtro+** preserva saturazione dei colori, usa la GPU\n**Tema statico** genera un semplice tema veloce\n**Tema dinamico** analizza i colori e le immagini"
+   },
+   "website_toggle_shortcut": {
+      "message": "Scorciatoia da tastiera per attivare/disattivare il sito web"
+   }
+}

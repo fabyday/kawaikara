@@ -4739,6 +4739,13 @@ electron-builder@^24.9.1:
     simple-update-notifier "2.0.0"
     yargs "^17.6.2"
 
+electron-chrome-extensions@^3.10.1:
+  version "3.10.1"
+  resolved "https://registry.yarnpkg.com/electron-chrome-extensions/-/electron-chrome-extensions-3.10.1.tgz#50321a30a931c036cd1c4219a243f3e473e852e4"
+  integrity sha512-UXZllXt4BXHvR7Rr9DaiXdN/gdyUJHWp+0OOdTV73cNTRvSOaTCC5NSqctUJzaP5U7JJ3+2J2BZeAlIuwKGIXg==
+  dependencies:
+    debug "^4.3.1"
+
 electron-is-dev@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/electron-is-dev/-/electron-is-dev-3.0.1.tgz#1cbc79b1dd046787903acd357efdfab6549dc17a"

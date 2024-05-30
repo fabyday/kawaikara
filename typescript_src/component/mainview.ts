@@ -15,6 +15,7 @@ import { setup_pogress_bar } from "./autoupdater";
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
 });  
+const { ElectronChromeExtensions } = require('electron-chrome-extensions')
 
 
 
@@ -49,9 +50,14 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         })
         //see also https://www.electronjs.org/docs/latest/tutorial/devtools-extension
         
-        const google_chrome_extension_root_path = path.normalize("%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Extensions\\gighmmpiobklfepjocnamgkkbiglidom")
+
+        const google_chrome_extension_root_path = path.join(process.env.LOCALAPPDATA as string, "Google\\Chrome\\User Data\\Default\\Extensions\\gighmmpiobklfepjocnamgkkbiglidom\\6.2.0_1")
         console.log("path si :", google_chrome_extension_root_path)
-        // mainView.webContents.session.loadExtension(google_chrome_extension_root_path).then(()=>{
+        mainView.webContents.session.loadExtension(google_chrome_extension_root_path).then(()=>{
+
+          console.log("extension is loaded", mainView!.webContents.session.getAllExtensions())
+        }).catch(()=>{console.log("rejected")})
+        
         //   console.log("test")
         // }).catch(()=>{console.log("failed")})
         
@@ -89,9 +95,14 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         let html_path =  path.resolve(script_root_path, "./pages/main.html")
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
         console.log("is dev?", process.env.IS_DEV)
-        mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
+        console.log("is dev?", process.cwd())
+        // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
         // mainView.webContents.on("will-navigate", (e, url)=>{ 
-          
+          // const extensions = new ElectronChromeExtensions()
+          // extensions.addTab(mainView.webContents, mainView)
+          mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          // console.log(extensions.getContextMenuItems(mainView.webContents))
+
         //   console.log(table)
         //   e.preventDefault(); 
         //   let arr = re.exec(url)
