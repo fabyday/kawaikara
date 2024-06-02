@@ -11,11 +11,13 @@ import { Configure, getProperty } from "../definitions/types";
 import { Link_data } from "../definitions/data";
 import { script_root_path } from "./constants";
 import { setup_pogress_bar } from "./autoupdater";
+import { ElectronChromeExtensions } from "electron-chrome-extensions";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
   blocker.enableBlockingInSession(session.defaultSession);  
 });  
-const { ElectronChromeExtensions } = require('electron-chrome-extensions')
+// const { ElectronChromeExtensions } = require('electron-chrome-extensions')
+// ElectronChromeExtensions
 
 
 
@@ -27,10 +29,19 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
   
   let target_width = (getProperty(conf, "configure.general.window_size.width")!).item as number
   let target_height = (getProperty(conf, "configure.general.window_size.height")!).item as number
-
   if ( mainView === null ){
-        mainView = new BrowserWindow(
+    let resolved_ses_preload_path = path.join(__dirname,"predefine/session_preloads.js")
+    console.log("resolved_ses_preload_path", resolved_ses_preload_path)
+    let sess = session.fromPartition("persist:main")
+    sess.setPreloads([resolved_ses_preload_path])
+    let ext_paths = path.resolve("extensions/eimadpbcbfnmbkopoojfekhnkhdbieeh/4.9.85_0/")
+    sess.loadExtension(ext_paths, { allowFileAccess : true})
+    
+    console.log("ext path : ", ext_paths)
+
+    mainView = new BrowserWindow(
             {
+              
               width: target_width,
               height: target_height,
                 
@@ -38,6 +49,10 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
                 icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
           
                 webPreferences: {
+                  session : sess,
+                  contextIsolation:false,
+                  nodeIntegration : true,
+                  sandbox : false,
                   preload: path.join(__dirname, 'predefine/mainview_predef.js'),
                   backgroundThrottling : !(getProperty(conf, "configure.general.render_full_size_when_pip_running")!.item as boolean)
                 }
@@ -53,10 +68,50 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
 
         const google_chrome_extension_root_path = path.join(process.env.LOCALAPPDATA as string, "Google\\Chrome\\User Data\\Default\\Extensions\\gighmmpiobklfepjocnamgkkbiglidom\\6.2.0_1")
         console.log("path si :", google_chrome_extension_root_path)
-        mainView.webContents.session.loadExtension(google_chrome_extension_root_path).then(()=>{
 
-          console.log("extension is loaded", mainView!.webContents.session.getAllExtensions())
-        }).catch(()=>{console.log("rejected")})
+        // const read_extension_manifeset = async (file_name : string)=>{
+        //   let mainfest = await new Promise((resolve, reject) => {
+        //     fs.readFile(`${file_name}/manifest.json`, 'utf8', async function (err, data) {
+        //         if (err) reject(err);
+        //         resolve(data)
+        //       });
+        //   })
+        // }
+
+        
+        
+        // read_extension_manifeset(ext_paths).then((meta)=>{
+        //   meta
+        // })
+
+        
+        // mainView.webContents.session.on("extension-loaded", async (event, ext)=>{
+        //     console.log("extension is loaded2")
+
+        // })
+        // mainView.webContents.session.on("extension-ready", async (event, ext)=>{
+        //   console.log("extension is ready.")
+        //   let test_browser =  new BrowserWindow({
+        //     title: 'MetaMask',
+        //     width: 360,
+        //     height: 520,
+        //     type: 'popup',
+        //     icon : ext.manifest.browser_action.default_icon,
+        //     resizable: true
+        //   });
+        //   await test_browser!.loadURL(`${ext.manifest.background.page}`);
+        //   // mainView!.webContents.session.setPreloads(`${ext.url}/`)
+        //   mainView?.webContents.session.getExtension(ext.id)
+        // })
+
+        // mainView.webContents.session.loadExtension(ext_paths, {"allowFileAccess" : true}).then(async (ext)=>{
+        //   console.log("extension is loaded callback", ext)
+        // }).catch((e)=>{
+        //   console.log("rejected")
+        //   console.log(e)
+        //   console.log("why rejected...")
+        // })
+
         
         //   console.log("test")
         // }).catch(()=>{console.log("failed")})
@@ -98,9 +153,11 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         console.log("is dev?", process.cwd())
         // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
         // mainView.webContents.on("will-navigate", (e, url)=>{ 
-          // const extensions = new ElectronChromeExtensions()
-          // extensions.addTab(mainView.webContents, mainView)
+          const extensions = new ElectronChromeExtensions({session : sess} )
+          extensions.addTab(mainView.webContents, mainView)
+          
           mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
 
         //   console.log(table)

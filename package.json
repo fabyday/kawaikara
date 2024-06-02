@@ -26,6 +26,7 @@
   "scripts": {
     "web": "cd react_src && yarn web",
     "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
+    "start:electron" : "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
     "compile:remote": "tsc",
     "start:local": "yarn compile:local && electron .",
     "start:local_debug": "yarn compile:local &&  electron . --inspect=9222 --remote-debugging-port=9223",
