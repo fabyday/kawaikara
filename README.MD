@@ -24,6 +24,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 * **adblock** for youtube
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
+* **Chrome extension (Now Developing)**
 
 ## available for 
 - OTT
@@ -34,7 +35,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Amazonprime**
   - **Wavve**
   - **Watcha**
-  - **Coupangplay** (Connection Issue Exists)
+  - **Coupangplay** 
   - **Tving**
 - Music
   - **Apple music** (Connection Issue Exists)
@@ -102,6 +103,13 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 You can Use ```alt``` key to see Menubar
 
 
+
+## Chrome Extension
+
+*Electron* doesn't support full feature to chrome extension. because *Electron* wasn't made for extension(it was considered to developing application. not a web browser.)
+In this reason, *Electron* didn't have tab in chrome browser and other components, So this lacks of features might occur unexpected action on *kawaikara* application.
+
+My **Conclusion** is "Avoid using it as much as possible.". I strongly agree with "there are many gorgeous features for *kawaikara*. It's hard to deny.
 
 
 

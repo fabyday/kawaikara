@@ -1,0 +1,53 @@
+{
+   "author": "Alexander Shutau",
+   "background": {
+      "page": "background/index.html",
+      "persistent": true
+   },
+   "browser_action": {
+      "default_icon": {
+         "19": "icons/dr_active_19.png",
+         "38": "icons/dr_active_38.png"
+      },
+      "default_popup": "ui/popup/index.html",
+      "default_title": "Dark Reader"
+   },
+   "commands": {
+      "addSite": {
+         "description": "__MSG_toggle_current_site__",
+         "suggested_key": {
+            "default": "Alt+Shift+A"
+         }
+      },
+      "switchEngine": {
+         "description": "__MSG_theme_generation_mode__"
+      },
+      "toggle": {
+         "description": "__MSG_toggle_extension__",
+         "suggested_key": {
+            "default": "Alt+Shift+D"
+         }
+      }
+   },
+   "content_scripts": [ {
+      "all_frames": true,
+      "js": [ "inject/fallback.js", "inject/index.js" ],
+      "match_about_blank": true,
+      "matches": [ "\u003Call_urls>" ],
+      "run_at": "document_start"
+   } ],
+   "default_locale": "en",
+   "description": "__MSG_extension_description__",
+   "icons": {
+      "128": "icons/dr_128.png",
+      "16": "icons/dr_16.png",
+      "48": "icons/dr_48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqBY2tfTtJYiVMirbII2r3WofqCDaxS2zwPddSsgxUWKRm/MW/ymL2ZaP24MmwnegGIoxHkBVyi4cps4/q76c98ViyijoQvdJjAv3ZtUOwbWlYnZ5pU6gPCeZrScHxoTJdxxJJ30DZpMc6qsc3yJVQJlABG2FQFPrhPEGFLP9sCq/M7pY1xH++KsG+jYLB6cU3ItvZ4zntUXRwG2ZBx+XZelsd6FdkVXbDXj/47TNk2Qq8PAqyiK45GgQ+KJjuISAo89ip1xI4tONLCjSHPinD3nz6HiMikQzwn4L8SsB4Wy7rBhMhPRGIWbwHed+L+W3LXhB05Lhwk0YxuOb7QNWRQIDAQAB",
+   "manifest_version": 2,
+   "name": "Dark Reader",
+   "optional_permissions": [ "contextMenus" ],
+   "permissions": [ "alarms", "fontSettings", "storage", "tabs", "\u003Call_urls>" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "4.9.85"
+}
