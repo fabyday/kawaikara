@@ -7,8 +7,6 @@ contextBridge.exposeInMainWorld("main_api",{
     } 
 })
 
-)
-
 
 console.log("load main preloads...")
 console.log(f())

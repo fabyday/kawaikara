@@ -2,4 +2,4 @@
 
 // chorme extension injection code
 // if (false)
-    injectBrowserAction()
+    // injectBrowserAction()
