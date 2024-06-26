@@ -35,7 +35,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
     let sess = session.fromPartition("persist:main")
     sess.setPreloads([resolved_ses_preload_path])
     let ext_paths = path.resolve("extensions/eimadpbcbfnmbkopoojfekhnkhdbieeh/4.9.85_0/")
-    sess.loadExtension(ext_paths, { allowFileAccess : true})
+    // sess.loadExtension(ext_paths, { allowFileAccess : true})
     
     console.log("ext path : ", ext_paths)
 
@@ -50,7 +50,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           
                 webPreferences: {
                   session : sess,
-                  contextIsolation:false,
+                  contextIsolation: true,
                   nodeIntegration : true,
                   sandbox : false,
                   preload: path.join(__dirname, 'predefine/mainview_predef.js'),
@@ -143,7 +143,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
               }
             }
           })
-        console.log(table)
+        // console.log(table)
         
         mainView.setFullScreenable(false)
         setup_pogress_bar(mainView)
@@ -157,6 +157,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           extensions.addTab(mainView.webContents, mainView)
           
           mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
 
