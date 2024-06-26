@@ -11,6 +11,7 @@ import { Configure, getProperty } from "../definitions/types";
 import { Link_data } from "../definitions/data";
 import { script_root_path } from "./constants";
 import { setup_pogress_bar } from "./autoupdater";
+import {main_session} from "./constants"
 import { ElectronChromeExtensions } from "electron-chrome-extensions";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
@@ -32,8 +33,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
   if ( mainView === null ){
     let resolved_ses_preload_path = path.join(__dirname,"predefine/session_preloads.js")
     console.log("resolved_ses_preload_path", resolved_ses_preload_path)
-    let sess = session.fromPartition("persist:main")
-    sess.setPreloads([resolved_ses_preload_path])
+    let sess = session.fromPartition(main_session)
     let ext_paths = path.resolve("extensions/eimadpbcbfnmbkopoojfekhnkhdbieeh/4.9.85_0/")
     // sess.loadExtension(ext_paths, { allowFileAccess : true})
     
@@ -156,7 +156,8 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           const extensions = new ElectronChromeExtensions({session : sess} )
           extensions.addTab(mainView.webContents, mainView)
           
-          mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          mainView.loadURL(path.join(__dirname, "main_view.html"), {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
           // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))

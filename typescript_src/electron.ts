@@ -1,9 +1,10 @@
-import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components, nativeTheme} from 'electron'
+import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components, nativeTheme, Session} from 'electron'
 import { ipcMain, ipcRenderer, Menu, MenuItem, BrowserView, webContents} from 'electron'
 
 import * as path from "path";
 import * as url from "url";
 import * as fs from "fs"
+
 import { get_instance as get_mainview } from './component/mainview';
 import { get_instance as get_preference_window } from './component/preference';
 import { get_instance as get_pip_window } from './component/pip_window';
@@ -14,9 +15,8 @@ import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
 import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
-import { script_root_path } from './component/constants';
-     
-  
+import { main_session, script_root_path } from './component/constants';
+import * as fs_p from 'node:fs/promises';
 const logger = require('electron-log')
 
 
@@ -174,15 +174,88 @@ setup_menu_funtionality(global_object, config )
 attach_menu(global_object, config)
 }
 
+
+const session_initialize = ()=>{
+
+  let sess = session.fromPartition(main_session)
+  sess.setPreloads([path.join(__dirname, "extension_preload.js")])
+}
+
+
+const manifestExists = async (dirPath : string) => {
+  if (!dirPath) return false
+  const manifestPath = path.join(dirPath, 'manifest.json')
+  try {
+    return (await fs_p.stat(manifestPath)).isFile()
+  } catch {
+    return false
+  }
+}
+
+
+async function loadExtensions(session : Session, extensionsPath : string) {
+  console.log(extensionsPath)
+
+  const subDirectories = await fs_p.readdir(extensionsPath, {
+    withFileTypes: true,
+  })
+  const extensionDirectories = await Promise.all(
+    subDirectories
+      .filter((dirEnt) => dirEnt.isDirectory())
+      .map(async (dirEnt) => {
+        const extPath = path.join(extensionsPath, dirEnt.name)
+
+        if (await manifestExists(extPath)) {
+          return extPath
+        }
+
+        const extSubDirs = await fs_p.readdir(extPath, {
+          withFileTypes: true,
+        })
+
+        const versionDirPath =
+          extSubDirs.length === 1 && extSubDirs[0].isDirectory()
+            ? path.join(extPath, extSubDirs[0].name)
+            : ""
+        
+        if (await manifestExists(versionDirPath)) {
+          return versionDirPath
+        }
+      })
+  )
+
+  const results = []
+  for (const extPath of extensionDirectories.filter(Boolean)) {
+    try {
+      const extensionInfo = await session.loadExtension(extPath!)
+      results.push(extensionInfo)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  return results
+}
+
+
+
+const extension_initialize = async (sess : Session)=>{
+
+  await loadExtensions(sess,path.join(__dirname, "extensions") )
+
+}
+
+
 app.whenReady().then(async () => {
   
   await components.whenReady();
+  session_initialize()
   logger.info('components ready:', components.status());
   initialize();
   console.log(__dirname)
   logger.info("app initialized...")
   // let newMenu= Menu.buildFromTemplate(menu_templete);
   
-
+  await extension_initialize(session.fromPartition(main_session))
 
 });
