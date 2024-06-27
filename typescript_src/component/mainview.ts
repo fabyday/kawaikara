@@ -155,9 +155,12 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         // mainView.webContents.on("will-navigate", (e, url)=>{ 
           const extensions = new ElectronChromeExtensions({session : sess} )
           extensions.addTab(mainView.webContents, mainView)
-          
+
+
+
+          let test_html = path.resolve(script_root_path, "./pages/extension.html")
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
-          mainView.loadURL(path.join(__dirname, "main_view.html"), {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          mainView.loadURL(test_html, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
           // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))

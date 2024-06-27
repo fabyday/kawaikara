@@ -241,6 +241,8 @@ async function loadExtensions(session : Session, extensionsPath : string) {
 
 const extension_initialize = async (sess : Session)=>{
 
+
+  console.log(path.join(__dirname, "extensions"))
   await loadExtensions(sess,path.join(__dirname, "extensions") )
 
 }
@@ -254,8 +256,6 @@ app.whenReady().then(async () => {
   initialize();
   console.log(__dirname)
   logger.info("app initialized...")
-  // let newMenu= Menu.buildFromTemplate(menu_templete);
-  
   await extension_initialize(session.fromPartition(main_session))
 
 });

@@ -1,5 +1,5 @@
 import { BrowserWindow, app, dialog } from "electron"
-
+import * as path from 'path'
 type Cateogry = {
     id : string,
     name : string,
@@ -17,6 +17,8 @@ import { CItem, Configure, GlobalObject, getProperty } from "./types"
 import { checkForUpdates } from "../component/autoupdater"
 import { get_instance } from "../component/preference"
 import { apply_pipmode } from "../logics/preference_logic"
+import { script_root_path } from "../component/constants";
+
 const app_info_f = ()=>{
 
 }
@@ -25,6 +27,9 @@ const check_update_f = ()=>{
 }
 
 const open_preference_f = ()=>{
+
+}
+const open_extension_f = ()=>{
 
 }
 const goto_github_f = ()=>{
@@ -83,7 +88,8 @@ export const Link_data = [{
             id : "goto_tving",
             name : "tving",
             link : "https://www.tving.com/"
-        },
+        }
+        
     ]
     
 },
@@ -143,6 +149,11 @@ export const Link_data = [{
                 id : "github",
                 name : "github",
                 link : goto_github_f
+            },
+            {
+                id : "goto_extension",
+                name : "extension",
+                link : open_extension_f
             }
 
         ]
@@ -161,6 +172,12 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
     const open_preference_f = ()=>{
         gobj.preferenceWindow = get_instance(conf)
         gobj.preferenceWindow.show()
+    }
+    
+    const open_extension_f = ()=>{
+        let extension_file_url = path.resolve(script_root_path, "./pages/extension.html")
+        gobj.mainWindow!.loadURL(extension_file_url)
+        gobj.mainWindow!.show()
     }
     const check_update_f = ()=>{
         checkForUpdates();
@@ -194,6 +211,10 @@ export function setup_menu_funtionality(gobj : GlobalObject, conf : Configure){
                 break;
             case "run_pip":
                 item.link = apply_pip_mode_f
+                break;
+            case "goto_extension":
+                item.link = open_extension_f
+                break
         }
     }
 
