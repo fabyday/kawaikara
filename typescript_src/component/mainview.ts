@@ -164,6 +164,36 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
+          
+          app.on('web-contents-created', async (event, webContents)=>{
+            const type = webContents.getType()
+            const url = webContents.getURL()
+
+            console.log(`'web-contents-created' event [type:${type}, url:${url}]`)
+
+            webContents.setWindowOpenHandler((details) => {
+              switch (details.disposition) {
+                case 'foreground-tab':
+                case 'background-tab':
+                case 'new-window': {
+                  // setWindowOpenHandler doesn't yet support creating BrowserViews
+                  // instead of BrowserWindows. For now, we're opting to break
+                  // window.open until a fix is available.
+                  // https://github.com/electron/electron/issues/33383
+                  queueMicrotask(() => {
+                    mainView?.loadURL(details.url)
+                    console.log("dis ", details.disposition, "url", url)
+                  })
+        
+                  return { action: 'deny' }
+                }
+                default:
+                  return { action: 'allow' }
+              }
+
+          })
+        })
+            
 
         //   console.log(table)
         //   e.preventDefault(); 
