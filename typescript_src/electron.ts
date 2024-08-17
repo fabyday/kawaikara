@@ -17,8 +17,11 @@ import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
 import { main_session, script_root_path } from './component/constants';
 import * as fs_p from 'node:fs/promises';
-const logger = require('electron-log')
 
+import log from 'electron-log/main';
+
+
+log.initialize();
 
 let global_object : GlobalObject | null = null;
 
@@ -26,7 +29,9 @@ let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.get
 
 function read_configure(){
   let jsonData : Configure;
-  console.log(app.getPath("appData"))
+  // console.log(app.getPath("appData"))
+  
+  log.info("read_configure"+app.getPath("appData"))
   try {
     
     let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
@@ -252,10 +257,10 @@ app.whenReady().then(async () => {
   
   await components.whenReady();
   session_initialize()
-  logger.info('components ready:', components.status());
+  log.info('components ready:', components.status());
   initialize();
   console.log(__dirname)
-  logger.info("app initialized...")
+  log.info("app initialized...")
   await extension_initialize(session.fromPartition(main_session))
 
 });

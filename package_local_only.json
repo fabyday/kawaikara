@@ -27,9 +27,7 @@
     "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
     "compile:remote": "tsc",
     "start:local": "yarn compile:local && electron .",
-    "start:local_debug": "yarn compile:local &&  electron . --inspect=9222 --remote-debugging-port=9223",
     "compile:local": "tsc && cd react_src && yarn web-build",
-    "debug": "electron --inspect=8888 .",
     "build": "yarn compile:local && electron-builder ",
     "release": "electron-builder --publish always",
     "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
