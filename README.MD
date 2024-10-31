@@ -104,15 +104,6 @@ You can Use ```alt``` key to see Menubar
 
 
 
-## Chrome Extension
-
-*Electron* doesn't support full feature to chrome extension. because *Electron* wasn't made for extension(it was considered to developing application. not a web browser.)
-In this reason, *Electron* didn't have tab in chrome browser and other components, So this lacks of features might occur unexpected action on *kawaikara* application.
-
-My **Conclusion** is "Avoid using it as much as possible.". I strongly agree with "there are many gorgeous features for *kawaikara*. It's hard to deny.
-
-
-
 ## build your own OTT-viewer
 
 This is simple way. Just follow my way. you must prepare *nodejs* environment. I recommend to use *nvm*(node version manager) and *yarn*.

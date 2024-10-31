@@ -26,7 +26,7 @@ import { Menu } from "electron";
                     let url : string = item.link as string
                     let shortcut : string = getProperty(conf, combineKey("configure.shortcut", item.id))!.item  as string
                     submenu.push({label : item.name,  accelerator : shortcut , click : ()=>{
-                      gobj.mainWindow?.loadURL(url) }
+                      gobj.mainWindow?.loadURL(url, {userAgent: 'Chrome'}) }
                     })
                     
                 }

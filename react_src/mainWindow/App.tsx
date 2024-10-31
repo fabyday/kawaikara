@@ -7,17 +7,21 @@ const App: React.FC = () => {
     const [post, setup] = useState("")
     
     useEffect(()=>{
-        window.main_api.get_version().then((version_string : string)=>{
+        // window.main_api.get_version().then((version_string : string)=>{
+            
+        //     const version = "v"+version_string
+        //     const readme_url = `https://raw.githubusercontent.com/fabyday/kawaikara/${version}/README.MD`
+        //     const raws_root = `https://github.com/fabyday/kawaikara/raw/${version}`
+        //     fetch(readme_url).then((e)=>e.blob()).then((v)=>v.text()).then(v=>{
+        //         const re =  /(\<img[^\/][\s]*[\w]*src=)["'](\.)(.*)["']/g
+        //         v = v.replaceAll(re, `$1"${raws_root}/$3"`)
+        //         setup(v)
+        //     })
 
-            const version = "v"+version_string
-            const readme_url = `https://raw.githubusercontent.com/fabyday/kawaikara/${version}/README.MD`
-            const raws_root = `https://github.com/fabyday/kawaikara/raw/${version}`
-            fetch(readme_url).then((e)=>e.blob()).then((v)=>v.text()).then(v=>{
-                const re =  /(\<img[^\/][\s]*[\w]*src=)["'](\.)(.*)["']/g
-                v = v.replaceAll(re, `$1"${raws_root}/$3"`)
-                setup(v)
+        window.main_api.get_readme().then((readme_str : string)=>{
+                console.log(readme_str)
+                setup(readme_str)
             })
-        })
 
     }, [])
     

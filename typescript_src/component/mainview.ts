@@ -31,14 +31,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
   let target_width = (getProperty(conf, "configure.general.window_size.width")!).item as number
   let target_height = (getProperty(conf, "configure.general.window_size.height")!).item as number
   if ( mainView === null ){
-    let resolved_ses_preload_path = path.join(__dirname,"predefine/session_preloads.js")
-    console.log("resolved_ses_preload_path", resolved_ses_preload_path)
-    let sess = session.fromPartition(main_session)
-    let ext_paths = path.resolve("extensions/eimadpbcbfnmbkopoojfekhnkhdbieeh/4.9.85_0/")
-    // sess.loadExtension(ext_paths, { allowFileAccess : true})
-    
-    console.log("ext path : ", ext_paths)
-
     mainView = new BrowserWindow(
             {
               
@@ -49,7 +41,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
                 icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
           
                 webPreferences: {
-                  session : sess,
                   contextIsolation: true,
                   nodeIntegration : true,
                   sandbox : false,
@@ -63,28 +54,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           if (process.platform !== 'darwin')
               app.quit()
         })
-        //see also https://www.electronjs.org/docs/latest/tutorial/devtools-extension
-        
-
-        const google_chrome_extension_root_path = path.join(process.env.LOCALAPPDATA as string, "Google\\Chrome\\User Data\\Default\\Extensions\\gighmmpiobklfepjocnamgkkbiglidom\\6.2.0_1")
-        console.log("path si :", google_chrome_extension_root_path)
-
-        // const read_extension_manifeset = async (file_name : string)=>{
-        //   let mainfest = await new Promise((resolve, reject) => {
-        //     fs.readFile(`${file_name}/manifest.json`, 'utf8', async function (err, data) {
-        //         if (err) reject(err);
-        //         resolve(data)
-        //       });
-        //   })
-        // }
-
-        
-        
-        // read_extension_manifeset(ext_paths).then((meta)=>{
-        //   meta
-        // })
-
-        
         // mainView.webContents.session.on("extension-loaded", async (event, ext)=>{
         //     console.log("extension is loaded2")
 
@@ -120,6 +89,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         mainView.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
           details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
           details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
           callback({ requestHeaders: details.requestHeaders })
         })
         
@@ -153,46 +123,16 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
         console.log("is dev?", process.cwd())
         // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
         // mainView.webContents.on("will-navigate", (e, url)=>{ 
-          const extensions = new ElectronChromeExtensions({session : sess} )
-          extensions.addTab(mainView.webContents, mainView)
 
 
 
-          let test_html = path.resolve(script_root_path, "./pages/extension.html")
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
-          mainView.loadURL(test_html, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          // mainView.loadURL(test_html, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
+          mainView.loadURL(html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
           // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
           
-          app.on('web-contents-created', async (event, webContents)=>{
-            const type = webContents.getType()
-            const url = webContents.getURL()
-
-            console.log(`'web-contents-created' event [type:${type}, url:${url}]`)
-
-            webContents.setWindowOpenHandler((details) => {
-              switch (details.disposition) {
-                case 'foreground-tab':
-                case 'background-tab':
-                case 'new-window': {
-                  // setWindowOpenHandler doesn't yet support creating BrowserViews
-                  // instead of BrowserWindows. For now, we're opting to break
-                  // window.open until a fix is available.
-                  // https://github.com/electron/electron/issues/33383
-                  queueMicrotask(() => {
-                    mainView?.loadURL(details.url)
-                    console.log("dis ", details.disposition, "url", url)
-                  })
-        
-                  return { action: 'deny' }
-                }
-                default:
-                  return { action: 'allow' }
-              }
-
-          })
-        })
             
 
         //   console.log(table)

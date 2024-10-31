@@ -10,6 +10,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "env": {"IS_DEV" : "true"},
       "runtimeArgs": [
         "--remote-debugging-port=9223"  //open debugging port for renderer process
       ],

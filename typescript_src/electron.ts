@@ -38,7 +38,7 @@ function read_configure(){
     jsonData = JSON.parse(rawData);
 
   } catch (err) {
-    console.log(err)
+    log.debug(err)
     if(!fs.existsSync(root_path))
       fs.mkdirSync(root_path)
     let user_json = JSON.stringify(default_configure, null, "\t")
@@ -131,10 +131,9 @@ const initialize = ():void=>{
   let config = read_configure();
   init_default_prefernece(config)
   init_locales(config)
-  console.log(getProperty(config, "configure.general.selected_locale"))
+  log.debug(getProperty(config, "configure.general.selected_locale"))
   // apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
   
-  console.log("fstest")
   global_object = {
     mainWindow : get_mainview(config), 
     pipWindow : get_pip_window(config) , 
@@ -143,6 +142,7 @@ const initialize = ():void=>{
     config : config,
     menu : undefined
   }
+
   apply_all(global_object, config)
 
   global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
@@ -159,14 +159,13 @@ const initialize = ():void=>{
       // console.log("new_conf", new_conf)
       let user_json = JSON.stringify(new_conf, null, "\t")
       getProperty(new_conf, "configure.general.pip_mode")!.item = getProperty(global_object!.config!, "configure.general.pip_mode")!.item
-      console.log("saved", user_json)
+      log.debug("saved", user_json)
       
       global_object!.config = lodash.cloneDeep(new_conf)
       let save_conf = lodash.cloneDeep(new_conf)
       getProperty(save_conf, "configure.general.pip_mode")!.item = false
-      console.log(JSON.stringify(getProperty(global_object!.config!, "configure.general.pip_mode")!.item, null, "\t"))
+      log.debug(JSON.stringify(getProperty(global_object!.config!, "configure.general.pip_mode")!.item, null, "\t"))
       fs.writeFileSync(path.join(root_path, config_name), JSON.stringify(save_conf, null, "\t"))
-
 
       apply_all(global_object!, global_object!.config)
       
@@ -175,92 +174,27 @@ const initialize = ():void=>{
   ipcMain.handle('app-version', ()=>{
     return app.getVersion()
 })
+
+
+ipcMain.handle('readme_str', async ()=>{
+
+  const readme_strings = fs.readFileSync(path.join(__dirname, "../readme.md"), {encoding:"utf-8"});
+  log.info(readme_strings)
+  return readme_strings
+
+})
 setup_menu_funtionality(global_object, config )
 attach_menu(global_object, config)
 }
 
 
-const session_initialize = ()=>{
-
-  let sess = session.fromPartition(main_session)
-  sess.setPreloads([path.join(__dirname, "extension_preload.js")])
-}
-
-
-const manifestExists = async (dirPath : string) => {
-  if (!dirPath) return false
-  const manifestPath = path.join(dirPath, 'manifest.json')
-  try {
-    return (await fs_p.stat(manifestPath)).isFile()
-  } catch {
-    return false
-  }
-}
-
-
-async function loadExtensions(session : Session, extensionsPath : string) {
-  console.log(extensionsPath)
-
-  const subDirectories = await fs_p.readdir(extensionsPath, {
-    withFileTypes: true,
-  })
-  const extensionDirectories = await Promise.all(
-    subDirectories
-      .filter((dirEnt) => dirEnt.isDirectory())
-      .map(async (dirEnt) => {
-        const extPath = path.join(extensionsPath, dirEnt.name)
-
-        if (await manifestExists(extPath)) {
-          return extPath
-        }
-
-        const extSubDirs = await fs_p.readdir(extPath, {
-          withFileTypes: true,
-        })
-
-        const versionDirPath =
-          extSubDirs.length === 1 && extSubDirs[0].isDirectory()
-            ? path.join(extPath, extSubDirs[0].name)
-            : ""
-        
-        if (await manifestExists(versionDirPath)) {
-          return versionDirPath
-        }
-      })
-  )
-
-  const results = []
-  for (const extPath of extensionDirectories.filter(Boolean)) {
-    try {
-      const extensionInfo = await session.loadExtension(extPath!)
-      results.push(extensionInfo)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  return results
-}
-
-
-
-const extension_initialize = async (sess : Session)=>{
-
-
-  console.log(path.join(__dirname, "extensions"))
-  await loadExtensions(sess,path.join(__dirname, "extensions") )
-
-}
-
 
 app.whenReady().then(async () => {
   
   await components.whenReady();
-  session_initialize()
   log.info('components ready:', components.status());
   initialize();
   console.log(__dirname)
   log.info("app initialized...")
-  await extension_initialize(session.fromPartition(main_session))
 
 });
