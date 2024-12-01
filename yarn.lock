@@ -5178,9 +5178,9 @@ electron@*:
     "@types/node" "^20.9.0"
     extract-zip "^2.0.1"
 
-"electron@https://github.com/castlabs/electron-releases#v28.0.0+wvcus":
-  version "28.0.0"
-  resolved "https://github.com/castlabs/electron-releases#422080b956610184ff2de61f6c28caf8aecafdc2"
+"electron@https://github.com/castlabs/electron-releases#v25.9.8+wvcus":
+  version "25.9.8"
+  resolved "https://github.com/castlabs/electron-releases#7a300a9af73f84b13dfe619d431a7f1b80448b65"
   dependencies:
     "@electron/get" "^2.0.0"
     "@types/node" "^18.11.18"
