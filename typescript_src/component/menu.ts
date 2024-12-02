@@ -51,6 +51,10 @@ import { Menu } from "electron";
         console.log(option_submenu)
         menu.push({label : options.name,  submenu : option_submenu})
         let newMenu= Menu.buildFromTemplate( menu as any  );
-        
-        gobj.mainWindow?.setMenu(newMenu)
+        if(process.platform === "darwin"){
+          Menu.setApplicationMenu(newMenu)
+        }
+        else{ // windows and etc...
+          gobj.mainWindow?.setMenu(newMenu)
+        }
   }
