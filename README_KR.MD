@@ -130,7 +130,7 @@
 
 
 
-## 카와이카라 뷰어 직접 빌드하기
+## 카와이카라 뷰어 직접 빌드하기(Windows 10/11)
 
 직접 제작은 간단합니다. 일단 **nvm**(node version manager)를 설치하고 최신버전의 node를 설치해주세요. 그냥 **node.js**환경만 갖춘다면 충분합니다. 그 이후 **yarn**을 설치해주세요. 자세한 사항은
 구글 검색을 통해서 알아서 하시면 됩니다. 저는 **nvm**을 사용하여 
@@ -165,12 +165,42 @@ powershell 에서 아래의 코드를 실행해야 합니다.
 다음은 실제 프로젝트 디렉토리에서 해야할 일입니다.
 ```shell 
 yarn install # package.json의 모든 library 설치
-yarn make-cert # 사설(?) 인증서 생성(진짜 인증서는 가격이 꽤 비쌉니다...) 
+
+yarn make-cert:win # 사설(?) 인증서 생성(진짜 인증서는 가격이 꽤 비쌉니다...) 
 
 yarn build # 빌드 시작.
 
 ```
 
+## 카와이카라 뷰어 직접 빌드하기(MacOS)
+
+castlab 계정 생성하기.
+```shell
+# 콘다 가상 환경 설정 및 castlab 라이브러리 다운로드
+conda create -n test_env python=3.10
+conda activate test_env
+pip install castlabs_evs
+
+#계정 생성
+python -m castlabs_evs.account signup
+
+# 컴퓨터를 castlab에 로그인 시킵니다.
+python -m castlabs_evs.account reauth -A ${your_account} -P ${your password}
+
+# 진짜 끝!
+```
+
+powershell 에서 아래의 코드를 실행해야 합니다.
+인증서를 생성하는 함수는 powershell의 기능을 사용하기 때문입니다.
+다음은 실제 프로젝트 디렉토리에서 해야할 일입니다.
+```shell 
+yarn install # package.json의 모든 library 설치
+
+yarn make-cert:mac # 사설(?) 인증서 생성(진짜 인증서는 가격이 꽤 비쌉니다...) 
+
+yarn build # 빌드 시작.
+
+```
 
 
 

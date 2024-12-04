@@ -49,7 +49,8 @@
     "debug": "electron --inspect=8888 .",
     "build": "yarn compile:local && electron-builder ",
     "release": "yarn build && electron-builder --publish always",
-    "make-cert": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:"
+    "make-cert:win": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx",
+    "make-cert:mac": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:"
   },
   "dependencies": {
     "@cliqz/adblocker-electron": "^1.26.12",
