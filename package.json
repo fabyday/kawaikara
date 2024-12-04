@@ -16,24 +16,40 @@
     "Video-viewer"
   ],
   "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.25.9",
+    "@babel/preset-typescript": "^7.26.0",
+    "@emotion/react": "^11.13.5",
+    "@emotion/styled": "^11.13.5",
+    "@mui/material": "^6.1.9",
+    "@types/electron": "^1.6.12",
+    "babel-loader": "^9.2.1",
+    "clean-webpack-plugin": "^4.0.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "https://github.com/castlabs/electron-releases#v28.0.0+wvcus",
+    "electron": "github:castlabs/electron-releases#v28.0.0+wvcus",
     "electron-builder": "^24.9.1",
+    "html-webpack-plugin": "^5.6.3",
+    "react-markdown": "^9.0.1",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.0",
     "wait-on": "^7.2.0",
-    "webpack-cli": "^5.1.4"
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "zustand": "^5.0.1"
   },
   "scripts": {
     "web": "cd react_src && yarn web",
     "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
-    "start:electron" : "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
+    "start:electron": "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
     "compile:remote": "tsc",
     "start:local": "yarn compile:local && electron .",
     "compile:local": "tsc && cd react_src && yarn web-build ",
     "debug": "electron --inspect=8888 .",
     "build": "yarn compile:local && electron-builder ",
     "release": "yarn build && electron-builder --publish always",
-    "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx"
+    "make-cert": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:"
   },
   "dependencies": {
     "@cliqz/adblocker-electron": "^1.26.12",
@@ -56,6 +72,7 @@
     "node-dwmapi": "^1.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
     "typescript": "^5.3.3",
     "web-vitals": "^2.1.4"
@@ -78,6 +95,25 @@
         "zip"
       ],
       "icon": "kawaikara.ico",
+      "extraResources": [
+        {
+          "from": "./build",
+          "to": ".",
+          "filter": [
+            "**/*.ico"
+          ]
+        }
+      ],
+      "publish": [
+        "github"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "./resources/icons/app-kawaikara-mac.png",
       "extraResources": [
         {
           "from": "./build",
