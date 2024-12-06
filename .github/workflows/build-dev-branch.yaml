@@ -1,11 +1,15 @@
-name: Release
+name: dev-CI
 
 on:
   push:
-    branches: 
-      - main
-    tags :
-      - v*
+    branches:
+      - dev
+      - dev-mac
+      
+  pull_request:
+    branches:
+      - dev
+      - dev-mac
 
 jobs:
   warm-up-cache-win:
