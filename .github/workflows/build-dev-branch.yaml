@@ -5,6 +5,7 @@ on:
     branches:
       - dev
       - dev-mac
+      
   pull_request:
     branches:
       - dev
@@ -12,29 +13,30 @@ on:
 
 jobs:
   warm-up-cache:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macos-14]
-        node-version: ["21.4.0"]
-
+    runs-on: ${matrix.os}
+    strategy : 
+      matrix : 
+        os : [windows-latests, macos-14]
     steps:
       - uses: actions/checkout@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - run: echo running on branch $GITHUB_REF
+      - uses: actions/setup-node@v2
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "21.4.0"
 
+      
+
+   
+      # yarn setup
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_ENV
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
       - name: Cache yarn cache
         uses: actions/cache@v2
         id: cache-yarn-cache
         with:
-          path: ${{ env.dir }}
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
@@ -55,50 +57,70 @@ jobs:
           steps.cache-node-modules.outputs.cache-hit != 'true'
         run: yarn install --frozen-lockfile
 
+  
+  # GENERAL electron packaging
   electron-package:
     needs: [warm-up-cache]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macOS-latest]
-        node-version: ["21.4.0"]
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+      - run: echo running on branch $GITHUB_REF
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - uses: actions/setup-node@v2
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "21.4.0"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        id : setup-python
         with:
-          python-version: "3.10"
-          cache: "pip"
+          python-version: '3.10'
+          cache: 'pip' # caching pip dependencies
+      - run: pip install -r requirements.txt
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: Cache yarn cache
+        uses: actions/cache@v2
+        id: cache-yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Install dependencies for React
+        if: |
+          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+          steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile 
+      - name: Install dependencies yarn
         run: cd react_src && yarn install --frozen-lockfile
 
-      - name: Run reauth script
-        run: |
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            powershell.exe ./scripts/reauth.ps1
-          else
-            bash ./scripts/reauth.sh
-          fi
-        env:
-          ACCOUNT: ${{ secrets.ACCOUNT }}
-          PASSWORD: ${{ secrets.PASSWD }}
+      - name : reauth_scripts
+        run : |
+                if [ "${{ matrix.os }}" == "windows-latest" ]; then
+                  powershell.exe ./scripts/reauth.ps1
+                else
+                  bash ./scripts/reauth.sh
+                fi
+        env : 
+          ACCOUNT : ${{secrets.ACCOUNT}}
+          PASSWORD : ${{secrets.PASSWD}}
 
-      - name: Build Electron package
-        run: yarn release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
+      - name: Build electron package
+        run: yarn build
+        env :
+          GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
