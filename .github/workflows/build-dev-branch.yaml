@@ -159,7 +159,7 @@ jobs:
           PASSWORD : ${{secrets.PASSWD}}
 
       - name: Build electron package
-        run: yarn release
+        run: yarn build
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
@@ -228,7 +228,7 @@ jobs:
           PASSWORD : ${{secrets.PASSWD}}
 
       - name: Build electron package
-        run: yarn release
+        run: yarn build
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
