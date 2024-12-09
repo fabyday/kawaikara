@@ -174,10 +174,37 @@ yarn build # 빌드 시작.
 
 ## 카와이카라 뷰어 직접 빌드하기(MacOS)
 
+zsh 터미널 기준으로 작성합니다
+
+홈브류 설치
+```shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+미니콘다 및 yarn, node 설치
+```shell
+brew install --cask miniconda
+brew install yarn
+brew install node@18
+
+# 노드 환경 설정
+echo 'export PATH="opt/homebrew/opt/node@18/bin:$PATH"' >> ~/.zshrc
+echo 'export LDFLAGS="-L/opt/homebrew/opt/node@18/lib"' >> ~/.zshrc
+echo 'export CPPFLAGS="-I/opt/homebrew/opt/node@18/inclue"' >> ~/.zshrc
+
+# 환경변수 적용
+source ~/.zshrc
+```
+
 castlab 계정 생성하기.
 ```shell
 # 콘다 가상 환경 설정 및 castlab 라이브러리 다운로드
 conda create -n test_env python=3.10
+
+# 콘다 환경 적용
+source ~/.bash_profile
+
+conda init
 conda activate test_env
 pip install castlabs_evs
 
