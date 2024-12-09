@@ -140,11 +140,37 @@ yarn build # it's all done. baby.
 
 ## build your own OTT-viewer(MacOS)
 
+This guide is written for the zsh terminal.
+
+Install Homebrew
+```shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+Install Miniconda, Yarn, and Node.js
+```shell
+brew install --cask miniconda
+brew install yarn
+brew install node@18
+
+# Set up Node.js environment
+echo 'export PATH="opt/homebrew/opt/node@18/bin:$PATH"' >> ~/.zshrc
+echo 'export LDFLAGS="-L/opt/homebrew/opt/node@18/lib"' >> ~/.zshrc
+echo 'export CPPFLAGS="-I/opt/homebrew/opt/node@18/inclue"' >> ~/.zshrc
+
+# Apply environment variables
+source ~/.zshrc
+```
 
 install ```conda``` environment
 sign up castlab 
 ```shell
 conda create -n test_env python=3.10
+
+# Activate Conda environment
+source ~/.bash_profile
+
+conda init
 conda activate test_env
 pip install castlabs_evs
 
