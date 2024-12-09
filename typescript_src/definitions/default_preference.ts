@@ -2,7 +2,6 @@ import { CItem, Configure } from "./types"
 export const config_name = "kawai-config.json"
 
 
-
 export const default_configure : Configure = {
     id : "configure",
     name : "default-configure",

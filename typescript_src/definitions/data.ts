@@ -150,11 +150,6 @@ export const Link_data = [{
                 name : "github",
                 link : goto_github_f
             },
-            {
-                id : "goto_extension",
-                name : "extension",
-                link : open_extension_f
-            }
 
         ]
     

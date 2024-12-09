@@ -11,7 +11,6 @@ import { Configure, getProperty } from "../definitions/types";
 import { Link_data } from "../definitions/data";
 import { script_root_path } from "./constants";
 import { setup_pogress_bar } from "./autoupdater";
-import {main_session} from "./constants"
 import { ElectronChromeExtensions } from "electron-chrome-extensions";
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {

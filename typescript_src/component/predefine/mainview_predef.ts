@@ -13,5 +13,4 @@ contextBridge.exposeInMainWorld("main_api",{
 
 console.log("load main preloads...")
 console.log(f())
-console.log(readme_f())
 // document.getElementsByTagName('head')[0].appendChild('<meta name="Permissions-Policy" content="app-id=xxxxx">');
