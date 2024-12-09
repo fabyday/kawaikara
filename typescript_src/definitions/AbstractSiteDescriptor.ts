@@ -20,7 +20,7 @@ class AbstractSiteDescriptor{
         // do nothing.
     };
     loadurl (browser : Electron.BrowserWindow ) : void{
-        do nothing.
+        //do nothing.
     };
 
 }
