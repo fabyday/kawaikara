@@ -10,7 +10,7 @@ module.exports = (env, options) => {
   return {
   target: devMode ? ["web", 'electron-renderer'] : ["web"] ,
   mode : devMode ? "production" : "development",
-  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx", extension : __dirname+"/extensionWindow/extension.tsx"},
+  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx", sidebar : __dirname+"/sidebar/sidebar.tsx"},
   output : {
     path : __dirname+"/../public/pages",
     filename : "[name].js",
@@ -70,13 +70,13 @@ module.exports = (env, options) => {
                 chunks : ["main"]
     }),
     new HtmlWebpackPlugin({
-      template: './extensionWindow/extensionView.html',
+      template: './sidebar/sidebar.html',
                 minify: process.env.NODE_ENV === 'production' ? {
                     collapseWhitespace: true, // remove empty
                     removeComments: true, // remove comment
                 } : false,
-                filename : "extension.html",
-                chunks : ["extension"]
+                filename : "sidebar.html",
+                chunks : ["sidebar"]
     }),
     new CleanWebpackPlugin()
 
