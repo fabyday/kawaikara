@@ -1,55 +1,22 @@
 import React, { useEffect, useState } from "react";
 import Box from '@mui/material/Box';
 import { Collapse, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader } from "@mui/material";
+import PrimaryMenuBar from "./PrimaryMenuBar";
+import Favorites from "./Favorites";
+
+
 const App: React.FC = () => {
-    
-  const [open, setOpen] = React.useState(true);
-
-  const handleClick = () => {
-    setOpen(!open);
-  };
   
-
-  const reval = <List
-  sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}
-  component="nav"
-  aria-labelledby="nested-list-subheader"
-  subheader={
-    <ListSubheader component="div" id="nested-list-subheader">
-      Nested List Items
-    </ListSubheader>
-  }
->
-  <ListItemButton>
-    <ListItemIcon>
-      <img src="https://www.netflix.com/favicon.ico"></img>
-    </ListItemIcon>
-    <ListItemText primary="Sent mail" />
-  </ListItemButton>
-  <ListItemButton>
-    <ListItemIcon>
-    <img src="https://www.netflix.com/favicon.ico"></img>
-    </ListItemIcon>
-    <ListItemText primary="Drafts" />
-  </ListItemButton>
-  <ListItemButton onClick={handleClick}>
-    <ListItemIcon>
-    <img src="https://www.netflix.com/favicon.ico"></img>
-    </ListItemIcon>
-    <ListItemText primary="Inbox" />
-    {open ? "expand less" : "exp more"}
-  </ListItemButton>
-  <Collapse in={open} timeout="auto" unmountOnExit>
-    <List component="div" disablePadding>
-      <ListItemButton sx={{ pl: 4 }}>
-        <ListItemIcon>
-        <img src="https://www.netflix.com/favicon.ico"></img>
-        </ListItemIcon>
-        <ListItemText primary="Starred" />
-      </ListItemButton>
-    </List>
-  </Collapse>
-</List>;
+  let reval = <Box display="flex" flexDirection="column" alignItems="center" 
+  justifyContent="center"
+  sx = {{ height: '100vh', gap : 2}}
+  >
+  <Favorites/>
+  <Box display="flex" flexDirection="row" alignItems="flex-start">
+    <PrimaryMenuBar></PrimaryMenuBar>
+    <PrimaryMenuBar></PrimaryMenuBar>
+  </Box>
+  </Box>
 
   return (
     reval

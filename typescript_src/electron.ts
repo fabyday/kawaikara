@@ -15,11 +15,11 @@ import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
 import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
-import { main_session, script_root_path } from './component/constants';
+import { script_root_path } from './component/constants';
 import * as fs_p from 'node:fs/promises';
+// import {DiscordSDK} from "@discord/embedded-app-sdk";
 
 import log from 'electron-log/main';
-
 
 log.initialize();
 
@@ -192,6 +192,7 @@ attach_menu(global_object, config)
 app.whenReady().then(async () => {
   
   await components.whenReady();
+  
   log.info('components ready:', components.status());
   initialize();
   console.log(__dirname)

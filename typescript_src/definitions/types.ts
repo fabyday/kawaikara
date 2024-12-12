@@ -1,10 +1,11 @@
-import { app, BrowserWindow } from "electron"
+import { app, BrowserWindow, BrowserView } from "electron"
 import lodash from 'lodash';
 
 export type GlobalObject = {
     mainWindow? : BrowserWindow 
     pipWindow? : BrowserWindow 
     preferenceWindow? : BrowserWindow
+    options? : BrowserView 
     config? : Configure
     menu? : Object
 }

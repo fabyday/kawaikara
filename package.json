@@ -26,7 +26,7 @@
   "scripts": {
     "web": "cd react_src && yarn web",
     "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
-    "start:electron" : "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
+    "start:electron": "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
     "compile:remote": "tsc",
     "start:local": "yarn compile:local && electron .",
     "compile:local": "tsc && cd react_src && yarn web-build ",
@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@cliqz/adblocker-electron": "^1.26.12",
+    "@discord/embedded-app-sdk": "^1.7.1",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",

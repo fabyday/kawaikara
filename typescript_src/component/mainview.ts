@@ -1,4 +1,4 @@
-import {BrowserWindow, app, screen, session, shell} from "electron"
+import {BrowserView, BrowserWindow, app, screen, session, shell} from "electron"
 
 
 import * as path from 'path'
@@ -49,6 +49,9 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           
             }
         );
+
+
+
         mainView.on("closed", ()=>{
           if (process.platform !== 'darwin')
               app.quit()
@@ -131,9 +134,9 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           // mainView.webContents.openDevTools({mode : "right"})
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
+
           
             
-
         //   console.log(table)
         //   e.preventDefault(); 
         //   let arr = re.exec(url)
