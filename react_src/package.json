@@ -9,6 +9,7 @@
     "@babel/preset-typescript": "^7.23.3",
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^6.2.0",
     "@mui/material": "^5.15.6",
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/react": "^13.0.0",

@@ -9,12 +9,14 @@
 
 import { Configure, GlobalObject, combineKey, getProperty } from "../definitions/types";
 import { Link_data, isCService } from "../definitions/data";
-import { Menu } from "electron";
+import { globalShortcut, Menu } from "electron";
 
   
      
   // let newMenu= Menu.buildFromTemplate(menu_templete);
-
+  export function menu_add(){
+    // globalShortcut.register("")
+  }
 
 
   export function attach_menu(gobj : GlobalObject, conf : Configure){

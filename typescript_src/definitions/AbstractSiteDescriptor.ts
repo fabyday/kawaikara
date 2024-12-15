@@ -1,6 +1,17 @@
+type t={
+    s : number 
+}
+
+t(10)
 
 
-class AbstractSiteDescriptor{
+interface f   {
+    s : number 
+}
+
+f()
+
+class SiteDescriptor{
     static {
         SiteDescriptorManager.get_instance().register(this);
     }

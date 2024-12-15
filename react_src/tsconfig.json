@@ -7,6 +7,6 @@
       "forceConsistentCasingInFileNames": true,
       "strict": true,
       "skipLibCheck": true,
-      "lib":["ES2021.String"]
+      "lib":["ES2021.String", "ESNext", "DOM"]
     }
 }

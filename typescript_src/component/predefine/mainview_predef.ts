@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld("main_api",{
     open_new_window : (url:string)=>{
 
     } ,
-
+    open_menubar : ()=>{},
     get_readme : readme_f
 })
 

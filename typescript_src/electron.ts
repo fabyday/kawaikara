@@ -1,4 +1,4 @@
-import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components, nativeTheme, Session} from 'electron'
+import {app,desktopCapturer, BrowserWindow,dialog, screen,session, components, nativeTheme, Session, globalShortcut} from 'electron'
 import { ipcMain, ipcRenderer, Menu, MenuItem, BrowserView, webContents} from 'electron'
 
 import * as path from "path";
@@ -28,6 +28,7 @@ let global_object : GlobalObject | null = null;
 let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
 
 function read_configure(){
+  
   let jsonData : Configure;
   // console.log(app.getPath("appData"))
   
@@ -187,8 +188,6 @@ setup_menu_funtionality(global_object, config )
 attach_menu(global_object, config)
 }
 
-
-
 app.whenReady().then(async () => {
   
   await components.whenReady();
@@ -197,5 +196,30 @@ app.whenReady().then(async () => {
   initialize();
   console.log(__dirname)
   log.info("app initialized...")
+  
+
+  global_object?.mainWindow?.webContents.on('before-input-event', (event, input) => {
+    if (input.key.toLowerCase() === 'tab') {
+      console.log('Tab')
+      event.preventDefault()
+      const v = new BrowserView({webPreferences : {}})
+  global_object?.mainWindow?.setBrowserView(v)
+  const bounds = global_object?.mainWindow?.getBounds();
+  console.log(bounds)
+  const width = bounds!.width*0.8
+  const height = bounds!.height*0.8
+  const gap_w = bounds!.width*0.1
+  const gap_h = bounds!.height*0.1
+  v.setBounds({x :gap_w, y : gap_h, width :width , height : height});
+  console.log(v.getBounds())
+  let html_path =  path.resolve(script_root_path, "./pages/sidebar.html")
+  console.log(html_path)
+  v.webContents.loadURL(html_path)
+  v.setBackgroundColor("white")
+  console.log(global_object)
+  console.log(global_object?.mainWindow)
+    }})
+  
+    
 
 });
