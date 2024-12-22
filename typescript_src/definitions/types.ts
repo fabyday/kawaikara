@@ -1,6 +1,17 @@
 import { app, BrowserWindow, BrowserView } from "electron"
 import lodash from 'lodash';
 
+
+export type KawaiId = string;
+
+// context save current all states of Kawaikara App
+export type KawaiContext = {
+    current_site : KawaiId
+}
+
+
+
+
 export type GlobalObject = {
     mainWindow? : BrowserWindow 
     pipWindow? : BrowserWindow 
@@ -8,7 +19,12 @@ export type GlobalObject = {
     options? : BrowserView 
     config? : Configure
     menu? : Object
+    context : KawaiContext
 }
+
+
+
+
 export type ItemType = CItem | CItem[] | number | boolean | string[] | string;
 
 enum item_meta{

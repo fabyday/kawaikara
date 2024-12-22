@@ -10,6 +10,12 @@ const App: React.FC = () => {
     
 
 
+  useEffect( ()=>{
+    
+            let prev =  window.menu_api.initialize_data().then((e)=>{console.log(e)})
+            console.log(prev)
+  }, [])
+
 
   let reval = <Box display="flex" flexDirection="column" alignItems="center" 
   justifyContent="center"

@@ -50,7 +50,11 @@ function read_configure(){
   return jsonData
 }
 
+
+
 app.disableHardwareAcceleration();
+
+var menu : any = undefined;
 
 function init_default_prefernece(conf :Configure){
     let preset_size = [
@@ -184,8 +188,8 @@ ipcMain.handle('readme_str', async ()=>{
   return readme_strings
 
 })
-setup_menu_funtionality(global_object, config )
-attach_menu(global_object, config)
+  setup_menu_funtionality(global_object, config )
+  menu = attach_menu(global_object, config)
 }
 
 app.whenReady().then(async () => {
@@ -202,7 +206,13 @@ app.whenReady().then(async () => {
     if (input.key.toLowerCase() === 'tab') {
       console.log('Tab')
       event.preventDefault()
-      const v = new BrowserView({webPreferences : {}})
+      const v = new BrowserView({webPreferences : {
+        contextIsolation: true, // add this
+
+  preload :                  path.join(__dirname, 'component/predefine/menu_predef.js'),
+  
+      }
+      })
   global_object?.mainWindow?.setBrowserView(v)
   const bounds = global_object?.mainWindow?.getBounds();
   console.log(bounds)
@@ -216,8 +226,17 @@ app.whenReady().then(async () => {
   console.log(html_path)
   v.webContents.loadURL(html_path)
   v.setBackgroundColor("white")
+  v.webContents.insertCSS('html,body{ overflow: hidden !important; }')
   console.log(global_object)
   console.log(global_object?.mainWindow)
+  v.webContents.openDevTools({mode : "detach"});
+  ipcMain.handle("initialize_data", (event , args)=>{
+    return "menu";
+
+  })
+  // ipcMain.on("initialize_data", (event : Electron.IpcMainEvent, args)=>{
+  //     return menu;
+  // })
     }})
   
     

@@ -55,4 +55,5 @@ import { globalShortcut, Menu } from "electron";
         let newMenu= Menu.buildFromTemplate( menu as any  );
         
         gobj.mainWindow?.setMenu(newMenu)
+        return menu;
   }
