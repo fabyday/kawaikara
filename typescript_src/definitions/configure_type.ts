@@ -1,14 +1,5 @@
+import { kawaiProperty, KawaiTemplateValue, KawaiNumberProperty, KawaiId, KawaiBoolProperty, KawaiStringProperty } from "./types"
 
-export type KawaiMap<T>  = {
-    [key:string] : T
-}
-
-
-
-export type kawaiProperty = {
-    id : string,
-    parent_id : string
-}
 
 export type KawaiOptions = kawaiProperty & {
 
@@ -17,10 +8,10 @@ export type KawaiOptions = kawaiProperty & {
 
 
 export type KawaiBounds = kawaiProperty &{
-    x ?: number ,
-    y ?: number , 
-    width ? : number,
-    height ?: number
+    x ?: KawaiNumberProperty,
+    y ?: KawaiNumberProperty, 
+    width ? : KawaiNumberProperty,
+    height ?: KawaiNumberProperty
 }
 
 export type KawaiCollections = kawaiProperty & {
@@ -28,7 +19,7 @@ export type KawaiCollections = kawaiProperty & {
 }
 
 export type KawaiShortcut = kawaiProperty & {
-    shortcut_key : string,
+    shortcut_key : KawaiStringProperty,
 }
 
 export type KawaiShortcutCollection =kawaiProperty & {
@@ -36,16 +27,15 @@ export type KawaiShortcutCollection =kawaiProperty & {
 }
 
 
-type KawaiLocale = {
-    id : string
-    name : string 
+type KawaiLocale = kawaiProperty & {
+    path : KawaiStringProperty
 
 }
 
 export type KawaiLocaleConfigure =  kawaiProperty & {
-    name : string 
-    selected_locale : KawaiLocale 
-    locale_preset : KawaiMap<KawaiLocale>
+    name ?: KawaiStringProperty 
+    selected_locale ?: KawaiLocale 
+    locale_preset ?: Map<string, KawaiLocale>
 
 }
 
@@ -55,27 +45,44 @@ export type KawaiPage = kawaiProperty & {
 }
 
 
-export type KawaiBoolProperty = kawaiProperty & {
-    value : boolean
+export type KawaiLiteralPorperty<T> = kawaiProperty & {
+    value : T 
+}
+export type KawaiWindowPreset = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
+export type KawaiPiPLocation = kawaiProperty & {
+    location ?: KawaiLiteralPorperty<KawaiWindowPreset>,
+    monitor ?: KawaiStringProperty
 }
 
-export type KawaiGeneralCollection = {
-    default_main ?: KawaiPage,
-    pip_window_size : any ,
+export type KawaiWindowPreference = kawaiProperty & {
+    [key : string] : KawaiPiPLocation | KawaiBounds | KawaiBoolProperty | undefined,
+    pip_location ?: KawaiPiPLocation,
+    pip_window_size ?: KawaiBounds,
+}
 
-    render_full_size_when_pip_running : KawaiBoolProperty,
-    enable_autoupdate : KawaiBoolProperty,
-    dark_mode : KawaiBoolProperty 
+
+export type KawaiGeneralCollection = kawaiProperty & {
+    [key : string] : KawaiPage | KawaiWindowPreference | KawaiBoolProperty | undefined,
+
+    default_main ?: KawaiPage,
+    window_preference ?: KawaiWindowPreference,
+    render_full_size_when_pip_running ?: KawaiBoolProperty,
+    enable_autoupdate ?: KawaiBoolProperty,
+    dark_mode ?: KawaiBoolProperty 
     
 }
 
 
 
 export type KawaiConfigure = {
-    version : string,
-    locale : KawaiLocaleConfigure,
-    general : KawaiGeneralCollection,
-    shortcut : KawaiShortcutCollection,
+    [key: string] : KawaiStringProperty | KawaiLocaleConfigure | KawaiGeneralCollection | KawaiShortcutCollection | undefined, 
+
+    
+    version ?: KawaiStringProperty,
+    locale ?: KawaiLocaleConfigure,
+    general ?: KawaiGeneralCollection,
+    shortcut ?: KawaiShortcutCollection,
 }
 
 

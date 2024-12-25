@@ -20,10 +20,12 @@ import * as fs_p from 'node:fs/promises';
 // import {DiscordSDK} from "@discord/embedded-app-sdk";
 
 import log from 'electron-log/main';
+import { global_object } from './definitions/context';
+
 
 log.initialize();
 
-let global_object : GlobalObject | null = null;
+// let global_object : GlobalObject | null = null;
 
 let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
 
