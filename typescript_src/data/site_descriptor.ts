@@ -40,7 +40,7 @@ class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor{
 
 @registerKawaiSiteDescriptor()
 class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_youtube",
+    id = "goto_youtube"
     loadurl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://youtube.com/")
     }

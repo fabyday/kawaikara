@@ -1,4 +1,4 @@
-import { KawaiConfigure } from "../definitions/configure_type";
+import { KawaiConfigure } from "../definitions/setting_types";
 
 
 
@@ -23,6 +23,10 @@ import { KawaiConfigure } from "../definitions/configure_type";
 // }
 
 
+function set_general
+
+
+
 function set_general_configuration(jsondata : JSON){
 
 }
@@ -39,10 +43,18 @@ function set_shortcut_configuration(jsondata : JSON){
  * @param jsondata  jsondata or json file path
  * @param conf if value was undefined, then create new @KawaiConfigure
  */
-function set_configuration(jsondata : JSON | string, conf ?: KawaiConfigure){
+function set_configuration(data : JSON | string, conf ?: KawaiConfigure){
+    if(data === typeof JSON){
+        
+        var jsonData : JSON = data;
+    }else{
+        var jsonData : JSON = JSON.parse("{}");
 
-    set_general_configuration();
-    set_shortcut_configuration();
+    }
+
+
+    set_general_configuration(jsonData);
+    set_shortcut_configuration(jsonData);
     
 
 }

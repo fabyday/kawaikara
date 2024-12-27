@@ -1,5 +1,86 @@
-import { CItem, Configure } from "./types"
+import { KawaiConfig, KawaiConfigure, KawaiLocale, KawaiLocaleConfigure } from "./setting_types"
 export const config_name = "kawai-config.json"
+
+export const default_config : KawaiConfig = {
+    preference : {
+        general : {
+            dark_mode :{value : true},
+            default_main : { url : {value : ""} },
+            enable_autoupdate : { value : true },
+            render_full_size_when_pip_running : { value : true } ,
+            window_preference : {
+                pip_location : {}, 
+                pip_window_size : {
+                    x : {value : 300}, 
+                    y : {value : 400},
+                    height : {value : 300}, 
+                    width : {value : 400}
+                }
+            },
+
+        },
+        locale : {
+            selected_locale : {value : ""}
+        },
+        shortcut : {
+            goto_netflix : {shortcut_key : ""},
+            goto_laftel : {shortcut_key : ""},
+            goto_youtube : {shortcut_key : ""},
+            goto_disney : {shortcut_key : ""},
+            goto_wavve : {shortcut_key : ""},
+            goto_tving : {shortcut_key : ""},
+            goto_twitch : {shortcut_key : ""},
+            run_pip : {shortcut_key : ""},
+            goto_applemusic : {shortcut_key : ""},
+            goto_chzzk : {shortcut_key : ""},
+            goto_amazonprime : {shortcut_key : ""},
+
+        }
+    },
+    version : {}
+
+}
+
+export const default_locale: KawaiLocale = {
+    preference : {
+        general : {
+            dark_mode :{name : ""},
+            default_main : { name : "", url : {name : ""} },
+            enable_autoupdate : { name : "" },
+            render_full_size_when_pip_running : { name : "" } ,
+            window_preference : {
+                pip_location : { monitor : {name : ""}}, 
+                pip_window_size : {
+                    name : "",
+                    x : {name : ""}, 
+                    y : {name : ""},
+                    height : {name : ""}, 
+                    width : {name : ""}
+                }
+            },
+
+        },
+        locale : {
+            selected_locale : {name : ""}
+        },
+        shortcut : {
+            name : "",
+            goto_netflix : {name : ""},
+            goto_laftel : {name : ""},
+            goto_youtube : {name : ""},
+            goto_disney : {name : ""},
+            goto_wavve : {name : ""},
+            goto_tving : {name : ""},
+            goto_twitch : {name : ""},
+            run_pip : {name : ""},
+            goto_applemusic : {name : ""},
+            goto_chzzk : {name : ""},
+            goto_amazonprime : {name : ""},
+        }
+    },
+    version : {}
+}
+
 
 
 export const default_configure : Configure = {

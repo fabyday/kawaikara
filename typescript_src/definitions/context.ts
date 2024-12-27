@@ -1,6 +1,6 @@
 import { BrowserView, BrowserWindow } from "electron"
 import { KawaiLocaleData } from "./configure_locale_type"
-import { KawaiConfigure, KawaiLiteralPorperty, KawaiWindowPreference, KawaiWindowPreset } from "./configure_type";
+import { KawaiConfigure, KawaiLiteralPorperty, KawaiWindowPreference, KawaiWindowPreset } from "./setting_types";
 import { KawaiId } from "./types";
 
 export type KawaiContext = {
