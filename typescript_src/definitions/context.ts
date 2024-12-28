@@ -1,7 +1,6 @@
 import { BrowserView, BrowserWindow } from "electron"
-import { KawaiLocaleData } from "./configure_locale_type"
-import { KawaiConfigure, KawaiLiteralPorperty, KawaiWindowPreference, KawaiWindowPreset } from "./setting_types";
-import { KawaiId } from "./types";
+import { KawaiConfig, KawaiLocale } from "./setting_types"
+
 
 export type KawaiContext = {
     window_mode ?: KawaiLiteralPorperty<KawaiWindowPreset>
@@ -11,13 +10,18 @@ export type KawaiContext = {
 
 export type GlobalObject = {
     mainWindow? : BrowserWindow 
-    pipWindow? : BrowserWindow 
     preferenceWindow? : BrowserWindow
     options? : BrowserView
-    config? : KawaiConfigure
-    locale? : KawaiLocaleData
+    config? : KawaiConfig
+    locale? : KawaiLocale
     context ?: KawaiContext
 }
 
 
-export let global_object : GlobalObject = {};
+export const global_object : GlobalObject = {
+
+
+    context : {}
+};
+
+

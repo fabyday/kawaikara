@@ -7,7 +7,6 @@
 
 
 
-import { Configure, GlobalObject, combineKey, getProperty } from "../definitions/types";
 import { Link_data, isCService } from "../definitions/data";
 import { globalShortcut, Menu } from "electron";
 

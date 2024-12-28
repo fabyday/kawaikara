@@ -56,37 +56,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           if (process.platform !== 'darwin')
               app.quit()
         })
-        // mainView.webContents.session.on("extension-loaded", async (event, ext)=>{
-        //     console.log("extension is loaded2")
 
-        // })
-        // mainView.webContents.session.on("extension-ready", async (event, ext)=>{
-        //   console.log("extension is ready.")
-        //   let test_browser =  new BrowserWindow({
-        //     title: 'MetaMask',
-        //     width: 360,
-        //     height: 520,
-        //     type: 'popup',
-        //     icon : ext.manifest.browser_action.default_icon,
-        //     resizable: true
-        //   });
-        //   await test_browser!.loadURL(`${ext.manifest.background.page}`);
-        //   // mainView!.webContents.session.setPreloads(`${ext.url}/`)
-        //   mainView?.webContents.session.getExtension(ext.id)
-        // })
-
-        // mainView.webContents.session.loadExtension(ext_paths, {"allowFileAccess" : true}).then(async (ext)=>{
-        //   console.log("extension is loaded callback", ext)
-        // }).catch((e)=>{
-        //   console.log("rejected")
-        //   console.log(e)
-        //   console.log("why rejected...")
-        // })
-
-        
-        //   console.log("test")
-        // }).catch(()=>{console.log("failed")})
-        
         
         mainView.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
           details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
@@ -115,7 +85,6 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
               }
             }
           })
-        // console.log(table)
         
         mainView.setFullScreenable(false)
         setup_pogress_bar(mainView)
@@ -135,26 +104,7 @@ export const get_instance = (conf : Configure):BrowserWindow =>{
           // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
           // console.log(extensions.getContextMenuItems(mainView.webContents))
 
-          
-            
-        //   console.log(table)
-        //   e.preventDefault(); 
-        //   let arr = re.exec(url)
-        //   console.log(arr)
-        //   if(arr !== null){
-        //     if(table.includes(arr[1]))
-        //       return;
-        //   }
-
-        //   shell.openExternal(url)
-        // })
-       
-        // mainView.webContents.setWindowOpenHandler((details) => {
-        //   // console.log("default opended", details)
-        //   console.log("default opended", details.url)
-        //   // shell.openExternal(details.url); // Open URL in user's browser.
-        //   return { action: "deny" }; // Prevent the app from opening the URL.
-        // })
+         
 
         
 

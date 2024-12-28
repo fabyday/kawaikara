@@ -6,15 +6,22 @@
 
 class KawaiAbstractSiteDescriptor{
 
-    readonly id : string | undefined ;
+    readonly id : string | undefined ;// descriptor id. 
+    readonly category : string | undefined; // category info on menubar 
+    readonly shortcut_id : string | undefined; // connected shortcut ID
       
       onBeforeSendHeaders(details : Electron.OnBeforeSendHeadersListenerDetails ) : void {
         // do nothing in abstract class
       }
 
 
-      loadurl (borwser : Electron.BrowserWindow) :void{
+      loadUrl (borwser : Electron.BrowserWindow) :void{
         // do nothing in abstract class
+      }
+
+      LoadFaviconUrl() : string {
+        
+        return "";
       }
 
 }

@@ -28,11 +28,18 @@ const api_literal =
         // load entire menu item.
         load_menu : "load-menu",
         
+    },
+    etc : {
+        load_update_info : "load-update-info",
+        version : "version",
+        github : "github",
+        
+
     }
 
 }
 
-const KAWAI_API_LITERAL  = Object.freeze(api_literal)
+export const KAWAI_API_LITERAL  = Object.freeze(api_literal)
 
 
 

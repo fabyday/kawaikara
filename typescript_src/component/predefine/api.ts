@@ -1,5 +1,10 @@
 import { ipcRenderer } from "electron"
 import { KawaiConfig } from "../../definitions/setting_types"
+import { KAWAI_API_LITERAL } from "../../definitions/api"
+
+export const load_update_info_f  = ()  => {
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.load_update_info)
+}
 
 export const load_locale_f = ( locale : string )  =>  {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.preference.load_locale)

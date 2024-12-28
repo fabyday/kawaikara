@@ -5,15 +5,22 @@
 @registerKawaiSiteDescriptor()
 class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor{
 
-    readonly id : string = "goto_netflix";
+    id : string = "netflix"
+    category: string | undefined = "ott";
+    shortcut_id : string = "goto_netflix";
 
     onBeforeSendHeaders (detail:Electron.OnBeforeSendHeadersListenerDetails){
             
     }
 
-    loadurl (browser : Electron.BrowserWindow) {
+    loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://netflix.com/")
         
+    }
+
+
+    LoadFaviconUrl(): string {
+        return "https://netflix.com/favicon.ico"
     }
 
 
@@ -22,16 +29,24 @@ class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor{
 
 @registerKawaiSiteDescriptor()
 class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
-    id = "goto_laftel";
-    loadurl(browser : Electron.BrowserWindow){
+    shortcut_id = "goto_laftel";
+
+
+    loadUrl(browser : Electron.BrowserWindow){
         browser.loadURL("https://laftel.net/")
+        
     }
+    
+    LoadFaviconUrl(): string {
+        return "https://laftel.net/favicon.ico"
+    }
+
 }
 
 @registerKawaiSiteDescriptor()
 class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_disney"
-    loadurl (browser : Electron.BrowserWindow) {
+    shortcut_id = "goto_disney"
+    loadUrl (browser : Electron.BrowserWindow) {
 
         browser.loadURL("https://www.disneyplus.com/")
 
@@ -40,48 +55,76 @@ class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor{
 
 @registerKawaiSiteDescriptor()
 class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_youtube"
-    loadurl (browser : Electron.BrowserWindow) {
+    shortcut_id = "goto_youtube"
+    loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://youtube.com/")
     }
+
+    LoadFaviconUrl(): string {
+        return "https://youtube.com/favicon.ico"
+    }
+
+    
 }
 @registerKawaiSiteDescriptor()
 class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_amazonprime"
+    shortcut_id = "goto_amazonprime"
     
-    loadurl (browser : Electron.BrowserWindow){
+    loadUrl (browser : Electron.BrowserWindow){
         browser.loadURL("https://www.primevideo.com/")
+    }
+
+    LoadFaviconUrl(): string {
+        return "https://www.primevideo.com/favicon.ico"
     }
 }
 @registerKawaiSiteDescriptor()
 class KawaiWavveDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_wavve"
-    loadurl (browser : Electron.BrowserWindow) {
+    shortcut_id = "goto_wavve"
+    loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.wavve.com/")
+    }
+
+    LoadFaviconUrl(): string {
+        return "https://www.wavve.com/favicon.ico"
     }
 }
 @registerKawaiSiteDescriptor()
 class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor
 {
-    id = "goto_watcha";
-    loadurl (browser : Electron.BrowserWindow){
+    shortcut_id = "goto_watcha";
+    loadUrl (browser : Electron.BrowserWindow){
         browser.loadURL("https://watcha.com/")
     }
+
+    LoadFaviconUrl(): string {
+        return "https://watcha.com/favicon.ico"
+    }
+
+  
 }
 @registerKawaiSiteDescriptor()
 class KawaiCounpangPlayDesc extends KawaiAbstractSiteDescriptor{
-    id  = "goto_coupangplay";
-    loadurl (browser : Electron.BrowserWindow) {
+    shortcut_id  = "goto_coupangplay";
+    loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.coupangplay.com/")
+    }
+
+    LoadFaviconUrl(): string {
+        return "https://www.coupangplay.com/favicon.ico"
     }
 }
 
 @registerKawaiSiteDescriptor()
 class KawaiTvingDesc extends KawaiAbstractSiteDescriptor{
-    id = "goto_tving";
+    shortcut_id = "goto_tving";
     
-    loadurl (browser : Electron.BrowserWindow) {
+    loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.tving.com/")
+    }
+
+    LoadFaviconUrl(): string {
+        return "https://www.tving.com/favicon.ico"
     }
 
 }
