@@ -31,12 +31,11 @@ export type KawaiBounds = KawaiNameProperty & {
 
 
 export type KawaiShortcut = KawaiNameProperty & {
-    [key : string] : string | undefined
     shortcut_key? : string,
 }
 
 export type KawaiShortcutCollection = KawaiNameProperty & {
-    [key:string] : KawaiShortcut  | string
+    [key:string]: KawaiShortcut   | undefined | string
 }
 
 
@@ -87,10 +86,17 @@ export type KawaiPreference = KawaiNameProperty & {
     shortcut ?: KawaiShortcutCollection,
 }
 export type KawaiVersion = {version ?: string}
+
+export type Favorites  = KawaiNameProperty & {
+    values : KawaiStringProperty[]
+}
+
+
 export type KawaiConfigure = {
     [key: string] : KawaiPreference | KawaiStringProperty | undefined, 
 
-    preference ?: KawaiPreference
+    preference ?: KawaiPreference,
+    favorites? : Favorites,
     version ?: KawaiStringProperty,
 }
 
@@ -98,6 +104,7 @@ export type KawaiConfig = KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNamePro
 export type KawaiLocale = KawaiRecursiveTypeExtractor<KawaiConfigure, KawaiNameProperty> ;
 
 
-// let s : KawaiLocale = {version : { name : "test" } }
-// let sa : KawaiConfig  = { version : {value : "3.1.4"}}
+
+
+
 
