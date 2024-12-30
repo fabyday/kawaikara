@@ -7,54 +7,25 @@ import * as fs from "fs"
 
 import { get_instance as get_mainview } from './component/mainview';
 import { get_instance as get_preference_window } from './component/preference';
-import { get_instance as get_pip_window } from './component/pip_window';
-import {default_configure, config_name} from "./definitions/default_preference"
+
 import * as autoUpdater from "./component/autoupdater"
 import lodash from 'lodash';
-import { setup_menu_funtionality } from './definitions/data';
 import { script_root_path } from './component/constants';
 import * as fs_p from 'node:fs/promises';
 // import {DiscordSDK} from "@discord/embedded-app-sdk";
 
 import log from 'electron-log/main';
-import { global_object } from './definitions/context';
 
 
 log.initialize();
 
 // let global_object : GlobalObject | null = null;
 
-let root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
-
-function read_configure(){
-  
-  let jsonData : Configure;
-  // console.log(app.getPath("appData"))
-  
-  log.info("read_configure"+app.getPath("appData"))
-  try {
-    const root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
-    script_root_path
-    let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
-    jsonData = JSON.parse(rawData);
-
-  } catch (err) {
-    log.debug(err)
-    if(!fs.existsSync(root_path))
-      fs.mkdirSync(root_path)
-    let user_json = JSON.stringify(default_configure, null, "\t")
-    fs.writeFileSync(path.join(root_path, config_name), user_json)
-    jsonData = default_configure
-  }
-  console.log(jsonData)
-  return jsonData
-}
 
 
 
 app.disableHardwareAcceleration();
 
-var menu : any = undefined;
 
 
 
@@ -74,23 +45,7 @@ function init_locales(conf : Configure){
 }
 
 const initialize = ():void=>{
-  let config = read_configure();
-  init_default_prefernece(config)
-  init_locales(config)
-  log.debug(getProperty(config, "configure.general.selected_locale"))
-  // apply_locale(config, getProperty(config, "configure.general.locales.selected_locale.locale_identifier")!.item as string)
-  
-  global_object = {
-    mainWindow : get_mainview(config), 
-    pipWindow : get_pip_window(config) , 
-    // preferenceWindow : get_preference_window(config),
-    preferenceWindow : undefined,
-    config : config,
-    menu : undefined
-  }
-
-  apply_all(global_object, config)
-
+ 
   global_object.mainWindow?.webContents.on("did-finish-load", (evt : Event)=>{
     if(process.env.IS_DEV)
       global_object!.mainWindow!.webContents.openDevTools();
@@ -122,13 +77,6 @@ const initialize = ():void=>{
 })
 
 
-ipcMain.handle('readme_str', async ()=>{
-
-  const readme_strings = fs.readFileSync(path.join(__dirname, "../readme.md"), {encoding:"utf-8"});
-  log.info(readme_strings)
-  return readme_strings
-
-})
   setup_menu_funtionality(global_object, config )
   menu = attach_menu(global_object, config)
 }

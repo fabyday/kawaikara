@@ -117,6 +117,6 @@ export function set_locale(data : JSON | string | KawaiLocale){
     
     
     global_object.locale = {...(global_object.locale), ...locale };
-
+    
 
 }

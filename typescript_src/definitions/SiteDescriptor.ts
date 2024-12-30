@@ -3,6 +3,7 @@
 //     loadurl : (browser : Electron.BrowserWindow ) => void ; // default values
 //     onBeforeSendHeaders? : (details : Electron.OnBeforeSendHeadersListenerDetails ) => void ;
 // }
+
 import log from 'electron-log/main';
 
 class KawaiAbstractSiteDescriptor{

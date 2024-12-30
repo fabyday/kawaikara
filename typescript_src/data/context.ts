@@ -3,5 +3,5 @@ import { GlobalObject, KawaiContext } from "../definitions/context";
 
 
 
-export let global_object  : any = {}
+export let global_object  : GlobalObject = {}
 
