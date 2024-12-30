@@ -11,7 +11,7 @@ export type KawaiSubMenu = {
 }
 
 export type KawaiMenu = {
-    [key : string] : KawaiSubMenu
+    [category : string] : KawaiSubMenu
 }
 
 

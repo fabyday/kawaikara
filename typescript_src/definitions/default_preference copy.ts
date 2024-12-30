@@ -37,7 +37,9 @@ export const default_config : KawaiConfig = {
 
         }
     },
-    favorites : {values : []},
+    favorites : { 
+        values : [] 
+    },
     version : {}
 
 }
@@ -85,6 +87,7 @@ export const default_locale: KawaiLocale = {
             goto_amazonprime : {name : "amazon prime"},
         }
     },
-    version : {}
+    version : {},
+    locale_meta : {filename : "EN", metaname : "eng"}
 }
 

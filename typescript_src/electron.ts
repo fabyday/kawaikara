@@ -10,10 +10,7 @@ import { get_instance as get_preference_window } from './component/preference';
 import { get_instance as get_pip_window } from './component/pip_window';
 import {default_configure, config_name} from "./definitions/default_preference"
 import * as autoUpdater from "./component/autoupdater"
-import { Configure, GlobalObject, getProperty } from './definitions/types';
-import { apply_all, apply_locale } from './logics/preference_logic';
 import lodash from 'lodash';
-import { attach_menu } from './component/menu';
 import { setup_menu_funtionality } from './definitions/data';
 import { script_root_path } from './component/constants';
 import * as fs_p from 'node:fs/promises';
@@ -36,7 +33,8 @@ function read_configure(){
   
   log.info("read_configure"+app.getPath("appData"))
   try {
-    
+    const root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
+    script_root_path
     let rawData = fs.readFileSync(path.join(root_path, config_name), 'utf8');
     jsonData = JSON.parse(rawData);
 
@@ -58,66 +56,7 @@ app.disableHardwareAcceleration();
 
 var menu : any = undefined;
 
-function init_default_prefernece(conf :Configure){
-    let preset_size = [
-      [720, 576], // 480p
-      [720, 480], // 576p
-      [800, 600],
-      [1280, 720], // 720p 
-      [1920, 1080], //1080p
-      [3840, 2160], //4k
-      [7680,4320], // 8k
-                    ]
-    
-    let all_displays = screen.getAllDisplays()
-    console.log(all_displays)
-    let max_disp_index = -1;
-    let max_volume = 0
-    for(let i =0; i < all_displays.length; i++ ){
-        let disp = all_displays[i]
-        let h = disp.size.height
-        let w = disp.size.width
-        let disp_volume = h*w
-        console.log(max_volume, disp_volume, w, h)
-        if(max_volume < disp_volume){
-          max_volume = disp_volume
-          max_disp_index = i
-        }
-    }
-    let w = all_displays[max_disp_index].size.width
-    let h = all_displays[max_disp_index].size.height
-    console.log(w, h)
-    let sel_preset = preset_size.filter((v, i)=>{
-      if(w > v[0] || h > v[1]){
-        return v
-      }
-    })
 
-    if(w > sel_preset[sel_preset.length-1][0] && h > sel_preset[sel_preset.length-1][1]){
-      sel_preset.push([w, h])
-    }
-    console.log(sel_preset)
-    let string_list = sel_preset.map((v)=>
-      String(v[0])+"x"+String([v[1]])
-    )
-    let monitor_preset_item = getProperty(conf, "configure.general.pip_location.preset_monitor_list")
-    monitor_preset_item!.item = all_displays.map(v=>v.label)
-    
-    let monitor = getProperty(conf, "configure.general.pip_location.monitor")
-    if(monitor!.item === ""){
-      monitor!.item = screen.getPrimaryDisplay().label
-    }
-    
-    
-
-    
-
-    let win_preset_item = getProperty(conf, "configure.general.window_size.preset_list")
-    win_preset_item!.item = string_list
-    let pip_preset_item = getProperty(conf, "configure.general.pip_window_size.preset_list")
-    let pip_preset = ["400x300", "600x400"].concat(lodash.cloneDeep(string_list.slice(0, string_list.length - 2 > 0 ?string_list.length - 2 : undefined)))
-    pip_preset_item!.item = pip_preset
-}
 
 function init_locales(conf : Configure){
   let locale_preset = getProperty(conf, "configure.general.locales.locale_preset")

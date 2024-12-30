@@ -88,23 +88,25 @@ export type KawaiPreference = KawaiNameProperty & {
 export type KawaiVersion = {version ?: string}
 
 export type Favorites  = KawaiNameProperty & {
-    values : KawaiStringProperty[]
+    [key : string] : KawaiStringProperty[] | undefined
+    values ?: KawaiStringProperty[]
 }
 
 
 export type KawaiConfigure = {
-    [key: string] : KawaiPreference | KawaiStringProperty | undefined, 
+    [key: string] : Favorites|KawaiPreference | KawaiStringProperty | undefined, 
 
     preference ?: KawaiPreference,
     favorites? : Favorites,
     version ?: KawaiStringProperty,
 }
+/**
+ * filename : file name on filesystem.
+ * metaname : name on app display.
+ */
+export type LocaleMeta = {filename : string, metaname : string}
+
 
 export type KawaiConfig = KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty> ;
-export type KawaiLocale = KawaiRecursiveTypeExtractor<KawaiConfigure, KawaiNameProperty> ;
-
-
-
-
-
+export type KawaiLocale = KawaiRecursiveTypeExtractor<KawaiConfigure, KawaiNameProperty>  & {locale_meta? : LocaleMeta};
 

@@ -41,7 +41,9 @@ export type RemoveOptionalArgs<T> = T extends undefined ? never : T
 
 export type KawaiRecursiveTypeRemover<Type, D> = {
         [Property in keyof Type as Exclude<Property, keyof D>] : 
-                    IsCompound< RemoveOptionalArgs<Type[Property]> > extends true ? KawaiRecursiveTypeRemover<RemoveOptionalArgs<Type[Property]>, D>: Type[Property] 
+                    IsCompound< RemoveOptionalArgs<Type[Property]> > extends true 
+                      ? KawaiRecursiveTypeRemover<RemoveOptionalArgs<Type[Property]>, D>
+                      : Type[Property] 
   };
 
 export type KawaiRecursiveTypeExtractor<Type, RemainderType> = {
@@ -60,3 +62,9 @@ export type KawaiRecursiveTypeExtractor<Type, RemainderType> = {
     : Type[Property] 
     
   }
+
+
+
+
+
+  

@@ -3,6 +3,7 @@
 //     loadurl : (browser : Electron.BrowserWindow ) => void ; // default values
 //     onBeforeSendHeaders? : (details : Electron.OnBeforeSendHeadersListenerDetails ) => void ;
 // }
+import log from 'electron-log/main';
 
 class KawaiAbstractSiteDescriptor{
 
@@ -63,7 +64,9 @@ class KawaiSiteDescriptorManager{
 
 function registerKawaiSiteDescriptor( id ?: string ){
     const  wrapper = (cls : typeof KawaiAbstractSiteDescriptor)=>{
-        KawaiSiteDescriptorManager.get_instance().register(new cls())
+      const class_object = new cls()
+      KawaiSiteDescriptorManager.get_instance().register(class_object)
+      log.debug("cls created", (class_object as KawaiAbstractSiteDescriptor).id)
     }
 
 
@@ -71,8 +74,3 @@ function registerKawaiSiteDescriptor( id ?: string ){
 }
 
 
-
-@registerKawaiSiteDescriptor("test")
-class test_cls extends KawaiAbstractSiteDescriptor{
-
-}

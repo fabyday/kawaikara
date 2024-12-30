@@ -30,7 +30,8 @@ class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor{
 @registerKawaiSiteDescriptor()
 class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id = "goto_laftel";
-
+    id  = "laftel"
+    category = "ott";
 
     loadUrl(browser : Electron.BrowserWindow){
         browser.loadURL("https://laftel.net/")
@@ -46,6 +47,8 @@ class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor()
 class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id = "goto_disney"
+    id  = "disneyplus"
+    category = "ott";
     loadUrl (browser : Electron.BrowserWindow) {
 
         browser.loadURL("https://www.disneyplus.com/")
@@ -56,6 +59,8 @@ class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor{
 @registerKawaiSiteDescriptor()
 class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id = "goto_youtube"
+    id  = "youtube"
+    category = "ott";
     loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://youtube.com/")
     }
@@ -69,6 +74,8 @@ class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor{
 @registerKawaiSiteDescriptor()
 class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id = "goto_amazonprime"
+    id  = "amazonprime"
+    category = "ott";
     
     loadUrl (browser : Electron.BrowserWindow){
         browser.loadURL("https://www.primevideo.com/")
@@ -81,6 +88,8 @@ class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor{
 @registerKawaiSiteDescriptor()
 class KawaiWavveDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id = "goto_wavve"
+    id  = "wavve"
+    category = "ott";
     loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.wavve.com/")
     }
@@ -93,6 +102,8 @@ class KawaiWavveDesc extends KawaiAbstractSiteDescriptor{
 class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor
 {
     shortcut_id = "goto_watcha";
+    id  = "watcha"
+    category = "ott";
     loadUrl (browser : Electron.BrowserWindow){
         browser.loadURL("https://watcha.com/")
     }
@@ -104,8 +115,10 @@ class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor
   
 }
 @registerKawaiSiteDescriptor()
-class KawaiCounpangPlayDesc extends KawaiAbstractSiteDescriptor{
+class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id  = "goto_coupangplay";
+    id  = "coupangplay"
+    category = "ott";
     loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.coupangplay.com/")
     }
@@ -118,6 +131,8 @@ class KawaiCounpangPlayDesc extends KawaiAbstractSiteDescriptor{
 @registerKawaiSiteDescriptor()
 class KawaiTvingDesc extends KawaiAbstractSiteDescriptor{
     shortcut_id = "goto_tving";
+    id  = "tving";
+    category = "ott";
     
     loadUrl (browser : Electron.BrowserWindow) {
         browser.loadURL("https://www.tving.com/")

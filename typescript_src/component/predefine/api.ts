@@ -66,3 +66,8 @@ export const save_and_close_preference_f = (config : KawaiConfig)=>{
     close_preference_f()
 }
 
+
+export const select_menu_item_f = (id : string)=>{
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.select_menu_item, id)
+}
+

@@ -27,7 +27,7 @@ const api_literal =
         
         // load entire menu item.
         load_menu : "load-menu",
-        
+        select_menu_item : "select-menu-item"
     },
     etc : {
         load_update_info : "load-update-info",

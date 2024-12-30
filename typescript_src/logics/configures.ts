@@ -1,62 +1,122 @@
-import { KawaiConfigure } from "../definitions/setting_types";
+import { isStringLiteral } from "typescript";
+import { KawaiConfig, KawaiConfigure, KawaiLocale } from "../definitions/setting_types";
 
 
+import * as fs from "fs"
+import path from "path";
+import { app } from "electron";
+import { data_root_path, default_config_path, default_locale_directory } from "../component/constants";
+import { global_object } from "../data/context";
 
 
-// is this should be used for change or query data?
-// function get_property( id: string, conf : KawaiConfigure) : any {
-//     // we don't know child property its class
-//     let id_list : string[]
-//     if(typeof id === "string"){
-//         id_list = id.split(".")
-//     }else{
-//         id_list = id
-//     }
-
-//     let child_property : any = conf;
-//     for(var current_id of id_list){
-//         child_property = child_property[current_id];
-//         if(child_property === undefined)
-//             return undefined
-//     }
-//     return child_property
-// }
-
-
-function set_general
-
-
-
-function set_general_configuration(jsondata : JSON){
+function set_general_configuration(jsondata : KawaiConfig){
 
 }
 
 
-function set_shortcut_configuration(jsondata : JSON){
+function set_shortcut_configuration(jsondata : KawaiConfig){
 
 }
+
+
+function save_config(config : KawaiConfig, save_path ?: string ){
+
+
+    const data = JSON.stringify(config)
+    if(typeof save_path === "string"){
+        fs.writeFileSync(save_path, data)
+    }else{
+        fs.writeFileSync(path.join(data_root_path, default_config_path), data);
+    }
+}
+
+
+function set_favorites(config : KawaiConfig){
+
+}
+
+function isJsonObject(input: unknown): input is JSON {
+    return typeof input === "object" && input !== null && !Array.isArray(input);
+}
+
+
 
 
 
 /**
  * 
- * @param jsondata  jsondata or json file path
+ * @param jsondata  jsondata or json file path or KawaiConfig data.
  * @param conf if value was undefined, then create new @KawaiConfigure
+ * If path is directory, then find kawai-config.json on specified directory.
+ * If path is json file path, then load file.(if it was not json, then throw error)
+ * if Path wasn't exists, then Find config file AppData/config/kawai-config.json,
+ * 
+ *
  */
-function set_configuration(data : JSON | string, conf ?: KawaiConfigure){
-    if(data === typeof JSON){
-        
-        var jsonData : JSON = data;
-    }else{
-        var jsonData : JSON = JSON.parse("{}");
-
-    }
-
-
-    set_general_configuration(jsonData);
-    set_shortcut_configuration(jsonData);
+export function set_config(data : JSON | string | KawaiConfig){
     
+    var jsonData :JSON;
+    var config : KawaiConfig;
+
+    if(typeof data === "string"){ // if data_path isn't exists
+        
+
+        const root_path = process.env.IS_DEV ?   path.join(__dirname, "../tmp")  : app.getPath("appData")
+        
+        let rawData = fs.readFileSync(path.join(data_root_path, default_config_path), 'utf8');
+        jsonData = JSON.parse(rawData) ;
+        const unknown_type_config : unknown = jsonData as unknown; // remove syntax error
+        config = unknown_type_config as KawaiConfig
+    }
+    else if(isJsonObject(data)){
+        //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>' 
+        // may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, 
+        // convert the expression to 'unknown' first.
+        jsonData  = data;
+        const unknown_type_config : unknown = jsonData as unknown; // remove syntax error
+        config = unknown_type_config as KawaiConfig
+
+    }else{
+        config = data as KawaiConfig
+    }
+    
+    
+    global_object.config = {...(global_object.config), ...config };
+
+    set_general_configuration(global_object.config);
+    set_shortcut_configuration(global_object.config);
+    set_favorites(global_object.config)
 
 }
 
 
+export function set_locale(data : JSON | string | KawaiLocale){
+    var jsonData :JSON;
+    var locale : KawaiLocale;
+
+    if(typeof data === "string"){ // if data_path isn't exists
+        
+
+        
+        let rawData = fs.readFileSync(path.join(data_root_path, default_locale_directory, "en.json"), 'utf8');
+        jsonData = JSON.parse(rawData) ;
+        const unknown_type_config : unknown = jsonData as unknown; // remove syntax error
+        locale = unknown_type_config as KawaiLocale
+    }
+    else if(isJsonObject(data)){
+        //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>' 
+        // may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, 
+        // convert the expression to 'unknown' first.
+        jsonData  = data;
+        const unknown_type_config : unknown = jsonData as unknown; // remove syntax error
+        locale = unknown_type_config as KawaiLocale
+
+    }else{
+        locale = data as KawaiLocale
+    }
+    
+    
+    global_object.locale = {...(global_object.locale), ...locale };
+
+
+}
