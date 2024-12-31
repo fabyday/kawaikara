@@ -1,7 +1,3 @@
-import { GlobalObject, KawaiContext } from "../definitions/context";
+import { GlobalObject, KawaiContext } from '../definitions/context';
 
-
-
-
-export let global_object  : GlobalObject = {}
-
+export let global_object: GlobalObject = {};

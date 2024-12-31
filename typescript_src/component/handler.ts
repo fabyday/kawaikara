@@ -1,18 +1,71 @@
-import { BrowserWindow, ipcMain } from "electron";
-import { KAWAI_API_LITERAL } from "../definitions/api";
+import { BrowserWindow, ipcMain } from 'electron';
+import { KAWAI_API_LITERAL } from '../definitions/api';
+import { global_object } from '../data/context';
+import { set_config } from '../logics/configures';
+import { KawaiConfig } from '../definitions/setting_types';
 
-function connectMainViewHandler( window : BrowserWindow ){
-    
+/**
+ *
+ * @param
+ */
+export function connectMainWindowHandler() {
+    global_object?.mainWindow?.webContents.on('before-input-event', () => {});
 }
 
-function connectMainProcessHandler(){
-    ipcMain.on(KAWAI_API_LITERAL.preference.apply_modified_preference, ()=>{
+/**
+ * this function is add global event handler.
+ */
+export function connectMainProcessHandler() {
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.apply_modified_preference,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            const new_conf = args[0] as KawaiConfig;
+            set_config(new_conf);
+            return new_conf;
+        },
+    );
 
-    })
-    ipcMain.on(KAWAI_API_LITERAL.preference.close, ()=>{
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.close,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            global_object.preferenceWindow?.close();
+        },
+    );
 
-    })
-    ipcMain.on(KAWAI_API_LITERAL.preference.load_config, ()=>{
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_config,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return global_object.config!.preference;
+        },
+    );
 
-    })
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_available_locale_list,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_available_monitor_list,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_available_site_list,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_available_window_size_list,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.load_locale,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.preference.save_and_close,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+    );
 }

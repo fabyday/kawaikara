@@ -1,18 +1,13 @@
-
-type KawaiId = string
-
+type KawaiId = string;
 
 export type KawaiMenuItem = {
-    connect_to : KawaiId
-}
+    connect_to: KawaiId;
+};
 
 export type KawaiSubMenu = {
-    [key : string] : string | KawaiMenuItem
-}
+    [key: string]: string | KawaiMenuItem;
+};
 
 export type KawaiMenu = {
-    [category : string] : KawaiSubMenu
-}
-
-
-
+    [category: string]: KawaiSubMenu;
+};

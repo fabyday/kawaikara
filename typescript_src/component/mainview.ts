@@ -1,117 +1,134 @@
-import {BrowserView, BrowserWindow, app, screen, session, shell} from "electron"
+import {
+    BrowserView,
+    BrowserWindow,
+    app,
+    screen,
+    session,
+    shell,
+} from 'electron';
 
-
-import * as path from 'path'
-import * as fs from 'fs'
+import * as path from 'path';
+import * as fs from 'fs';
 
 import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
-import { Configure, getProperty } from "../definitions/types";
-import { Link_data } from "../definitions/data";
-import { script_root_path } from "./constants";
-import { setup_pogress_bar } from "./autoupdater";
-import { ElectronChromeExtensions } from "electron-chrome-extensions";
+import { script_root_path } from './constants';
+import { setup_pogress_bar } from './autoupdater';
+import { ElectronChromeExtensions } from 'electron-chrome-extensions';
+import {
+    KawaiConfig,
+    KawaiNameProperty,
+    KawaiNumberProperty,
+} from '../definitions/setting_types';
+import { KawaiWindowManager } from '../manager/window_manager';
+import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
+import { global_object } from '../data/context';
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
-  blocker.enableBlockingInSession(session.defaultSession);  
-});  
+    blocker.enableBlockingInSession(session.defaultSession);
+});
 // const { ElectronChromeExtensions } = require('electron-chrome-extensions')
 // ElectronChromeExtensions
 
-
-
-// about chrome extension installation 
+// about chrome extension installation
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
-let mainView : BrowserWindow | null   = null;
-export const get_instance = (conf : Configure):BrowserWindow =>{
-  
-  let target_width = (getProperty(conf, "configure.general.window_size.width")!).item as number
-  let target_height = (getProperty(conf, "configure.general.window_size.height")!).item as number
-  if ( mainView === null ){
-    mainView = new BrowserWindow(
-            {
-              
-              width: target_width,
-              height: target_height,
-                
-                autoHideMenuBar : true,
-                icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
-          
-                webPreferences: {
-                  contextIsolation: true,
-                  nodeIntegration : true,
-                  sandbox : false,
-                  preload: path.join(__dirname, 'predefine/mainview_predef.js'),
-                  backgroundThrottling : !(getProperty(conf, "configure.general.render_full_size_when_pip_running")!.item as boolean)
+let mainView: BrowserWindow | null = null;
+export const get_instance = (): BrowserWindow => {
+    const conf = global_object.config;
+    let x: number =
+        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+        -1;
+    let y: number =
+        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+        -1;
+    let width: number =
+        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+        -1;
+    let height: number =
+        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+        -1;
+
+    if (width === -1 || height === -1) {
+        const preset_size: number[][] =
+            KawaiWindowManager.getInstance().getPresetSize();
+        const length = preset_size.length;
+        const [selected_width, selected_height]: number[] =
+            length - 2 > 0 ? preset_size[length - 2] : preset_size[length - 1];
+        const xy = KawaiWindowManager.getInstance().findCenterCoordByBounds(
+            selected_width,
+            selected_height,
+        );
+        x = xy.x;
+        y = xy.y;
+        width = selected_width;
+        height = selected_height;
+        conf!.preference = conf?.preference ? conf.preference : {};
+        conf!.preference = {
+            ...conf?.preference,
+            ...{
+                general: {
+                    window_preference: {
+                        window_size: {
+                            x: { value: x },
+                            y: { value: y },
+                            width: { value: selected_width },
+                            height: { value: selected_height },
+                        },
+                    },
+                },
+            },
+        };
+    }
+
+    if (mainView === null) {
+        mainView = new BrowserWindow({
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+            icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
+
+            webPreferences: {
+                contextIsolation: true,
+                nodeIntegration: true,
+                sandbox: false,
+                preload: path.join(__dirname, 'predefine/mainview_predef.js'),
+                backgroundThrottling:
+                    !global_object.config?.preference?.general
+                        ?.render_full_size_when_pip_running?.value,
+            },
+        });
+
+        mainView.on('closed', () => {
+            if (process.platform !== 'darwin') app.quit();
+        });
+
+        mainView.webContents.session.webRequest.onBeforeSendHeaders(
+            (details, callback) => {
+                const context_id: string | undefined =
+                    global_object.context?.current_site_descriptor;
+                if (typeof context_id === 'string') {
+                    const site_desc =
+                        KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
+                            context_id,
+                        );
+                    if (typeof site_desc !== 'undefined') {
+                        site_desc.onBeforeSendHeaders(details);
+                        callback({ requestHeaders: details.requestHeaders });
+                    }
                 }
-          
-            }
+                // if else do nothing..
+                // details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
+                // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+                // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
+            },
         );
 
-
-
-        mainView.on("closed", ()=>{
-          if (process.platform !== 'darwin')
-              app.quit()
-        })
-
-        
-        mainView.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
-          details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
-          details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-          // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
-          callback({ requestHeaders: details.requestHeaders })
-        })
-        
-        // regex for extracting site names.
-        const re = /https:\/\/(.*\.)*(.*)\..*(com|net|tv).*/
-        let table:string[] = []
-          Link_data.map((v)=>{
-            if(typeof v.item === "undefined"){
-
-            }
-            else if(Array.isArray(v.item)){
-              for(let vv of v.item){
-                if(typeof vv.link === "string"){
-                  
-                  let arr = re.exec(vv.link)
-                  console.log(arr)
-                  if(arr !== null){
-                    table.push(arr[1])
-                  }
-                }
-              }
-            }
-          })
-        
-        mainView.setFullScreenable(false)
-        setup_pogress_bar(mainView)
-        let html_path =  path.resolve(script_root_path, "./pages/main.html")
-        // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
-        console.log("is dev?", process.env.IS_DEV)
-        console.log("is dev?", process.cwd())
-        // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
-        // mainView.webContents.on("will-navigate", (e, url)=>{ 
-
-
-
-          // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
-          // mainView.loadURL(test_html, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
-          mainView.loadURL(html_path, {userAgent :'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'})
-          // mainView.webContents.openDevTools({mode : "right"})
-          // mainView.loadURL(process.env.IS_DEV? "http://localhost:3000/main.html" : html_path)
-          // console.log(extensions.getContextMenuItems(mainView.webContents))
-
-         
-
-        
-
-
+        mainView.setFullScreenable(false);
+        setup_pogress_bar(mainView);
     }
-    return mainView ;
-}
 
-
-
+    return mainView;
+};

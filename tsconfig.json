@@ -15,6 +15,9 @@
     "isolatedModules": true,
     "noEmit": false,
     "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
   },
   "include": [ "typescript_src/**/*.ts" ], 
 
