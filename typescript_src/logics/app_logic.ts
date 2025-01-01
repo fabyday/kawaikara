@@ -14,6 +14,8 @@ import {
     connectMainWindowHandler,
 } from '../component/handler';
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
+import { LocaleManager as KawaiLocaleManager } from '../manager/lcoale_manager';
+import { ShortcutManager as KawaiShortcutManager } from '../manager/shortcut_manager';
 
 function initialize_global_object(root_path?: string) {
     // initialize global object states
@@ -24,16 +26,21 @@ function initialize_global_object(root_path?: string) {
         root_pth = data_root_path;
     }
 
-    let rawData = fs.readFileSync(
-        path.join(root_pth, default_app_states_path),
-        'utf8',
-    );
-    let jsonData = JSON.parse(rawData);
-    const unknown_state: unknown = jsonData as unknown; // remove syntax error
-    const state = unknown_state as KawaiContext;
+    var states;
+    try {
+        let rawData = fs.readFileSync(
+            path.join(root_pth, default_app_states_path),
+            'utf8',
+        );
+        let jsonData = JSON.parse(rawData);
+        const unknown_state: unknown = jsonData as unknown; // remove syntax error
+        states = unknown_state as KawaiContext;
+    } catch {
+        console.log('err');
+    }
 
     global_object.context = {
-        current_window_bounds: { ...state.current_window_bounds },
+        current_window_bounds: { ...states?.current_window_bounds },
     };
 
     // initilaize views
@@ -41,11 +48,13 @@ function initialize_global_object(root_path?: string) {
 
 function initialize_handler() {
     connectMainProcessHandler();
-    connectMainWindowHandler(global_object.mainWindow!);
+    connectMainWindowHandler();
 }
 
 async function initialize_manager() {
     await KawaiSiteDescriptorManager.getInstance().initializeDefaultSitesDescriptor();
+    await KawaiLocaleManager.getInstance().initialize();
+    await KawaiShortcutManager.getInstance().initialize();
 }
 
 /**

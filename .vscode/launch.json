@@ -21,10 +21,10 @@
         "${workspaceFolder}/**",        //use source maps for files in workspace folder
         "!**/node_modules/**"           //but ignore everything in the node_modules folder
       ],
-      "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
+      // "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
       "console": "integratedTerminal",
       
-
+      
 
     },
     {
@@ -42,7 +42,8 @@
       "configurations": [
         "Electron: Main",
         "Electron: Renderer"
-      ]
+      ],
+      "preLaunchTask": "build kawaikara"
     }
   ]
 }

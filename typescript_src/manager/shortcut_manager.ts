@@ -10,5 +10,7 @@ export class ShortcutManager {
         return ShortcutManager.__instance;
     }
 
+    public async initialize() {}
+
     public activateShortcut() {}
 }

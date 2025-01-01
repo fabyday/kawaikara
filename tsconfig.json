@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES5", 
+    // "rootDir": "./typescript_src",
     "outDir" : "./public",
     "allowJs": true,
     "skipLibCheck": true,
@@ -16,7 +17,7 @@
     "noEmit": false,
     "sourceMap": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "emitDecoratorMetadata": true
 
   },
   "include": [ "typescript_src/**/*.ts" ], 

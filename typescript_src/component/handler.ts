@@ -3,13 +3,22 @@ import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
 import { set_config } from '../logics/configures';
 import { KawaiConfig } from '../definitions/setting_types';
+import { KawaiWindowManager } from '../manager/window_manager';
+import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
+import { LocaleManager } from '../manager/lcoale_manager';
 
 /**
  *
  * @param
  */
 export function connectMainWindowHandler() {
-    global_object?.mainWindow?.webContents.on('before-input-event', () => {});
+    global_object?.mainWindow?.webContents.on(
+        'before-input-event',
+        (event: Electron.Event, input: Electron.Input) => {
+            if (input.key.toLowerCase() === 'tab') {
+            }
+        },
+    );
 }
 
 /**
@@ -21,7 +30,7 @@ export function connectMainProcessHandler() {
         (e: Electron.IpcMainEvent, ...args: any[]) => {
             const new_conf = args[0] as KawaiConfig;
             set_config(new_conf);
-            return new_conf;
+            return global_object.config;
         },
     );
 
@@ -41,31 +50,45 @@ export function connectMainProcessHandler() {
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.load_available_locale_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return LocaleManager.getInstance().getLocaleMetas();
+        },
     );
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.load_available_monitor_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return KawaiWindowManager.getInstance().getMonitorNames();
+        },
     );
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.load_available_site_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return KawaiSiteDescriptorManager.getInstance();
+        },
     );
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.load_available_window_size_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return KawaiWindowManager.getInstance().getPresetSize();
+        },
     );
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.load_locale,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            return global_object.locale;
+        },
     );
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.save_and_close,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {},
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            const config: KawaiConfig = args[0] as KawaiConfig;
+            set_config(config);
+            global_object.preferenceWindow?.close();
+        },
     );
 }

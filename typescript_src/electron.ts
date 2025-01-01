@@ -82,18 +82,9 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
     await components.whenReady();
-    await KawaiSiteDescriptorManager.getInstance().initializeDefaultSitesDescriptor();
-    await initialize();
-
-    log.info(
-        KawaiSiteDescriptorManager.getInstance()
-            .qeury_site_descriptor_by_name('tving')
-            ?.LoadFaviconUrl(),
-    );
     log.info('components ready:', components.status());
     log.debug('initializing...');
-    const le = KawaiSiteDescriptorManager.getInstance();
-    console.log(__dirname);
+    await initialize();
     log.info('app was initialized...');
 
     global_object?.mainWindow?.webContents.on(

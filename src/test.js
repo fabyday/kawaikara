@@ -1,3 +1,0 @@
-function tet(i) {
-    return;
-}
