@@ -28,7 +28,7 @@ export type KawaiContext = {
 export type GlobalObject = {
     mainWindow?: BrowserWindow;
     preferenceWindow?: BrowserWindow;
-    options?: BrowserView;
+    menu?: BrowserView;
     config?: KawaiConfig;
     locale?: KawaiLocale;
     context?: KawaiContext;

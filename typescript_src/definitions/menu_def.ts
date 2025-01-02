@@ -1,13 +1,22 @@
+import { KawaiAction } from "./types";
+
 type KawaiId = string;
 
-export type KawaiMenuItem = {
-    connect_to: KawaiId;
-};
 
-export type KawaiSubMenu = {
-    [key: string]: string | KawaiMenuItem;
-};
+export interface KawaiCategoryBehavior{
+    id : string ,
+    menuClicked():KawaiAction
+}
 
-export type KawaiMenu = {
-    [category: string]: KawaiSubMenu;
-};
+
+
+
+export interface KawaiMenuBehavior{
+    id : string ,
+    category : string,
+    menuClicked():KawaiAction
+
+}
+
+
+

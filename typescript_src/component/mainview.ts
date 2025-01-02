@@ -35,7 +35,7 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
 let mainView: BrowserWindow | null = null;
-export const get_instance = (): BrowserWindow => {
+export const get_mainview_instance = (): BrowserWindow => {
     const conf = global_object.config;
     let x: number =
         conf?.preference?.general?.window_preference?.window_size?.x?.value ??
