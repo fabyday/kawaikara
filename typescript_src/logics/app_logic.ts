@@ -16,7 +16,8 @@ import {
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager as KawaiLocaleManager } from '../manager/lcoale_manager';
 import { ShortcutManager as KawaiShortcutManager } from '../manager/shortcut_manager';
-import { get_instance, get_mainview_instance } from '../component/mainview';
+import { get_mainview_instance } from '../component/mainview';
+import log from 'electron-log/main';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -37,7 +38,7 @@ function initialize_global_object_context(root_path?: string) {
         const unknown_state: unknown = jsonData as unknown; // remove syntax error
         states = unknown_state as KawaiContext;
     } catch {
-        console.log('err');
+        log.debug('err');
     }
 
     global_object.context = { ...global_object.context, ...states };
@@ -62,7 +63,6 @@ async function initialize_manager() {
  */
 async function initialize_views() {
     get_mainview_instance();
-    
 }
 
 /**
@@ -72,18 +72,18 @@ async function initialize_views() {
  */
 export async function initialize(config_root?: string) {
     const manager_promise = initialize_manager();
-    initialize_handler();
     initialize_global_object_context(config_root);
     if (typeof config_root === 'string') {
         set_config(config_root);
     } else {
         set_config(app.getAppPath());
     }
-
+    log.info(global_object.config?.preference?.locale?.selected_locale?.value)
     set_locale(
         global_object.config?.preference?.locale?.selected_locale?.value,
     );
-
+    
     await initialize_views()
+    initialize_handler();
     await manager_promise;
 }

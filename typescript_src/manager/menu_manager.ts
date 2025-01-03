@@ -1,3 +1,5 @@
+import { get_menu_instance } from '../component/menu';
+import { global_object } from '../data/context';
 import { KawaiCategoryBehavior as KawaiMenuBehavior } from '../definitions/menu_def';
 
 export class MenuManager {
@@ -33,4 +35,9 @@ export class MenuManager {
     public selectItem(id:string) {
         
     };
+
+
+    public openMenu(){
+       get_menu_instance()
+    }
 }

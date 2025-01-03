@@ -6,6 +6,24 @@ import { KawaiConfig } from '../definitions/setting_types';
 import { KawaiWindowManager } from '../manager/window_manager';
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager } from '../manager/lcoale_manager';
+import { MenuManager } from '../manager/menu_manager';
+
+
+
+/**
+ *
+ * global event loop initilaize. 
+ */
+export function connectAppHandler() {
+    global_object?.mainWindow?.webContents.on(
+        'before-input-event',
+        (event: Electron.Event, input: Electron.Input) => {
+            if (input.key.toLowerCase() === 'tab') {
+                MenuManager.getInstance().openMenu()
+            }
+        },
+    );
+}
 
 /**
  *

@@ -34,7 +34,6 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 // about chrome extension installation
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
-let mainView: BrowserWindow | null = null;
 export const get_mainview_instance = (): BrowserWindow => {
     const conf = global_object.config;
     let x: number =
@@ -81,20 +80,20 @@ export const get_mainview_instance = (): BrowserWindow => {
             },
         };
     }
-
-    if (mainView === null) {
-        mainView = new BrowserWindow({
+    if (typeof (global_object?.mainWindow) === "undefined") {
+        const mainView = new BrowserWindow({
             x: x,
             y: y,
             width: width,
             height: height,
+            
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
 
             webPreferences: {
                 contextIsolation: true,
-                nodeIntegration: true,
-                sandbox: false,
-                preload: path.join(__dirname, 'predefine/mainview_predef.js'),
+                nodeIntegration: false,
+                sandbox: true,
+                // preload: path.join(__dirname, 'predefine/communicate.js'),
                 backgroundThrottling:
                     !global_object.config?.preference?.general
                         ?.render_full_size_when_pip_running?.value,
@@ -104,31 +103,34 @@ export const get_mainview_instance = (): BrowserWindow => {
         mainView.on('closed', () => {
             if (process.platform !== 'darwin') app.quit();
         });
-
-        mainView.webContents.session.webRequest.onBeforeSendHeaders(
-            (details, callback) => {
-                const context_id: string | undefined =
-                    global_object.context?.current_site_descriptor;
-                if (typeof context_id === 'string') {
-                    const site_desc =
-                        KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
-                            context_id,
-                        );
-                    if (typeof site_desc !== 'undefined') {
-                        site_desc.onBeforeSendHeaders(details);
-                        callback({ requestHeaders: details.requestHeaders });
-                    }
-                }
-                // if else do nothing..
-                // details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
-                // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-                // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
-            },
-        );
+        mainView.setMenu(null);
+        // mainView.webContents.session.webRequest.onBeforeSendHeaders(
+        //     (details, callback) => {
+        //         const context_id: string | undefined =
+        //             global_object.context?.current_site_descriptor;
+        //         if (typeof context_id === 'string') {
+        //             const site_desc =
+        //                 KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
+        //                     context_id,
+        //                 );
+        //             if (typeof site_desc !== 'undefined') {
+        //                 site_desc.onBeforeSendHeaders(details);
+        //                 callback({ requestHeaders: details.requestHeaders });
+        //             }
+        //         }
+        //         // if else do nothing..
+        //         // details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
+        //         // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        //         // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
+        //     },
+        // );
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
+        mainView.loadURL("https://chzzk.naver.com/", {userAgent : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"})
+        mainView.webContents.openDevTools({mode : "detach"})
+        global_object.mainWindow = mainView;
+        return global_object.mainWindow;
     }
-
-    return mainView;
+    return global_object!.mainWindow!;
 };

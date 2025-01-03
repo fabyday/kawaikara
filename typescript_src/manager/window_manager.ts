@@ -1,4 +1,7 @@
 import { screen } from 'electron/main';
+import { KawaiBounds } from '../definitions/setting_types';
+import { BrowserWindow } from 'electron';
+import { global_object } from '../data/context';
 
 export class KawaiWindowManager {
     static __instance: KawaiWindowManager | undefined = undefined;
@@ -91,6 +94,28 @@ export class KawaiWindowManager {
                 },
             );
         return display_names;
+    }
+
+    public setCofigWindowSize(x?:number, y?:number ,width?: number, height?: number): void {
+        
+    }
+
+    public getConfigWindowSize(): Electron.Rectangle {
+        const obj: KawaiBounds | undefined =
+            global_object.config?.preference?.general?.window_preference
+                ?.window_size;
+        var result = { };
+        if (typeof obj !== 'undefined') {
+            result = {
+                x: obj?.x?.value ?? 0,
+                y: obj?.y?.value ?? 0,
+                width: obj?.width?.value ?? -1,
+                height: obj?.height?.value ?? -1,
+            };
+        } else{
+            result = { x: 0, y: 0, width: -1, height: -1 };
+        }
+        return result as Electron.Rectangle;
     }
 
     /**

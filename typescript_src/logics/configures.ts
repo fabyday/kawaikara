@@ -16,10 +16,15 @@ import {
 import { global_object } from '../data/context';
 import { ShortcutManager } from '../manager/shortcut_manager';
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
-
-function set_general_configuration(jsondata: KawaiConfig) {}
+import log from 'electron-log/main';
+import { default_locale } from '../definitions/default_preference';
+import { normalize_locale_string } from './os';
+import { LocaleManager } from '../manager/lcoale_manager';
+function set_general_configuration(jsondata: KawaiConfig) {
+    log.debug('setup general config.');
+}
 function apply_autoupdate() {
-    console.log('apply auto update');
+    log.debug('apply auto update');
     if (
         global_object.config?.preference?.general?.enable_autoupdate?.value ===
         true
@@ -35,10 +40,13 @@ function apply_darkmode() {
     } else {
         nativeTheme.themeSource = 'light';
     }
+    log.info(nativeTheme.themeSource, 'mode on.');
     global_object.mainWindow?.reload(); // reload theme.
 }
 
-function apply_resize_window() {}
+function apply_resize_window() {
+    log.info('apply resize window.');
+}
 
 function apply_pipmode() {}
 
@@ -55,7 +63,9 @@ function save_config(config: KawaiConfig, save_path?: string) {
     }
 }
 
-function set_favorites(config: KawaiConfig) {}
+function set_favorites(config: KawaiConfig) {
+    log.info('set favorites');
+}
 
 function isJsonObject(input: unknown): input is JSON {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
@@ -78,21 +88,38 @@ export function set_config(data: JSON | string | KawaiConfig) {
     if (typeof data === 'string') {
         // if data_path isn't exists
 
-        let rawData = fs.readFileSync(
-            path.join(data_root_path, default_config_path),
-            'utf8',
-        );
-        jsonData = JSON.parse(rawData);
-        const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-        config = unknown_type_config as KawaiConfig;
+        log.debug('config was set by Json');
+        let rawData;
+        try {
+            rawData = fs.readFileSync(data, 'utf8');
+        } catch (e) {
+            log.debug('load was failed from given path.');
+            // if failed load default config json
+            try {
+                rawData = fs.readFileSync(
+                    path.join(data_root_path, default_config_path),
+                    'utf8',
+                );
+            } catch (e) {
+                log.debug('default config file was not existed.');
+                rawData = JSON.stringify(default_locale);
+                log.debug('load default config.');
+            }
+        } finally {
+            jsonData = JSON.parse(rawData as string);
+            const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
+            config = unknown_type_config as KawaiConfig;
+        }
     } else if (isJsonObject(data)) {
         //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>'
         // may be a mistake because neither type sufficiently overlaps with the other. If this was intentional,
         // convert the expression to 'unknown' first.
+        log.debug('config was set by Json');
         jsonData = data;
         const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
         config = unknown_type_config as KawaiConfig;
     } else {
+        log.debug('config was set by KawaiConfig');
         config = data as KawaiConfig;
     }
 
@@ -110,13 +137,35 @@ export function set_config(data: JSON | string | KawaiConfig) {
 export function set_locale(data: JSON | string | KawaiLocale | undefined) {
     var jsonData: JSON;
     var locale: KawaiLocale;
-
+    log.info('set locale.');
     if (typeof data === 'string') {
         // if data_path isn't exists
-        let rawData = fs.readFileSync(
-            path.join(data_root_path, default_locale_directory, data + '.json'),
-            'utf8',
-        );
+        let rawData;
+        try {
+            rawData = fs.readFileSync(data, 'utf8');
+        } catch (e) {
+            log.debug('file read was failed.');
+            log.debug('err : ', e);
+            try {
+                log.debug(
+                    'find locale in default locale directory. and search system locale.',
+                );
+                const system_locale_code = normalize_locale_string(
+                    app.getSystemLocale(),
+                );
+                rawData = fs.readFileSync(
+                    path.join(
+                        data_root_path,
+                        default_locale_directory,
+                        system_locale_code + '.json',
+                    ),
+                    'utf8',
+                );
+            } catch (e) {
+                log.debug("can't find default system locale file.");
+                rawData = JSON.stringify(default_locale);
+            }
+        }
         jsonData = JSON.parse(rawData);
         const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
         locale = unknown_type_config as KawaiLocale;
