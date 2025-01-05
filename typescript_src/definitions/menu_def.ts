@@ -1,22 +1,21 @@
-import { KawaiAction } from "./types";
+import { KawaiAction } from './types';
 
 type KawaiId = string;
 
+export class KawaiCategoryBase {
+    id: string;
 
-export interface KawaiCategoryBehavior{
-    id : string ,
-    menuClicked():KawaiAction
+    constructor(id:string){
+        this.id = id;
+    }
 }
 
+export class KawaiMenuBase {
+    id: string;
+    category: string;
 
-
-
-export interface KawaiMenuBehavior{
-    id : string ,
-    category : string,
-    menuClicked():KawaiAction
-
+    constructor(id: string, category: string) {
+        this.id = id;
+        this.category = category;
+    }
 }
-
-
-

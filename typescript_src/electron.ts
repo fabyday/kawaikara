@@ -29,11 +29,8 @@ import { script_root_path } from './component/constants';
 import * as fs_p from 'node:fs/promises';
 // import {DiscordSDK} from "@discord/embedded-app-sdk";
 
-import log from 'electron-log/main';
-
 import { initialize } from './logics/app_logic';
-
-log.initialize();
+import { log } from './logging/logger';
 
 app.disableHardwareAcceleration();
 

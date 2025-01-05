@@ -80,19 +80,20 @@ export const get_mainview_instance = (): BrowserWindow => {
             },
         };
     }
-    if (typeof (global_object?.mainWindow) === "undefined") {
+    if (typeof global_object?.mainWindow === 'undefined') {
         const mainView = new BrowserWindow({
             x: x,
             y: y,
             width: width,
             height: height,
-            
+
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
 
             webPreferences: {
+                preload: path.resolve(__dirname, 'predefine/communicate.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
-                sandbox: true,
+                sandbox: false,
                 // preload: path.join(__dirname, 'predefine/communicate.js'),
                 backgroundThrottling:
                     !global_object.config?.preference?.general
@@ -127,8 +128,11 @@ export const get_mainview_instance = (): BrowserWindow => {
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
-        mainView.loadURL("https://chzzk.naver.com/", {userAgent : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"})
-        mainView.webContents.openDevTools({mode : "detach"})
+        mainView.loadURL('https://chzzk.naver.com/', {
+            userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        });
+        mainView.webContents.openDevTools({ mode: 'detach' });
         global_object.mainWindow = mainView;
         return global_object.mainWindow;
     }

@@ -7,46 +7,72 @@ import { KawaiWindowManager } from '../manager/window_manager';
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager } from '../manager/lcoale_manager';
 import { MenuManager } from '../manager/menu_manager';
-
-
+import path from 'node:path';
+import { project_root } from './constants';
+import fs from 'node:fs';
+import { flog, log } from '../logging/logger';
 
 /**
  *
- * global event loop initilaize. 
+ * global event loop initilaize.
  */
-export function connectAppHandler() {
-    global_object?.mainWindow?.webContents.on(
-        'before-input-event',
-        (event: Electron.Event, input: Electron.Input) => {
-            if (input.key.toLowerCase() === 'tab') {
-                MenuManager.getInstance().openMenu()
-            }
-        },
-    );
-}
+export function connectAppHandler() {}
 
 /**
  *
  * @param
  */
 export function connectMainWindowHandler() {
-    global_object?.mainWindow?.webContents.on(
-        'before-input-event',
-        (event: Electron.Event, input: Electron.Input) => {
-            if (input.key.toLowerCase() === 'tab') {
-            }
-        },
-    );
+    // global_object?.mainWindow?.webContents.on(
+    //     'before-input-event',
+    //     (event: Electron.Event, input: Electron.Input) => {
+    //         flog.debug(input);
+    //         if(input.type === "keyUp"){
+    //             event.preventDefault()
+    //         }
+    //         log.debug(input)
+    //         if (input.key.toLowerCase() === 'tab') {
+    //                 log.debug(typeof global_object.menu);
+    //                 if (typeof global_object.menu === 'undefined') {
+    //                         log.debug('menu open');
+    //                         MenuManager.getInstance().openMenu();
+    //                     }
+    //                 }
+    //     },
+    // );
 }
 
 /**
  * this function is add global event handler.
  */
 export function connectMainProcessHandler() {
+    ipcMain.handle(KAWAI_API_LITERAL.input.keydown, (...args: any[]) => {
+        const new_conf = args;
+        flog.info(new_conf);
+        flog.info('fdisofidso');
+        // // if (new_conf.key.toLowerCase() === 'tab') {
+        //     log.debug(typeof global_object.menu);
+        //     if (typeof global_object.menu === 'undefined') {
+        //             log.debug('menu open');
+        //             MenuManager.getInstance().openMenu();
+        //         }
+        //     }
+        // flog.debug('');
+        return true;
+    });
+
+    ipcMain.on(
+        KAWAI_API_LITERAL.input.keydown,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            const new_conf = args[0] as KeyboardEvent;
+            flog.debug('');
+        },
+    );
     ipcMain.on(
         KAWAI_API_LITERAL.preference.apply_modified_preference,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
             const new_conf = args[0] as KawaiConfig;
+            flog.debug('');
             set_config(new_conf);
             return global_object.config;
         },

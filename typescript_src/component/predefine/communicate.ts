@@ -1,10 +1,12 @@
-import { ContextBridge, contextBridge } from 'electron';
+import { ContextBridge, contextBridge, ipcRenderer } from 'electron';
 
 import {
     add_favorites_f,
     apply_preference_f,
     close_preference_f,
     delete_favorites_list_f,
+    keydown_f,
+    keydup_f as keyup_f,
     load_available_locale_list_f,
     load_available_monitor_list_f,
     load_available_site_list_f,
@@ -47,3 +49,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_update_info: load_update_info_f,
     },
 });
+window.addEventListener('keydown', keydown_f);
+window.addEventListener('keyup', keyup_f);
+
+console.log('test');

@@ -90,3 +90,22 @@ export const save_and_close_preference_f = (config: KawaiConfig) => {
 export const select_menu_item_f = (id: string) => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.select_menu_item, id);
 };
+
+export const keydown_f = (event: KeyboardEvent) => {
+    event.preventDefault();
+    const eventData = {
+        key: event.key,
+        keyCode: event.keyCode,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+    };
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.input.keydown, eventData);
+};
+
+export const keydup_f = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) {
+        console.log('up');
+        return ipcRenderer.invoke(KAWAI_API_LITERAL.input.keyup, event);
+    }
+};

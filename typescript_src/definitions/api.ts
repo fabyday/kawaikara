@@ -28,6 +28,10 @@ const api_literal = {
         version: 'version',
         github: 'github',
     },
+    input : {
+        keydown : "keydown",
+        keyup : "keyup"
+    }
 };
 
 export const KAWAI_API_LITERAL = Object.freeze(api_literal);
