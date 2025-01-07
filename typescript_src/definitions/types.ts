@@ -58,11 +58,8 @@ export type KawaiRecursiveTypeExtractor<Type, RemainderType> = {
         : Type[Property];
 };
 
-
-
-
-export type KawaiActionType = "category" | "shortcut" | "descriptor";
+export type KawaiActionType = 'category' | 'shortcut' | 'descriptor';
 export type KawaiAction = {
-    action_type : KawaiActionType
-    target_id : string
-}
+    action_type: KawaiActionType;
+    target_id: string;
+};

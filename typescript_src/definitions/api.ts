@@ -31,6 +31,9 @@ const api_literal = {
     input : {
         keydown : "keydown",
         keyup : "keyup"
+    },
+    logging : {
+        log : "log",
     }
 };
 

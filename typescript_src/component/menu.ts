@@ -4,6 +4,8 @@ import { script_root_path } from './constants';
 import { BrowserView } from 'electron';
 import { flog } from '../logging/logger';
 
+
+const mainview_name = "menu";
 export function get_menu_instance() {
     if (typeof global_object.menu === 'undefined') {
         const view = new BrowserView({
@@ -38,7 +40,9 @@ export function get_menu_instance() {
         if (process.env.IS_DEV) {
             // view.webContents.openDevTools({ mode: 'detach' });
         }
+        (view as any).name = "menu"
     }
+   
 
     return global_object!.menu;
 }

@@ -1,4 +1,10 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import {
+    BrowserWindow,
+    IpcMain,
+    ipcMain,
+    IpcMainEvent,
+    IpcMainInvokeEvent,
+} from 'electron';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
 import { set_config } from '../logics/configures';
@@ -11,6 +17,7 @@ import path from 'node:path';
 import { project_root } from './constants';
 import fs from 'node:fs';
 import { flog, log } from '../logging/logger';
+import { KawaiKeyboardManager, KawaiKeyEvent } from '../manager/keyboard_manager';
 
 /**
  *
@@ -46,28 +53,22 @@ export function connectMainWindowHandler() {
  * this function is add global event handler.
  */
 export function connectMainProcessHandler() {
-    ipcMain.handle(KAWAI_API_LITERAL.input.keydown, (...args: any[]) => {
-        const new_conf = args;
-        flog.info(new_conf);
-        flog.info('fdisofidso');
-        // // if (new_conf.key.toLowerCase() === 'tab') {
-        //     log.debug(typeof global_object.menu);
-        //     if (typeof global_object.menu === 'undefined') {
-        //             log.debug('menu open');
-        //             MenuManager.getInstance().openMenu();
-        //         }
-        //     }
-        // flog.debug('');
-        return true;
-    });
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.input.keydown,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
-            const new_conf = args[0] as KeyboardEvent;
-            flog.debug('');
+        (event: IpcMainInvokeEvent, key_event : KawaiKeyEvent) => {
+            console.log(key_event)
+            return KawaiKeyboardManager.getInstance().keyboard_logics("keydown", key_event);
         },
     );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.input.keyup,
+        (event: IpcMainInvokeEvent, key_event : KawaiKeyEvent) => {
+            log.info(key_event);
+            return KawaiKeyboardManager.getInstance().keyboard_logics("keydown", key_event);
+        },
+    );
+
     ipcMain.on(
         KAWAI_API_LITERAL.preference.apply_modified_preference,
         (e: Electron.IpcMainEvent, ...args: any[]) => {

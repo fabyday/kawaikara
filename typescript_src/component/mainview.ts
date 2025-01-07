@@ -34,6 +34,8 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 // about chrome extension installation
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
+
+
 export const get_mainview_instance = (): BrowserWindow => {
     const conf = global_object.config;
     let x: number =
@@ -133,6 +135,8 @@ export const get_mainview_instance = (): BrowserWindow => {
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         });
         mainView.webContents.openDevTools({ mode: 'detach' });
+
+        (mainView as any).name = "mainview"
         global_object.mainWindow = mainView;
         return global_object.mainWindow;
     }
