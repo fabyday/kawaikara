@@ -8,115 +8,17 @@
  */
 
 import { global_object } from '../data/context';
+import { KawaiActionPreference, TargetView } from '../definitions/action';
+import {
+    isKeyEventListenable,
+    KawaiKeyEvent,
+    KawaiKeyState,
+    keyActionListenable,
+    KeyEventListenable,
+    priority,
+} from '../definitions/keyboard';
 import { KawaiViewManager } from './view_manager';
 import { KawaiWindowManager } from './window_manager';
-
-type KawaiKeyState = {
-    keys: Set<string>;
-};
-
-export type KawaiKeyEvent = {
-    //created by function create_action_key. @seealso create_action_key
-    key: string;
-    readonly altKey: boolean;
-    readonly ctrlKey: boolean;
-    readonly metaKey: boolean;
-    readonly shiftKey: boolean;
-};
-
-interface KeyEventListenable {
-    onKeyPressed(): boolean;
-    onKeyClicked(): boolean;
-    onKeyReleased(): boolean;
-}
-
-function isKeyEventListenable(obj: unknown): obj is KeyEventListenable {
-    return (
-        typeof (obj as KeyEventListenable).onKeyPressed !== undefined &&
-        typeof (obj as KeyEventListenable).onKeyClicked !== undefined &&
-        typeof (obj as KeyEventListenable).onKeyReleased !== undefined
-    );
-}
-
-interface keyActionListenable {
-    actionKey: KawaiKeyEvent[];
-    onActivated(): boolean;
-}
-
-export const ModifierKeyMap: Map<string, string> = new Map([
-    ['controlleft', 'lctrl'], //8
-    ['controlright', 'rctrl'], //7
-    ['altleft', 'lalt'], //6
-    ['altright', 'ralt'], //5
-    ['metaleft', 'lmeta'], //4
-    ['shiftleft', 'lshift'], //3
-    ['shiftright', 'rshift'], //2
-    ['contextmenu', 'contextmenu'], //1
-]);
-
-const modifier_keys: string[] = Array.from(ModifierKeyMap.keys()); // key list
-const priority = new Map();
-modifier_keys.forEach((value: string, index: number, array: string[]) => {
-    priority.set(value, index);
-});
-
-Object.freeze(priority);
-Object.freeze(ModifierKeyMap);
-
-export function create_actionkey(...args: string[] | KawaiKeyState[]) {}
-
-export function create_action_key_from_string_array(...args: string[]) {
-    //preprocess
-    // Ctrl + Alt + Shift + Meta + ....[other keys]
-    // make all strings lower case .
-    args = args.map((value) => {
-        return value.toLowerCase();
-    });
-
-    //remove duplicated items.
-    args = args.filter((item, index) => {
-        args.indexOf(item) === index;
-    });
-
-    //sort
-    args = args.sort((a: string, b: string) => {
-        const prirorA = priority.get(a) || Infinity; // if no priority then give infinity
-        const prirorB = priority.get(b) || Infinity;
-        return prirorA - prirorB;
-    });
-
-    // modifier keys will be convert to kawai modifier key.
-    args.map((value) => {
-        if (ModifierKeyMap.has(value)) {
-            return ModifierKeyMap.get(value);
-        } else {
-            return value;
-        }
-    });
-
-    return args.reduce((prev: string, cur: string) => {
-        return prev + ',' + cur;
-    });
-}
-
-type KeyActionMapElem = {
-    key: Map<string, Function>;
-    preventDefault: boolean;
-};
-
-type ActionChainMap = Map<
-    string,
-    Map<string, Function> | ActionChainMap | Function
->;
-
-type TargetView = {
-    actionListener: keyActionListenable[];
-    keyListener: KeyEventListenable[];
-    actionMap: ActionChainMap;
-};
-type KawaiActionPreference = {
-    actionDelay: number; // integer number. default measure is ms, 1000(ms) == 1 sec.
-};
 
 export class KawaiKeyboardManager {
     private static __instance: KawaiKeyboardManager | undefined;
@@ -158,25 +60,20 @@ export class KawaiKeyboardManager {
         this.searchKeyAction(); // check proper action existed>>>>
     }
 
-    protected createActionMap(action: keyActionListenable) {
-        action.actionKey;
-    }
-
     protected addActionListener(target: string, listener: keyActionListenable) {
         if (this.m_targetview_map.has(target)) {
             const target_view = this.m_targetview_map.get(target);
             const length = listener.actionKey.length;
-            var tmp = undefined;
-            for (var i = length - 1; i >= 0; i--) {
-                if (typeof tmp === 'undefined')
-                    tmp = new Map([
-                        [listener.actionKey[i], listener.onActivated]
-                    ]);
-                else {
-                    tmp = new Map([[listener.actionKey[i], tmp]]);
+
+            let tmp = new Map<string, any>(); // 임시 Map 초기화
+
+            for (let i = length - 1; i >= 0; i--) {
+                if (tmp.size === 0) {
+                    tmp.set(listener.actionKey[i].key, listener.onActivated);
+                } else {
+                    tmp = new Map([[listener.actionKey[i].key, tmp]]);
                 }
             }
-            target_view!.actionMap = new Map({target_view!.actionMap, ...tmp });
         }
     }
     /**
@@ -242,7 +139,7 @@ export class KawaiKeyboardManager {
         }
     }
 
-    public searchKeyAction() {
+    protected searchKeyAction() {
         if (this.checkVaildActionInput()) {
             const focused_view_name =
                 KawaiViewManager.getInstance().getFocusedViewName();
@@ -259,14 +156,23 @@ export class KawaiKeyboardManager {
      * emit once when key presssed.
      * @param key
      */
-    public onKeyClicked(key: string) {}
+    public onKeyClicked(key: string) {
+        if (this.checkVaildActionInput()) {
+        }
+    }
 
     public onKeyPressed() {
         return true;
     }
 
     public onKeyReleased() {
-        setTimeout(async () => {}, this.m_key_preference.actionDelay);
+        if (this.checkVaildActionInput()) {
+            // check subcommand.
+            //set time out.
+            setTimeout(async () => {
+                this.m_keystates.keys.clear(); // check
+            }, this.m_key_preference.actionDelay);
+        }
     }
 
     /**
