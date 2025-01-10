@@ -17,7 +17,8 @@ import path from 'node:path';
 import { project_root } from './constants';
 import fs from 'node:fs';
 import { flog, log } from '../logging/logger';
-import { KawaiKeyboardManager, KawaiKeyEvent } from '../manager/keyboard_manager';
+import { KawaiKeyboardManager } from '../manager/keyboard_manager';
+import { KawaiKeyEvent } from '../definitions/keyboard';
 
 /**
  *

@@ -8,12 +8,11 @@
  */
 
 import { global_object } from '../data/context';
-import { KawaiActionPreference, TargetView } from '../definitions/action';
+import { KawaiActionPreference } from '../definitions/action';
 import {
     isKeyEventListenable,
     KawaiKeyEvent,
     KawaiKeyState,
-    keyActionListenable,
     KeyEventListenable,
     priority,
 } from '../definitions/keyboard';
@@ -27,7 +26,7 @@ export class KawaiKeyboardManager {
     private m_keystates: KawaiKeyState;
     private m_action_states: KawaiKeyState;
 
-    private m_targetview_map: Map<string, TargetView>;
+    // private m_targetview_map: Map<string, TargetView>;
 
     public static getInstance() {
         if (typeof KawaiKeyboardManager.__instance === 'undefined') {
@@ -40,7 +39,7 @@ export class KawaiKeyboardManager {
         this.m_key_preference = { actionDelay: 1000 };
         this.m_keystates = { keys: new Set<string>() };
         this.m_action_states = { keys: new Set<string>() };
-        this.m_targetview_map = new Map<string, TargetView>();
+        // this.m_targetview_map = new Map<string, TargetView>();
     }
 
     public keyboard_logics(type: string, key_event: KawaiKeyEvent) {
@@ -60,22 +59,22 @@ export class KawaiKeyboardManager {
         this.searchKeyAction(); // check proper action existed>>>>
     }
 
-    protected addActionListener(target: string, listener: keyActionListenable) {
-        if (this.m_targetview_map.has(target)) {
-            const target_view = this.m_targetview_map.get(target);
-            const length = listener.actionKey.length;
+    // protected addActionListener(target: string, listener: keyActionListenable) {
+    //     if (this.m_targetview_map.has(target)) {
+    //         const target_view = this.m_targetview_map.get(target);
+    //         const length = listener.actionKey.length;
 
-            let tmp = new Map<string, any>(); // 임시 Map 초기화
+    //         let tmp = new Map<string, any>(); // 임시 Map 초기화
 
-            for (let i = length - 1; i >= 0; i--) {
-                if (tmp.size === 0) {
-                    tmp.set(listener.actionKey[i].key, listener.onActivated);
-                } else {
-                    tmp = new Map([[listener.actionKey[i].key, tmp]]);
-                }
-            }
-        }
-    }
+    //         for (let i = length - 1; i >= 0; i--) {
+    //             if (tmp.size === 0) {
+    //                 tmp.set(listener.actionKey[i].key, listener.onActivated);
+    //             } else {
+    //                 tmp = new Map([[listener.actionKey[i].key, tmp]]);
+    //             }
+    //         }
+    //     }
+    // }
     /**
      *
      * @param target_name view name.
@@ -83,28 +82,28 @@ export class KawaiKeyboardManager {
      */
     public addKeyListener(
         target_name: string,
-        listener: KeyEventListenable | keyActionListenable,
+        listener: KeyEventListenable,
     ) {
-        if (this.m_targetview_map.has(target_name)) {
-            const target_meta = this.m_targetview_map.get(target_name)!;
-            if (isKeyEventListenable(listener)) {
-                target_meta.keyListener.push(listener);
-            } else {
-                target_meta.actionListener.push(listener);
-            }
-        } else {
-            this.m_targetview_map.set(target_name, {
-                actionListener: [],
-                keyListener: [],
-                actionMap: new Map(),
-            });
-            const target_meta = this.m_targetview_map.get(target_name)!;
-            if (isKeyEventListenable(listener)) {
-                target_meta.keyListener.push(listener);
-            } else {
-                target_meta.actionListener.push(listener);
-            }
-        }
+        // if (this.m_targetview_map.has(target_name)) {
+        //     const target_meta = this.m_targetview_map.get(target_name)!;
+        //     if (isKeyEventListenable(listener)) {
+        //         target_meta.keyListener.push(listener);
+        //     } else {
+        //         target_meta.actionListener.push(listener);
+        //     }
+        // } else {
+        //     this.m_targetview_map.set(target_name, {
+        //         actionListener: [],
+        //         keyListener: [],
+        //         actionMap: new Map(),
+        //     });
+        //     const target_meta = this.m_targetview_map.get(target_name)!;
+        //     if (isKeyEventListenable(listener)) {
+        //         target_meta.keyListener.push(listener);
+        //     } else {
+        //         target_meta.actionListener.push(listener);
+        //     }
+        // }
     }
 
     protected checkVaildActionInput() {
@@ -140,12 +139,12 @@ export class KawaiKeyboardManager {
     }
 
     protected searchKeyAction() {
-        if (this.checkVaildActionInput()) {
-            const focused_view_name =
-                KawaiViewManager.getInstance().getFocusedViewName();
-            const target_action_map =
-                this.m_targetview_map.get(focused_view_name);
-        }
+        // if (this.checkVaildActionInput()) {
+        //     const focused_view_name =
+        //         KawaiViewManager.getInstance().getFocusedViewName();
+        //     const target_action_map =
+        //         this.m_targetview_map.get(focused_view_name);
+        // }
     }
 
     public setActionDelayTime(new_delay: number) {

@@ -26,10 +26,8 @@ export function isKeyEventListenable(obj: unknown): obj is KeyEventListenable {
     );
 }
 
-export interface keyActionListenable {
-    actionKey: KawaiKeyEvent[];
-    onActivated(): boolean;
-}
+
+
 
 export const ModifierKeyMap: Map<string, string> = new Map([
     ['controlleft', 'lctrl'], //8

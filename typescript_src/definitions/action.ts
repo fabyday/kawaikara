@@ -1,10 +1,29 @@
 import {
+    KawaiKeyEvent,
     KawaiKeyState,
-    keyActionListenable,
     KeyEventListenable,
     ModifierKeyMap,
     priority,
 } from './keyboard';
+
+/**
+ * YAYAYA
+ * see also
+ * in electron docs
+ *
+ *
+ * @see  https://github.com/electron/electron/blob/main/docs/tutorial/keyboard-shortcuts.md
+ * @link https://github.dev/ccampbell/mousetrap/blob/master/mousetrap.js
+ * check @line 888. so good.
+ */
+
+export function normalize_action_string(action: string) {
+    // remove white space and tab, line feed...
+    // split + token
+    return action.replace(/\s+/g, '').split('+');
+}
+
+const sep = ':';
 
 export function create_actionkey(...args: string[] | KawaiKeyState[]) {}
 
@@ -18,7 +37,7 @@ export function create_action_key_from_string_array(...args: string[]) {
 
     //remove duplicated items.
     args = args.filter((item, index) => {
-        args.indexOf(item) === index;
+        return args.indexOf(item) === index;
     });
 
     //sort
@@ -37,17 +56,16 @@ export function create_action_key_from_string_array(...args: string[]) {
         }
     });
 
-    return args.reduce((prev: string, cur: string) => {
-        return prev + ',' + cur;
-    });
+    return args.reduce((prev: string, cur: string, i: number) => {
+        if (i === 0) {
+            return cur;
+        }
+        return prev + sep + cur;
+    }, '');
 }
 
-export type KeyActionMapElem = {
-    key: Map<string, Function>;
-    preventDefault: boolean;
-};
-
 export type ActionChainElem1 = Map<string, Function> | Function;
+
 export type ActionChainElem2 = {
     action: Function;
     subcommand: Map<string, ActionChainElem1 | ActionChainElem2>;
@@ -62,60 +80,76 @@ export function isActionChainElem2(obj: unknown): obj is ActionChainElem2 {
         typeof (obj as ActionChainElem2).subcommand !== 'undefined'
     );
 }
+export interface keyActionListenable {
+    targetView: string;
+    actionKey: string[] | string;
+    onActivated(): boolean;
+}
+export type ActionChainMap = Map<string, Function | ActionChainMap>;
 
-export type ActionChainMap = Map<string, ActionChainElem1 | ActionChainElem2>;
-
-export type TargetView = {
-    actionListener: keyActionListenable[];
-    keyListener: KeyEventListenable[];
-    actionMap: ActionChainMap;
+export type KawaiActionMap = {
+    action_hash: Map<string, string[]>;
+    actionMap: Map<string, ActionChainMap>;
 };
 export type KawaiActionPreference = {
     actionDelay: number; // integer number. default measure is ms, 1000(ms) == 1 sec.
 };
 
+export function AddActionMap(action: string[], f: Function, overwrite = true) {}
 
+export function createActionMap(
+    // target_map: TargetView,
+    target: string,
+    action: keyActionListenable,
+) {
+    // const target_view = m_targetview_map.get(target);
+    // if (action.actionKey.length === 0) {
+    //     throw 'Empty Action Key.';
+    // }
+    // var actionmap: ActionChainMap = new Map([
+    //     [
+    //         action.actionKey[action.actionKey.length - 1].key,
+    //         action.onActivated,
+    //     ],
+    // ]);
+    // for (let i = action.actionKey.length - 2; i >= 0; i--) {
+    //     actionmap = new Map([[action.actionKey[i].key, actionmap]]);
+    // }
+    // var key_list: string[] = Array.from(actionmap.keys());
+    // key_list = key_list.reverse();
+    // let key = undefined;
+    // let current_action_map = target_view!.actionMap;
+    // while ((key = key_list.pop())) {
+    //     if (current_action_map!.has(key)) {
+    //         const object = current_action_map!.get(key);
+    //         if (isActionChainElem2(object)) {
+    //             current_action_map = object.subcommand
+    //         } else if(object instanceof Map){
+    //             current_action_map = object
+    //         }
+    //         else if (object instanceof Function) {
+    //             const tmp : ActionChainElem2 = {action : object, subcommand : new Map<string, ActionChainElem1>()};
+    //             current_action_map.set(key, tmp)
+    //             current_action_map = tmp.subcommand
+    //         } else {
+    //         }
+    //         continue;
+    //     } else {
+    //         target_view!.actionMap.set(key, actionmap!.get(key));
+    //         break;
+    //     }
+    // }
+}
 
-function createActionMap(target: string, action: keyActionListenable) {
-    const target_view = this.m_targetview_map.get(target);
-
-    if (action.actionKey.length === 0) {
-        throw 'Empty Action Key.';
-    }
-
-    var actionmap: ActionChainMap = new Map([
-        [
-            action.actionKey[action.actionKey.length - 1].key,
-            action.onActivated,
-        ],
-    ]);
-    for (let i = action.actionKey.length - 2; i >= 0; i--) {
-        actionmap = new Map([[action.actionKey[i].key, actionmap]]);
-    }
-    var key_list: string[] = Array.from(actionmap.keys());
-    key_list = key_list.reverse();
-    let key = undefined;
-    let current_action_map = target_view!.actionMap;
-    while ((key = key_list.pop())) {
-        if (current_action_map!.has(key)) {
-            const object = current_action_map!.get(key);
-            if (isActionChainElem2(object)) {
-                current_action_map = object.subcommand
-                
-            } else if(object instanceof Map){
-                current_action_map = object
-            }
-            else if (object instanceof Function) {
-                const tmp : ActionChainElem2 = {action : object, subcommand : new Map<string, ActionChainElem1>()};
-                current_action_map.set(key, tmp)
-                current_action_map = tmp.subcommand
-
-            } else {
-            }
-            continue;
+// Extra argument for printing with indentation
+export function printMap(map: any, tab = '') {
+    for (const [k, v] of map.entries()) {
+        // Don't print here yet...
+        if (v instanceof Map) {
+            console.log(`${tab}${k}:`); // Only print the key here...
+            printMap(v, tab + '    '); // ...as recursion will take care of the value(s)
         } else {
-            target_view!.actionMap.set(key, actionmap!.get(key));
-            break;
+            console.log(`${tab}${k} = ${v}`);
         }
     }
 }
