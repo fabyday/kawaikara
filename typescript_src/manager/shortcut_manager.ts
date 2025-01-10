@@ -69,14 +69,16 @@ export class ShortcutManager {
 
     public async onReleased(key: string) {
         this.pressed_keys.delete(key);
-        // if(this.pressed_keys.size === 0 ){
-        //     this.ignore_keys = true;
-        // }else{
-        //     this.ignore_keys = false;
-        // }
+        if(this.pressed_keys.size === 0 ){
+            log.debug("empty release",this.ignore_keys)
+            this.ignore_keys = false;
+        }else{
+            log.debug("Not empty release",this.ignore_keys)
+            this.ignore_keys = true;
+        }
 
         if (this.pressed_keys.size === 0 && this.key_states.length > 0) {
-            if (this.m_cur_timeout_object !== null) {
+            if (this.m_cur_timeout_object != null) {
                 log.debug('clear timeout');
                 clearTimeout(this.m_cur_timeout_object);
             }
@@ -90,15 +92,22 @@ export class ShortcutManager {
     }
 
     public async onClicked(key: string) {
+        if(this.ignore_keys){
+            this.key_states.length = 0; // reset keystates.
+            if(this.m_cur_timeout_object != null){
+                clearTimeout(this.m_cur_timeout_object);
+                this.m_cur_timeout_object == null;
+            }
+            return ;
+        }
+
         this.pressed_keys.add(key);
         this.onActivate(Array.from(this.pressed_keys));
     }
 
     public async onActivate(key_sequence: string[]) {
-
-        // if(this.ignore_keys)
-        //     return ;
-
+        log.debug("activate")
+        
         let cur_action_map = this.m_action_map.actionMap.get('test')!;
         for (let key_action of this.key_states) {
             if (cur_action_map.has(key_action)) {

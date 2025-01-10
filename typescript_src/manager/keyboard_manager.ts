@@ -67,7 +67,7 @@ export class KawaiKeyboardManager {
                 }
                 break;
         }
-        log.debug(Array.from(this.m_keystates.keys));
+        // log.debug(Array.from(this.m_keystates.keys));
     }
 
 
