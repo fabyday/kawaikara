@@ -5,7 +5,7 @@ type KawaiId = string;
 export class KawaiCategoryBase {
     id: string;
 
-    constructor(id:string){
+    constructor(id: string) {
         this.id = id;
     }
 }

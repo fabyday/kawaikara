@@ -15,7 +15,6 @@ import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
 import { script_root_path } from './constants';
 import { setup_pogress_bar } from './autoupdater';
-import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import {
     KawaiConfig,
     KawaiNameProperty,
@@ -24,6 +23,9 @@ import {
 import { KawaiWindowManager } from '../manager/window_manager';
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { global_object } from '../data/context';
+import { KawaiKeyboardManager } from '../manager/keyboard_manager';
+import { flog } from './predefine/api';
+import { KawaiViewManager } from '../manager/view_manager';
 
 ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
     blocker.enableBlockingInSession(session.defaultSession);
@@ -33,8 +35,6 @@ ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 
 // about chrome extension installation
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
-
-
 
 export const get_mainview_instance = (): BrowserWindow => {
     const conf = global_object.config;
@@ -107,6 +107,15 @@ export const get_mainview_instance = (): BrowserWindow => {
             if (process.platform !== 'darwin') app.quit();
         });
         mainView.setMenu(null);
+        mainView.on("focus", ()=>{
+            KawaiViewManager.getInstance().setFocusedView((mainView as any).name);
+        })
+        mainView.on("blur", ()=>{
+            KawaiKeyboardManager.getInstance().keyRleaseAll();
+            return;
+        })
+    
+    
         // mainView.webContents.session.webRequest.onBeforeSendHeaders(
         //     (details, callback) => {
         //         const context_id: string | undefined =
@@ -136,7 +145,7 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         mainView.webContents.openDevTools({ mode: 'detach' });
 
-        (mainView as any).name = "mainview"
+        (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
         return global_object.mainWindow;
     }

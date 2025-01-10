@@ -1,5 +1,6 @@
 import { consoleLevels } from '@discord/embedded-app-sdk/output/utils/console';
 import {
+    ActionCallback,
     ActionChainMap,
     create_action_key_from_string_array,
     KawaiActionMap,
@@ -8,6 +9,8 @@ import {
     printMap,
 } from '../definitions/action';
 import { get_logger, log } from '../logging/logger';
+import { KawaiViewManager } from './view_manager';
+import { flog } from '../component/predefine/api';
 
 /**
  * Action Key Rule
@@ -31,13 +34,28 @@ import { get_logger, log } from '../logging/logger';
 
  */
 
-log
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
 
     private m_action_map: KawaiActionMap;
+    private key_states: string[];
+    private pressed_keys: Set<string>;
+    private is_promising: boolean = false;
+    private ignore_keys = false;
+    private actionDelayTime: number;
+    private m_cur_timeout_object: NodeJS.Timeout | null = null;
+    private current_view: string;
+
     private constructor() {
         this.m_action_map = { action_hash: new Map(), actionMap: new Map() };
+        this.pressed_keys = new Set<string>();
+        this.key_states = [];
+        this.actionDelayTime = 1000;
+        this.current_view = KawaiViewManager.getInstance().getFocusedViewName();
+    }
+
+    public setActionDelay(d: number) {
+        this.actionDelayTime = d;
     }
 
     public static getInstance() {
@@ -49,28 +67,84 @@ export class ShortcutManager {
 
     public async initialize() {}
 
-    public async onActivate(key_sequence : string[]){
-        const normalized_key_seq = create_action_key_from_string_array(...key_sequence)
-        const keys = Array.from(this.m_action_map.actionMap.keys());
+    public async onReleased(key: string) {
+        this.pressed_keys.delete(key);
+        // if(this.pressed_keys.size === 0 ){
+        //     this.ignore_keys = true;
+        // }else{
+        //     this.ignore_keys = false;
+        // }
 
+        if (this.pressed_keys.size === 0 && this.key_states.length > 0) {
+            if (this.m_cur_timeout_object !== null) {
+                log.debug('clear timeout');
+                clearTimeout(this.m_cur_timeout_object);
+            }
+            log.debug('register timeout');
+            this.m_cur_timeout_object = setTimeout(() => {
+                this.key_states.length = 0; // key_state reset.
+                log.debug('action sequence timeout.');
+                this.m_cur_timeout_object = null;
+            }, this.actionDelayTime);
+        }
     }
 
-    public register(o: keyActionListenable, overwrite: boolean = true) {
-        var actionKey = [];
+    public async onClicked(key: string) {
+        this.pressed_keys.add(key);
+        this.onActivate(Array.from(this.pressed_keys));
+    }
+
+    public async onActivate(key_sequence: string[]) {
+
+        // if(this.ignore_keys)
+        //     return ;
+
+        let cur_action_map = this.m_action_map.actionMap.get('test')!;
+        for (let key_action of this.key_states) {
+            if (cur_action_map.has(key_action)) {
+                cur_action_map = cur_action_map.get(
+                    key_action,
+                ) as ActionChainMap;
+            } else {
+                break; // early stopping.
+            }
+        }
+        const normalized_key_seq = create_action_key_from_string_array(
+            ...key_sequence,
+        );
+        if (cur_action_map.has(normalized_key_seq)) {
+            const item = cur_action_map.get(normalized_key_seq);
+            if (typeof item === 'function') {
+                this.key_states = [];
+                if (this.m_cur_timeout_object !== null) {
+                    log.debug('clear timeout');
+                    clearTimeout(this.m_cur_timeout_object);
+                }
+                item(); // run callback function.
+            } else {
+                this.key_states.push(normalized_key_seq);
+            }
+        }
+        // console.log(normalized_key_seq);
+        // console.log(this.key_states);
+    }
+
+    public register(o: keyActionListenable, overwrite = true) {
+        let actionKey = [];
         if (!Array.isArray(o.actionKey)) {
             actionKey = [o.actionKey];
         } else {
             actionKey = o.actionKey;
         }
         this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
-        console.log(this.m_action_map.actionMap)
+        console.log(this.m_action_map.actionMap);
     }
 
     protected addActionMap(
         targetView: string,
         actions: string[],
-        activate_f: Function,
-        overwrite: boolean = true,
+        activate_f: ActionCallback,
+        overwrite = true,
     ) {
         const actionMap = this.m_action_map.actionMap;
 
@@ -84,7 +158,7 @@ export class ShortcutManager {
         if (!actionMap.has(targetView)) {
             actionMap.set(targetView, new Map());
         }
-        console.log(new_actions)
+        console.log(new_actions);
         var cur_ref = actionMap.get(targetView)!;
         for (var i = 0; i < new_actions.length; i++) {
             if (cur_ref.has(new_actions[i])) {
@@ -97,9 +171,9 @@ export class ShortcutManager {
                         // overwrite
                         if (i === new_actions.length - 1) {
                             cur_ref.set(new_actions[i], activate_f);
-                        }else{
-                            const tmp = new Map()
-                            cur_ref.set(new_actions[i], tmp)
+                        } else {
+                            const tmp = new Map();
+                            cur_ref.set(new_actions[i], tmp);
                             cur_ref = tmp;
                         }
                     }
@@ -111,7 +185,7 @@ export class ShortcutManager {
                         // overwrite
                         if (i === new_actions.length - 1) {
                             cur_ref.set(new_actions[i], activate_f);
-                        }else{
+                        } else {
                             cur_ref = elem;
                         }
                     }
@@ -128,16 +202,55 @@ export class ShortcutManager {
             }
         }
 
-        this.m_action_map.action_hash.set(activate_f.toString(), new_actions)
-
+        this.m_action_map.action_hash.set(activate_f.toString(), new_actions);
     }
 }
 
+const a = ShortcutManager.getInstance();
+a.register({
+    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
+    onActivated: () => {
+        console.log('double Q!!');
+        return true;
+    },
+    targetView: 'test',
+});
+a.register({
+    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+J'],
+    onActivated: () => {
+        console.log('double J!!');
+        return true;
+    },
+    targetView: 'test',
+});
+a.register({
+    actionKey: ['LCtrl+R', 'LCtrl+Q'],
+    onActivated: () => {
+        return true;
+    },
+    targetView: 'test',
+});
+a.register({
+    actionKey: ['LCtrl+R'],
+    onActivated: () => {
+        console.log('test');
+        return true;
+    },
+    targetView: 'test',
+});
+a.register({
+    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
+    onActivated: () => {
+        return true;
+    },
+    targetView: 'test',
+});
 
-
-// const a = ShortcutManager.getInstance()
-// a.register({actionKey  : ["LCtrl+LSHIFT+R", "LCtrl+Q"], onActivated : ()=>{return true}, targetView:"test"})
-// a.register({actionKey  : ["LCtrl+LSHIFT+R", "LCtrl+J"], onActivated : ()=>{return true}, targetView:"test"})
-// a.register({actionKey  : ["LCtrl+R", "LCtrl+Q"], onActivated : ()=>{return true}, targetView:"test"})
-// a.register({actionKey  : ["LCtrl+R"], onActivated : ()=>{return true}, targetView:"test"})
-// a.register({actionKey  : ["LCtrl+LSHIFT+R", "LCtrl+Q"], onActivated : ()=>{return true}, targetView:"test"})
+a.register({
+    actionKey: ['LCtrl+R', 'LCtrl+Q', 'LCtrl+Q'],
+    onActivated: () => {
+        log.debug('finally you catch up.');
+        return true;
+    },
+    targetView: 'test',
+});

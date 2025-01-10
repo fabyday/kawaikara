@@ -1,4 +1,3 @@
-
 export type KawaiKeyState = {
     keys: Set<string>;
 };
@@ -6,6 +5,7 @@ export type KawaiKeyState = {
 export type KawaiKeyEvent = {
     //created by function create_action_key. @seealso create_action_key
     key: string;
+    code : string;
     readonly altKey: boolean;
     readonly ctrlKey: boolean;
     readonly metaKey: boolean;
@@ -27,6 +27,9 @@ export function isKeyEventListenable(obj: unknown): obj is KeyEventListenable {
 }
 
 
+export const ModifierList = new Set<string>(["control", "alt", "meta", "shift"])
+
+
 
 
 export const ModifierKeyMap: Map<string, string> = new Map([
@@ -39,12 +42,27 @@ export const ModifierKeyMap: Map<string, string> = new Map([
     ['shiftright', 'rshift'], //2
     ['contextmenu', 'contextmenu'], //1
 ]);
+export const ReverseModifierKeyMap: Map<string, string> = new Map();
+
+for(let key in ModifierKeyMap){
+    ReverseModifierKeyMap.set(key, ModifierKeyMap.get(key)!);
+}
 
 export const modifier_keys: string[] = Array.from(ModifierKeyMap.keys()); // key list
 export const priority = new Map();
 modifier_keys.forEach((value: string, index: number, array: string[]) => {
-    priority.set(value, index);
+    priority.set(ModifierKeyMap.get(value)!, index);
+    ReverseModifierKeyMap.set(ModifierKeyMap.get(value)!, value)
 });
 
 Object.freeze(priority);
 Object.freeze(ModifierKeyMap);
+Object.freeze(ReverseModifierKeyMap);
+
+export function convertKawaiKeyCode(event:KawaiKeyEvent){
+    if(ModifierList.has(event.key.toLowerCase() )){ // if modifier key. then convert it to kawai universal key.
+        return ModifierKeyMap.get(event.code.toLowerCase())!;
+    }
+    return event.key.toLowerCase();
+
+}

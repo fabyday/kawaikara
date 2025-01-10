@@ -1,7 +1,7 @@
 import { ipcRenderer } from 'electron';
 import { KawaiConfig } from '../../definitions/setting_types';
 import { KAWAI_API_LITERAL } from '../../definitions/api';
-import { KawaiLogType  } from '../../logging/logger';
+import { KawaiLogType } from '../../logging/logger';
 
 export const load_update_info_f = () => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.load_update_info);
@@ -101,44 +101,38 @@ export const keydown_f = async (event: KeyboardEvent) => {
         altKey: event.altKey,
         metaKey: event.metaKey,
     };
-    console.log("test key down ")
-    if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keyup, keyData)) {
+    console.log('test key down ');
+    if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keydown, keyData)) {
         event.preventDefault();
-        console.log("key donw end ")
+        console.log('key donw end ');
     }
 };
 
 export const keyup_f = async (event: KeyboardEvent) => {
-    console.log("test key up ")
-    const keyData  = {
+    console.log('test key up ');
+    console.log(event);
+    const keyData = {
         key: event.key,
+        code : event.code,
         ctrlKey: event.ctrlKey,
         shiftKey: event.shiftKey,
         altKey: event.altKey,
         metaKey: event.metaKey,
     };
-    
+
     if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keyup, keyData)) {
         event.preventDefault();
-        console.log("key donw up end ")
+        console.log('key donw up end ');
     }
 };
 
-
-
 // alias to log()
-export function clog(...args : any[]){
-    
+export function clog(...args: any[]) {
     // ipcRenderer.send(KAWAI_API_LITERAL.logging.file_log, ...args);
 }
 
-export function flog(...args : any[]){
-    
-}
+export function flog(...args: any[]) {}
 
-
-
-export function log( name:string, ...args : any[]){
-    
+export function log(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
 }

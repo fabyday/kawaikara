@@ -50,10 +50,6 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
 });
 
-
-
 // inject Keyboard hijacking
 window.addEventListener('keydown', keydown_f);
 window.addEventListener('keyup', keyup_f);
-
-

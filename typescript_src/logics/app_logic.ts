@@ -58,7 +58,7 @@ async function initialize_manager() {
 }
 
 /**
- * initialize views, 
+ * initialize views,
  * this function will be executed after config loading was done.
  */
 async function initialize_views() {
@@ -78,12 +78,12 @@ export async function initialize(config_root?: string) {
     } else {
         set_config(app.getAppPath());
     }
-    log.info(global_object.config?.preference?.locale?.selected_locale?.value)
+    log.info(global_object.config?.preference?.locale?.selected_locale?.value);
     set_locale(
         global_object.config?.preference?.locale?.selected_locale?.value,
     );
-    
-    await initialize_views()
+
+    await initialize_views();
     initialize_handler();
     await manager_promise;
 }

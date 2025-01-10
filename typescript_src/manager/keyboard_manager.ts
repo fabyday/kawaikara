@@ -10,12 +10,15 @@
 import { global_object } from '../data/context';
 import { KawaiActionPreference } from '../definitions/action';
 import {
+    convertKawaiKeyCode,
     isKeyEventListenable,
     KawaiKeyEvent,
     KawaiKeyState,
     KeyEventListenable,
     priority,
 } from '../definitions/keyboard';
+import { log } from '../logging/logger';
+import { ShortcutManager } from './shortcut_manager';
 import { KawaiViewManager } from './view_manager';
 import { KawaiWindowManager } from './window_manager';
 
@@ -39,51 +42,41 @@ export class KawaiKeyboardManager {
         this.m_key_preference = { actionDelay: 1000 };
         this.m_keystates = { keys: new Set<string>() };
         this.m_action_states = { keys: new Set<string>() };
+        KawaiViewManager.getInstance().addListener(this.keyRleaseAll.bind(this));
         // this.m_targetview_map = new Map<string, TargetView>();
+    }
+    public keyRleaseAll() {
+        Array.from(this.m_keystates.keys).forEach((k)=>{
+            this.onKeyReleased(k)
+        })
+        this.m_keystates.keys.clear();
     }
 
     public keyboard_logics(type: string, key_event: KawaiKeyEvent) {
+        const kawai_key_code = convertKawaiKeyCode(key_event);
         switch (type) {
             case 'keyup':
-                this.m_keystates.keys.delete(key_event.key);
-                this.onKeyReleased();
+                this.m_keystates.keys.delete(kawai_key_code);
+                this.onKeyReleased(kawai_key_code);
                 break;
             case 'keydown':
                 this.onKeyPressed();
-                if (!this.m_keystates.keys.has(key_event.key)) {
-                    this.m_keystates.keys.add(key_event.key);
-                    this.onKeyClicked(key_event.key);
+                if (!this.m_keystates.keys.has(kawai_key_code)) {
+                    this.m_keystates.keys.add(kawai_key_code);
+                    this.onKeyClicked(kawai_key_code);
                 }
                 break;
         }
-        this.searchKeyAction(); // check proper action existed>>>>
+        log.debug(Array.from(this.m_keystates.keys));
     }
 
-    // protected addActionListener(target: string, listener: keyActionListenable) {
-    //     if (this.m_targetview_map.has(target)) {
-    //         const target_view = this.m_targetview_map.get(target);
-    //         const length = listener.actionKey.length;
 
-    //         let tmp = new Map<string, any>(); // 임시 Map 초기화
-
-    //         for (let i = length - 1; i >= 0; i--) {
-    //             if (tmp.size === 0) {
-    //                 tmp.set(listener.actionKey[i].key, listener.onActivated);
-    //             } else {
-    //                 tmp = new Map([[listener.actionKey[i].key, tmp]]);
-    //             }
-    //         }
-    //     }
-    // }
     /**
      *
      * @param target_name view name.
      * @param listener First
      */
-    public addKeyListener(
-        target_name: string,
-        listener: KeyEventListenable,
-    ) {
+    public addKeyListener(target_name: string, listener: KeyEventListenable) {
         // if (this.m_targetview_map.has(target_name)) {
         //     const target_meta = this.m_targetview_map.get(target_name)!;
         //     if (isKeyEventListenable(listener)) {
@@ -138,14 +131,6 @@ export class KawaiKeyboardManager {
         }
     }
 
-    protected searchKeyAction() {
-        // if (this.checkVaildActionInput()) {
-        //     const focused_view_name =
-        //         KawaiViewManager.getInstance().getFocusedViewName();
-        //     const target_action_map =
-        //         this.m_targetview_map.get(focused_view_name);
-        // }
-    }
 
     public setActionDelayTime(new_delay: number) {
         this.m_key_preference.actionDelay = new_delay;
@@ -156,22 +141,24 @@ export class KawaiKeyboardManager {
      * @param key
      */
     public onKeyClicked(key: string) {
-        if (this.checkVaildActionInput()) {
-        }
+        ShortcutManager.getInstance().onClicked(
+            key
+        );
     }
 
     public onKeyPressed() {
         return true;
     }
 
-    public onKeyReleased() {
-        if (this.checkVaildActionInput()) {
+    public onKeyReleased(key : string) {
+        // if (this.checkVaildActionInput()) {
             // check subcommand.
             //set time out.
-            setTimeout(async () => {
-                this.m_keystates.keys.clear(); // check
-            }, this.m_key_preference.actionDelay);
-        }
+            // setTimeout(async () => {
+            //     this.m_keystates.keys.clear(); // check
+            // }, this.m_key_preference.actionDelay);
+        // }
+        ShortcutManager.getInstance().onReleased(key);
     }
 
     /**

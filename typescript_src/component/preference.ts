@@ -49,7 +49,7 @@ export const get_instance = (): BrowserWindow => {
         });
 
         console.log(preferenceWindow.webContents.isDevToolsOpened());
-        (preferenceWindow as any).name = "preference"
+        (preferenceWindow as any).name = 'preference';
         // preferenceWindow.hide();
     }
 

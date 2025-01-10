@@ -33,17 +33,14 @@ LoggerCollection.set(DefaultConsoleLogId, flog);
 export function get_logger(logId: string): Logger {
     if (LoggerCollection.has(logId)) {
         return LoggerCollection.get(logId)!;
-    }else{
+    } else {
         const newlog = logger.create({ logId: logId });
         LoggerCollection.set(logId, newlog);
-        return newlog
+        return newlog;
     }
 }
 
-
-export function setup_logger(){
-
-}
+export function setup_logger() {}
 
 export type KawaiLogType = {
     loggerName: string; //

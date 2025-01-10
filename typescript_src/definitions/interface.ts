@@ -1,4 +1,3 @@
-interface KawaiNamespace{
-    
-    get_namespace():void
+interface KawaiNamespace {
+    get_namespace(): void;
 }

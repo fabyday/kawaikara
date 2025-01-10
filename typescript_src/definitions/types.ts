@@ -63,5 +63,3 @@ export type KawaiAction = {
     action_type: KawaiActionType;
     target_id: string;
 };
-
-

@@ -47,14 +47,14 @@ export function create_action_key_from_string_array(...args: string[]) {
         return prirorA - prirorB;
     });
 
-    // modifier keys will be convert to kawai modifier key.
-    args.map((value) => {
-        if (ModifierKeyMap.has(value)) {
-            return ModifierKeyMap.get(value);
-        } else {
-            return value;
-        }
-    });
+    // // modifier keys will be convert to kawai modifier key.
+    // args.map((value) => {
+    //     if (ModifierKeyMap.has(value)) {
+    //         return ModifierKeyMap.get(value);
+    //     } else {
+    //         return value;
+    //     }
+    // });
 
     return args.reduce((prev: string, cur: string, i: number) => {
         if (i === 0) {
@@ -85,7 +85,10 @@ export interface keyActionListenable {
     actionKey: string[] | string;
     onActivated(): boolean;
 }
-export type ActionChainMap = Map<string, Function | ActionChainMap>;
+
+export type ActionCallback = () => boolean;
+
+export type ActionChainMap = Map<string, ActionCallback | ActionChainMap>;
 
 export type KawaiActionMap = {
     action_hash: Map<string, string[]>;
@@ -95,7 +98,11 @@ export type KawaiActionPreference = {
     actionDelay: number; // integer number. default measure is ms, 1000(ms) == 1 sec.
 };
 
-export function AddActionMap(action: string[], f: Function, overwrite = true) {}
+export function AddActionMap(
+    action: string[],
+    f: ActionCallback,
+    overwrite = true,
+) {}
 
 export function createActionMap(
     // target_map: TargetView,

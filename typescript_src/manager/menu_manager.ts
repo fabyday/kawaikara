@@ -89,9 +89,8 @@ export class MenuManager {
     }
 
     public onSelectItem(category_id: string, id: string) {
-        const selected_callbacks:
-            | KawaiMenuClickedEventCallback[]
-            | undefined = this.m_event_listener_map.get(id);
+        const selected_callbacks: KawaiMenuClickedEventCallback[] | undefined =
+            this.m_event_listener_map.get(id);
         if (typeof selected_callbacks === 'undefined') {
             return; // do nothing.
         }
@@ -104,16 +103,12 @@ export class MenuManager {
     public openMenu() {
         const view = get_menu_instance();
         view?.webContents.focus();
-
     }
 
-
-    public closeMenu(){
-        global_object.mainWindow?.removeBrowserView(get_menu_instance()!)
+    public closeMenu() {
+        global_object.mainWindow?.removeBrowserView(get_menu_instance()!);
     }
 }
-
-
 
 //
 // decorators
@@ -137,8 +132,6 @@ export function registerKawaiMenuItem(_category_id: string, _id: string) {
     };
     return wrapper;
 }
-
-
 
 export function registerKawaiCategory(_category_id: string) {
     const wrapper = <T extends new (...args: any[]) => KawaiMenuBase>(

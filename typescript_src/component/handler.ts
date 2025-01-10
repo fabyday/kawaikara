@@ -54,19 +54,22 @@ export function connectMainWindowHandler() {
  * this function is add global event handler.
  */
 export function connectMainProcessHandler() {
-
     ipcMain.handle(
         KAWAI_API_LITERAL.input.keydown,
-        (event: IpcMainInvokeEvent, key_event : KawaiKeyEvent) => {
-            console.log(key_event)
-            return KawaiKeyboardManager.getInstance().keyboard_logics("keydown", key_event);
+        (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
+            return KawaiKeyboardManager.getInstance().keyboard_logics(
+                'keydown',
+                key_event,
+            );
         },
     );
     ipcMain.handle(
         KAWAI_API_LITERAL.input.keyup,
-        (event: IpcMainInvokeEvent, key_event : KawaiKeyEvent) => {
-            log.info(key_event);
-            return KawaiKeyboardManager.getInstance().keyboard_logics("keydown", key_event);
+        (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
+            return KawaiKeyboardManager.getInstance().keyboard_logics(
+                'keyup',
+                key_event,
+            );
         },
     );
 

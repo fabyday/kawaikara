@@ -1,32 +1,27 @@
-import {ShortcutManager} from "../../../typescript_src/manager/shortcut_manager"
+import { ShortcutManager } from '../../../typescript_src/manager/shortcut_manager';
 
+describe('short binding test', () => {
+    ShortcutManager.getInstance().initialize();
 
+    beforeEach(() => {
 
-describe("short binding test", () => {
-  ShortcutManager.getInstance().initialize();
-  
-  
-  beforeEach(() => {
-    temp = 1;
-  });
-  
-  afterEach(() => {
-    temp = 0;
-  });
-    
-  test('1 is 1', () => {
-    expect(1).toBe(1);
-    ShortcutManager.getInstance().register({targetView : "", onActivated : "", actionKey:""});
     });
-    
-    test('[1,2,3] is [1,2,3]', () => {
-      expect([1,2,3]).toEqual(1);
+
+    afterEach(() => {
     });
-  })
 
+    test('action key', () => {
+        expect(1).toBe(1);
+        const a = ShortcutManager.getInstance();
+        a.register({
+            actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
+            onActivated: () => {
+                return true;
+            },
+            targetView: 'test',
+        });
+        // a.onActivate();
+    });
+});
 
-
-describe("shortcut activate test", ()=>{
-
-
-})
+describe('shortcut activate test', () => {});

@@ -19,7 +19,7 @@ export type KawaiBoolProperty = KawaiNameProperty &
     kawaiProperty<KawaiValueLiteral, boolean>;
 
 export type KawaiBounds = KawaiNameProperty & {
-    [key: string]: KawaiNumberProperty | string | undefined
+    [key: string]: KawaiNumberProperty | string | undefined;
     x?: KawaiNumberProperty;
     y?: KawaiNumberProperty;
     width?: KawaiNumberProperty;
@@ -126,4 +126,3 @@ export type KawaiLocale = KawaiRecursiveTypeExtractor<
     KawaiConfigure,
     KawaiNameProperty
 > & { locale_meta?: LocaleMeta };
-

@@ -2,8 +2,14 @@ import { global_object } from '../data/context';
 
 export class KawaiViewManager {
     private static __instance: KawaiViewManager | undefined;
+    private m_focused_view :string;
 
-    private constructor() {}
+
+
+    private m_listeners: Array<() => void> = [];
+    private constructor() {
+        this.m_focused_view = this.getFocusedViewName()
+    }
 
     public static getInstance() {
         if (KawaiViewManager.__instance === undefined) {
@@ -29,6 +35,24 @@ export class KawaiViewManager {
             (global_object.preferenceWindow as any).name,
         ];
     }
+
+    public setFocusedView(name : string){
+        this.m_focused_view = name;
+        this.m_listeners.forEach((f)=>{
+            f()
+        })
+
+    }
+
+
+    public addListener( f:  ()=>void ){
+        this.m_listeners.push(f);
+    }
+
+    public onChangedView(){
+
+    }
+
     public getFocusedViewName() {
         /// fucking naive method.
         if (global_object.mainWindow?.webContents.isFocused()) {
@@ -38,6 +62,6 @@ export class KawaiViewManager {
         } else if (global_object.preferenceWindow?.webContents.isFocused()) {
             return (global_object.preferenceWindow as any).name;
         }
-        return undefined;
+        return "";
     }
 }
