@@ -8,7 +8,6 @@ import {
 } from 'electron';
 
 import * as path from 'path';
-import * as fs from 'fs';
 
 import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
@@ -21,7 +20,6 @@ import {
     KawaiNumberProperty,
 } from '../definitions/setting_types';
 import { KawaiWindowManager } from '../manager/window_manager';
-import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { global_object } from '../data/context';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { flog } from './predefine/api';
@@ -107,13 +105,7 @@ export const get_mainview_instance = (): BrowserWindow => {
             if (process.platform !== 'darwin') app.quit();
         });
         mainView.setMenu(null);
-        mainView.on("focus", ()=>{
-            KawaiViewManager.getInstance().setFocusedView((mainView as any).name);
-        })
-        mainView.on("blur", ()=>{
-            KawaiKeyboardManager.getInstance().keyRleaseAll();
-            return;
-        })
+        KawaiViewManager.getInstance().trackBrowserFocus(mainView);
     
     
         // mainView.webContents.session.webRequest.onBeforeSendHeaders(
@@ -144,7 +136,7 @@ export const get_mainview_instance = (): BrowserWindow => {
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         });
         mainView.webContents.openDevTools({ mode: 'detach' });
-
+        mainView.webContents.on("page-title-updated", ()=>{mainView.setTitle(app.getName())});
         (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
         return global_object.mainWindow;

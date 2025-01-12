@@ -14,7 +14,8 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import KawaiSwitch from './Switch';
 import KawaiAutoCompleteSelector from "./AutoCompleteSelector"
 import { useCurConfigureStore } from './definition';
-
+import { KawaiConfig } from '../../typescript_src/definitions/setting_types';
+let t : KawaiConfig = {};
   
 function GeneralPreference(){
 

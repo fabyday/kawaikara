@@ -8,7 +8,7 @@ import {
     normalize_action_string,
     printMap,
 } from '../definitions/action';
-import { get_logger, log } from '../logging/logger';
+import { get_flogger, get_logger, log } from '../logging/logger';
 import { KawaiViewManager } from './view_manager';
 import { flog } from '../component/predefine/api';
 
@@ -27,20 +27,27 @@ import { flog } from '../component/predefine/api';
  *  LCtrl+R, LCtrl+J
  *  LCtrl+R, LCtrl+C
  * this is Ok.
- * 
- * 
+ *
+ *
  * Real Example
  * a.register({actionKey  : ["LCtrl+R"], onActivated : ()=>{return true}, targetView:"test"})
-
+ * @see
+ * Alt+F4 and Alt-Tab is Not allowed.
  */
 
+const flogger = get_flogger('shortcut', 'shortcut', 'debug');
+
+const shortcut_ignores = [
+    create_action_key_from_string_array('alt', 'tab'),
+    create_action_key_from_string_array('alt', 'F4'),
+    create_action_key_from_string_array('alt', 'enter'),
+];
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
 
     private m_action_map: KawaiActionMap;
     private key_states: string[];
     private pressed_keys: Set<string>;
-    private is_promising: boolean = false;
     private ignore_keys = false;
     private actionDelayTime: number;
     private m_cur_timeout_object: NodeJS.Timeout | null = null;
@@ -65,50 +72,73 @@ export class ShortcutManager {
         return ShortcutManager.__instance;
     }
 
-    public async initialize() {}
+    public async initialize() {
+        KawaiViewManager.getInstance().addListener(this.resetStates.bind(this));
+    }
+
+    public resetStates() {
+        flogger.debug('reset states');
+        this.current_view = KawaiViewManager.getInstance().getFocusedViewName();
+        if (this.m_cur_timeout_object != null) {
+            clearTimeout(this.m_cur_timeout_object);
+            this.m_cur_timeout_object == null;
+            this.pressed_keys.clear();
+        }
+        flogger.debug('current view states:', this.current_view);
+    }
 
     public async onReleased(key: string) {
         this.pressed_keys.delete(key);
-        if(this.pressed_keys.size === 0 ){
-            log.debug("empty release",this.ignore_keys)
+        if (this.pressed_keys.size === 0) {
+            flogger.debug('empty release', this.ignore_keys);
             this.ignore_keys = false;
-        }else{
-            log.debug("Not empty release",this.ignore_keys)
+            this.current_view =
+                KawaiViewManager.getInstance().getFocusedViewName();
+        } else {
+            flogger.debug('Not empty release', this.ignore_keys);
             this.ignore_keys = true;
         }
 
         if (this.pressed_keys.size === 0 && this.key_states.length > 0) {
             if (this.m_cur_timeout_object != null) {
-                log.debug('clear timeout');
+                flogger.debug('clear timeout');
                 clearTimeout(this.m_cur_timeout_object);
             }
-            log.debug('register timeout');
+            flogger.debug('register timeout');
             this.m_cur_timeout_object = setTimeout(() => {
                 this.key_states.length = 0; // key_state reset.
-                log.debug('action sequence timeout.');
+                flogger.debug('action sequence timeout.');
                 this.m_cur_timeout_object = null;
             }, this.actionDelayTime);
         }
     }
 
     public async onClicked(key: string) {
-        if(this.ignore_keys){
+        if (this.ignore_keys) {
             this.key_states.length = 0; // reset keystates.
-            if(this.m_cur_timeout_object != null){
+            if (this.m_cur_timeout_object != null) {
                 clearTimeout(this.m_cur_timeout_object);
                 this.m_cur_timeout_object == null;
             }
-            return ;
+            return;
         }
-
         this.pressed_keys.add(key);
         this.onActivate(Array.from(this.pressed_keys));
     }
 
     public async onActivate(key_sequence: string[]) {
-        log.debug("activate")
-        
-        let cur_action_map = this.m_action_map.actionMap.get('test')!;
+        flogger.debug('activate');
+        flogger.debug('current view:', this.current_view);
+        if (this.current_view == null) {
+            return false;
+        }
+
+        let cur_action_map = this.m_action_map.actionMap.get(
+            this.current_view,
+        )!;
+        if (typeof cur_action_map === 'undefined') {
+            return false;
+        }
         for (let key_action of this.key_states) {
             if (cur_action_map.has(key_action)) {
                 cur_action_map = cur_action_map.get(
@@ -124,16 +154,18 @@ export class ShortcutManager {
         if (cur_action_map.has(normalized_key_seq)) {
             const item = cur_action_map.get(normalized_key_seq);
             if (typeof item === 'function') {
+                // log.debug('key activate : ', this.key_states);
                 this.key_states = [];
                 if (this.m_cur_timeout_object !== null) {
                     log.debug('clear timeout');
                     clearTimeout(this.m_cur_timeout_object);
                 }
-                item(); // run callback function.
+                return item(); // run callback function.
             } else {
                 this.key_states.push(normalized_key_seq);
             }
         }
+
         // console.log(normalized_key_seq);
         // console.log(this.key_states);
     }
@@ -145,8 +177,15 @@ export class ShortcutManager {
         } else {
             actionKey = o.actionKey;
         }
+
+        //TODO predefined shortcut need to be skipped.
+        if (
+            new Set(shortcut_ignores).has(
+                create_action_key_from_string_array(...actionKey),
+            )
+        )
+            return;
         this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
-        console.log(this.m_action_map.actionMap);
     }
 
     protected addActionMap(
@@ -167,7 +206,6 @@ export class ShortcutManager {
         if (!actionMap.has(targetView)) {
             actionMap.set(targetView, new Map());
         }
-        console.log(new_actions);
         var cur_ref = actionMap.get(targetView)!;
         for (var i = 0; i < new_actions.length; i++) {
             if (cur_ref.has(new_actions[i])) {
@@ -215,51 +253,51 @@ export class ShortcutManager {
     }
 }
 
-const a = ShortcutManager.getInstance();
-a.register({
-    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
-    onActivated: () => {
-        console.log('double Q!!');
-        return true;
-    },
-    targetView: 'test',
-});
-a.register({
-    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+J'],
-    onActivated: () => {
-        console.log('double J!!');
-        return true;
-    },
-    targetView: 'test',
-});
-a.register({
-    actionKey: ['LCtrl+R', 'LCtrl+Q'],
-    onActivated: () => {
-        return true;
-    },
-    targetView: 'test',
-});
-a.register({
-    actionKey: ['LCtrl+R'],
-    onActivated: () => {
-        console.log('test');
-        return true;
-    },
-    targetView: 'test',
-});
-a.register({
-    actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
-    onActivated: () => {
-        return true;
-    },
-    targetView: 'test',
-});
+// const a = ShortcutManager.getInstance();
+// a.register({
+//     actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
+//     onActivated: () => {
+//         log.debug('double Q!!');
+//         return true;
+//     },
+//     targetView: 'test',
+// });
+// a.register({
+//     actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+J'],
+//     onActivated: () => {
+//         log.debug('double J!!');
+//         return true;
+//     },
+//     targetView: 'test',
+// });
+// a.register({
+//     actionKey: ['LCtrl+R', 'LCtrl+Q'],
+//     onActivated: () => {
+//         return true;
+//     },
+//     targetView: 'test',
+// });
+// a.register({
+//     actionKey: ['LCtrl+R'],
+//     onActivated: () => {
+//         log.debug('activate Ctr+R.');
+//         return true;
+//     },
+//     targetView: 'test',
+// });
+// a.register({
+//     actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],
+//     onActivated: () => {
+//         return true;
+//     },
+//     targetView: 'test',
+// });
 
-a.register({
-    actionKey: ['LCtrl+R', 'LCtrl+Q', 'LCtrl+Q'],
-    onActivated: () => {
-        log.debug('finally you catch up.');
-        return true;
-    },
-    targetView: 'test',
-});
+// a.register({
+//     actionKey: ['LCtrl+R', 'LCtrl+Q', 'LCtrl+Q'],
+//     onActivated: () => {
+//         log.debug('finally you catch up.');
+//         return true;
+//     },
+//     targetView: 'test',
+// });

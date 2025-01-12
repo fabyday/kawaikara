@@ -1,11 +1,12 @@
+import { Box, Button } from "@mui/material";
 import { useEffect, useState } from "react";
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
+import { create } from 'zustand';
 
 const App: React.FC = () => {
-    const [post, setup] = useState("")
-    
+
     useEffect(()=>{
         // window.main_api.get_version().then((version_string : string)=>{
             
@@ -18,22 +19,27 @@ const App: React.FC = () => {
         //         setup(v)
         //     })
 
-        window.main_api.get_readme().then((readme_str : string)=>{
-                console.log(readme_str)
-                setup(readme_str)
-            })
 
     }, [])
-    
+
     return (
         
-            <Markdown 
-            remarkPlugins={[remarkGfm]} 
-            rehypePlugins={[rehypeRaw]}
-            components={{img:({node,...props})=><img style={{maxWidth:'100%'}}{...props}/>}}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',   
+                alignItems: 'center',       
+                height: '100vh',            
+                flexDirection: 'row',       
+                flexWrap: 'wrap',           
+                gap: 2                      
+              }}
             >
-                {post}
-            </Markdown>
+              {/* <Button variant="contained">Button 1</Button> */}
+              {/* <Button variant="contained">Button 2</Button> */}
+              {/* <Button variant="contained">Button 3</Button> */}
+              <Button variant="contained">Button 4</Button>
+            </Box>
     )
 };
 

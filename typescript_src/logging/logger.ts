@@ -39,6 +39,21 @@ export function get_logger(logId: string): Logger {
         return newlog;
     }
 }
+export function get_flogger(logId: string, fileName:string, type : "debug"|"info"): Logger {
+    if (LoggerCollection.has(logId)) {
+        return LoggerCollection.get(logId)!;
+    } else {
+        const newlog = logger.create({ logId: logId });
+        newlog.transports.file.level = type;
+        newlog.transports.console.level = false;
+        newlog.transports.file.fileName = fileName+'.log';
+        newlog.transports.file.resolvePathFn = () => {
+            return path.join(log_root, flog.transports.file.fileName);
+        };
+        LoggerCollection.set(logId, newlog);
+        return newlog;
+    }
+}
 
 export function setup_logger() {}
 

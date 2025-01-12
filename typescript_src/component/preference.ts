@@ -3,10 +3,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Event } from 'electron/main';
 import { script_root_path } from './constants';
+import { KawaiViewManager } from '../manager/view_manager';
 
 let preferenceWindow: BrowserWindow | null = null;
 
-export const get_instance = (): BrowserWindow => {
+export const get_preference_instance = (): BrowserWindow => {
     if (preferenceWindow === null) {
         preferenceWindow = new BrowserWindow({
             // width: 600,
@@ -17,7 +18,10 @@ export const get_instance = (): BrowserWindow => {
             // resizable : false,
             webPreferences: {
                 contextIsolation: true,
-                preload: path.join(__dirname, 'predefine/preference_predef.js'),
+                nodeIntegration: false,
+                sandbox: false,
+
+                preload: path.join(__dirname, 'predefine/communicate.js'),
             },
         });
 
@@ -40,6 +44,7 @@ export const get_instance = (): BrowserWindow => {
                 : html_path,
         );
 
+
         preferenceWindow.webContents.on('did-finish-load', (evt: Event) => {
             if (process.env.IS_DEV) {
                 preferenceWindow?.setSize(1200, 600);
@@ -50,7 +55,8 @@ export const get_instance = (): BrowserWindow => {
 
         console.log(preferenceWindow.webContents.isDevToolsOpened());
         (preferenceWindow as any).name = 'preference';
-        // preferenceWindow.hide();
+        KawaiViewManager.getInstance().trackBrowserFocus(preferenceWindow);
+
     }
 
     return preferenceWindow;

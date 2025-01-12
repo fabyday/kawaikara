@@ -7,11 +7,9 @@
  * keyboardpressed(n time) => keyClicked(1 time) => keyReleased(1 time)
  */
 
-import { global_object } from '../data/context';
 import { KawaiActionPreference } from '../definitions/action';
 import {
     convertKawaiKeyCode,
-    isKeyEventListenable,
     KawaiKeyEvent,
     KawaiKeyState,
     KeyEventListenable,
@@ -20,7 +18,6 @@ import {
 import { log } from '../logging/logger';
 import { ShortcutManager } from './shortcut_manager';
 import { KawaiViewManager } from './view_manager';
-import { KawaiWindowManager } from './window_manager';
 
 export class KawaiKeyboardManager {
     private static __instance: KawaiKeyboardManager | undefined;
@@ -151,13 +148,6 @@ export class KawaiKeyboardManager {
     }
 
     public onKeyReleased(key : string) {
-        // if (this.checkVaildActionInput()) {
-            // check subcommand.
-            //set time out.
-            // setTimeout(async () => {
-            //     this.m_keystates.keys.clear(); // check
-            // }, this.m_key_preference.actionDelay);
-        // }
         ShortcutManager.getInstance().onReleased(key);
     }
 

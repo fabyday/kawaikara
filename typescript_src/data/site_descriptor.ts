@@ -72,6 +72,7 @@ export class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor {
         return 'https://www.primevideo.com/favicon.ico';
     }
 }
+
 @registerKawaiSiteDescriptor
 export class KawaiWavveDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id = 'goto_wavve';

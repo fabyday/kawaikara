@@ -104,7 +104,6 @@ export const keydown_f = async (event: KeyboardEvent) => {
     console.log('test key down ');
     if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keydown, keyData)) {
         event.preventDefault();
-        console.log('key donw end ');
     }
 };
 
@@ -122,7 +121,6 @@ export const keyup_f = async (event: KeyboardEvent) => {
 
     if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keyup, keyData)) {
         event.preventDefault();
-        console.log('key donw up end ');
     }
 };
 
