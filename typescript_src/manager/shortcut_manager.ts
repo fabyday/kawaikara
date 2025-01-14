@@ -37,11 +37,11 @@ import { flog } from '../component/predefine/api';
 
 const flogger = get_flogger('shortcut', 'shortcut', 'debug');
 
-const shortcut_ignores = [
+const shortcut_ignoreset = new Set<string>([
     create_action_key_from_string_array('alt', 'tab'),
     create_action_key_from_string_array('alt', 'F4'),
     create_action_key_from_string_array('alt', 'enter'),
-];
+]);
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
 
@@ -120,10 +120,10 @@ export class ShortcutManager {
                 clearTimeout(this.m_cur_timeout_object);
                 this.m_cur_timeout_object == null;
             }
-            return;
+            return false;
         }
         this.pressed_keys.add(key);
-        this.onActivate(Array.from(this.pressed_keys));
+        return this.onActivate(Array.from(this.pressed_keys));
     }
 
     public async onActivate(key_sequence: string[]) {
@@ -168,6 +168,8 @@ export class ShortcutManager {
 
         // console.log(normalized_key_seq);
         // console.log(this.key_states);
+
+        return true;
     }
 
     public register(o: keyActionListenable, overwrite = true) {
@@ -179,12 +181,7 @@ export class ShortcutManager {
         }
 
         //TODO predefined shortcut need to be skipped.
-        if (
-            new Set(shortcut_ignores).has(
-                create_action_key_from_string_array(...actionKey),
-            )
-        )
-            return;
+
         this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
     }
 
@@ -206,6 +203,14 @@ export class ShortcutManager {
         if (!actionMap.has(targetView)) {
             actionMap.set(targetView, new Map());
         }
+
+        for (const action of new_actions) {
+            if (shortcut_ignoreset.has(action)) {
+                flogger.info("action", new_actions, " was rejected.")
+                return;
+            }
+        }
+
         var cur_ref = actionMap.get(targetView)!;
         for (var i = 0; i < new_actions.length; i++) {
             if (cur_ref.has(new_actions[i])) {
@@ -253,6 +258,23 @@ export class ShortcutManager {
     }
 }
 
+// const a = ShortcutManager.getInstance();
+// a.register({
+//     actionKey: ['alt+tab', 'LCtrl+Q'],
+//     onActivated: () => {
+//         log.debug('double Q!!');
+//         return true;
+//     },
+//     targetView: 'test',
+// });
+// a.register({
+//     actionKey: ['LCtrl+Q', 'alt+tab'],
+//     onActivated: () => {
+//         log.debug('double Q!!');
+//         return true;
+//     },
+//     targetView: 'test',
+// });
 // const a = ShortcutManager.getInstance();
 // a.register({
 //     actionKey: ['LCtrl+LSHIFT+R', 'LCtrl+Q'],

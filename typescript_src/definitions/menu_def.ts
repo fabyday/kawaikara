@@ -18,4 +18,7 @@ export class KawaiMenuBase {
         this.id = id;
         this.category = category;
     }
+
+
+    public activate(){}; //if return value == true, then close menu.
 }

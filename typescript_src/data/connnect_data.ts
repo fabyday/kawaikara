@@ -1,4 +1,5 @@
 import { get_menu_instance } from '../component/menu';
+import { MenuManager } from '../manager/menu_manager';
 import { ShortcutManager } from '../manager/shortcut_manager';
 import { KawaiViewManager } from '../manager/view_manager';
 import { global_object } from './context';
@@ -37,7 +38,7 @@ ShortcutManager.getInstance().register({
 
 ShortcutManager.getInstance().register({
     targetView: mainview,
-    actionKey: 'alt+enter',
+    actionKey: 'lalt+enter',
     onActivated: () => {
         KawaiViewManager.getInstance().openMenu();
         return true;
@@ -47,9 +48,32 @@ ShortcutManager.getInstance().register({
 
 ShortcutManager.getInstance().register({
     targetView: menu_name,
-    actionKey: 'alt+enter',
+    actionKey: 'lalt+enter',
     onActivated: () => {
         KawaiViewManager.getInstance().openMenu();
+        return true;
+    },
+});
+
+
+
+
+ShortcutManager.getInstance().register({
+    targetView: mainview,
+    actionKey: 'lctrl+N',
+    onActivated: () => {
+        console.log("menu open")
+        MenuManager.getInstance().onSelectItem("ott", "menu_netflix")
+        return true;
+    },
+});
+
+ShortcutManager.getInstance().register({
+    targetView: mainview,
+    actionKey: 'lctrl+Q',
+    onActivated: () => {
+        console.log("menu open")
+        MenuManager.getInstance().onSelectItem("ott", "menu_laftel")
         return true;
     },
 });

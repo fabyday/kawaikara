@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import { flog, log } from '../logging/logger';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiKeyEvent } from '../definitions/keyboard';
+import { default_config } from '../definitions/default_preference';
 
 /**
  *
@@ -73,6 +74,13 @@ export function connectMainProcessHandler() {
         },
     );
 
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.load_menu,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+
     ipcMain.on(
         KAWAI_API_LITERAL.preference.apply_modified_preference,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
@@ -90,10 +98,10 @@ export function connectMainProcessHandler() {
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_config,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
-            return global_object.config!.preference;
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            return global_object.config?.preference;
         },
     );
 

@@ -21,6 +21,7 @@ import log from 'electron-log/main';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiViewManager } from '../manager/view_manager';
 import { get_preference_instance } from '../component/preference';
+import { MenuManager } from '../manager/menu_manager';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -58,6 +59,7 @@ async function initialize_manager() {
     await KawaiSiteDescriptorManager.getInstance().initializeDefaultSitesDescriptor();
     await KawaiLocaleManager.getInstance().initialize();
     await KawaiViewManager.getInstance();
+    await MenuManager.getInstance().initialize();
     await KawaiShortcutManager.getInstance().initialize();
 }
 

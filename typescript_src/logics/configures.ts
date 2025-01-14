@@ -17,9 +17,12 @@ import { global_object } from '../data/context';
 import { ShortcutManager } from '../manager/shortcut_manager';
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 import log from 'electron-log/main';
-import { default_locale } from '../definitions/default_preference';
+import { default_config, default_locale } from '../definitions/default_preference';
 import { normalize_locale_string } from './os';
 import { LocaleManager } from '../manager/lcoale_manager';
+import { get_flogger } from '../logging/logger';
+
+const flog = get_flogger('configure', 'configure', 'debug');
 function set_general_configuration(jsondata: KawaiConfig) {
     log.debug('setup general config.');
 }
@@ -71,6 +74,11 @@ function isJsonObject(input: unknown): input is JSON {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
 }
 
+function check_version(version ?: string){
+
+}
+
+
 /**
  *
  * @param jsondata  jsondata or json file path or KawaiConfig data.
@@ -81,6 +89,9 @@ function isJsonObject(input: unknown): input is JSON {
  *
  *
  */
+
+
+
 export function set_config(data: JSON | string | KawaiConfig) {
     var jsonData: JSON;
     var config: KawaiConfig;
@@ -91,24 +102,30 @@ export function set_config(data: JSON | string | KawaiConfig) {
         log.debug('config was set by Json');
         let rawData;
         try {
+            flog.debug("load from file ", data)
             rawData = fs.readFileSync(data, 'utf8');
         } catch (e) {
+            flog.debug('load was failed from given path.')
             log.debug('load was failed from given path.');
             // if failed load default config json
             try {
+                flog.debug('load from default path.', path.join(data_root_path, default_config_path))
                 rawData = fs.readFileSync(
                     path.join(data_root_path, default_config_path),
                     'utf8',
                 );
             } catch (e) {
+                flog.debug("failed...\nload from default locale.\n", default_config)
                 log.debug('default config file was not existed.');
-                rawData = JSON.stringify(default_locale);
+                rawData = JSON.stringify(default_config);
                 log.debug('load default config.');
             }
         } finally {
             jsonData = JSON.parse(rawData as string);
             const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
             config = unknown_type_config as KawaiConfig;
+            flog.debug("convert loaded config to KawaiConfig.\n", config)
+
         }
     } else if (isJsonObject(data)) {
         //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>'
@@ -122,8 +139,20 @@ export function set_config(data: JSON | string | KawaiConfig) {
         log.debug('config was set by KawaiConfig');
         config = data as KawaiConfig;
     }
+    flog.debug("config start")
+    flog.debug(global_object.config)
+    flog.debug("config  end")
+    if( typeof config.version?.value === "undefined"){
+        global_object.config = { ...global_object.config, ...default_config};
+    }else{
+        global_object.config = { ...global_object.config, ...config };
+    }
 
-    global_object.config = { ...global_object.config, ...config };
+
+    flog.debug(config)
+    flog.debug(global_object.config)
+
+    flog.debug("===========")
 
     set_general_configuration(global_object.config);
     set_shortcut_configuration(global_object.config);

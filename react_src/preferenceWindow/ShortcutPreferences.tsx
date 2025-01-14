@@ -38,16 +38,6 @@ function ShortcutPreference(){
                                 return !save_checker(v.id, text)
                             }}
 
-                            // duplication_check_f={(text:string)=>{
-                            //     const shortcut_list = get_property("configure.shortcut")?.item
-                            //     if(typeof shortcut_list !== "undefined"){
-                            //         if( isCItemArray(shortcut_list)){
-                            //             const item_list = shortcut_list.map(vv=>{ if (v.id !== vv.id)  return vv.item})
-                            //             return !item_list.includes(text)
-                            //         }
-                            //     }
-
-                            // }}
                             />
                     </Grid>
             </Grid>

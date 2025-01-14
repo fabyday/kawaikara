@@ -25,6 +25,7 @@ export class KawaiKeyboardManager {
     private m_key_preference: KawaiActionPreference;
     private m_keystates: KawaiKeyState;
     private m_action_states: KawaiKeyState;
+    private action_mode = false;
 
     // private m_targetview_map: Map<string, TargetView>;
 
@@ -63,6 +64,13 @@ export class KawaiKeyboardManager {
                     this.onKeyClicked(kawai_key_code);
                 }
                 break;
+        }
+
+        if(this.action_mode){
+            return true;
+        }
+        else{
+            return false;
         }
         // log.debug(Array.from(this.m_keystates.keys));
     }
@@ -140,7 +148,7 @@ export class KawaiKeyboardManager {
     public onKeyClicked(key: string) {
         ShortcutManager.getInstance().onClicked(
             key
-        );
+        ).then((ignore_flag)=>{this.action_mode = true });
     }
 
     public onKeyPressed() {

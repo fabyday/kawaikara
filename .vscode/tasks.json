@@ -14,5 +14,6 @@
         "command": "yarn",
         "args": ["compile:local"]
       },
+     
     ]
   }

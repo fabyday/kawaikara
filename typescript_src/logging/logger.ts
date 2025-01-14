@@ -48,7 +48,7 @@ export function get_flogger(logId: string, fileName:string, type : "debug"|"info
         newlog.transports.console.level = false;
         newlog.transports.file.fileName = fileName+'.log';
         newlog.transports.file.resolvePathFn = () => {
-            return path.join(log_root, flog.transports.file.fileName);
+            return path.join(log_root, newlog.transports.file.fileName);
         };
         LoggerCollection.set(logId, newlog);
         return newlog;

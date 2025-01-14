@@ -23,8 +23,6 @@
       ],
       // "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
       "console": "integratedTerminal",
-      
-      
 
     },
     {
@@ -34,6 +32,16 @@
       "port": 9223,                     //use debug port opened in Electron: Main configuration
       "webRoot": "${workspaceFolder}",
       "timeout": 30000
+    },
+    {
+      "name": "react server",
+      "type": "node",                   //use the node debugger that comes with VS Code
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "yarn",
+      "args": ["web"],
+      "env": {"IS_DEV" : "true"},
+      "console": "integratedTerminal"
     }
   ],
   "compounds": [                        //launch multiple configurations concurrently
@@ -42,6 +50,14 @@
       "configurations": [
         "Electron: Main",
         "Electron: Renderer"
+      ],
+      "preLaunchTask": "build kawaikara"
+    },
+    {
+      "name": "Electron: Hot reload Web dev",
+      "configurations": [
+        "Electron: Main",
+        "react server"
       ],
       "preLaunchTask": "build kawaikara"
     }

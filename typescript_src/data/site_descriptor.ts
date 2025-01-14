@@ -2,7 +2,7 @@ import {
     KawaiAbstractSiteDescriptor,
     registerKawaiSiteDescriptor,
 } from '../definitions/SiteDescriptor';
-
+import {connect_menu} from "../manager/menu_manager"
 @registerKawaiSiteDescriptor
 export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
     id: string = 'netflix';
@@ -10,6 +10,7 @@ export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id: string = 'goto_netflix';
 
     onBeforeSendHeaders(detail: Electron.OnBeforeSendHeadersListenerDetails) {}
+
 
     loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://netflix.com/');

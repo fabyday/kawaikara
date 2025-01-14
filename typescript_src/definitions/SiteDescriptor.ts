@@ -62,21 +62,6 @@ export class KawaiSiteDescriptorManager {
         return this.m_registered_descriptors.get(target_id);
     }
 }
-/**
- * class decordator
- * @param id
- * @returns
- */
-// export function registerKawaiSiteDescriptor( id ?: string ){
-//     const  wrapper = (constructor : typeof KawaiAbstractSiteDescriptor)=>{
-//       const class_object = new constructor()
-//       console.log(class_object)
-//       KawaiSiteDescriptorManager.getInstance().register(class_object)
-//       log.debug("cls created", (class_object as KawaiAbstractSiteDescriptor).id)
-//     }
-
-//     return wrapper;
-// }
 
 export function registerKawaiSiteDescriptor<
     T extends { new (...args: any[]): KawaiAbstractSiteDescriptor },

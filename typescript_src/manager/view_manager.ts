@@ -4,6 +4,8 @@ import { flog } from '../component/predefine/api';
 import { get_flogger, log } from '../logging/logger';
 import { get_menu_instance } from '../component/menu';
 import { get_preference_instance } from '../component/preference';
+import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
+import { get_mainview_instance } from '../component/mainview';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
 
@@ -117,5 +119,27 @@ export class KawaiViewManager {
         if (!global_object.mainWindow?.webContents.isFocused()) {
             global_object.mainWindow?.webContents.focus();
         }
+    }
+
+
+    public loadUrl(desc_id : string){
+        const sel_desc = KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(desc_id);
+        if(typeof sel_desc !== "undefined" ){
+            if(typeof global_object.context === "undefined"){
+                global_object.context = {};
+            }else{
+                global_object.context.current_site_descriptor = sel_desc
+            }
+        }
+        sel_desc?.loadUrl(get_mainview_instance());
+
+    }
+
+
+    public pipMode(){
+        
+    }
+    public fullscreen(){
+
     }
 }
