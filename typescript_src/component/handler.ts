@@ -133,10 +133,10 @@ export function connectMainProcessHandler() {
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_locale,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
-            return global_object.locale;
+        (e: Electron.IpcMainInvokeEvent) => {
+            return global_object.locale?.preference;
         },
     );
 

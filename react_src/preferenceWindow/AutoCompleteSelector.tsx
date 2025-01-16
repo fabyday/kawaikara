@@ -37,10 +37,10 @@ useEffect(()=>{
     set_checked(get_default_value)
 }, [get_default_value])
 return (  
-    <Grid container  spacing={12} >
-            <Grid item xs={6}> <Typography>{title}</Typography> </Grid>
-            <Grid item xs={6}>
-                    <Box display="flex" justifyContent="center">
+    <Grid  container  spacing={12}  alignItems="center" justifyContent="center">
+            <Grid item xs={6} justifyContent="center" width="100%"> <Typography  align="left" >{title}</Typography> </Grid>
+            <Grid item xs={6}  justifyContent="center" alignItems="center">
+                    <Box  display="flex" flexDirection="column" justifyContent="flex-start" alignItems="flex-start">
                     <WindowSizeComponent id = {id} 
                             preset_list = {preset_list} 
                             get_default_value={default_val}

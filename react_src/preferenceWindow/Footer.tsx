@@ -9,7 +9,7 @@ import isEqual from 'lodash.isequal';
 
 const FooterComponent = styled('div')({
     color: 'darkslategray',
-    backgroundColor: 'aliceblue',
+    backgroundColor: '#002b45',
     width : "100%",
     position:"fixed",
     bottom: 0,

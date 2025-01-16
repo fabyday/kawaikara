@@ -51,13 +51,13 @@ export type KawaiWindowPreset =
 export type KawaiLocationPresetProperty = KawaiNameProperty &
     kawaiProperty<KawaiValueLiteral, KawaiWindowPreset>;
 
-export type KawaiPiPLocation = {
+export type KawaiPiPLocation = KawaiNameProperty & {
     [key: string]: KawaiWindowPreset | KawaiStringProperty | undefined;
-    location?: KawaiWindowPreset;
+    location?: KawaiNameProperty& kawaiProperty<KawaiValueLiteral, KawaiWindowPreset>;
     monitor?: KawaiStringProperty;
 };
 
-export type KawaiWindowPreference = {
+export type KawaiWindowPreference = KawaiNameProperty&{
     [key: string]:
         | KawaiPiPLocation
         | KawaiBounds
@@ -68,7 +68,7 @@ export type KawaiWindowPreference = {
     window_size?: KawaiBounds;
 };
 
-export type KawaiGeneralCollection = {
+export type KawaiGeneralCollection = KawaiNameProperty&{
     [key: string]:
         | KawaiPage
         | KawaiWindowPreference

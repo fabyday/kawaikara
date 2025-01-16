@@ -1,7 +1,7 @@
 import React, { MouseEventHandler, useEffect } from 'react'
 import TextField from '@mui/material/TextField';
-import { save_flag } from './definition';
 import lodash from "lodash"
+import { KawaiPreference } from '../../typescript_src/definitions/setting_types';
 
 type props = {
     id: string;
@@ -10,8 +10,13 @@ type props = {
     duplication_check_f : Function;
   };
 
-
-
+let scam = {has:(v:any)=>false, size : 10}
+  let get_re = {
+    get : (a :string)=>{return scam}
+};
+let save_flag = (v : (v : KawaiPreference)=>void ) =>{
+    return get_re;
+}
   
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx

@@ -11,6 +11,7 @@ import { ipcRenderer } from 'electron';
 import {usePrevConfigureStore, useCurConfigureStore, save_flag, config_states} from "./definition"
 import { create } from 'zustand';
 import { Button } from '@mui/material';
+import { KawaiPreference } from '../../typescript_src/definitions/setting_types';
 const ContentComponent = styled('div')({
 //    paddingTop : "7%",
    margin : "7%"
@@ -25,9 +26,9 @@ const RootComponent =styled('div')({
 function App(){
     
 
-    const [new_fetch, get_property] = config_states((state)=>[state.fetch, state.get_property])
+    const [new_fetch, get_property, set_property] = config_states((state)=>[state.fetch, state.get_property, state.set_property])
     useEffect(()=>{
-        new_fetch().then(()=>{console.log("load")})
+        new_fetch().then(()=>{console.log("load")}).then(()=>{console.log("test",get_property())})
     }, [])
 
 
@@ -35,24 +36,19 @@ function App(){
 
 
     return (
-        <div>
-            {/* {get_property() } */}
-            {get_property()}
-            test2
-        </div>
-        
-        // <RootComponent>
-        //  <MemoryRouter initialEntries={["/general"]}>
-        //  <Header />
-        //  <ContentComponent>
-        //  <Routes>
-        //      <Route path="/general" element={<GeneralPreference/>} ></Route>
-        //      <Route path="/shortcut" element={<ShortcutPreference ></ShortcutPreference>}></Route>
-        //     </Routes>
-        //  </ContentComponent>
-        //   </MemoryRouter>
-        //  <Footer/> 
-        //  </RootComponent>
+    
+        <RootComponent>
+         <MemoryRouter initialEntries={["/general"]}>
+         <Header />
+         <ContentComponent>
+         <Routes>
+             <Route path="/general" element={<GeneralPreference/>} ></Route>
+             <Route path="/shortcut" element={<ShortcutPreference/>}></Route>
+            </Routes>
+         </ContentComponent>
+          </MemoryRouter>
+         {/* <Footer/>  */}
+         </RootComponent>
     )
 }
 
