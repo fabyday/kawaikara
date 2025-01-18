@@ -47,7 +47,7 @@ function App(){
             </Routes>
          </ContentComponent>
           </MemoryRouter>
-         {/* <Footer/>  */}
+         <Footer/> 
          </RootComponent>
     )
 }

@@ -256,6 +256,12 @@ export class ShortcutManager {
 
         this.m_action_map.action_hash.set(activate_f.toString(), new_actions);
     }
+
+
+
+    public getIgnoredKeySequence(){
+        return shortcut_ignoreset;
+    }
 }
 
 // const a = ShortcutManager.getInstance();

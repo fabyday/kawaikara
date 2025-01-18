@@ -1,10 +1,4 @@
-import {
-    BrowserWindow,
-    IpcMain,
-    ipcMain,
-    IpcMainEvent,
-    IpcMainInvokeEvent,
-} from 'electron';
+import { ipcMain, IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
 import { set_config } from '../logics/configures';
@@ -13,13 +7,10 @@ import { KawaiWindowManager } from '../manager/window_manager';
 import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager } from '../manager/lcoale_manager';
 import { MenuManager } from '../manager/menu_manager';
-import path from 'node:path';
-import { project_root } from './constants';
-import fs from 'node:fs';
 import { flog, log } from '../logging/logger';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiKeyEvent } from '../definitions/keyboard';
-import { default_config } from '../definitions/default_preference';
+import { get_preference_instance } from './preference';
 
 /**
  *
@@ -31,25 +22,7 @@ export function connectAppHandler() {}
  *
  * @param
  */
-export function connectMainWindowHandler() {
-    // global_object?.mainWindow?.webContents.on(
-    //     'before-input-event',
-    //     (event: Electron.Event, input: Electron.Input) => {
-    //         flog.debug(input);
-    //         if(input.type === "keyUp"){
-    //             event.preventDefault()
-    //         }
-    //         log.debug(input)
-    //         if (input.key.toLowerCase() === 'tab') {
-    //                 log.debug(typeof global_object.menu);
-    //                 if (typeof global_object.menu === 'undefined') {
-    //                         log.debug('menu open');
-    //                         MenuManager.getInstance().openMenu();
-    //                     }
-    //                 }
-    //     },
-    // );
-}
+export function connectMainWindowHandler() {}
 
 /**
  * this function is add global event handler.
@@ -85,8 +58,8 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.preference.apply_modified_preference,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
             const new_conf = args[0] as KawaiConfig;
-            flog.debug('');
             set_config(new_conf);
+            flog.debug('new config saved.', new_conf);
             return global_object.config;
         },
     );
@@ -94,7 +67,7 @@ export function connectMainProcessHandler() {
     ipcMain.on(
         KAWAI_API_LITERAL.preference.close,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
-            global_object.preferenceWindow?.close();
+           get_preference_instance().close()
         },
     );
 
@@ -105,31 +78,43 @@ export function connectMainProcessHandler() {
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_available_locale_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
             return LocaleManager.getInstance().getLocaleMetas();
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_available_monitor_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
             return KawaiWindowManager.getInstance().getMonitorNames();
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_available_site_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
-            return KawaiSiteDescriptorManager.getInstance();
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
+            return KawaiSiteDescriptorManager.getInstance().getRegisteredDescriptorIds();
         },
     );
 
-    ipcMain.on(
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_available_window_size_list,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
             return KawaiWindowManager.getInstance().getPresetSize();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.preference.load_available_pip_window_size_list,
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
+            return KawaiWindowManager.getInstance().getPictureInPicturePresetSize();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.preference.load_available_pip_location_list,
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
+            return KawaiWindowManager.getInstance().getPiPLocationCandidates();
         },
     );
 

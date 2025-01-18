@@ -52,7 +52,7 @@ export const apply_preference_f = (config: KawaiConfig) => {
 };
 
 export const close_preference_f = () => {
-    return ipcRenderer.invoke(KAWAI_API_LITERAL.preference.close);
+    return ipcRenderer.send(KAWAI_API_LITERAL.preference.close);
 };
 
 export const load_available_locale_list_f = () => {
@@ -76,6 +76,17 @@ export const load_available_site_list_f = () => {
 export const load_available_window_size_list_f = () => {
     return ipcRenderer.invoke(
         KAWAI_API_LITERAL.preference.load_available_window_size_list,
+    );
+};
+
+export const load_available_pip_window_size_list_f = () => {
+    return ipcRenderer.invoke(
+        KAWAI_API_LITERAL.preference.load_available_pip_window_size_list,
+    );
+};
+export const load_available_pip_location_list_f = () => {
+    return ipcRenderer.invoke(
+        KAWAI_API_LITERAL.preference.load_available_pip_location_list,
     );
 };
 

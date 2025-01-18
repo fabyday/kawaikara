@@ -18,6 +18,13 @@ export class KawaiViewManager {
         this.m_focused_view = this.getFocusedViewName();
     }
 
+
+
+    public async initialize(){
+
+    }
+
+
     public static getInstance() {
         if (KawaiViewManager.__instance === undefined) {
             KawaiViewManager.__instance = new KawaiViewManager();

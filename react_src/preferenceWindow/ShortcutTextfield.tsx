@@ -7,26 +7,27 @@ type props = {
     id: string;
     get_shortcut_f : Function;
     set_shortcut_f : Function;
-    duplication_check_f : Function;
+    // dup_check : Function;
+    dup_check : boolean;
   };
 
-let scam = {has:(v:any)=>false, size : 10}
-  let get_re = {
-    get : (a :string)=>{return scam}
-};
-let save_flag = (v : (v : KawaiPreference)=>void ) =>{
-    return get_re;
-}
   
+
+
+
+/**
+ * 
+ * @param param0 
+ * @returns 
+ */
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
-function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check_f}:props){
+// function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check_f}:props){
+function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, dup_check}:props){
 
 
    
     
-    const [ isError, setError ] = React.useState(false);
-    const [ helptext, setHelpText ] = React.useState("");
     const helper_text = "Duplication Error"
     
     const [ pressing, setPressing ] = React.useState(false);
@@ -37,39 +38,8 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
     const modifierKeyCodes = new Set([ 16, 17, 18, 91, 92, 93 ]);
 	const specialKeyCodes = new Set([ 0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 91, 92, 93, 94, 95 ]);
     
-    const shortcut_to_id_map = save_flag(state=>state.shortcut_to_id_map)
-    let t = shortcut_to_id_map.get(combined)
 
-    useEffect(()=>{
-        if(typeof t !== "undefined"){
-            if(t!.size >1 && t?.has(id)){
-                setError(true)
-                setHelpText(helper_text)
-            }else if(t!.size === 1 && t?.has(id)){
-                setError(false)
-                setHelpText("")
-            }
-        }
-    })
-   
-    
 
-    // const unset = save_flag.subscribe((state)=>{
-        
-    //     let t = state.shortcut_to_id_map.get(combined)
-    //     if(typeof t !== "undefined"){
-    //         if(t!.size >1 && t?.has(id)){
-    //             setError(true)
-    //             setHelpText(helper_text)
-    //         }else if(t!.size === 1 && t?.has(id)){
-    //             setError(false)
-    //             setHelpText("")
-    //         }
-    //     }
-    // })
-    // useEffect(()=>{
-    //     return unset
-    // }, [])
 
 
     const key_mapper = {Control : "Ctrl", Meta : "Win", Alt : "Alt", Shift : "Shift"}
@@ -119,10 +89,7 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
                 key.add(event.key.toUpperCase())
                 setKey(key)
             }
-            // else{
-            //     console.log("oug")
-            //     setKey([])
-            // }
+           
         }
 
         const f = (v:string)=>{
@@ -139,7 +106,6 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
 	const handleKeyUp = (event : React.KeyboardEvent) => {
 
         
-        console.log(event)
         event.preventDefault();
         
         if(modifierKeyCodes.has(event.keyCode)){
@@ -159,14 +125,17 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
         
         if (key.size === 0 && accelerator!.size === 0){
             setPressing(false);
-
+            
         }
 
 
 	};
     
     const handleOnclick = (e:React.MouseEvent )=>{
+        
     }
+
+
 
     return (
         <TextField
@@ -177,22 +146,15 @@ function ShortcutTextField({id,get_shortcut_f, set_shortcut_f, duplication_check
             handleOnclick(e)
         }}
         onBlur={(e)=>{
-            if( duplication_check_f(e.target.value)){
-                setError(false)
+            // if( !duplication_check_f(e.target.value)){
                 set_shortcut_f(e.target.value)
-                setHelpText("")
                 
             }
-            else{
-                setError(true)
-                set_shortcut_f(e.target.value)
-                setHelpText(helper_text)
-            }
 
-        }}
-        helperText={helptext}
+        }
+        helperText={dup_check?helper_text:''}
         value={combined}
-        error={isError}
+        error={dup_check}
         inputProps={{ style: {textAlign: 'center', caretColor : "transparent"} }}
 
       />

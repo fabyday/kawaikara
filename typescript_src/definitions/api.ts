@@ -11,6 +11,8 @@ const api_literal = {
         load_available_locale_list: 'load-available-locale-list',
         load_available_monitor_list: 'load-available-monitor-list',
         load_available_window_size_list: 'load-available-window-size-list',
+        load_available_pip_window_size_list: 'load-available-pip-window-size-list',
+        load_available_pip_location_list: 'load-available-pip-location-list',
     },
     menu: {
         // fovorites manipulation ops

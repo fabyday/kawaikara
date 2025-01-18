@@ -22,6 +22,7 @@ import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiViewManager } from '../manager/view_manager';
 import { get_preference_instance } from '../component/preference';
 import { MenuManager } from '../manager/menu_manager';
+import { get_menu_instance } from '../component/menu';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -58,7 +59,7 @@ function initialize_handler() {
 async function initialize_manager() {
     await KawaiSiteDescriptorManager.getInstance().initializeDefaultSitesDescriptor();
     await KawaiLocaleManager.getInstance().initialize();
-    await KawaiViewManager.getInstance();
+    await KawaiViewManager.getInstance().initialize();
     await MenuManager.getInstance().initialize();
     await KawaiShortcutManager.getInstance().initialize();
 }
@@ -69,7 +70,7 @@ async function initialize_manager() {
  */
 async function initialize_views() {
     get_mainview_instance();
-    get_preference_instance();
+    get_menu_instance();
 }
 async function initialize_data() {
     await import('../data/connnect_data');
@@ -95,6 +96,7 @@ export async function initialize(config_root?: string) {
 
     await initialize_views();
     initialize_handler();
+    get_preference_instance(); // for Testing .. @TODO REMOVE THIS
     await manager_promise;
     await data_initializer_promise;
 }

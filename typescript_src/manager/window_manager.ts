@@ -1,13 +1,17 @@
 import { screen } from 'electron/main';
-import { KawaiBounds } from '../definitions/setting_types';
+import {
+    KawaiBounds,
+    KawaiLocationPresetProperty,
+    KawaiWindowPreset,
+} from '../definitions/setting_types';
 import { BrowserWindow } from 'electron';
 import { global_object } from '../data/context';
 
 export class KawaiWindowManager {
     static __instance: KawaiWindowManager | undefined = undefined;
     static readonly preset_size = [
-        [720, 576], // 480p
         [720, 480], // 576p
+        [720, 576], // 480p
         [800, 600],
         [1280, 720], // 720p
         [1920, 1080], //1080p
@@ -61,6 +65,10 @@ export class KawaiWindowManager {
         }
 
         return selected_preset;
+    }
+
+    public getPiPLocationCandidates(): KawaiWindowPreset[] {
+        return ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
 
     /**

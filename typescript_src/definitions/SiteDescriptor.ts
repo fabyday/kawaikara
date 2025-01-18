@@ -61,6 +61,11 @@ export class KawaiSiteDescriptorManager {
         const target_id: string = id_list[id_list.length - 1];
         return this.m_registered_descriptors.get(target_id);
     }
+
+    /// return 
+    getRegisteredDescriptorIds() {
+        return Array.from(this.m_registered_descriptors.keys());
+    }
 }
 
 export function registerKawaiSiteDescriptor<

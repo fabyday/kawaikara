@@ -47,8 +47,6 @@ export const default_config: KawaiConfig = {
 };
 
 
-
-
 export const default_locale: KawaiLocale = {
     preference: {
         general: {

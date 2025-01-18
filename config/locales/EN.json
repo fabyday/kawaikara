@@ -1,255 +1,47 @@
-
 {
-    "id" : "locale",
-    "name" : "KR",
-    "locale" : "한국어",
-    "SystemLocale" : "시스템 언어",
-    "item" : {
-        
-    
-        "configure" : {
-            "id" : "configure",
-            "name" : "configuration",
-            "item" : [
-                {
-                    "id" : "general", 
-                    "name" : "General",
-                    "item" : [
-                        {
-                            "id" : "default_main",
-                            "name" : "Default Main Page"
-                        },
-                        {
-                            "id" : "pip_mode",
-                            "name" : "PIP Mode"
-                        },
-                        {
-                            "id" : "window_size",
-                            "name" : "Window Size",
-                            "item" : [
-                                {
-                                    "id" : "preset_list",
-                                    "name" : "Window Preset"
-                                },
-                                {
-                                    "id": "width",
-                                    "name" : "Width"
-                                },
-                                {
-                                    "id": "height",
-                                    "name" : "Height"
-                                }
-                            ]
-                        },
-                        {
-                            "id" : "pip_location",
-                            "name" : "PiP 위치",
-                            "item" : [
-                                { 
-                                    "id" : "preset_monitor_list", 
-                                    "name" : "모니터 프리셋"
-                                },
-                                { 
-                                    "id" : "preset_location_list", 
-                                    "name" : "위치 프리셋"
-                                },
-                                { 
-                                    "id" : "location", 
-                                    "name" : "위치"
-                                },
-                                { 
-                                    "id" : "monitor", 
-                                    "name" : "모니터"
-                                }
-                            ]
-                        },
-                        {
-                            "id" : "pip_window_size",
-                            "name" : "PiP 윈도우 사이즈",
-                            "item" : [
-                                {
-                                    "id" : "preset_list", 
-                                    "name" : "PiP 위치 프리셋"
-                                }, 
-                                {
-                                    "id" : "width", 
-                                    "name" :  "너비"
-                                }, 
-                                {
-                                    "id" : "height", 
-                                    "name":"높이" 
-                                }
-                            ]
-                        },
-                        {
-                            "id" : "render_full_size_when_pip_running",
-                            "name" : "PiP 시 렌더링 사이즈 유지"
-                        },
-                        {
-                            "id" : "enable_autoupdate",
-                            "name" : "자동 업데이트"
-                        },
-                        {
-                            "id" : "dark_mode",
-                            "name" : "다크 모드"
-                        }
-                    ]
-                },
-                {
-                    "id" : "shortcut",
-                    "name" : "단축키",
-                    "item" : [
-                        {
-                            "id" : "goto_netflix",
-                            "name" : "넷플릭스 열기"
-                        },
-                        {
-                            "id" : "goto_laftel",
-                            "name" : "라프텔 열기"
-                        },
-                        {
-                            "id" : "goto_youtube",
-                            "name" : "유튜브 열기" 
-                        },
-                        {
-                            "id" : "goto_disney",
-                            "name" : "디즈니플러스 열기"
-                        },
-                        {
-                            "id" : "goto_amazonprime",
-                            "name" : "아마존프라임 열기"
-                        },
-                        {
-                            "id" : "goto_applemusic",
-                            "name" : "애플뮤직 열기"
-                        },
-                        {
-                            "id" : "goto_chzzk",
-                            "name" : "치지직 열기"
-                        },
-                        {
-                            "id" : "goto_wavve",
-                            "name" : "웨이브 열기"
-                        },
-                        {
-                            "id" : "goto_watcha",
-                            "name" : "왓차 열기" 
-                        },
-                        {
-                            "id" : "coupangplay",
-                            "name" : "쿠팡 플레이 열기" 
-                        },
-                        {
-                            "id" : "goto_tving",
-                            "name" : "티빙 열기"
-                        },
-                        {
-                            "id" : "goto_twitch",
-                            "name" : "트위치 열기"
-                        },
-                        {
-                            "id" : "goto_main",
-                            "name" : "메인페이지 열기"
-                        },
-                        {
-                            "id" : "run_pip",
-                            "name" : "PiP 실행"
-                        }
-                    ]
-                }
-            ]
-            
+    "preference": {
+        "general": {
+            "dark_mode": { "name": "Dark Mode" },
+            "default_main": {
+                "name": "Default Main Page",
+                "url": { "name":"Main Page" }
+            },
+            "enable_autoupdate": { "name": "Enable Autoupdate" },
+            "render_full_size_when_pip_running": {
+                "name": "render when pip running"
+           },
+            "window_preference": {
+                "pip_location": {
+                    "monitor": { "name": "PiP Location" }
         },
-        "prgoram" : {
-            "menu" :[
-                {
-                "id" : "ott",
-                "name" : "OTT",
-                "item" : [
-                    {
-                        "id" : "netflix",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "laftel",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "disneyplus",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "youtubue",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "amazonprime",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "watcha",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "coupangplay",
-                        "name" : "넷플릭스"
-                    },
-                    {
-                        "id" : "tving",
-                        "name" : "넷플릭스"
-                    }
-                ]
-            },
-            {
-                "id" : "streaming",
-                "name" : "스트리밍",
-                "item" : [
-                    {
-                        "id" : "chzzk",
-                        "name"  : "치지직"
-                    },
-                    {
-                        "id" : "twtich",
-                        "name" : "트위치"
-                    }
-                ]
-            },
-            {
-                "id" : "music",
-                "name" : "음악",
-                "item" : [
-                    {
-                        "id" : "applemusic",
-                        "name" : "애플뮤직"
-                    }
-                ]
-            },
-            {
-                "id" : "option",
-                "name" : "옵션",
-                "item" : [
-                    {
-                        "id" : "appinfo",
-                        "name" : "소개"
-                    },
-                    {
-                        "id" :"preference",
-                        "name" : "설정"
-                    },
-                    {
-                        "id" : "check_update",
-                        "name" : "업데이트 체크"
-                    },
-                    {
-                        "id" : "github",
-                        "name" : "폰헙보다 깃헙"
-                    }
-
-                ]
+                "pip_window_size": {
+                    "name": "PiP Window Size",
+                    "x": { "name": "X"},
+                    "y": { "name": "Y" },
+                    "width": { "name": "Width" },
+                    "height": { "name": "Height" }
+                }
             }
-        ]
-            
-        } 
-    }
+        },
+        "locale": {
+            "name": "Locale",
+            "selected_locale": { "name": "Selected Locale" }
+        },
+        "shortcut": {
+            "name": "Shortcut",
+            "goto_netflix": { "name": "netflix" },
+            "goto_laftel": { "name": "lafel" },
+            "goto_youtube": { "name": "youtube" },
+            "goto_disney": { "name": "disney" },
+            "goto_wavve": { "name": "wavve" },
+            "goto_tving": { "name": "tving" },
+            "goto_twitch": { "name": "twitch" },
+            "run_pip": { "name": "run pip" },
+            "goto_applemusic": { "name": "apple music" },
+            "goto_chzzk": { "name": "chzzk" },
+            "goto_amazonprime": { "name": "amazon prime" }
+        }
+    },
+    "version": { "name" : "2.0.0"},
+    "locale_meta": { "filename": "EN", "metaname": "eng" }
 }
-
