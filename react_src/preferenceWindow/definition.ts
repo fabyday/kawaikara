@@ -6,9 +6,9 @@ import {
     KawaiShortcut,
     KawaiShortcutCollection,
 } from '../../typescript_src/definitions/setting_types';
-
+import log from 'electron-log/renderer';
 import * as lodash from 'lodash';
-
+log.transports.console.level = 'debug';
 //////// 려차려차려차려차
 type ShortCutDupStates = {
     shortcut_dups: Object;
@@ -20,16 +20,12 @@ type ShortCutDupStates = {
 export const shortcut_states = create<ShortCutDupStates>((set, get) => ({
     shortcut_dups: {},
     check_duplication_all: () => {
-        if(Object.keys(get().shortcut_dups).length === 0 )
-            return false;
+        if (Object.keys(get().shortcut_dups).length === 0) return false;
         return Object.values(get().shortcut_dups).reduce((p, c) => {
             return p || c;
         });
     },
     check_duplication: (shortcut_id: string) => {
-        console.log('dups');
-        console.log(shortcut_id);
-        console.log((get().shortcut_dups as any)[shortcut_id]);
         return (get().shortcut_dups as any)[shortcut_id] ?? true;
     },
     fetch: (shortcut_collection?: KawaiShortcutCollection) => {
@@ -107,12 +103,12 @@ const context = (set: set_type, get: get_type) => ({
         const locale = await window.KAWAI_API.preference.load_locale();
         console.log(config_);
         console.log(locale);
+        log.debug('context fetch.');
+        const combine_config = lodash.merge({}, config_);
+        const combine_locale = lodash.merge(combine_config, locale);
         set((state) => {
-            return { ...state, perference: { ...config_, ...locale } };
+            return { ...state, perference: { ...combine_locale } };
         });
-        // const shortcut_dups_fetch = shortcut_states(state=>state.fetch)
-        // shortcut_dups_fetch(get().perference.shortcut)
-        console.log('test');
         shortcut_states.getState().fetch(config_.shortcut);
     },
     is_changed: (): boolean => {
@@ -129,7 +125,7 @@ const context = (set: set_type, get: get_type) => ({
         const func_Get = (key_list: string[], pref: KawaiPreference) => {
             const keys = key_list;
             if (keys.length === 0) {
-                return;
+                return pref;
             }
             var tmp = pref;
             if (keys.length > 1) {
@@ -140,42 +136,93 @@ const context = (set: set_type, get: get_type) => ({
             }
             return tmp;
         };
+        const has_key = (key_list : string[], pref : KawaiPreference) =>{
+            let elem = pref;
+            for(const key of key_list){
+                elem = elem[key] as any;
+                if(elem == null)
+                    return false;
+            }
+            return true;
+        }
+        const func_delete = (key_list: string[], pref: KawaiPreference) => {
+            if (key_list.length === 1) {
+                delete pref[key_list[0]];
+                return;
+            } else if (key_list.length === 0) {
+                return;
+            }
+            let sep_ = 0;
+            log.info('pref', pref as Object);
+            let target = pref;
+            for (let i = 0; i < key_list.length - 1; i++) {
+                log.info('key', key_list[i]);
+                target = target[key_list[i]!] as any;
+                log.info('ob', target);
+                if (
+                    Object.keys(target! as any).filter((v) => v !== 'name')
+                        .length === 1
+                ) {
+                    log.info(
+                        Object.keys(target! as any).filter((v) => v !== 'name'),
+                    );
+                    log.info('continue', key_list[i]);
+                    continue;
+                } else {
+                    log.info(
+                        Object.keys(target! as any).filter((v) => v !== 'name'),
+                    );
+                    log.info('sep', i + 1);
+                    sep_ = i + 1;
+                }
+
+                log.info('sep', sep_);
+                log.info('sel key', key_list[sep_]);
+                log.info('', pref as Object);
+            }
+            let elem: any = pref;
+            for (const key of key_list.slice(0, sep_)) {
+                elem = elem[key];
+            }
+            delete elem[key_list[sep_]];
+            log.info('test end', pref);
+            console.log(pref);
+        };
+
         //TODO If the new value is equal to the old value, remove the modified preference item.
         set(
             produce((state: PreferenceState) => {
+                log.info('proudce path : ', path);
                 const keys = path.split('.');
+                const full_keys = lodash.cloneDeep(keys);
+                log.info(keys.length);
                 if (keys.length === 0) {
                     return;
                 }
-
-                const key = keys.pop();
+                const target_key = keys.pop();
+                log.info('target key : ', target_key);
+                // const key = keys.pop();
                 var old_preference = func_Get(keys, state.perference) as any;
-                var new_preference = func_Get(
-                    keys,
-                    state.changed_preference,
-                ) as any;
-                // if(keys.length > 1){
-                //     keys.forEach((v, i)=>{
 
-                //         if(typeof tmp[v] === "undefined")
-                //             tmp[v] = {};
-                //         tmp = tmp[v] as any;
-                //     })
-                // }
-                // tmp[key!]  = new_value;
-                console.log(new_preference);
-                if (old_preference[key!] === new_value) {
-                    console.log('del', new_preference);
-                    delete new_preference[key!];
+                log.info(old_preference, new_value);
+                if (old_preference[target_key!] === new_value) {
+                    if(has_key(full_keys, state.changed_preference)){
+                        func_delete(full_keys, state.changed_preference);
+                    }
                 } else {
-                    new_preference[key!] = new_value;
-                    console.log('new val : ', new_preference);
+                    const test = func_Get(
+                        keys,
+                        state.changed_preference,
+                    ) as any;
+                    test[target_key!] = new_value;
                 }
             }),
         );
+        const keys = path.split('.');
 
-        console.log('default : ', get().perference);
-        console.log('check changed : ', get().changed_preference, 'changed');
+        log.info('default : ', get().perference);
+        log.info('check changed : ', get().changed_preference, 'changed');
+        // log.info('check changed : ', func_Get(keys, get().changed_preference), 'changed');
         shortcut_states.getState().fetch(get().get_property().shortcut);
     },
 });

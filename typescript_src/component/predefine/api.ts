@@ -112,15 +112,12 @@ export const keydown_f = async (event: KeyboardEvent) => {
         altKey: event.altKey,
         metaKey: event.metaKey,
     };
-    console.log('test key down ');
     if (await ipcRenderer.invoke(KAWAI_API_LITERAL.input.keydown, keyData)) {
         event.preventDefault();
     }
 };
 
 export const keyup_f = async (event: KeyboardEvent) => {
-    console.log('test key up ');
-    console.log(event);
     const keyData = {
         key: event.key,
         code : event.code,

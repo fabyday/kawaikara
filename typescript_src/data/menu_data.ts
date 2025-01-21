@@ -9,6 +9,7 @@ import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { get_mainview_instance } from '../component/mainview';
 import { KawaiViewManager } from '../manager/view_manager';
 
+
 @registerKawaiMenuItem('ott', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {
     public activate(): void {

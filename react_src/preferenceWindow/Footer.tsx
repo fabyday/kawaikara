@@ -18,19 +18,23 @@ const FooterComponent = styled('div')({
 });
 
 function Footer() {
-    const is_changed = config_states(state=>state.is_changed)
+    const [is_changed, changed_preference] = config_states(state=>[state.is_changed, state.changed_preference])
     const [check_dups_all] = shortcut_states(state=>[state.check_duplication_all])
 
 
     const check_f=()=>{
         //TODO
         const c = is_changed() ;
-        const b = check_dups_all();
+        const not_dup = !check_dups_all();
         // console.log("c",c)
         // console.log("b",b)
         // return c&&b;
-        return !c;
+        return (c && not_dup);
     }
+
+    const enable_style =  {color :"white", background : "#0063cc", border : '1px solid black'} as any;
+    const disable_style = {color :"white",background : "gray"}
+
     return (
         <FooterComponent>
             <Grid
@@ -42,6 +46,7 @@ function Footer() {
                     <Box columnGap={1} display="flex" justifyContent="center">
                         <Button
                             variant="contained"
+                            style = {enable_style}
                             onClick={() => {
                                 if(check_f()){
                                     console.log("ik")
@@ -53,6 +58,7 @@ function Footer() {
                         </Button>
                         <Button
                             variant="contained"
+                            style={enable_style}
                             onClick={() => {
                                 window.KAWAI_API.preference.close();
                             }}>
@@ -60,8 +66,13 @@ function Footer() {
                         </Button>
                         <Button
                             variant="contained"
-                            onClick={() => {}}
-                            disabled={check_f()}>
+                            style={check_f() ? enable_style  :disable_style}
+                            onClick={() => {
+                                if(check_f()){
+                                    window.KAWAI_API.preference.apply_modified_preference(changed_preference);
+                                }
+                            }}
+                            disabled={!check_f()}>
                             apply
                         </Button>
                     </Box>

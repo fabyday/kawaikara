@@ -22,6 +22,7 @@ export class MenuManager {
             string,
             KawaiMenuClickedEventCallback[]
         >();
+        
     }
 
     public static getInstance() {

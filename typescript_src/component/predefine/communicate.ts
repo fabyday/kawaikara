@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_available_monitor_list: load_available_monitor_list_f,
         load_available_window_size_list: load_available_window_size_list_f,
         load_available_pip_window_size_list : load_available_pip_window_size_list_f,
-        load_available_pip_location_list : load_available_pip_location_list_f
+        load_available_pip_location_list : load_available_pip_location_list_f,
     },
     menu: {
         // fovorites manipulation ops

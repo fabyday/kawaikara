@@ -106,8 +106,7 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
-    
-    
+
         // mainView.webContents.session.webRequest.onBeforeSendHeaders(
         //     (details, callback) => {
         //         const context_id: string | undefined =
@@ -131,12 +130,18 @@ export const get_mainview_instance = (): BrowserWindow => {
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
-        mainView.loadURL('https://chzzk.naver.com/', {
+        // mainView.loadURL('https://chzzk.naver.com/', {
+        //     userAgent:
+        //         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        // });
+        mainView.loadURL('https://www.crunchyroll.com/', {
             userAgent:
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'chrome',
         });
         mainView.webContents.openDevTools({ mode: 'detach' });
-        mainView.webContents.on("page-title-updated", ()=>{mainView.setTitle(app.getName())});
+        mainView.webContents.on('page-title-updated', () => {
+            mainView.setTitle(app.getName());
+        });
         (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
         return global_object.mainWindow;

@@ -42,12 +42,16 @@ export const ModifierKeyMap: Map<string, string> = new Map([
     ['shiftright', 'rshift'], //2
     ['contextmenu', 'contextmenu'], //1
 ]);
+Object.freeze(ModifierKeyMap);
+
 export const ReverseModifierKeyMap: Map<string, string> = new Map();
 
 for(let key in ModifierKeyMap){
     ReverseModifierKeyMap.set(key, ModifierKeyMap.get(key)!);
 }
+Object.freeze(ReverseModifierKeyMap);
 
+export const kawai_modifier_keys:string[] = Array.from(ReverseModifierKeyMap.keys());
 export const modifier_keys: string[] = Array.from(ModifierKeyMap.keys()); // key list
 export const priority = new Map();
 modifier_keys.forEach((value: string, index: number, array: string[]) => {
@@ -55,9 +59,8 @@ modifier_keys.forEach((value: string, index: number, array: string[]) => {
     ReverseModifierKeyMap.set(ModifierKeyMap.get(value)!, value)
 });
 
+Object.freeze(kawai_modifier_keys); 
 Object.freeze(priority);
-Object.freeze(ModifierKeyMap);
-Object.freeze(ReverseModifierKeyMap);
 
 export function convertKawaiKeyCode(event:KawaiKeyEvent){
     if(ModifierList.has(event.key.toLowerCase() )){ // if modifier key. then convert it to kawai universal key.

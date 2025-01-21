@@ -5,6 +5,8 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { config_states, shortcut_states } from './definition';
 import { KawaiShortcut } from '../../typescript_src/definitions/setting_types';
+import log from 'electron-log/renderer';
+
 // see also
 // https://github.com/snapcrunch/electron-preferences/blob/development/src/app/components/main/components/group/components/fields/accelerator/index.jsx
 type props = {
@@ -20,11 +22,8 @@ function ShortcutPreference() {
         state.set_property,
         state.get_property,
     ]);
-    const [ dupcheck] = shortcut_states((state) => [
-        state.check_duplication
-    ]);
+    const [dupcheck] = shortcut_states((state) => [state.check_duplication]);
 
-  
     // const dup_check_f = (ignore_key: string, text: string) => {
     //     const shortcut = get_property().shortcut;
     //     console.log(`shorutcut prop : ${shortcut}`);
@@ -76,6 +75,7 @@ function ShortcutPreference() {
                 </Grid>
                 <Grid item xs={6}>
                     <ShortcutTextField
+                        key={id}
                         id={id}
                         get_shortcut_f={() => {
                             const item = get_property()?.shortcut;
@@ -86,7 +86,7 @@ function ShortcutPreference() {
                         }}
                         set_shortcut_f={(e: string) => {
                             set_property(`${id}.shortcut_key`, e);
-                            console.log('set props');
+                            log.info(e)
                         }}
                         // duplication_check_f={dup_check_f.bind(null, key)}
                         dup_check={dupcheck(key)}

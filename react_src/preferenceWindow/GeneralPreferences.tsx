@@ -19,6 +19,7 @@ import {
     KawaiPreference,
 } from '../../typescript_src/definitions/setting_types';
 import { create } from 'zustand';
+import KawaiSelector from './KawaiSelector';
 
 function GeneralPreference() {
     const [set_property, get_property] = config_states((state) => [
@@ -33,7 +34,7 @@ function GeneralPreference() {
         available_site_list,
         available_window_size_list,
         available_pip_window_size_list,
-        available_pip_location_list
+        available_pip_location_list,
     ] = preset_data((state) => [
         state.fetch,
         state.available_locale_list,
@@ -41,7 +42,7 @@ function GeneralPreference() {
         state.available_site_list,
         state.available_window_size_list,
         state.available_pip_window_size_list,
-        state.available_pip_location_list
+        state.available_pip_location_list,
     ]);
     useEffect(() => {
         preset_fetch().then(() => {
@@ -67,16 +68,16 @@ function GeneralPreference() {
                 justifyContent="center"
                 rowGap={1}
                 spacing={1}>
-                <KawaiAutoCompleteSelector
+                <KawaiSelector
                     id={'general.pip_location.location'}
                     title={
                         get_property().general?.window_preference?.pip_location
                             ?.location?.name ?? 'PiP Location'
                     }
                     preset_list={available_pip_location_list}
-                    get_default_value={
+                    value={
                         get_property().general?.window_preference?.pip_location
-                            ?.location?.value ?? 'bottom-left'
+                            ?.location?.value ?? 'top-right'
                     }
                     select_f={(text: string) => {
                         set_property(
@@ -85,16 +86,16 @@ function GeneralPreference() {
                         );
                     }}
                 />
-                <KawaiAutoCompleteSelector
+                <KawaiSelector
                     id={'general.window_preference.pip_location.monitor'}
                     title={
                         get_property().general?.window_preference?.pip_location
                             ?.monitor?.name ?? 'PiP Monitor'
                     }
                     preset_list={available_monitor_list}
-                    get_default_value={
-                        get_property().general?.window_preference?.pip_location
-                            ?.monitor?.value ?? '0'
+                    value={
+                        get_property()?.general?.window_preference?.pip_location
+                            ?.monitor?.value ?? ""
                     }
                     select_f={(text: string) => {
                         set_property(
@@ -103,27 +104,28 @@ function GeneralPreference() {
                         );
                     }}
                 />
-
                 <KawaiAutoCompleteSelector
                     id={'general.window_preference.pip_window_size'}
                     title={
-                        get_property().general?.window_preference
+                        get_property()?.general?.window_preference
                             ?.pip_window_size?.name ?? 'PiP Window Size'
                     }
-                    preset_list={available_window_size_list.map((value)=>{
-                        const [width, height] : number[] = value
-                        return width.toString() + "x" + height.toString();
+                    preset_list={available_window_size_list.map((value) => {
+                        const [width, height]: number[] = value;
+                        return width.toString() + 'x' + height.toString();
                     })}
-                    get_default_value={
-                        (get_property().general?.window_preference?.pip_window_size?.width?.value?.toString() as string) +
+                    value={
+                        (get_property().general?.window_preference?.pip_window_size?.width?.value?.toString() ??
+                            '0') +
                         'x' +
-                        (get_property().general?.window_preference?.pip_window_size?.height?.value?.toString() as string)
+                        (get_property().general?.window_preference?.pip_window_size?.height?.value?.toString() ??
+                            '0')
                     }
                     select_f={(text: string) => {
                         const [width, height] = text
                             .split('x')
                             .map((v) => Number(v));
-                            
+
                         set_property(
                             'general.window_preference.pip_window_size.width.value',
                             width,
@@ -145,23 +147,23 @@ function GeneralPreference() {
                                 size,
                             );
                     }}
-                    additional_textedit={true}
                 />
-
                 <KawaiAutoCompleteSelector
                     id={'general.window_preference.window_size'}
                     title={
                         get_property().general?.window_preference?.window_size
                             ?.name ?? 'Window Size'
                     }
-                    preset_list={available_window_size_list.map((value)=>{
-                        const [width, height] : number[] = value
-                        return width.toString() + "x" + height.toString();
+                    preset_list={available_window_size_list.map((value) => {
+                        const [width, height]: number[] = value;
+                        return width.toString() + 'x' + height.toString();
                     })}
-                    get_default_value={
-                        (get_property().general?.window_preference?.window_size?.width?.value?.toString() as string) +
+                    value={
+                        (get_property()?.general?.window_preference?.window_size?.width?.value?.toString() ??
+                            '0') +
                         'x' +
-                        (get_property().general?.window_preference?.window_size?.height?.value?.toString() as string)
+                        (get_property()?.general?.window_preference?.window_size?.height?.value?.toString() ??
+                            '0')
                     }
                     select_f={(text: string) => {
                         const [width, height] = text
@@ -177,6 +179,7 @@ function GeneralPreference() {
                         );
                     }}
                     onselected_customize_f={(index: number, size: number) => {
+                        console.log("size?",size)
                         if (index === 0)
                             set_property(
                                 'general.window_preference.window_size.width.value',
@@ -188,7 +191,6 @@ function GeneralPreference() {
                                 size,
                             );
                     }}
-                    additional_textedit={true}
                 />
 
                 <KawaiSwitch

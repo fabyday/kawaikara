@@ -11,6 +11,7 @@ import { flog, log } from '../logging/logger';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiKeyEvent } from '../definitions/keyboard';
 import { get_preference_instance } from './preference';
+import { default_config } from '../definitions/default_preference';
 
 /**
  *
@@ -74,7 +75,9 @@ export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_config,
         (event: IpcMainInvokeEvent, ...args: any) => {
-            return global_object.config?.preference;
+            flog.debug(default_config)
+            return default_config.preference;
+            // return global_object.config?.preference;
         },
     );
 

@@ -62,7 +62,7 @@ function Header(){
             new_variant = "contained"
           }
             button = (
-                    <Link to={link_paths[i]} >
+                    <Link key={`link.${i}`} to={link_paths[i]} >
            <Button key={"button"+String(i)} style={{...style}} id={"button"+String(i)} onClick={()=>button_clicked(i)} color='primary' variant={new_variant}>
                                                     {button_names[i]}
                       </Button>

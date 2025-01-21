@@ -27,7 +27,7 @@ export const default_config: KawaiConfig = {
             selected_locale: { value: '' },
         },
         shortcut: {
-            goto_netflix: { shortcut_key: '' },
+            goto_netflix: { shortcut_key: 'lCtrl+L' },
             goto_laftel: { shortcut_key: '' },
             goto_youtube: { shortcut_key: '' },
             goto_disney: { shortcut_key: '' },

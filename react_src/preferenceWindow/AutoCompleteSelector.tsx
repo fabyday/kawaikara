@@ -17,8 +17,7 @@ type props = {
     id: string;
     title : string
     preset_list : string[],
-    get_default_value : string,
-    additional_textedit? : boolean
+    value : string,
     select_f : (text : string)=>void;
     onselected_customize_f? : (index : number, width : number )=>void;
   };
@@ -26,27 +25,23 @@ type props = {
 
 
 
-function KawaiAutoCompleteSelector({id, title, preset_list, get_default_value , select_f, onselected_customize_f, additional_textedit} : props){
+function KawaiAutoCompleteSelector({id, title, preset_list, value , select_f, onselected_customize_f} : props){
 
 
   
-let [default_val , set_checked] = React.useState(get_default_value);
 
 
-useEffect(()=>{
-    set_checked(get_default_value)
-}, [get_default_value])
 return (  
     <Grid  container  spacing={12}  alignItems="center" justifyContent="center">
             <Grid item xs={6} justifyContent="center" width="100%"> <Typography  align="left" >{title}</Typography> </Grid>
             <Grid item xs={6}  justifyContent="center" alignItems="center">
                     <Box  display="flex" flexDirection="column" justifyContent="flex-start" alignItems="flex-start">
-                    <WindowSizeComponent id = {id} 
+                    <WindowSizeComponent id = {id}
                             preset_list = {preset_list} 
-                            get_default_value={default_val}
+                            value={value}
                             onSelect_f={select_f}
                             onselected_customize_f={onselected_customize_f}
-                            customizable={additional_textedit}/>
+                            />
                     </Box>
                 </Grid>
             </Grid>
