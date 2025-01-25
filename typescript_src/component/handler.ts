@@ -12,6 +12,7 @@ import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiKeyEvent } from '../definitions/keyboard';
 import { get_preference_instance } from './preference';
 import { default_config } from '../definitions/default_preference';
+import { KawaiViewManager } from '../manager/view_manager';
 
 /**
  *
@@ -51,17 +52,61 @@ export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.menu.load_menu,
         (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.load_favorites_list,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.add_favorites,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.delete_favorites,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.select_menu_item,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
+            return MenuManager.getInstance().getMenuItemsByJson();
+        },
+    );
+    ipcMain.handle(
+        KAWAI_API_LITERAL.menu.update_favorites_order,
+        (event: IpcMainInvokeEvent, ...args: any) => {
+            const spy = MenuManager.getInstance().getMenuItemsByJson();
+            console.log(spy)
             return MenuManager.getInstance().getMenuItemsByJson();
         },
     );
 
-    ipcMain.on(
+
+    ipcMain.handle(
         KAWAI_API_LITERAL.preference.apply_modified_preference,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
+        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
             const new_conf = args[0] as KawaiConfig;
-            set_config(new_conf);
+            set_config(new_conf!);
             flog.debug('new config saved.', new_conf);
-            return global_object.config;
+            flog.debug('new config saved.', global_object.config);
+            return true;
         },
     );
 
@@ -134,6 +179,12 @@ export function connectMainProcessHandler() {
             const config: KawaiConfig = args[0] as KawaiConfig;
             set_config(config);
             global_object.preferenceWindow?.close();
+        },
+    );
+    ipcMain.on(
+        KAWAI_API_LITERAL.menu.close,
+        (e: Electron.IpcMainEvent, ...args: any[]) => {
+            KawaiViewManager.getInstance().closeMenu();
         },
     );
 }

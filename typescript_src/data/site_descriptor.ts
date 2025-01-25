@@ -3,6 +3,9 @@ import {
     registerKawaiSiteDescriptor,
 } from '../definitions/SiteDescriptor';
 import {connect_menu} from "../manager/menu_manager"
+
+
+
 @registerKawaiSiteDescriptor
 export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
     id: string = 'netflix';
@@ -32,7 +35,7 @@ export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
     }
 
     LoadFaviconUrl(): string {
-        return 'https://laftel.net/favicon.ico';
+        return 'https://static.laftel.net/favicon.ico';
     }
 }
 
@@ -118,6 +121,36 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id = 'goto_tving';
     id = 'tving';
+    category = 'ott';
+
+    loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://www.tving.com/');
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://www.tving.com/favicon.ico';
+    }
+}
+
+@registerKawaiSiteDescriptor
+export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
+    shortcut_id = 'goto_tving';
+    id = 'chzzk';
+    category = 'ott';
+
+    loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://www.tving.com/');
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://www.tving.com/favicon.ico';
+    }
+}
+
+@registerKawaiSiteDescriptor
+export class KawaiAppleMusicDesc extends KawaiAbstractSiteDescriptor {
+    shortcut_id = 'goto_tving';
+    id = 'applemusic';
     category = 'ott';
 
     loadUrl(browser: Electron.BrowserWindow) {

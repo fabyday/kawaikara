@@ -7,7 +7,7 @@ export const load_update_info_f = () => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.load_update_info);
 };
 
-export const load_locale_f = (locale: string) => {
+export const load_locale_f = () => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.preference.load_locale);
 };
 
@@ -23,7 +23,7 @@ export const delete_favorites_list_f = (shortcut_property_key: string) => {
 };
 
 export const load_menu_f = () => {
-    ipcRenderer.invoke(KAWAI_API_LITERAL.menu.load_menu);
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.load_menu);
 };
 
 export const update_favorites_order_f = (
@@ -103,6 +103,15 @@ export const select_menu_item_f = (id: string) => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.select_menu_item, id);
 };
 
+
+export const notify_menu_update_f = (callback : (...args : any[])=>void)=>{
+    ipcRenderer.on(KAWAI_API_LITERAL.menu.notify_menu_update, (event : Electron.IpcRendererEvent, ...args : any[])=>{
+        callback(...args);
+    })
+}
+
+
+
 export const keydown_f = async (event: KeyboardEvent) => {
     const keyData = {
         key: event.key,
@@ -141,4 +150,10 @@ export function flog(...args: any[]) {}
 
 export function log(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
+}
+export function custom_callback(name: string, ...args: any[]) {
+    ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
+}
+export function close_menu_f() {
+    ipcRenderer.send(KAWAI_API_LITERAL.menu.close);
 }

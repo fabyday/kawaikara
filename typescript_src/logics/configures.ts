@@ -57,7 +57,7 @@ function apply_resize_window() {
 function apply_pipmode() {}
 
 function set_shortcut_configuration(jsondata: KawaiConfig) {
-    const mgr = ShortcutManager.getInstance();
+    // const mgr = ShortcutManager.getInstance().register();
 }
 
 function save_config(config: KawaiConfig, save_path?: string) {
@@ -69,9 +69,6 @@ function save_config(config: KawaiConfig, save_path?: string) {
     }
 }
 
-function set_favorites(config: KawaiConfig) {
-    log.info('set favorites');
-}
 
 function isJsonObject(input: unknown): input is JSON {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
@@ -150,15 +147,14 @@ export function set_config(data: JSON | string | KawaiConfig) {
     } else {
         global_object.config = { ...global_object.config, ...config };
     }
-
+    return;
     flog.debug(config);
     flog.debug(global_object.config);
 
     flog.debug('===========');
 
-    set_general_configuration(global_object.config);
-    set_shortcut_configuration(global_object.config);
-    set_favorites(global_object.config);
+    // set_general_configuration(global_object.config);
+    // set_shortcut_configuration(global_object.config);
 }
 
 /**

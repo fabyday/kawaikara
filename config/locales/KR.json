@@ -1,0 +1,62 @@
+{
+    "preference": {
+        "general": {
+            "dark_mode": { "name": "다크모드" },
+            "default_main": {
+                "name": "홈",
+                "url": { "name":"홈" }
+            },
+            "enable_autoupdate": { "name": "자동 업데이트 활성화" },
+            "render_full_size_when_pip_running": {
+                "name": "render when pip running"
+           },
+            "window_preference": {
+                "pip_location": {
+                    "monitor": { "name": "PiP Location" }
+        },
+                "pip_window_size": {
+                    "name": "PiP 윈도우 사이즈",
+                    "x": { "name": "X"},
+                    "y": { "name": "Y" },
+                    "width": { "name": "너비" },
+                    "height": { "name": "높이" }
+                }
+            }
+        },
+        "locale": {
+            "name": "언어",
+            "selected_locale": { "name": "언어 선택" }
+        },
+        "shortcut": {
+            "name": "단축키",
+            "goto_netflix": { "name": "넷플릭스" },
+            "goto_laftel": { "name": "라프텔" },
+            "goto_youtube": { "name": "유튜브" },
+            "goto_disney": { "name": "디즈니 플러스" },
+            "goto_wavve": { "name": "웨이브" },
+            "goto_tving": { "name": "티빙" },
+            "goto_twitch": { "name": "트위치" },
+            "run_pip": { "name": "PiP 실행" },
+            "goto_applemusic": { "name": "애플 뮤직" },
+            "goto_chzzk": { "name": "치지직" },
+            "goto_amazonprime": { "name": "아마존 프라임" }
+        }
+    },
+    "version": { "name" : "2.0.0"},
+    "locale_meta": { "filename": "KR", "metaname": "한국어" },
+    "system_literal" : {
+        "main" : "홈",
+        "netflix" : "넷플릭스",
+        "laftel":"라프텔",
+        "disneyplus":"디즈니 플러스",
+        "youtube":"유튜브",
+        "amazonprime" : "아마존 프라임",
+        "wavve" : "웨이브",
+        "watcha" : "왓차",
+        "coupangplay" : "쿠팡 플레이",
+        "tving" : "티빙",
+        "applemusic" : "애플 뮤직",
+        "chzzk" : "치지직",
+        "twitch" : "트위치"
+    }
+}

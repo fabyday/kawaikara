@@ -27,12 +27,17 @@ export function get_menu_instance() {
         const { x, y, width, height } = global_object!.mainWindow!.getBounds()!;
         view.setBounds({ x: 0, y: 0, width: width, height: height });
         let html_path = path.resolve(script_root_path, './pages/sidebar.html');
-        view.webContents.loadURL(html_path);
-        view.setBackgroundColor('white'); //default color is transparent.
-        view.webContents.insertCSS('html,body{ overflow: hidden !important; }');
+        // view.webContents.loadURL(html_path);
+        view.webContents.loadURL( process.env.IS_DEV
+            ? 'http://localhost:3000/sidebar.html'
+            : html_path,);
+            
+        // view.setBackgroundColor('skyblue'); //default color is transparent.
+        // view.webContents.insertCSS('html,body{ background:transparent;overflow: hidden !important; }');
+        // view.webContents.insertCSS('html,body{ background:transparent; }');
 
         if (process.env.IS_DEV) {
-            // view.webContents.openDevTools({ mode: 'detach' });
+            view.webContents.openDevTools({ mode: 'right' });
         }
         (view as any).name = 'menu';
         KawaiViewManager.getInstance().trackBrowserFocus(view);

@@ -39,7 +39,7 @@ export type KawaiLocaleConfigure = KawaiNameProperty & {
 };
 
 export type KawaiPage = KawaiNameProperty & {
-    url: KawaiStringProperty;
+    id: KawaiStringProperty;
 };
 
 export type KawaiLiteralPorperty<T> = T;
@@ -117,7 +117,7 @@ export type KawaiConfigure = {
  * metaname : name on app display.
  */
 export type LocaleMeta = { filename: string; metaname: string };
-
+export type SystemLiteralMeta = {[key:string] : string}
 export type KawaiConfig = KawaiRecursiveTypeRemover<
     KawaiConfigure,
     KawaiNameProperty
@@ -125,4 +125,4 @@ export type KawaiConfig = KawaiRecursiveTypeRemover<
 export type KawaiLocale = KawaiRecursiveTypeExtractor<
     KawaiConfigure,
     KawaiNameProperty
-> & { locale_meta?: LocaleMeta };
+> & { locale_meta?: LocaleMeta , system_literal? : SystemLiteralMeta};

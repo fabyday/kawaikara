@@ -3,6 +3,7 @@ import { ContextBridge, contextBridge, ipcRenderer } from 'electron';
 import {
     add_favorites_f,
     apply_preference_f,
+    close_menu_f,
     close_preference_f,
     delete_favorites_list_f,
     keydown_f,
@@ -18,6 +19,7 @@ import {
     load_locale_f,
     load_menu_f,
     load_update_info_f,
+    notify_menu_update_f,
     save_and_close_preference_f,
     select_menu_item_f,
     update_favorites_order_f,
@@ -36,8 +38,9 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_available_locale_list: load_available_locale_list_f,
         load_available_monitor_list: load_available_monitor_list_f,
         load_available_window_size_list: load_available_window_size_list_f,
-        load_available_pip_window_size_list : load_available_pip_window_size_list_f,
-        load_available_pip_location_list : load_available_pip_location_list_f,
+        load_available_pip_window_size_list:
+            load_available_pip_window_size_list_f,
+        load_available_pip_location_list: load_available_pip_location_list_f,
     },
     menu: {
         // fovorites manipulation ops
@@ -48,6 +51,8 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         // load entire menu item.
         load_menu: load_menu_f,
         select_menu_item: select_menu_item_f,
+        notify_menu_update: notify_menu_update_f,
+        close : close_menu_f
     },
     etc: {
         load_update_info: load_update_info_f,

@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, useEffect } from 'react';
+import React, { MouseEventHandler, useEffect, useRef } from 'react';
 import ShortcutTextField from './ShortcutTextfield';
 import { Grid } from '@mui/material';
 import Typography from '@mui/material/Typography';
@@ -22,6 +22,10 @@ import { create } from 'zustand';
 import KawaiSelector from './KawaiSelector';
 
 function GeneralPreference() {
+    const ref_site_map = useRef<Map<string, string>>(new Map());
+    const ref_site_rmap = useRef<Map<string, string>>(new Map());
+    const ref_locale_map = useRef<Map<string, string>>(new Map());
+    const ref_locale_rmap = useRef<Map<string, string>>(new Map());
     const [set_property, get_property] = config_states((state) => [
         state.set_property,
         state.get_property,
@@ -49,13 +53,34 @@ function GeneralPreference() {
             console.log('fetched');
         });
     }, []);
+
+    useEffect(() => {
+        console.log(
+            'available_site_list, available_site_list',
+            available_site_list,
+        );
+        ref_site_map.current.clear();
+        ref_site_rmap.current.clear();
+        available_site_list.forEach((v) => {
+            ref_site_map.current.set(v.id, v.name ?? v.id);
+            ref_site_rmap.current.set(v.name, v.id);
+        });
+    }, [available_site_list]);
     // const f = (value : string)=>{
     //     const [width, height] = value.split("x").map((v)=>Number(v))
     //     set_property("configure.general.pip_location.preset_location_list.width", width)
     //     set_property("configure.general.pip_location.preset_location_list.height", height)
 
     // }
+    useEffect(() => {
+        ref_locale_map.current.clear();
+        ref_locale_rmap.current.clear();
 
+        available_locale_list.forEach((v) => {
+            ref_locale_map.current.set(v.filename, v.metaname ?? v.filename);
+            ref_locale_rmap.current.set(v.metaname, v.filename);
+        });
+    }, [available_locale_list]);
     return (
         <Box>
             <Typography fontSize={32}>
@@ -68,6 +93,51 @@ function GeneralPreference() {
                 justifyContent="center"
                 rowGap={1}
                 spacing={1}>
+                <KawaiSelector
+                    id={'general.default_main'}
+                    title={
+                        get_property()?.general?.default_main?.name ??
+                        'Default Page'
+                    }
+                    preset_list={(() => {
+                        let val = Array.from(ref_site_rmap.current.keys());
+                        if (val.length === 0)
+                            val = Array.from(ref_site_map.current.keys());
+                        return val;
+                    })()}
+                    value={
+                        get_property()?.general?.default_main?.id.name ?? 'main'
+                    }
+                    select_f={(name: string) => {
+                        let id = ref_site_rmap.current.get(name);
+
+                        if (typeof id === 'undefined') {
+                            id = ref_site_map.current.get(name);
+                        }
+                        set_property('general.default_main.id.value', id);
+                    }}
+                />
+                <KawaiSelector
+                    id={'locale'}
+                    title={get_property()?.locale?.name ?? 'Locale'}
+                    preset_list={(() => {
+                        let val = Array.from(ref_locale_rmap.current.keys());
+                        if (val.length === 0)
+                            val = Array.from(ref_locale_map.current.keys());
+                        return val;
+                    })()}
+                    value={
+                        get_property()?.locale?.selected_locale?.name ?? 'main'
+                    }
+                    select_f={(name: string) => {
+                        let filename = ref_locale_rmap.current.get(name);
+
+                        if (typeof filename === 'undefined') {
+                            filename = ref_locale_map.current.get(name);
+                        }
+                        set_property('locale.selected_locale.value', filename);
+                    }}
+                />
                 <KawaiSelector
                     id={'general.pip_location.location'}
                     title={
@@ -95,7 +165,7 @@ function GeneralPreference() {
                     preset_list={available_monitor_list}
                     value={
                         get_property()?.general?.window_preference?.pip_location
-                            ?.monitor?.value ?? ""
+                            ?.monitor?.value ?? ''
                     }
                     select_f={(text: string) => {
                         set_property(
@@ -110,7 +180,7 @@ function GeneralPreference() {
                         get_property()?.general?.window_preference
                             ?.pip_window_size?.name ?? 'PiP Window Size'
                     }
-                    preset_list={available_window_size_list.map((value) => {
+                    preset_list={available_pip_window_size_list.map((value) => {
                         const [width, height]: number[] = value;
                         return width.toString() + 'x' + height.toString();
                     })}
@@ -179,7 +249,7 @@ function GeneralPreference() {
                         );
                     }}
                     onselected_customize_f={(index: number, size: number) => {
-                        console.log("size?",size)
+                        console.log('size?', size);
                         if (index === 0)
                             set_property(
                                 'general.window_preference.window_size.width.value',

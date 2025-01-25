@@ -107,7 +107,7 @@ const context = (set: set_type, get: get_type) => ({
         const combine_config = lodash.merge({}, config_);
         const combine_locale = lodash.merge(combine_config, locale);
         set((state) => {
-            return { ...state, perference: { ...combine_locale } };
+            return { ...state, perference: { ...combine_locale }, changed_preference : {} };
         });
         shortcut_states.getState().fetch(config_.shortcut);
     },
@@ -261,7 +261,7 @@ export const preset_data = create<Presets>((set, get) => ({
             await window.KAWAI_API.preference.load_available_site_list();
         const available_pip_location_list =
             await window.KAWAI_API.preference.load_available_pip_location_list();
-        set((state) => ({
+            set((state) => ({
             ...state,
             available_window_size_list: [...available_window_size_list],
             available_monitor_list: [...available_monitor_list],

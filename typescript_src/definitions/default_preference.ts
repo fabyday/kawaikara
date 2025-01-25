@@ -10,7 +10,7 @@ export const default_config: KawaiConfig = {
     preference: {
         general: {
             dark_mode: { value: true },
-            default_main: { url: { value: '' } },
+            default_main: { id: { value: '' } },
             enable_autoupdate: { value: true },
             render_full_size_when_pip_running: { value: true },
             window_preference: {
@@ -53,7 +53,7 @@ export const default_locale: KawaiLocale = {
             dark_mode: { name: 'Dark Mode' },
             default_main: {
                 name: 'Default Main Page',
-                url: { name: 'Main Page' },
+                id: { name: 'Main Page' },
             },
             enable_autoupdate: { name: 'Enable Autoupdate' },
             render_full_size_when_pip_running: {
@@ -93,4 +93,19 @@ export const default_locale: KawaiLocale = {
     },
     version: { name : "2.0.0"},
     locale_meta: { filename: 'EN', metaname: 'eng' },
+    system_literal : {
+        main : "Kawai Main",
+        netflix : "Netflix",
+        laftel:"Laftel",
+        disneyplus:"Disney",
+        youtube:"Youtube",
+        amazonprime : "Amazon Prime",
+        wavve : "Wavve",
+        watcha : "Watcha",
+        coupangplay : "Coupang Play",
+        tving : "Tving",
+        applemusic : "Apple Music",
+        chzzk : "Chzzk",
+        twitch : "Twitch",
+    }
 };

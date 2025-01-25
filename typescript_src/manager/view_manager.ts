@@ -112,7 +112,8 @@ export class KawaiViewManager {
     }
 
     public openMenu() {
-        global_object.mainWindow?.setBrowserView(get_menu_instance());
+        const menu = get_menu_instance();
+        global_object.mainWindow?.setBrowserView(menu);
         if (!global_object.menu?.webContents.isFocused())
             global_object.menu?.webContents.focus();
     }

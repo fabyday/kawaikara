@@ -6,7 +6,8 @@ import {
 } from '../definitions/setting_types';
 import { BrowserWindow } from 'electron';
 import { global_object } from '../data/context';
-
+import { get_flogger } from '../logging/logger';
+const flog = get_flogger("WindowManager", "windowmanager", "debug")
 export class KawaiWindowManager {
     static __instance: KawaiWindowManager | undefined = undefined;
     static readonly preset_size = [
@@ -82,7 +83,8 @@ export class KawaiWindowManager {
         const pip_preset = [
             [400, 300],
             [600, 400],
-        ].concat(...preset_size.slice(0, end_index));
+        ].concat(preset_size.slice(0, end_index));
+        flog.debug(pip_preset)
         return pip_preset;
     }
     /**

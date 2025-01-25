@@ -7,6 +7,7 @@
 import Logger from 'electron-log';
 import log from 'electron-log/main';
 import { exit } from 'node:process';
+import { global_object } from '../data/context';
 
 export class KawaiAbstractSiteDescriptor {
     readonly id: string | undefined; // descriptor id.
@@ -54,6 +55,8 @@ export class KawaiSiteDescriptorManager {
         this.m_registered_descriptors.set(cls.id as string, cls);
     }
 
+
+
     qeury_site_descriptor_by_name(
         id: string,
     ): KawaiAbstractSiteDescriptor | undefined {
@@ -64,7 +67,21 @@ export class KawaiSiteDescriptorManager {
 
     /// return 
     getRegisteredDescriptorIds() {
-        return Array.from(this.m_registered_descriptors.keys());
+        const descIdList = Array.from(this.m_registered_descriptors.keys());
+
+        const literal = global_object.locale?.system_literal;
+        let localed_added_id = []
+        console.log(global_object.locale)
+        if(typeof literal !== "undefined"){
+            localed_added_id = descIdList.map((desc_id)=>{
+                return {id : desc_id, name : literal[desc_id] ?? desc_id}
+            })
+        }else{
+            localed_added_id = descIdList.map((desc_id)=>{
+                return {id : desc_id, name : desc_id}
+            })
+        }
+        return localed_added_id;
     }
 }
 

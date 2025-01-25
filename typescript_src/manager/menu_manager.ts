@@ -2,6 +2,7 @@ import { get_menu_instance } from '../component/menu';
 import { get_flogger, log } from '../logging/logger';
 import { global_object } from '../data/context';
 import { KawaiCategoryBase, KawaiMenuBase } from '../definitions/menu_def';
+import EventEmitter from 'node:events';
 
 const flog = get_flogger("MenuLogger", "menumanager", "debug")
 
@@ -14,6 +15,8 @@ export class MenuManager {
     private m_category_menu_map: Map<string, string[]>;
     private m_event_listener_map: Map<string, KawaiMenuClickedEventCallback[]>;
 
+    private m_event_emitter = new EventEmitter();
+
     private constructor() {
         this.m_category_items = new Map<string, KawaiCategoryBase>();
         this.m_menu_item = new Map<string, KawaiMenuBase>();
@@ -22,6 +25,7 @@ export class MenuManager {
             string,
             KawaiMenuClickedEventCallback[]
         >();
+
         
     }
 
@@ -88,6 +92,7 @@ export class MenuManager {
             item_list!.push(item.id);
         } else {
             this.m_category_menu_map.set(category_id, [item.id]);
+            
         }
     }
 
@@ -96,28 +101,29 @@ export class MenuManager {
         func: KawaiMenuClickedEventCallback,
     ) {
         if (this.m_event_listener_map.has(menu_id)) {
-            this.m_event_listener_map.get(menu_id)?.push(func);
+            // this.m_event_listener_map.get(menu_id)?.push(func);
         } else {
-            this.m_event_listener_map.set(menu_id, [func]);
+            // this.m_event_listener_map.set(menu_id, [func]);
+            this.m_event_emitter.on("menu-selected", func)
         }
     }
 
     public onSelectItem(category_id: string, id: string) {
-        const selected_callbacks: KawaiMenuClickedEventCallback[] | undefined =
-            this.m_event_listener_map.get(id);
-        console.log(this.m_menu_item);
-        const menuitem = this.m_menu_item.get(id);
-        console.log(menuitem);
-        if (typeof menuitem !== 'undefined') {
-            menuitem.activate();
-        }
-        if (typeof selected_callbacks === 'undefined') {
-            return; // do nothing.
-        }
-
-        for (const callback of selected_callbacks) {
-            callback(id);
-        }
+        // const selected_callbacks: KawaiMenuClickedEventCallback[] | undefined =
+        //     this.m_event_listener_map.get(id);
+        // console.log(this.m_menu_item);
+        // const menuitem = this.m_menu_item.get(id);
+        // console.log(menuitem);
+        // if (typeof menuitem !== 'undefined') {
+        //     menuitem.activate();
+        // }
+        // if (typeof selected_callbacks === 'undefined') {
+        //     return; // do nothing.
+        // }
+        this.m_event_emitter.emit("menu-selected", id);
+        // for (const callback of selected_callbacks) {
+        //     callback(id);
+        // }
     }
 
     public openMenu() {

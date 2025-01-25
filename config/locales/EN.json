@@ -43,5 +43,20 @@
         }
     },
     "version": { "name" : "2.0.0"},
-    "locale_meta": { "filename": "EN", "metaname": "eng" }
+    "locale_meta": { "filename": "EN", "metaname": "English" },
+    "system_literal" : {
+        "main" : "Kawai Main",
+        "netflix" : "Netflix",
+        "laftel":"Laftel",
+        "disneyplus":"Disney plus",
+        "youtube":"Youtube",
+        "amazonprime" : "Amazonprime",
+        "wavve" : "Wavve",
+        "watcha" : "Watcha",
+        "coupangplay" : "Coupang Play",
+        "tving" : "Tving",
+        "applemusic" : "Apple Music",
+        "chzzk" : "Chzzk",
+        "twitch" : "Twitch"
+    }
 }

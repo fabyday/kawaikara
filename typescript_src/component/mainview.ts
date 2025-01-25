@@ -88,8 +88,9 @@ export const get_mainview_instance = (): BrowserWindow => {
             height: height,
 
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
-
+            
             webPreferences: {
+            
                 preload: path.resolve(__dirname, 'predefine/communicate.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
@@ -130,14 +131,14 @@ export const get_mainview_instance = (): BrowserWindow => {
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
-        // mainView.loadURL('https://chzzk.naver.com/', {
-        //     userAgent:
-        //         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        // });
-        mainView.loadURL('https://www.crunchyroll.com/', {
+        mainView.loadURL('https://chzzk.naver.com/', {
             userAgent:
-                'chrome',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         });
+        // mainView.loadURL('https://www.crunchyroll.com/', {
+        //     userAgent:
+        //         'chrome',
+        // });
         mainView.webContents.openDevTools({ mode: 'detach' });
         mainView.webContents.on('page-title-updated', () => {
             mainView.setTitle(app.getName());

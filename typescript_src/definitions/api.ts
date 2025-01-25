@@ -20,10 +20,13 @@ const api_literal = {
         load_favorites_list: 'load-favorites-list',
         delete_favorites: 'delete-favorites',
         update_favorites_order: 'update-fovorites-order',
-
+        
         // load entire menu item.
         load_menu: 'load-menu',
         select_menu_item: 'select-menu-item',
+
+        notify_menu_update : 'notify-menu-update',
+        close : 'menu-close'
     },
     etc: {
         load_update_info: 'load-update-info',
@@ -37,6 +40,9 @@ const api_literal = {
     logging: {
         log: 'log',
     },
+    custom : {
+        custom_callback : "custom-callback"
+    }
 };
 
 export const KAWAI_API_LITERAL = Object.freeze(api_literal);

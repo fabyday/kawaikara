@@ -20,7 +20,7 @@ const FooterComponent = styled('div')({
 function Footer() {
     const [is_changed, changed_preference] = config_states(state=>[state.is_changed, state.changed_preference])
     const [check_dups_all] = shortcut_states(state=>[state.check_duplication_all])
-
+    const refetch = config_states(state=>state.fetch);
 
     const check_f=()=>{
         //TODO
@@ -67,9 +67,12 @@ function Footer() {
                         <Button
                             variant="contained"
                             style={check_f() ? enable_style  :disable_style}
-                            onClick={() => {
+                            onClick={async () => {
                                 if(check_f()){
-                                    window.KAWAI_API.preference.apply_modified_preference(changed_preference);
+                                    if(await window.KAWAI_API.preference.apply_modified_preference(changed_preference)){
+                                        refetch();
+                                    }
+
                                 }
                             }}
                             disabled={!check_f()}>
