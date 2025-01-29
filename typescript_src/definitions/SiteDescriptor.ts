@@ -29,67 +29,7 @@ export class KawaiAbstractSiteDescriptor {
     }
 }
 
-export class KawaiSiteDescriptorManager {
-    // singleton pattern
-    private static _instance: KawaiSiteDescriptorManager;
-    private m_registered_descriptors: Map<string, KawaiAbstractSiteDescriptor>;
-    private constructor() {
-        this.m_registered_descriptors = new Map<
-            string,
-            KawaiAbstractSiteDescriptor
-        >();
-    }
-
-    public async initializeDefaultSitesDescriptor() {
-        await import('../data/site_descriptor'); // do nothing just load desc.
-    }
-    public static getInstance(): KawaiSiteDescriptorManager {
-        if (!KawaiSiteDescriptorManager._instance) {
-            KawaiSiteDescriptorManager._instance =
-                new KawaiSiteDescriptorManager();
-        }
-        return KawaiSiteDescriptorManager._instance;
-    }
-
-    register(cls: KawaiAbstractSiteDescriptor) {
-        this.m_registered_descriptors.set(cls.id as string, cls);
-    }
 
 
 
-    qeury_site_descriptor_by_name(
-        id: string,
-    ): KawaiAbstractSiteDescriptor | undefined {
-        const id_list: string[] = id.split('.');
-        const target_id: string = id_list[id_list.length - 1];
-        return this.m_registered_descriptors.get(target_id);
-    }
 
-    /// return 
-    getRegisteredDescriptorIds() {
-        const descIdList = Array.from(this.m_registered_descriptors.keys());
-
-        const literal = global_object.locale?.system_literal;
-        let localed_added_id = []
-        console.log(global_object.locale)
-        if(typeof literal !== "undefined"){
-            localed_added_id = descIdList.map((desc_id)=>{
-                return {id : desc_id, name : literal[desc_id] ?? desc_id}
-            })
-        }else{
-            localed_added_id = descIdList.map((desc_id)=>{
-                return {id : desc_id, name : desc_id}
-            })
-        }
-        return localed_added_id;
-    }
-}
-
-export function registerKawaiSiteDescriptor<
-    T extends { new (...args: any[]): KawaiAbstractSiteDescriptor },
->(constructor: T) {
-    const class_object = new constructor();
-    Logger.info('init... ', class_object.id);
-    KawaiSiteDescriptorManager.getInstance().register(class_object);
-    return constructor;
-}

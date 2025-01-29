@@ -20,6 +20,7 @@ import {
     load_menu_f,
     load_update_info_f,
     notify_menu_update_f,
+    on_notify_menu_open_f,
     save_and_close_preference_f,
     select_menu_item_f,
     update_favorites_order_f,
@@ -52,7 +53,9 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_menu: load_menu_f,
         select_menu_item: select_menu_item_f,
         notify_menu_update: notify_menu_update_f,
-        close : close_menu_f
+        close : close_menu_f,
+
+        on_notify_menu_status : on_notify_menu_open_f
     },
     etc: {
         load_update_info: load_update_info_f,

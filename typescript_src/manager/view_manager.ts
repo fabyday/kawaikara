@@ -4,8 +4,10 @@ import { flog } from '../component/predefine/api';
 import { get_flogger, log } from '../logging/logger';
 import { get_menu_instance } from '../component/menu';
 import { get_preference_instance } from '../component/preference';
-import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { get_mainview_instance } from '../component/mainview';
+import { ipcMain } from 'electron/main';
+import { KAWAI_API_LITERAL } from '../definitions/api';
+import { KawaiSiteDescriptorManager } from './site_descriptor_manager';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
 
@@ -114,6 +116,7 @@ export class KawaiViewManager {
     public openMenu() {
         const menu = get_menu_instance();
         global_object.mainWindow?.setBrowserView(menu);
+        menu.webContents.send(KAWAI_API_LITERAL.menu.on_notify_menu_open, "open");
         if (!global_object.menu?.webContents.isFocused())
             global_object.menu?.webContents.focus();
     }
@@ -123,6 +126,13 @@ export class KawaiViewManager {
     }
 
     public closeMenu() {
+        global_object.menu!.webContents.send(KAWAI_API_LITERAL.menu.on_notify_menu_open, "close");
+
+        
+    }
+
+
+    public _closeMenu(){
         global_object.mainWindow?.removeBrowserView(global_object.menu!);
         if (!global_object.mainWindow?.webContents.isFocused()) {
             global_object.mainWindow?.webContents.focus();

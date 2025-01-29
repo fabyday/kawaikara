@@ -13,7 +13,6 @@ import {
     connectMainProcessHandler,
     connectMainWindowHandler,
 } from '../component/handler';
-import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager as KawaiLocaleManager } from '../manager/lcoale_manager';
 import { ShortcutManager as KawaiShortcutManager } from '../manager/shortcut_manager';
 import { get_mainview_instance } from '../component/mainview';
@@ -23,6 +22,7 @@ import { KawaiViewManager } from '../manager/view_manager';
 import { get_preference_instance } from '../component/preference';
 import { MenuManager } from '../manager/menu_manager';
 import { get_menu_instance } from '../component/menu';
+import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states

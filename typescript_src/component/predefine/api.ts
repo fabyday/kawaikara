@@ -157,3 +157,8 @@ export function custom_callback(name: string, ...args: any[]) {
 export function close_menu_f() {
     ipcRenderer.send(KAWAI_API_LITERAL.menu.close);
 }
+
+
+export function on_notify_menu_open_f(callback : (state:string)=>void){
+    ipcRenderer.on(KAWAI_API_LITERAL.menu.on_notify_menu_open, (e, s:string)=>{callback(s)});
+}

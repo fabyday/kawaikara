@@ -42,6 +42,19 @@ const shortcut_ignoreset = new Set<string>([
     create_action_key_from_string_array('alt', 'F4'),
     create_action_key_from_string_array('alt', 'enter'),
 ]);
+
+class KawaiShortcutProxy implements KawaiAbstractProxy{
+    
+    id:string;
+
+    constructor(){
+        this.id = "100";
+    }
+    connectCallback(){};
+
+}
+
+
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
 
@@ -185,6 +198,10 @@ export class ShortcutManager {
         this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
     }
 
+    public unregister(o : keyActionListenable){
+
+    }
+
     protected addActionMap(
         targetView: string,
         actions: string[],
@@ -263,6 +280,9 @@ export class ShortcutManager {
         return shortcut_ignoreset;
     }
 }
+
+
+
 
 // const a = ShortcutManager.getInstance();
 // a.register({

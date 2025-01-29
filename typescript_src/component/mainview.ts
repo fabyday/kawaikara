@@ -8,7 +8,7 @@ import {
 } from 'electron';
 
 import * as path from 'path';
-
+import * as fs from 'node:fs'
 import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
@@ -88,9 +88,8 @@ export const get_mainview_instance = (): BrowserWindow => {
             height: height,
 
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
-            
+
             webPreferences: {
-            
                 preload: path.resolve(__dirname, 'predefine/communicate.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
@@ -107,6 +106,16 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
+
+        mainView.webContents.once('did-finish-load', async () => {
+            await fs.readFile(path.join(__dirname, 'test_extension.js'), 'utf8', (err, data)=>{
+                console.log("data")
+                console.log(data)
+                mainView.webContents.executeJavaScript(
+                data    
+                );
+            })
+        });
 
         // mainView.webContents.session.webRequest.onBeforeSendHeaders(
         //     (details, callback) => {
@@ -139,7 +148,9 @@ export const get_mainview_instance = (): BrowserWindow => {
         //     userAgent:
         //         'chrome',
         // });
-        mainView.webContents.openDevTools({ mode: 'detach' });
+        if (process.env.IS_DEV) {
+            mainView.webContents.openDevTools({ mode: 'detach' });
+        }
         mainView.webContents.on('page-title-updated', () => {
             mainView.setTitle(app.getName());
         });

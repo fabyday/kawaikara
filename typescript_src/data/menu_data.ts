@@ -3,11 +3,12 @@
 import { shell } from 'electron';
 import { KawaiMenuBase } from '../definitions/menu_def';
 import { KawaiAction } from '../definitions/types';
-import { registerKawaiMenuItem } from '../manager/menu_manager';
 import { get_preference_instance } from '../component/preference';
-import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { get_mainview_instance } from '../component/mainview';
 import { KawaiViewManager } from '../manager/view_manager';
+import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
+import { connectToMenu, registerKawaiMenuItem } from '../logics/register';
+
 
 
 @registerKawaiMenuItem('ott', 'menu_netflix')

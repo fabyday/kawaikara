@@ -15,7 +15,6 @@ import {
     KeyEventListenable,
     priority,
 } from '../definitions/keyboard';
-import { log } from '../logging/logger';
 import { ShortcutManager } from './shortcut_manager';
 import { KawaiViewManager } from './view_manager';
 

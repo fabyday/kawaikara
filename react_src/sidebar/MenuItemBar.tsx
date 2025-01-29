@@ -13,7 +13,7 @@ import { KawaiMenuComponent } from './states';
 type prop = {
     selected_category_id: string | null;
     category_list: KawaiMenuComponent[];
-    onclicked: (id: string) => {};
+    onclicked: (id: string) => void;
 };
 
 const MenuItemBar = ({
@@ -128,7 +128,7 @@ const MenuItemBar = ({
                             color: 'white',
                             bgcolor: 'primary.dark',
                         }}>
-                        Menu
+                        Menus
                     </Box>
                 </ListSubheader>
             }>

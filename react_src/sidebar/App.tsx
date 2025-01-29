@@ -29,11 +29,19 @@ const App: React.FC = () => {
         state.set_current_category,
     ]);
     const [fade, setFade] = useState(false);
-
+    const fade_time = 266;
     useEffect(() => {
         fetch();
-        console.log("test")
-        setFade(true)
+        setFade(true);
+        window.KAWAI_API.menu.on_notify_menu_status((state: string) => {
+            if (state === 'open') setFade(true);
+            else {
+                setFade(false);
+                setTimeout(() => {
+                    window.KAWAI_API.menu.close();
+                }, fade_time);
+            }
+        });
         window.KAWAI_API.menu.notify_menu_update(fetch);
     }, []);
     const get_menu_deserialize = (category_id: string | null) => {
@@ -57,66 +65,70 @@ const App: React.FC = () => {
     };
 
     let reval = (
-        <Fade in = {fade} timeout={266}>
-        <Box
-
-        onClick={async ()=>{
-            setFade(false);
-            setTimeout(window.KAWAI_API.menu.close, 1000)
-        }}
-            sx={{
-                margin: 0,
-                padding: 0,
-                top: 0,
-                left: 0,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                height: '100%',
-                width: '100%',
-                alignItems: 'center',
-                position: 'absolute',
-                justifyContent: 'center',
-            }}>
+        <Fade in={fade} timeout={fade_time}>
             <Box
+                onClick={async () => {
+                    setFade(false);
+                    setTimeout(() => {
+                        window.KAWAI_API.menu.close();
+                    }, fade_time);
+                }}
                 sx={{
+                    margin: 0,
+                    padding: 0,
+                    top: 0,
+                    left: 0,
+                    overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    backgroundColor: 'rgb(149, 47, 197)',
-                    height: '80%',
-                    width: '70%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    height: '100%',
+                    width: '100%',
                     alignItems: 'center',
+                    position: 'absolute',
                     justifyContent: 'center',
-                    borderRadius: '10px',
                 }}>
-                {/* <Favorites /> */}
-
                 <Box
-                    display="flex"
-                    flexDirection="row"
-                    alignItems="flex-start"
+                    onClick={async (e) => {
+                        e.stopPropagation();
+                    }}
                     sx={{
-                        background: 'rgb(29, 211, 165)',
-                        height: '50%',
-                        margin: '2px',
-                        width: '99%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        backgroundColor: 'rgb(149, 47, 197)',
+                        height: '80%',
+                        width: '70%',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         borderRadius: '10px',
                     }}>
-                    <MenuItemBar
-                        selected_category_id={current_category}
-                        category_list={get_category_deserialize()}
-                        onclicked={(id: string) => {
-                            set_current_category(id);
-                        }}
-                    />
-                    <SubmenuBar
-                        menu_item={get_menu_deserialize(current_category)}
-                        // menu_item={get_menu_deserialize("ott")}
-                    />
+                    <Favorites fa/>
+
+                    <Box
+                        display="flex"
+                        flexDirection="row"
+                        alignItems="flex-start"
+                        sx={{
+                            background: 'rgb(29, 211, 165)',
+                            height: '50%',
+                            margin: '2px',
+                            width: '99%',
+                            borderRadius: '10px',
+                        }}>
+                        <MenuItemBar
+                            selected_category_id={current_category}
+                            category_list={get_category_deserialize()}
+                            onclicked={(id: string) => {
+                                set_current_category(id);
+                            }}
+                        />
+                        <SubmenuBar
+                            menu_item={get_menu_deserialize(current_category)}
+                            // menu_item={get_menu_deserialize("ott")}
+                        />
+                    </Box>
                 </Box>
             </Box>
-        </Box>
         </Fade>
     );
 

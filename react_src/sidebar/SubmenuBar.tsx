@@ -35,7 +35,7 @@ const SubmenuBar = ({ menu_item }: props) => {
         console.log(i.toString() + v.id);
         return (
             <Slide key={v.id} direction="right" in={true} timeout={500}>
-                <KListItemButton sx={{width : "100%"}}>
+                <KListItemButton sx={{ width: '100%' }}>
                     <ListItemIcon sx={{ width: 55, height: 55 }}>
                         {/* </img> */}
 
@@ -59,7 +59,7 @@ const SubmenuBar = ({ menu_item }: props) => {
         <Box
             sx={{
                 height: '100%', // 슬라이더 값에 따라 최대 높이 설정
-                width : "20em",
+                width: '20em',
                 overflowY: 'scroll',
                 marginLeft: 1,
                 borderRadius: 1,
@@ -114,7 +114,7 @@ const SubmenuBar = ({ menu_item }: props) => {
                 {value.length !== 0 ? (
                     value
                 ) : (
-                            <ListItemText sx={{width : 300, height:"100%"}}/>
+                    <ListItemText sx={{ width: 300, height: '100%' }} />
                 )}
             </List>
         </Box>

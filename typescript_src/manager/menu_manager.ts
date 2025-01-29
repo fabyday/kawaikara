@@ -2,11 +2,28 @@ import { get_menu_instance } from '../component/menu';
 import { get_flogger, log } from '../logging/logger';
 import { global_object } from '../data/context';
 import { KawaiCategoryBase, KawaiMenuBase } from '../definitions/menu_def';
-import EventEmitter from 'node:events';
+import EventEmitter, { on, once } from 'node:events';
+import { rejects } from 'node:assert';
 
-const flog = get_flogger("MenuLogger", "menumanager", "debug")
+const flog = get_flogger('MenuLogger', 'menumanager', 'debug');
 
 type KawaiMenuClickedEventCallback = (id: string) => void;
+
+class KawaiMenuProxy implements KawaiAbstractProxy {
+    id: string = '';
+    favicon?: string;
+    constructor(id: string) {
+        this.id = id;
+    }
+
+    setFaviconUrl(url?: string) {
+        this.favicon = url;
+    }
+
+    connectCallback(callback: () => void) {
+        MenuManager.getInstance();
+    }
+}
 
 export class MenuManager {
     static __instance: MenuManager | undefined;
@@ -21,12 +38,11 @@ export class MenuManager {
         this.m_category_items = new Map<string, KawaiCategoryBase>();
         this.m_menu_item = new Map<string, KawaiMenuBase>();
         this.m_category_menu_map = new Map<string, string[]>();
+        this.m_event_emitter.setMaxListeners(30);
         this.m_event_listener_map = new Map<
             string,
             KawaiMenuClickedEventCallback[]
         >();
-
-        
     }
 
     public static getInstance() {
@@ -48,11 +64,12 @@ export class MenuManager {
     }
 
     public getMenuItemsByJson() {
-
-        const mapObject: { [key: string]: any } = Object.fromEntries(this.m_menu_item);
+        const mapObject: { [key: string]: any } = Object.fromEntries(
+            this.m_menu_item,
+        );
         const jsonString = JSON.stringify(mapObject);
         flog.debug(jsonString);
-        return jsonString
+        return jsonString;
     }
 
     public add_category(item: KawaiCategoryBase | string) {
@@ -70,14 +87,15 @@ export class MenuManager {
     }
     public add_menuitem(item: KawaiMenuBase) {
         if (this.m_menu_item.has(item.id)) {
-            flog.debug("add menu failed", item)
-            flog.debug("full list", this.m_menu_item)
+            flog.debug('add menu failed', item);
+            flog.debug('full list', this.m_menu_item);
 
-            throw new Error('this category id existed in manager.\n'+item);
+            throw new Error('this category id existed in manager.\n' + item);
         }
-        
         this.add_category(item.category);
         this.m_menu_item.set(item.id, item);
+        console.log('item!!!', item.id);
+        this.m_event_emitter.emit('register-menu', item.id);
     }
 
     protected addToCategory(item: KawaiMenuBase, category_id: string) {
@@ -92,7 +110,6 @@ export class MenuManager {
             item_list!.push(item.id);
         } else {
             this.m_category_menu_map.set(category_id, [item.id]);
-            
         }
     }
 
@@ -104,7 +121,7 @@ export class MenuManager {
             // this.m_event_listener_map.get(menu_id)?.push(func);
         } else {
             // this.m_event_listener_map.set(menu_id, [func]);
-            this.m_event_emitter.on("menu-selected", func)
+            this.m_event_emitter.on('menu-selected', func);
         }
     }
 
@@ -120,7 +137,7 @@ export class MenuManager {
         // if (typeof selected_callbacks === 'undefined') {
         //     return; // do nothing.
         // }
-        this.m_event_emitter.emit("menu-selected", id);
+        this.m_event_emitter.emit('menu-selected', id);
         // for (const callback of selected_callbacks) {
         //     callback(id);
         // }
@@ -134,30 +151,56 @@ export class MenuManager {
     public closeMenu() {
         global_object.mainWindow?.removeBrowserView(get_menu_instance()!);
     }
+
+    public connectToMenu(id: string, callback: () => void) {
+        this.m_event_emitter.on('menu-selected', (selected_id: string) => {
+            if (selected_id === id) {
+                callback();
+            }
+        });
+    }
+
+    // do not use it directly.
+    public _connectToMenu(id: string) {
+        const registerConnection = this.connectToMenu;
+        console.log('register id ', id);
+        new Promise(async (resolve, rejects) => {
+            const timeout_object = setTimeout(() => {
+                this.m_event_emitter.removeListener(
+                    'register-menu',
+                    eventHandler,
+                );
+                rejects();
+            }, 30000);
+
+            if (this.m_menu_item.has(id)) {
+                console.log('menu is existsed');
+                return resolve(this.m_menu_item.get(id));
+            }
+
+            const eventHandler = (menu_id: string) => {
+                console.log('🔔 Received event:', menu_id);
+                if (menu_id === id) {
+                    clearTimeout(timeout_object); // clear timer
+                    if (id === menu_id) {
+                        this.m_event_emitter.removeListener(
+                            'register-menu',
+                            eventHandler,
+                        ); // remove listener
+                        console.log('resoved');
+                        resolve(menu_id);
+                    }
+                }
+            };
+
+            this.m_event_emitter.on('register-menu', eventHandler);
+        });
+    }
 }
 
 //
 // decorators
 //
-export function registerKawaiMenuItem(_category_id: string, _id: string) {
-    const wrapper = <T extends new (...args: any[]) => KawaiMenuBase>(
-        constructor: T,
-    ) => {
-        const newConstructor = class extends constructor {
-            id: string;
-            category: string;
-            constructor(...args: any[]) {
-                super(...args);
-                this.category = _category_id;
-                this.id = _id;
-            }
-        };
-        const class_object = new newConstructor();
-        MenuManager.getInstance().add_menuitem(class_object);
-        return newConstructor;
-    };
-    return wrapper;
-}
 
 export function registerKawaiCategory(_category_id: string) {
     const wrapper = <T extends new (...args: any[]) => KawaiMenuBase>(
@@ -186,9 +229,9 @@ export function registerKawaiCategory(_category_id: string) {
 //     return wrapper_deco;
 // }
 /**
- * 
+ *
  * @param menu_id menu id.
- * @returns 
+ * @returns
  */
 export function connect_menu(menu_id: string) {
     return function (

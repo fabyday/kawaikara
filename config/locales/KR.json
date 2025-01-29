@@ -57,6 +57,20 @@
         "tving" : "티빙",
         "applemusic" : "애플 뮤직",
         "chzzk" : "치지직",
-        "twitch" : "트위치"
+        "twitch" : "트위치",
+
+        "menu_main" : "홈",
+        "menu_netflix" : "넷플릭스",
+        "menu_laftel":"라프텔",
+        "menu_disneyplus":"디즈니 플러스",
+        "menu_youtube":"유튜브",
+        "menu_amazonprime" : "아마존 프라임",
+        "menu_wavve" : "웨이브",
+        "menu_watcha" : "왓차",
+        "menu_coupangplay" : "쿠팡 플레이",
+        "menu_tving" : "티빙",
+        "menu_applemusic" : "애플 뮤직",
+        "menu_chzzk" : "치지직",
+        "menu_twitch" : "트위치"
     }
 }

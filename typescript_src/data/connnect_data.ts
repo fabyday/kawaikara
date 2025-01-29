@@ -3,9 +3,22 @@ import { MenuManager } from '../manager/menu_manager';
 import { ShortcutManager } from '../manager/shortcut_manager';
 import { KawaiViewManager } from '../manager/view_manager';
 import { global_object } from './context';
-
+import { keyActionListenable } from '../definitions/action';
+import { RegisterShortcut } from '../logics/register';
 const menu_name = 'menu';
 const mainview = 'mainview';
+
+
+
+@RegisterShortcut
+class MainTab implements keyActionListenable {
+    targetView = menu_name;
+    actionKey = 'tab';
+    onActivated() {
+        KawaiViewManager.getInstance().closeMenu();
+        return true;
+    }
+}
 
 /**
  * predefined default setup.
@@ -35,7 +48,6 @@ ShortcutManager.getInstance().register({
     },
 });
 
-
 ShortcutManager.getInstance().register({
     targetView: mainview,
     actionKey: 'lalt+enter',
@@ -44,7 +56,6 @@ ShortcutManager.getInstance().register({
         return true;
     },
 });
-
 
 ShortcutManager.getInstance().register({
     targetView: menu_name,
@@ -55,15 +66,12 @@ ShortcutManager.getInstance().register({
     },
 });
 
-
-
-
 ShortcutManager.getInstance().register({
     targetView: mainview,
     actionKey: 'lctrl+N',
     onActivated: () => {
-        console.log("menu open")
-        MenuManager.getInstance().onSelectItem("ott", "menu_netflix")
+        console.log('menu open');
+        MenuManager.getInstance().onSelectItem('ott', 'menu_netflix');
         return true;
     },
 });
@@ -72,8 +80,8 @@ ShortcutManager.getInstance().register({
     targetView: mainview,
     actionKey: 'lctrl+Q',
     onActivated: () => {
-        console.log("menu open")
-        MenuManager.getInstance().onSelectItem("ott", "menu_laftel")
+        console.log('menu open');
+        MenuManager.getInstance().onSelectItem('ott', 'menu_laftel');
         return true;
     },
 });

@@ -4,7 +4,6 @@ import { global_object } from '../data/context';
 import { set_config } from '../logics/configures';
 import { KawaiConfig } from '../definitions/setting_types';
 import { KawaiWindowManager } from '../manager/window_manager';
-import { KawaiSiteDescriptorManager } from '../definitions/SiteDescriptor';
 import { LocaleManager } from '../manager/lcoale_manager';
 import { MenuManager } from '../manager/menu_manager';
 import { flog, log } from '../logging/logger';
@@ -13,6 +12,7 @@ import { KawaiKeyEvent } from '../definitions/keyboard';
 import { get_preference_instance } from './preference';
 import { default_config } from '../definitions/default_preference';
 import { KawaiViewManager } from '../manager/view_manager';
+import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 
 /**
  *
@@ -184,7 +184,8 @@ export function connectMainProcessHandler() {
     ipcMain.on(
         KAWAI_API_LITERAL.menu.close,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
-            KawaiViewManager.getInstance().closeMenu();
+            KawaiViewManager.getInstance()._closeMenu();
         },
     );
+    
 }

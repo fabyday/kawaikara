@@ -26,6 +26,7 @@ const api_literal = {
         select_menu_item: 'select-menu-item',
 
         notify_menu_update : 'notify-menu-update',
+        on_notify_menu_open : 'notify-menu-open', //this is callback on Renderer
         close : 'menu-close'
     },
     etc: {
