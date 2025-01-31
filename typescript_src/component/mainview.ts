@@ -8,26 +8,21 @@ import {
 } from 'electron';
 
 import * as path from 'path';
-import * as fs from 'node:fs'
+import * as fs from 'node:fs';
 import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
-import { script_root_path } from './constants';
 import { setup_pogress_bar } from './autoupdater';
-import {
-    KawaiConfig,
-    KawaiNameProperty,
-    KawaiNumberProperty,
-} from '../definitions/setting_types';
+
 import { KawaiWindowManager } from '../manager/window_manager';
 import { global_object } from '../data/context';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { flog } from './predefine/api';
 import { KawaiViewManager } from '../manager/view_manager';
 
-ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
-    blocker.enableBlockingInSession(session.defaultSession);
-});
+// ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
+//     blocker.enableBlockingInSession(session.defaultSession);
+// });
 // const { ElectronChromeExtensions } = require('electron-chrome-extensions')
 // ElectronChromeExtensions
 
@@ -107,30 +102,40 @@ export const get_mainview_instance = (): BrowserWindow => {
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
 
-        mainView.webContents.once('did-finish-load', async () => {
-            await fs.readFile(path.join(__dirname, 'test_extension.js'), 'utf8', (err, data)=>{
-                console.log("data")
-                console.log(data)
-                mainView.webContents.executeJavaScript(
-                data    
-                );
-            })
-        });
+        // mainView.webContents.once('did-finish-load', async () => {
+        //     await fs.readFile(path.join(__dirname, 'test_extension.js'), 'utf8', (err, data)=>{
+        //         console.log("data")
+        //         console.log(data)
+        //         mainView.webContents.executeJavaScript(
+        //         data
+        //         );
+        //     })
+        // });
 
+        mainView.webContents.session.webRequest.onBeforeSendHeaders(
+            (details, callback) => {
+                details.requestHeaders['Sec-Ch-Ua'] =
+                '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
+                details.requestHeaders['User-Agent'] =
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+                // console.log("test detua", details)
+                callback({ requestHeaders: details.requestHeaders });
+            },
+        );
         // mainView.webContents.session.webRequest.onBeforeSendHeaders(
         //     (details, callback) => {
-        //         const context_id: string | undefined =
-        //             global_object.context?.current_site_descriptor;
-        //         if (typeof context_id === 'string') {
-        //             const site_desc =
-        //                 KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
-        //                     context_id,
-        //                 );
-        //             if (typeof site_desc !== 'undefined') {
-        //                 site_desc.onBeforeSendHeaders(details);
-        //                 callback({ requestHeaders: details.requestHeaders });
-        //             }
-        //         }
+        //         // const context_id: string | undefined =
+        //         //     global_object.context?.current_site_descriptor;
+        //         // if (typeof context_id === 'string') {
+        //         //     const site_desc =
+        //         //         KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
+        //         //             context_id,
+        //         //         );
+        //         //     if (typeof site_desc !== 'undefined') {
+        //         //         site_desc.onBeforeSendHeaders(details);
+        //         //         callback({ requestHeaders: details.requestHeaders });
+        //         //     }
+        //         // }
         //         // if else do nothing..
         //         // details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
         //         // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -140,10 +145,13 @@ export const get_mainview_instance = (): BrowserWindow => {
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
-        mainView.loadURL('https://chzzk.naver.com/', {
-            userAgent:
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        });
+        mainView.loadURL('https://youtube.com/');
+        // mainView.loadURL('https://chzzk.naver.com/',
+        // {
+        // userAgent:
+        // 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        // }
+        // );
         // mainView.loadURL('https://www.crunchyroll.com/', {
         //     userAgent:
         //         'chrome',
@@ -156,7 +164,9 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
+        console.log('new menu opem');
         return global_object.mainWindow;
     }
+    console.log('old menu');
     return global_object!.mainWindow!;
 };

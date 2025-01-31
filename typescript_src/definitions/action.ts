@@ -81,6 +81,7 @@ export function isActionChainElem2(obj: unknown): obj is ActionChainElem2 {
     );
 }
 export interface keyActionListenable {
+    id: string;
     targetView: string;
     actionKey: string[] | string;
     onActivated(): boolean;

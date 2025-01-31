@@ -1,12 +1,12 @@
-import { BrowserWindow, Display, app, nativeTheme, screen } from 'electron';
+// import { BrowserWindow, Display, app, nativeTheme, screen } from 'electron';
 
-import * as path from 'node:path';
-import * as fs from 'node:fs';
-import { Config } from '@cliqz/adblocker-electron';
-import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
+// import * as path from 'node:path';
+// import * as fs from 'node:fs';
+// import { Config } from '@cliqz/adblocker-electron';
+// import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 
-let main_loc_x = -1;
-let main_loc_y = -1;
+// let main_loc_x = -1;
+// let main_loc_y = -1;
 
 // let is_pip_mode_running = false
 // export function apply_pipmode(gobj : GlobalObject, conf : Configure){

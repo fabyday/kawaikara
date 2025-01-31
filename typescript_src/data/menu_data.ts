@@ -6,99 +6,46 @@ import { KawaiAction } from '../definitions/types';
 import { get_preference_instance } from '../component/preference';
 import { get_mainview_instance } from '../component/mainview';
 import { KawaiViewManager } from '../manager/view_manager';
-import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 import { connectToMenu, registerKawaiMenuItem } from '../logics/register';
 
-
-
 @registerKawaiMenuItem('ott', 'menu_netflix')
-class KawaiMenuNetflix extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('netflix');
-    }
-}
+class KawaiMenuNetflix extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_laftel')
-class KawaiMenuLaftel extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('laftel');
-    }
-}
+class KawaiMenuLaftel extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_disney')
-class KawaiMenuDisney extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('disneyplus');
-    }
-}
+class KawaiMenuDisney extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_youtube')
-class KawaiMenuYoutube extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('youtube');
-    }
-}
+class KawaiMenuYoutube extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_amazonprime')
-class KawaiMenuAmazonprime extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('amazonprime');
-    }
-}
+class KawaiMenuAmazonprime extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_wavve')
-class KawaiMenuWavve extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('amazonprime');
-    }
-}
+class KawaiMenuWavve extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_watcha')
-class KawaiMenuWatcha extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('watcha');
-    }
-}
+class KawaiMenuWatcha extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_coupangplay')
-class KawaiMenuCoupangPlay extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('coupangplay');
-    }
-}
+class KawaiMenuCoupangPlay extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('ott', 'menu_tving')
-class KawaiMenuTving extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('tving');
-    }
-}
+class KawaiMenuTving extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('music', 'menu_applemusic')
-class KawaiMenuAppleMusic extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('applemusic');
-    }
-}
+class KawaiMenuAppleMusic extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('streaming', 'menu_chzzk')
-class KawaiMenuChzzk extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('chzzk');
-    }
-}
+class KawaiMenuChzzk extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('streaming', 'menu_twitch')
-class KawaiMenuTwitch extends KawaiMenuBase {
-    public activate(): void {
-        KawaiViewManager.getInstance().loadUrl('twitch');
-    }
-}
+class KawaiMenuTwitch extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('options', 'menu_info')
-class KawaiMenuInfo extends KawaiMenuBase {
-    public activate(): void {}
-}
+class KawaiMenuInfo extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('options', 'menu_preference')
 class KawaiMenuPreference extends KawaiMenuBase {
@@ -107,10 +54,8 @@ class KawaiMenuPreference extends KawaiMenuBase {
     }
 }
 
-@registerKawaiMenuItem('options', 'menu_pip')
-class KawaiMenuPip extends KawaiMenuBase {
-    public activate(): void {}
-}
+@registerKawaiMenuItem('options', 'menu_main')
+class KawaiMenuMainPage extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('options', 'menu_checkupdate')
 class KawaiMenuCheckUpdate extends KawaiMenuBase {
@@ -121,5 +66,19 @@ class KawaiMenuCheckUpdate extends KawaiMenuBase {
 class KawaiMenuGithub extends KawaiMenuBase {
     public activate(): void {
         shell.openExternal('https://github.com/fabyday/kawaikara');
+    }
+
+    public getFaviconUrl() {
+        return 'https://github.com/favicon.ico';
+    }
+}
+@registerKawaiMenuItem('options', 'menu_discord')
+class KawaiMenuDiscord extends KawaiMenuBase {
+    public activate(): void {
+        shell.openExternal('https://discord.com/invite/JJs974BX45');
+    }
+
+    public getFaviconUrl() {
+        return 'https://discord.com/assets/favicon.ico';
     }
 }

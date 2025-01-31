@@ -23,23 +23,23 @@ const App: React.FC = () => {
     }, [])
 
     return (
-        
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',   
-                alignItems: 'center',       
-                height: '100vh',            
-                flexDirection: 'row',       
-                flexWrap: 'wrap',           
-                gap: 2                      
-              }}
-            >
-              {/* <Button variant="contained">Button 1</Button> */}
-              {/* <Button variant="contained">Button 2</Button> */}
-              {/* <Button variant="contained">Button 3</Button> */}
-              <Button variant="contained">Button 4</Button>
-            </Box>
+          <iframe src="https://chatgpt.com/c/679bb1c0-0508-8002-8410-d979dc044ac4"/>
+            // <Box
+            //   sx={{
+            //     display: 'flex',
+            //     justifyContent: 'center',   
+            //     alignItems: 'center',       
+            //     height: '100vh',            
+            //     flexDirection: 'row',       
+            //     flexWrap: 'wrap',           
+            //     gap: 2                      
+            //   }}
+            // >
+            //   {/* <Button variant="contained">Button 1</Button> */}
+            //   {/* <Button variant="contained">Button 2</Button> */}
+            //   {/* <Button variant="contained">Button 3</Button> */}
+            //   <Button variant="contained">Button 4</Button>
+            // </Box>
     )
 };
 

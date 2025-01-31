@@ -18,12 +18,14 @@ const App: React.FC = () => {
     const [
         fetch,
         category_map,
+        favorites_list,
         menu_map,
         current_category,
         set_current_category,
     ] = menu_state((state) => [
         state.fetch,
         state.category_map,
+        state.favorites,
         state.menu_map,
         state.current_category,
         state.set_current_category,
@@ -57,7 +59,6 @@ const App: React.FC = () => {
     const get_category_deserialize = () => {
         const reval = new Array<KawaiMenuComponent>();
         [...category_map.keys()].forEach((v) => {
-            console.log('fro');
             const val = category_map.get(v);
             reval.push(val!);
         });
@@ -89,43 +90,89 @@ const App: React.FC = () => {
                     justifyContent: 'center',
                 }}>
                 <Box
-                    onClick={async (e) => {
-                        e.stopPropagation();
-                    }}
                     sx={{
                         display: 'flex',
                         flexDirection: 'column',
                         backgroundColor: 'rgb(149, 47, 197)',
+                        // backgroundColor: 'transparent',
                         height: '80%',
-                        width: '70%',
+                        width: '40%',
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: '10px',
                     }}>
-                    <Favorites fa/>
-
+                        
+                        <Favorites
+                            favorites_list={favorites_list!}
+                            onClicked={(id: string) => {
+                                window.KAWAI_API.menu.select_menu_item(id);
+                            }}
+                        />
                     <Box
+                       onClick ={(e)=>{e.stopPropagation()}}
                         display="flex"
                         flexDirection="row"
                         alignItems="flex-start"
                         sx={{
-                            background: 'rgb(29, 211, 165)',
+                            background: 'rgba(200, 200, 200, 1.0)',
                             height: '50%',
                             margin: '2px',
                             width: '99%',
-                            borderRadius: '10px',
+                            justifyContent: 'center',
+                            borderRadius: '20px',
                         }}>
-                        <MenuItemBar
-                            selected_category_id={current_category}
-                            category_list={get_category_deserialize()}
-                            onclicked={(id: string) => {
-                                set_current_category(id);
-                            }}
-                        />
-                        <SubmenuBar
-                            menu_item={get_menu_deserialize(current_category)}
-                            // menu_item={get_menu_deserialize("ott")}
-                        />
+                        <Box
+                            sx={{
+                                flex: 1,
+                                justifyContent: 'center',
+                            }}>
+                            <MenuItemBar
+                                selected_category_id={current_category}
+                                category_list={get_category_deserialize()}
+                                onclicked={(id: string) => {
+                                    set_current_category(id);
+                                }}
+                            />
+                        </Box>
+                        {current_category != null ? (
+                            <Box
+                                sx={{
+                                    flex: 1,
+                                    justifyContent: 'center',
+                                }}>
+                                <SubmenuBar
+                                    menu_item={get_menu_deserialize(
+                                        current_category,
+                                    )}
+                                    onClicked={(id: string) => {
+                                        console.log(id);
+                                        window.KAWAI_API.menu.select_menu_item(
+                                            id,
+                                        );
+                                    }}
+                                    onFavoritesClick={(
+                                        id: string,
+                                        cur_fav_state: boolean,
+                                    ) => {
+                                        if (cur_fav_state) {
+                                            window.KAWAI_API.menu.delete_favorites(
+                                                id,
+                                            );
+                                        } else {
+                                            window.KAWAI_API.menu.add_favorites(
+                                                id,
+                                            );
+                                        }
+                                    }}
+                                    // menu_item={get_menu_deserialize("ott")}
+                                />
+                            </Box>
+                        ) : (
+                            <Box
+                                sx={{
+                                    flex: 1,
+                                }}></Box>
+                        )}
                     </Box>
                 </Box>
             </Box>

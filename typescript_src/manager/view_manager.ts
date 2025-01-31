@@ -8,6 +8,7 @@ import { get_mainview_instance } from '../component/mainview';
 import { ipcMain } from 'electron/main';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { KawaiSiteDescriptorManager } from './site_descriptor_manager';
+import { KawaiWindowManager } from './window_manager';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
 
@@ -20,12 +21,7 @@ export class KawaiViewManager {
         this.m_focused_view = this.getFocusedViewName();
     }
 
-
-
-    public async initialize(){
-
-    }
-
+    public async initialize() {}
 
     public static getInstance() {
         if (KawaiViewManager.__instance === undefined) {
@@ -54,18 +50,17 @@ export class KawaiViewManager {
                     'get browserView',
                     global_object.mainWindow?.getBrowserView(),
                 );
-                if (global_object.mainWindow?.getBrowserView() == null) {
-                    KawaiViewManager.getInstance().setFocusedView(
-                        (view as any).name,
-                    );
-                } else {
-                    KawaiViewManager.getInstance().setFocusedView(
-                        (global_object.menu as any).name,
-                    );
-
-                    // console.log('web content focus');
-                    global_object!.menu!.webContents.focus();
-                }
+                // if (Reflect.getMetadata('open', global_object.menu!) ?? false) {
+                //     // console.log('web content focus');
+                //     global_object!.menu!.webContents.focus();
+                // } else {
+                //     KawaiViewManager.getInstance().setFocusedView(
+                //         (view as any).name,
+                //     );
+                // }
+                KawaiViewManager.getInstance().setFocusedView(
+                    (view as any).name,
+                );
             });
             // view.on('blur', () => {
             //     KawaiViewManager.getInstance().setFocusedView();
@@ -73,12 +68,12 @@ export class KawaiViewManager {
             // });
         } else {
             // this is BrowserView.
-            view.webContents.on('focus', () => {
-                log.debug('focus menu on');
-                KawaiViewManager.getInstance().setFocusedView(
-                    (view as any).name,
-                );
-            });
+            // view.webContents.on('focus', () => {
+            //     log.debug('focus menu on');
+            //     KawaiViewManager.getInstance().setFocusedView(
+            //         (view as any).name,
+            //     );
+            // });
             // view.webContents.on('blur', () => {
             //     // KawaiViewManager.getInstance().setFocusedView();
             // });
@@ -95,7 +90,7 @@ export class KawaiViewManager {
 
     public setFocusedView(name?: string) {
         log.debug('view changed To: ', name);
-        if ( name == null || typeof name === 'undefined') {
+        if (name == null || typeof name === 'undefined') {
             this.m_focused_view = '';
         } else {
             this.m_focused_view = name;
@@ -115,8 +110,12 @@ export class KawaiViewManager {
 
     public openMenu() {
         const menu = get_menu_instance();
+        Reflect.defineMetadata('open', true, global_object.menu!);
         global_object.mainWindow?.setBrowserView(menu);
-        menu.webContents.send(KAWAI_API_LITERAL.menu.on_notify_menu_open, "open");
+        menu.webContents.send(
+            KAWAI_API_LITERAL.menu.on_notify_menu_open,
+            'open',
+        );
         if (!global_object.menu?.webContents.isFocused())
             global_object.menu?.webContents.focus();
     }
@@ -125,39 +124,90 @@ export class KawaiViewManager {
         get_preference_instance();
     }
 
+    public isMenuOpen() {
+        const menu_open =
+            Reflect.getMetadata('open', global_object.menu!) ?? false;
+        return menu_open;
+    }
+
     public closeMenu() {
-        global_object.menu!.webContents.send(KAWAI_API_LITERAL.menu.on_notify_menu_open, "close");
-
-        
+        global_object.menu!.webContents.send(
+            KAWAI_API_LITERAL.menu.on_notify_menu_open,
+            'close',
+        );
+        Reflect.defineMetadata('open', false, global_object.menu!);
+        global_object.mainWindow?.webContents.focus();
     }
 
-
-    public _closeMenu(){
+    public _closeMenu() {
+        // const close_flag = Reflect.getMetadata("close", )
+        Reflect.defineMetadata('open', false, global_object.menu!);
         global_object.mainWindow?.removeBrowserView(global_object.menu!);
-        if (!global_object.mainWindow?.webContents.isFocused()) {
-            global_object.mainWindow?.webContents.focus();
-        }
+        global_object.mainWindow?.webContents.focus();
     }
 
-
-    public loadUrl(desc_id : string){
-        const sel_desc = KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(desc_id);
-        if(typeof sel_desc !== "undefined" ){
-            if(typeof global_object.context === "undefined"){
+    public loadUrl(desc_id: string) {
+        const sel_desc =
+            KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
+                desc_id,
+            );
+        if (typeof sel_desc !== 'undefined') {
+            if (typeof global_object.context === 'undefined') {
                 global_object.context = {};
-            }else{
-                global_object.context.current_site_descriptor = sel_desc
+            } else {
+                global_object.context.current_site_descriptor = sel_desc;
             }
+            sel_desc?.loadUrl(get_mainview_instance());
         }
-        sel_desc?.loadUrl(get_mainview_instance());
-
+        console.log('close!!');
+        this.closeMenu();
     }
 
+    public pipMode(mode: boolean) {
+        if (mode === true) {
+            const bounds = global_object.mainWindow?.getBounds();
 
-    public pipMode(){
-        
+            if (typeof global_object?.context === 'undefined') {
+                global_object.context = {};
+            }
+
+            global_object.context.current_window_bounds = bounds;
+
+            const { x, y, width, height } =
+                KawaiWindowManager.getInstance().getPipBounds();
+            global_object.mainWindow?.setMovable(false);
+            global_object.mainWindow?.setResizable(false);
+            global_object.mainWindow?.setAlwaysOnTop(true);
+            global_object.mainWindow?.setSize(width, height, true);
+            global_object.mainWindow?.setPosition(x, y, true);
+        } else {
+            const { x, y, width, height } =
+                global_object!.context!.current_window_bounds!;
+            global_object.mainWindow?.setMovable(true);
+            global_object.mainWindow?.setResizable(true);
+            global_object.mainWindow?.setAlwaysOnTop(false);
+            global_object.mainWindow?.setSize(width, height, true);
+            global_object.mainWindow?.setPosition(x, y, true);
+        }
     }
-    public fullscreen(){
+    public fullscreen(mode: boolean) {
+        global_object.mainWindow?.setFullScreen(mode);
+    }
 
+    public resizeWindow(width: undefined | number, height: undefined | number) {
+        if (typeof width === 'undefined' || typeof height === 'undefined') {
+            return;
+        }
+        const { x, y } =
+            KawaiWindowManager.getInstance().findCenterCoordByBounds(
+                width,
+                height,
+            );
+        global_object.mainWindow?.setBounds({
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+        });
     }
 }

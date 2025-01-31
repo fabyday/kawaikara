@@ -4,19 +4,19 @@
             "dark_mode": { "name": "Dark Mode" },
             "default_main": {
                 "name": "Default Main Page",
-                "url": { "name":"Main Page" }
+                "url": { "name": "Main Page" }
             },
             "enable_autoupdate": { "name": "Enable Autoupdate" },
             "render_full_size_when_pip_running": {
                 "name": "render when pip running"
-           },
+            },
             "window_preference": {
                 "pip_location": {
                     "monitor": { "name": "PiP Location" }
-        },
+                },
                 "pip_window_size": {
                     "name": "PiP Window Size",
-                    "x": { "name": "X"},
+                    "x": { "name": "X" },
                     "y": { "name": "Y" },
                     "width": { "name": "Width" },
                     "height": { "name": "Height" }
@@ -42,34 +42,26 @@
             "goto_amazonprime": { "name": "amazon prime" }
         }
     },
-    "version": { "name" : "2.0.0"},
+    "version": { "name": "2.0.0" },
     "locale_meta": { "filename": "EN", "metaname": "English" },
-    "system_literal" : {
-        "main" : "Kawai Main",
-        "netflix" : "Netflix",
-        "laftel":"Laftel",
-        "disneyplus":"Disney plus",
-        "youtube":"Youtube",
-        "amazonprime" : "Amazonprime",
-        "wavve" : "Wavve",
-        "watcha" : "Watcha",
-        "coupangplay" : "Coupang Play",
-        "tving" : "Tving",
-        "applemusic" : "Apple Music",
-        "chzzk" : "Chzzk",
-        "twitch" : "Twitch",
-        "menu_main" : "Kawai Main",
-        "menu_netflix" : "Netflix",
-        "menu_laftel":"Laftel",
-        "menu_disneyplus":"Disney plus",
-        "menu_youtube":"Youtube",
-        "menu_amazonprime" : "Amazonprime",
-        "menu_wavve" : "Wavve",
-        "menu_watcha" : "Watcha",
-        "menu_coupangplay" : "Coupang Play",
-        "menu_tving" : "Tving",
-        "menu_applemusic" : "Apple Music",
-        "menu_chzzk" : "Chzzk",
-        "menu_twitch" : "Twitch"
+    "system_literal": {
+        "menu_main": "Kawai Main",
+        "menu_netflix": "Netflix",
+        "menu_laftel": "Laftel",
+        "menu_disney": "Disney plus",
+        "menu_youtube": "Youtube",
+        "menu_amazonprime": "Amazonprime",
+        "menu_wavve": "Wavve",
+        "menu_watcha": "Watcha",
+        "menu_coupangplay": "Coupang Play",
+        "menu_tving": "Tving",
+        "menu_applemusic": "Apple Music",
+        "menu_chzzk": "Chzzk",
+        "menu_twitch": "Twitch",
+        "menu_info": "Info",
+        "menu_preference": "Preference",
+        "menu_checkupdate": "Update Check",
+        "menu_github": "Github",
+        "menu_discord": "Discord"
     }
 }

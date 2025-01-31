@@ -12,7 +12,7 @@ export const load_locale_f = () => {
 };
 
 export const load_favorites_list_f = () => {
-    ipcRenderer.invoke(KAWAI_API_LITERAL.menu.load_favorites_list);
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.load_favorites_list);
 };
 
 export const delete_favorites_list_f = (shortcut_property_key: string) => {
@@ -37,10 +37,10 @@ export const update_favorites_order_f = (
 };
 
 // only allow shortcut key
-export const add_favorites_f = (shortcut_property_key: string) => {
+export const add_favorites_f = (menu_id: string) => {
     ipcRenderer.invoke(
         KAWAI_API_LITERAL.menu.add_favorites,
-        shortcut_property_key,
+        menu_id,
     );
 };
 

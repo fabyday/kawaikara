@@ -1,3 +1,4 @@
+import { wrap } from 'module';
 import { keyActionListenable } from '../definitions/action';
 import { KawaiMenuBase } from '../definitions/menu_def';
 import { KawaiAbstractSiteDescriptor } from '../definitions/SiteDescriptor';
@@ -53,61 +54,86 @@ export function connectToShortcut(id: string) {
     >(
         s: T,
     ) => {
-        
+        const instance_s = new s();
+        const desc_id = instance_s.id;
+        if (typeof desc_id !== 'undefined') {
+            KawaiSiteDescriptorManager.getInstance()._RegisterConnection(
+                id,
+                desc_id,
+            );
+        }
         return s;
     };
 
     return wrapper_decorator;
 }
 
-export function connectToMenu(id: string) {
+export function connectToMenu(menu_id: string) {
     const wrapper_decorator = <
         T extends new (...args: any[]) => KawaiAbstractSiteDescriptor,
     >(
         s: T,
     ) => {
-        if (s.prototype instanceof KawaiAbstractSiteDescriptor) {
-            Reflect.defineMetadata(
-                'menu_promise_meta',
-                MenuManager.getInstance()._connectToMenu(id),
-                s.prototype,
+        const object = new s();
+        const desc_id = object.id;
+        const favicon_url = object.LoadFaviconUrl();
+        MenuManager.getInstance()._add_meta(menu_id, favicon_url);
+        if (typeof desc_id !== 'undefined') {
+            KawaiSiteDescriptorManager.getInstance()._RegisterConnection(
+                menu_id,
+                desc_id,
             );
-            Reflect.defineMetadata(
-                'desc_promise_meta',
-                KawaiSiteDescriptorManager.getInstance()._getCallback(id),
-                s.prototype,
-            );
-            const menu_meta = Reflect.getMetadata(
-                'menu_promise_meta',
-                s.prototype,
-            );
-            const desc_meta = Reflect.getMetadata(
-                'desc_promise_meta',
-                s.prototype,
-            );
-
-            Promise.resolve(desc_meta)
-                .then((callback: () => void) => {
-                    Promise.resolve(menu_meta)
-                        .then((menu_id: string) => {
-                            MenuManager.getInstance().connectToMenu(
-                                menu_id,
-                                callback,
-                            );
-                        })
-                        .catch(() => {
-                            Reflect.deleteMetadata(
-                                'desc_promise_meta',
-                                s.prototype,
-                            );
-                        });
-                })
-                .catch(() => {
-                    Reflect.deleteMetadata('menu_promise_meta', s.prototype);
-                });
         }
-
         return s;
     };
     return wrapper_decorator;
 }
+
+// export function connectToMenu(id: string) {
+//     const wrapper_decorator = <
+//         T extends new (...args: any[]) => KawaiAbstractSiteDescriptor,
+//     >(
+//         s: T,
+//     ) => {
+//         if (s.prototype instanceof KawaiAbstractSiteDescriptor) {
+//             Reflect.defineMetadata(
+//                 'menu_promise_meta',
+//                 MenuManager.getInstance()._connectToMenu(id),
+//                 s.prototype,
+//             );
+//             Reflect.defineMetadata(
+//                 'desc_promise_meta',
+//                 KawaiSiteDescriptorManager.getInstance()._getCallback(id),
+//                 s.prototype,
+//             );
+//             const menu_meta = Reflect.getMetadata(
+//                 'menu_promise_meta',
+//                 s.prototype,
+//             );
+//             const desc_meta = Reflect.getMetadata(
+//                 'desc_promise_meta',
+//                 s.prototype,
+//             );
+
+//             Promise.resolve(desc_meta)
+//                 .then((callback: () => void) => {
+//                     Promise.resolve(menu_meta)
+//                         .then((menu_id: string) => {
+
+//                         })
+//                         .catch(() => {
+//                             Reflect.deleteMetadata(
+//                                 'desc_promise_meta',
+//                                 s.prototype,
+//                             );
+//                         });
+//                 })
+//                 .catch(() => {
+//                     Reflect.deleteMetadata('menu_promise_meta', s.prototype);
+//                 });
+//         }
+
+//         return s;
+//     };
+//     return wrapper_decorator;
+// }

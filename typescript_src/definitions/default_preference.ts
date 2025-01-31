@@ -41,11 +41,9 @@ export const default_config: KawaiConfig = {
         },
     },
     favorites: {
-        values: [],
     },
-    version: {value : "2.0.0"},
+    version: { value: '2.0.0' },
 };
-
 
 export const default_locale: KawaiLocale = {
     preference: {
@@ -91,21 +89,26 @@ export const default_locale: KawaiLocale = {
             goto_amazonprime: { name: 'amazon prime' },
         },
     },
-    version: { name : "2.0.0"},
+    version: { name: '2.0.0' },
     locale_meta: { filename: 'EN', metaname: 'eng' },
-    system_literal : {
-        main : "Kawai Main",
-        netflix : "Netflix",
-        laftel:"Laftel",
-        disneyplus:"Disney",
-        youtube:"Youtube",
-        amazonprime : "Amazon Prime",
-        wavve : "Wavve",
-        watcha : "Watcha",
-        coupangplay : "Coupang Play",
-        tving : "Tving",
-        applemusic : "Apple Music",
-        chzzk : "Chzzk",
-        twitch : "Twitch",
-    }
+    system_literal: {
+        menu_main: 'Kawai Main',
+        menu_netflix: 'Netflix',
+        menu_laftel: 'Laftel',
+        menu_disneyplus: 'Disney',
+        menu_youtube: 'Youtube',
+        menu_amazonprime: 'Amazon Prime',
+        menu_wavve: 'Wavve',
+        menu_watcha: 'Watcha',
+        menu_coupangplay: 'Coupang Play',
+        menu_tving: 'Tving',
+        menu_applemusic: 'Apple Music',
+        menu_chzzk: 'Chzzk',
+        menu_twitch: 'Twitch',
+        menu_info: 'Info',
+        menu_preference: 'Preference',
+        menu_checkupdate: 'Update Check',
+        menu_github : "Github",
+        menu_discord : "Discord",
+    },
 };

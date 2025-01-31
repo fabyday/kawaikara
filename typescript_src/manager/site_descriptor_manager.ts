@@ -9,11 +9,13 @@ export class KawaiSiteDescriptorManager {
     private static _instance: KawaiSiteDescriptorManager;
     private m_registered_descriptors: Map<string, KawaiAbstractSiteDescriptor>;
     private m_event_emitter = new EventEmitter();
+    private m_meta_map: Map<string, string>;
     private constructor() {
         this.m_registered_descriptors = new Map<
             string,
             KawaiAbstractSiteDescriptor
         >();
+        this.m_meta_map = new Map<string, string>();
         this.m_event_emitter.setMaxListeners(30);
     }
 
@@ -59,41 +61,63 @@ export class KawaiSiteDescriptorManager {
         return localed_added_id;
     }
 
-    public _getCallback(id: string) {
-        const promise: Promise<() => void> = new Promise(
-            async (resolve, reject) => {
-                const timer = setTimeout(() => {
-                    this.m_event_emitter.removeListener(
-                        'register-desc',
-                        eventHandler,
-                    );
-                    reject();
-                }, 30000); // reject if timeouted.
-
-                const callback = () => {
-                    KawaiViewManager.getInstance().loadUrl(id);
-                };
-
-                if (
-                    typeof this.qeury_site_descriptor_by_name(id) ===
-                    'undefined'
-                ) {
-                    return resolve(callback);
-                }
-                const eventHandler = (desc_id: string) => {
-                    if (id === desc_id) {
-                        clearTimeout(timer);
-                        this.m_event_emitter.removeListener(
-                            'register-desc',
-                            eventHandler,
-                        );
-                        resolve(callback);
-                    }
-                };
-                this.m_event_emitter.on('register-desc', eventHandler);
-            },
-        );
-
-        return promise;
+    public _RegisterConnection(key: string, value: string) {
+        if (this.m_meta_map.has(key)) {
+            throw new KawaiError('this meta key already exists.');
+        }
+        this.m_meta_map.set(key, value);
     }
+
+    public runEventLogic(id: string) {
+        console.log("id", id)
+        const desc_id = this.m_meta_map.get(id);
+        console.log("desc id", desc_id)
+        if (typeof desc_id !== 'undefined') {
+            console.log("desc id2", desc_id)
+            const site_descritor = this.qeury_site_descriptor_by_name(desc_id);
+            if (typeof site_descritor !== 'undefined') {
+                console.log("load url")
+                KawaiViewManager.getInstance().loadUrl(desc_id);
+            }
+        }
+        // if not registered, do nothing, not existed do nothing.
+    }
+
+    // public _getCallback(id: string) {
+    //     const promise: Promise<() => void> = new Promise(
+    //         async (resolve, reject) => {
+    //             const timer = setTimeout(() => {
+    //                 this.m_event_emitter.removeListener(
+    //                     'register-desc',
+    //                     eventHandler,
+    //                 );
+    //                 reject();
+    //             }, 30000); // reject if timeouted.
+
+    //             const callback = () => {
+    //                 KawaiViewManager.getInstance().loadUrl(id);
+    //             };
+
+    //             if (
+    //                 typeof this.qeury_site_descriptor_by_name(id) ===
+    //                 'undefined'
+    //             ) {
+    //                 return resolve(callback);
+    //             }
+    //             const eventHandler = (desc_id: string) => {
+    //                 if (id === desc_id) {
+    //                     clearTimeout(timer);
+    //                     this.m_event_emitter.removeListener(
+    //                         'register-desc',
+    //                         eventHandler,
+    //                     );
+    //                     resolve(callback);
+    //                 }
+    //             };
+    //             this.m_event_emitter.on('register-desc', eventHandler);
+    //         },
+    //     );
+
+    //     return promise;
+    // }
 }

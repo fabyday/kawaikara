@@ -11,6 +11,7 @@ import {
 import { get_flogger, get_logger, log } from '../logging/logger';
 import { KawaiViewManager } from './view_manager';
 import { flog } from '../component/predefine/api';
+import { EventEmitter } from 'stream';
 
 /**
  * Action Key Rule
@@ -43,17 +44,16 @@ const shortcut_ignoreset = new Set<string>([
     create_action_key_from_string_array('alt', 'enter'),
 ]);
 
-class KawaiShortcutProxy implements KawaiAbstractProxy{
-    
-    id:string;
+type event_type = 'activated';
 
-    constructor(){
-        this.id = "100";
+class KawaiShortcutProxy implements KawaiAbstractProxy {
+    id: string;
+
+    constructor() {
+        this.id = '100';
     }
-    connectCallback(){};
-
+    connectCallback() {}
 }
-
 
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
@@ -65,6 +65,8 @@ export class ShortcutManager {
     private actionDelayTime: number;
     private m_cur_timeout_object: NodeJS.Timeout | null = null;
     private current_view: string;
+
+    private m_event_emitter = new EventEmitter();
 
     private constructor() {
         this.m_action_map = { action_hash: new Map(), actionMap: new Map() };
@@ -173,17 +175,26 @@ export class ShortcutManager {
                     log.debug('clear timeout');
                     clearTimeout(this.m_cur_timeout_object);
                 }
+                // this.m_event_emitter.emit("activated")
                 return item(); // run callback function.
             } else {
                 this.key_states.push(normalized_key_seq);
             }
         }
 
-        // console.log(normalized_key_seq);
-        // console.log(this.key_states);
-
         return true;
     }
+
+
+    /**
+     * 
+     * @param id 
+     * @param key_action "" empty string means delete keyAction.
+     */
+    public queryAndModifyShortcut(id:string, key_action:string){
+        
+    }
+    
 
     public register(o: keyActionListenable, overwrite = true) {
         let actionKey = [];
@@ -198,8 +209,13 @@ export class ShortcutManager {
         this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
     }
 
-    public unregister(o : keyActionListenable){
+    public unregister(o: keyActionListenable) {}
 
+    public _connectManager(
+        event_type: event_type,
+        callback: (id: string) => void,
+    ) {
+        this.m_event_emitter.on(event_type, callback);
     }
 
     protected addActionMap(
@@ -223,7 +239,7 @@ export class ShortcutManager {
 
         for (const action of new_actions) {
             if (shortcut_ignoreset.has(action)) {
-                flogger.info("action", new_actions, " was rejected.")
+                flogger.info('action', new_actions, ' was rejected.');
                 return;
             }
         }
@@ -274,15 +290,10 @@ export class ShortcutManager {
         this.m_action_map.action_hash.set(activate_f.toString(), new_actions);
     }
 
-
-
-    public getIgnoredKeySequence(){
+    public getIgnoredKeySequence() {
         return shortcut_ignoreset;
     }
 }
-
-
-
 
 // const a = ShortcutManager.getInstance();
 // a.register({

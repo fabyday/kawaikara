@@ -14,7 +14,10 @@ import {
     connectMainWindowHandler,
 } from '../component/handler';
 import { LocaleManager as KawaiLocaleManager } from '../manager/lcoale_manager';
-import { ShortcutManager as KawaiShortcutManager } from '../manager/shortcut_manager';
+import {
+    ShortcutManager as KawaiShortcutManager,
+    ShortcutManager,
+} from '../manager/shortcut_manager';
 import { get_mainview_instance } from '../component/mainview';
 import log from 'electron-log/main';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
@@ -23,6 +26,7 @@ import { get_preference_instance } from '../component/preference';
 import { MenuManager } from '../manager/menu_manager';
 import { get_menu_instance } from '../component/menu';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
+import { ShortcutKey } from '@discord/embedded-app-sdk/output/schema/common';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -64,6 +68,23 @@ async function initialize_manager() {
     await KawaiShortcutManager.getInstance().initialize();
 }
 
+async function initialize_manager_connection() {
+    MenuManager.getInstance()._connectManager(
+        'menu-selected',
+        KawaiSiteDescriptorManager.getInstance().runEventLogic.bind(
+            KawaiSiteDescriptorManager.getInstance(),
+        ),
+    );
+    log.info('menu manager, site desc manager, connected.');
+
+    ShortcutManager.getInstance()._connectManager(
+        'activated',
+        KawaiSiteDescriptorManager.getInstance().runEventLogic.bind(
+            KawaiSiteDescriptorManager.getInstance(),
+        ),
+    );
+}
+
 /**
  * initialize views,
  * this function will be executed after config loading was done.
@@ -98,5 +119,6 @@ export async function initialize(config_root?: string) {
     initialize_handler();
     get_preference_instance(); // for Testing .. @TODO REMOVE THIS
     await manager_promise;
+    await initialize_manager_connection();
     await data_initializer_promise;
 }

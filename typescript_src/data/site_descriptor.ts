@@ -33,8 +33,6 @@ export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id = 'goto_laftel';
     id = 'laftel';
-    category = 'ott';
-
     loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://laftel.net/');
     }
@@ -49,9 +47,11 @@ export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
     id = 'disneyplus';
-    category = 'ott';
     loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.disneyplus.com/');
+    }
+    LoadFaviconUrl(): string {
+        return "https://www.disneyplus.com/favicon.ico"
     }
 }
 @connectToShortcut('goto_youtube')
@@ -59,7 +59,6 @@ export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
     id = 'youtube';
-    category = 'ott';
     loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://youtube.com/');
     }
@@ -139,17 +138,36 @@ export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
     }
 }
 
+@connectToShortcut('goto_twitch')
+@connectToMenu('menu_twitch')
+@registerKawaiSiteDescriptor
+export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
+    id = 'twitch';
+    loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://www.twitch.tv/', {
+            userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        });
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://twitch.com/favicon.ico';
+    }
+}
 @connectToShortcut('goto_chzzk')
 @connectToMenu('menu_chzzk')
 @registerKawaiSiteDescriptor
 export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
     id = 'chzzk';
     loadUrl(browser: Electron.BrowserWindow) {
-        browser.loadURL('https://www.tving.com/');
+        browser.loadURL('https://chzzk.naver.com/', {
+            userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        });
     }
 
     LoadFaviconUrl(): string {
-        return 'https://www.tving.com/favicon.ico';
+        return 'https://chzzk.naver.com/favicon.ico';
     }
 }
 
@@ -160,30 +178,28 @@ export class KawaiAppleMusicDesc extends KawaiAbstractSiteDescriptor {
     id = 'applemusic';
 
     loadUrl(browser: Electron.BrowserWindow) {
-        browser.loadURL('https://www.tving.com/');
+        browser.loadURL('https://music.apple.com/');
     }
 
     LoadFaviconUrl(): string {
-        return 'https://www.tving.com/favicon.ico';
+        return 'https://music.apple.com/favicon.ico';
     }
 }
 
-
-
-@connectToShortcut('goto_applemusic')
-@connectToMenu('menu_applemusic')
+@connectToShortcut('goto_main')
+@connectToMenu('menu_main')
 @registerKawaiSiteDescriptor
 export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
-    id = 'applemusic';
+    id = 'main';
 
     loadUrl(browser: Electron.BrowserWindow) {
         let html_path = path.resolve(script_root_path, './pages/main.html');
-        browser.loadURL(process.env.IS_DEV
-            ? 'http://localhost:3000/main.html'
-            : html_path);
+        browser.loadURL(
+            process.env.IS_DEV ? 'http://localhost:3000/main.html' : html_path,
+        );
     }
 
-    LoadFaviconUrl(): string {
-        return 'https://www.tving.com/favicon.ico';
-    }
+    // LoadFaviconUrl(): string {
+    //     return '';
+    // }
 }

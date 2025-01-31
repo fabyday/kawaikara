@@ -1,87 +1,183 @@
-import { get_menu_instance } from '../component/menu';
-import { MenuManager } from '../manager/menu_manager';
-import { ShortcutManager } from '../manager/shortcut_manager';
 import { KawaiViewManager } from '../manager/view_manager';
-import { global_object } from './context';
 import { keyActionListenable } from '../definitions/action';
 import { RegisterShortcut } from '../logics/register';
-const menu_name = 'menu';
+
 const mainview = 'mainview';
 
-
-
 @RegisterShortcut
-class MainTab implements keyActionListenable {
-    targetView = menu_name;
+class KawaiMainTab implements keyActionListenable {
+    id = 'goto_tab';
+    targetView = mainview;
     actionKey = 'tab';
     onActivated() {
-        KawaiViewManager.getInstance().closeMenu();
+        const menuManager = KawaiViewManager.getInstance();
+        if (menuManager.isMenuOpen()) {
+            KawaiViewManager.getInstance().closeMenu();
+        } else {
+            KawaiViewManager.getInstance().openMenu();
+        }
+        return true;
+    }
+}
+@RegisterShortcut
+class KawaiFullscreenShortcut implements keyActionListenable {
+    id = 'goto_fullscreen';
+    targetView = mainview;
+    actionKey = 'lalt+enter';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+@RegisterShortcut
+class KawaiPiPShortcut implements keyActionListenable {
+    id = 'goto_PiP';
+    targetView = mainview;
+    actionKey = 'lalt+enter';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
         return true;
     }
 }
 
-/**
- * predefined default setup.
- */
-ShortcutManager.getInstance().register({
-    targetView: menu_name,
-    actionKey: 'tab',
-    onActivated: () => {
-        KawaiViewManager.getInstance().closeMenu();
-        return true;
-    },
-    // onActivated: ()=>{
-    //     global_object.mainWindow?.removeBrowserView(global_object.menu!);
-    //     if(! global_object.mainWindow?.webContents.isFocused()){
-    //         global_object.mainWindow?.webContents.focus();
-    //     }
-    //     // KawaiViewManager.getInstance().setFocusedView((global_object!.mainWindow as any).name)
-    //     return true;
-    // }
-});
-ShortcutManager.getInstance().register({
-    targetView: mainview,
-    actionKey: 'tab',
-    onActivated: () => {
+@RegisterShortcut
+class KawaiNetflixShortcut implements keyActionListenable {
+    id = 'goto_netflix';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
         KawaiViewManager.getInstance().openMenu();
         return true;
-    },
-});
+    }
+}
 
-ShortcutManager.getInstance().register({
-    targetView: mainview,
-    actionKey: 'lalt+enter',
-    onActivated: () => {
+@RegisterShortcut
+class KawaiLaftelShortcut implements keyActionListenable {
+    id = 'goto_laftel';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
         KawaiViewManager.getInstance().openMenu();
         return true;
-    },
-});
+    }
+}
 
-ShortcutManager.getInstance().register({
-    targetView: menu_name,
-    actionKey: 'lalt+enter',
-    onActivated: () => {
+@RegisterShortcut
+class KawaiDisneyShortcut implements keyActionListenable {
+    id = 'goto_disney';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
         KawaiViewManager.getInstance().openMenu();
         return true;
-    },
-});
+    }
+}
 
-ShortcutManager.getInstance().register({
-    targetView: mainview,
-    actionKey: 'lctrl+N',
-    onActivated: () => {
-        console.log('menu open');
-        MenuManager.getInstance().onSelectItem('ott', 'menu_netflix');
+@RegisterShortcut
+class KawaiYoutubeShortcut implements keyActionListenable {
+    id = 'goto_youtube';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
         return true;
-    },
-});
+    }
+}
+@RegisterShortcut
+class KawaiAmazonPrimeShortcut implements keyActionListenable {
+    id = 'goto_amazonprime';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
 
-ShortcutManager.getInstance().register({
-    targetView: mainview,
-    actionKey: 'lctrl+Q',
-    onActivated: () => {
-        console.log('menu open');
-        MenuManager.getInstance().onSelectItem('ott', 'menu_laftel');
+@RegisterShortcut
+class KawaiWavveShortcut implements keyActionListenable {
+    id = 'goto_wavve';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
         return true;
-    },
-});
+    }
+}
+
+@RegisterShortcut
+class KawaiWatchaShortcut implements keyActionListenable {
+    id = 'goto_watcha';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiCoupangPlayShortcut implements keyActionListenable {
+    id = 'goto_coupangplay';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiTvingShortcut implements keyActionListenable {
+    id = 'goto_tving';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiTwitchShortcut implements keyActionListenable {
+    id = 'goto_twitch';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiChzzkShortcut implements keyActionListenable {
+    id = 'goto_chzzk';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiAppleMusicShortcut implements keyActionListenable {
+    id = 'goto_applemusic';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
+class KawaiMainPageShortcut implements keyActionListenable {
+    id = 'goto_main';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}

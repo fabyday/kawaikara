@@ -24,7 +24,6 @@ const MenuItemBar = ({
     const [disableRipple, setDisableRipple] = useState(false); // Ripple 제어 상태
     const rippleRef = React.useRef<HTMLDivElement | null>(null); // Ripple 컨테이너 참조
     const [left_mouse_clicked, set_left_mouse_clicked] = useState(false);
-
     const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault(); // 기본 우클릭 메뉴 방지
         // Ripple 비활성화

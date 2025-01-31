@@ -1,37 +1,25 @@
 import { get_menu_instance } from '../component/menu';
 import { get_flogger, log } from '../logging/logger';
 import { global_object } from '../data/context';
-import { KawaiCategoryBase, KawaiMenuBase } from '../definitions/menu_def';
+import {
+    IKawaiMenu,
+    KawaiCategoryBase,
+    KawaiMenuBase,
+} from '../definitions/menu_def';
 import EventEmitter, { on, once } from 'node:events';
 import { rejects } from 'node:assert';
+import { KawaiStringProperty } from '../definitions/setting_types';
+import { KAWAI_API_LITERAL } from '../definitions/api';
 
 const flog = get_flogger('MenuLogger', 'menumanager', 'debug');
-
-type KawaiMenuClickedEventCallback = (id: string) => void;
-
-class KawaiMenuProxy implements KawaiAbstractProxy {
-    id: string = '';
-    favicon?: string;
-    constructor(id: string) {
-        this.id = id;
-    }
-
-    setFaviconUrl(url?: string) {
-        this.favicon = url;
-    }
-
-    connectCallback(callback: () => void) {
-        MenuManager.getInstance();
-    }
-}
-
+type EventLiteral = 'menu-selected' | 'registered-menu';
 export class MenuManager {
     static __instance: MenuManager | undefined;
     private m_category_items: Map<string, KawaiCategoryBase>;
-    private m_menu_item: Map<string, KawaiMenuBase>;
+    private m_menu_item: Map<string, IKawaiMenu>;
     private m_category_menu_map: Map<string, string[]>;
-    private m_event_listener_map: Map<string, KawaiMenuClickedEventCallback[]>;
 
+    private m_favicon_meta: Map<string, string>;
     private m_event_emitter = new EventEmitter();
 
     private constructor() {
@@ -39,10 +27,7 @@ export class MenuManager {
         this.m_menu_item = new Map<string, KawaiMenuBase>();
         this.m_category_menu_map = new Map<string, string[]>();
         this.m_event_emitter.setMaxListeners(30);
-        this.m_event_listener_map = new Map<
-            string,
-            KawaiMenuClickedEventCallback[]
-        >();
+        this.m_favicon_meta = new Map<string, string>();
     }
 
     public static getInstance() {
@@ -63,11 +48,92 @@ export class MenuManager {
         return true;
     }
 
-    public getMenuItemsByJson() {
-        const mapObject: { [key: string]: any } = Object.fromEntries(
-            this.m_menu_item,
+    public addFavorites(menu_id: string) {
+        if (typeof global_object.config?.favorites === 'undefined') {
+            global_object!.config!.favorites = {};
+        }
+        global_object!.config!.favorites[menu_id] = { value: menu_id };
+        global_object.menu?.webContents.send(
+            KAWAI_API_LITERAL.menu.notify_menu_update,
         );
-        const jsonString = JSON.stringify(mapObject);
+        return;
+    }
+    public deleteFavorites(menu_id: string) {
+        if (typeof global_object.config?.favorites === 'undefined') {
+            return; //do nothing.
+        }
+        const favorites_object = global_object!.config!.favorites!;
+        delete favorites_object[menu_id];
+        global_object.menu?.webContents.send(
+            KAWAI_API_LITERAL.menu.notify_menu_update,
+        );
+        return;
+    }
+
+    public getFavorites() {
+        if (typeof global_object.config?.favorites === 'undefined') {
+            return [];
+        }
+        const favaorites_list = Object.entries(
+            global_object.config?.favorites ?? {},
+        ).map(([key, value]: [string, KawaiStringProperty | undefined]) => {
+            const reval = {
+                id: key,
+                name: global_object?.locale?.system_literal?.[key] ?? key,
+                category: this.m_menu_item.get(key)?.category ?? '',
+            };
+            if (this.m_menu_item.has(key)) {
+                const item = this.m_menu_item.get(key);
+                if (typeof item?.getFaviconUrl !== 'undefined') {
+                    (reval as any)['favicon'] = item?.getFaviconUrl();
+                } else if (this.m_favicon_meta.has(key)) {
+                    (reval as any)['favicon'] = this.m_favicon_meta.get(key);
+                }
+            }
+            return reval;
+        });
+        return favaorites_list ?? [];
+    }
+
+    public getMenuItemsByJson() {
+        // const mapObject: { [key: string]: any } = Object.fromEntries(
+        //     this.m_menu_item,
+        // );
+        const mapObject = new Map();
+        this.m_menu_item.forEach((value, key) => {
+            console.log('key', value);
+
+            if (typeof value.getFaviconUrl !== 'undefined') {
+                mapObject.set(key, {
+                    id: value.id,
+                    name:
+                        global_object?.locale?.system_literal?.[value.id] ??
+                        value.id,
+                    category: value.category,
+                    favicon: value.getFaviconUrl(),
+                });
+            } else if (this.m_favicon_meta.has(key)) {
+                mapObject.set(key, {
+                    id: value.id,
+                    name:
+                        global_object?.locale?.system_literal?.[value.id] ??
+                        value.id,
+                    category: value.category,
+                    favicon: this.m_favicon_meta.get(key),
+                });
+            } else {
+                mapObject.set(key, {
+                    id: value.id,
+                    name:
+                        global_object?.locale?.system_literal?.[value.id] ??
+                        value.id,
+                    category: value.category,
+                });
+            }
+        });
+
+        // const jsonString = JSON.stringify(mapObject);
+        const jsonString = JSON.stringify(Object.fromEntries(mapObject));
         flog.debug(jsonString);
         return jsonString;
     }
@@ -85,6 +151,11 @@ export class MenuManager {
             this.m_category_items.set(item.id, item);
         }
     }
+
+    public _add_meta(key: string, value: string) {
+        this.m_favicon_meta.set(key, value);
+    }
+
     public add_menuitem(item: KawaiMenuBase) {
         if (this.m_menu_item.has(item.id)) {
             flog.debug('add menu failed', item);
@@ -95,7 +166,7 @@ export class MenuManager {
         this.add_category(item.category);
         this.m_menu_item.set(item.id, item);
         console.log('item!!!', item.id);
-        this.m_event_emitter.emit('register-menu', item.id);
+        this.m_event_emitter.emit('registered-menu', item.id);
     }
 
     protected addToCategory(item: KawaiMenuBase, category_id: string) {
@@ -113,17 +184,17 @@ export class MenuManager {
         }
     }
 
-    public connectEventListener(
-        menu_id: string,
-        func: KawaiMenuClickedEventCallback,
-    ) {
-        if (this.m_event_listener_map.has(menu_id)) {
-            // this.m_event_listener_map.get(menu_id)?.push(func);
-        } else {
-            // this.m_event_listener_map.set(menu_id, [func]);
-            this.m_event_emitter.on('menu-selected', func);
-        }
-    }
+    // public connectEventListener(
+    //     menu_id: string,
+    //     func: KawaiMenuClickedEventCallback,
+    // ) {
+    //     if (this.m_event_listener_map.has(menu_id)) {
+    //         // this.m_event_listener_map.get(menu_id)?.push(func);
+    //     } else {
+    //         // this.m_event_listener_map.set(menu_id, [func]);
+    //         this.m_event_emitter.on('menu-selected', func);
+    //     }
+    // }
 
     public onSelectItem(category_id: string, id: string) {
         // const selected_callbacks: KawaiMenuClickedEventCallback[] | undefined =
@@ -137,10 +208,14 @@ export class MenuManager {
         // if (typeof selected_callbacks === 'undefined') {
         //     return; // do nothing.
         // }
-        this.m_event_emitter.emit('menu-selected', id);
-        // for (const callback of selected_callbacks) {
-        //     callback(id);
-        // }
+        console.log('event emit ', id);
+        const menu_item = this.m_menu_item.get(id)!;
+
+        if (typeof menu_item.activate === 'undefined') {
+            this.m_event_emitter.emit('menu-selected', id);
+        } else {
+            menu_item.activate();
+        }
     }
 
     public openMenu() {
@@ -152,73 +227,80 @@ export class MenuManager {
         global_object.mainWindow?.removeBrowserView(get_menu_instance()!);
     }
 
-    public connectToMenu(id: string, callback: () => void) {
-        this.m_event_emitter.on('menu-selected', (selected_id: string) => {
-            if (selected_id === id) {
-                callback();
-            }
-        });
+    _connectManager(
+        event_literal: EventLiteral,
+        callback: (id: string) => void,
+    ) {
+        this.m_event_emitter.on(event_literal, callback);
     }
 
-    // do not use it directly.
-    public _connectToMenu(id: string) {
-        const registerConnection = this.connectToMenu;
-        console.log('register id ', id);
-        new Promise(async (resolve, rejects) => {
-            const timeout_object = setTimeout(() => {
-                this.m_event_emitter.removeListener(
-                    'register-menu',
-                    eventHandler,
-                );
-                rejects();
-            }, 30000);
+    // public connectToMenu(id: string, callback: () => void) {
+    //     this.m_event_emitter.on('menu-selected', (selected_id: string) => {
+    //         if (selected_id === id) {
+    //             callback();
+    //         }
+    //     });
+    // }
 
-            if (this.m_menu_item.has(id)) {
-                console.log('menu is existsed');
-                return resolve(this.m_menu_item.get(id));
-            }
+    // // do not use it directly.
+    // public _connectToMenu(id: string) {
+    //     const registerConnection = this.connectToMenu;
+    //     console.log('register id ', id);
+    //     new Promise(async (resolve, rejects) => {
+    //         const timeout_object = setTimeout(() => {
+    //             this.m_event_emitter.removeListener(
+    //                 'register-menu',
+    //                 eventHandler,
+    //             );
+    //             rejects();
+    //         }, 30000);
 
-            const eventHandler = (menu_id: string) => {
-                console.log('🔔 Received event:', menu_id);
-                if (menu_id === id) {
-                    clearTimeout(timeout_object); // clear timer
-                    if (id === menu_id) {
-                        this.m_event_emitter.removeListener(
-                            'register-menu',
-                            eventHandler,
-                        ); // remove listener
-                        console.log('resoved');
-                        resolve(menu_id);
-                    }
-                }
-            };
+    //         if (this.m_menu_item.has(id)) {
+    //             console.log('menu is existsed');
+    //             return resolve(this.m_menu_item.get(id));
+    //         }
 
-            this.m_event_emitter.on('register-menu', eventHandler);
-        });
-    }
+    //         const eventHandler = (menu_id: string) => {
+    //             console.log('🔔 Received event:', menu_id);
+    //             if (menu_id === id) {
+    //                 clearTimeout(timeout_object); // clear timer
+    //                 if (id === menu_id) {
+    //                     this.m_event_emitter.removeListener(
+    //                         'register-menu',
+    //                         eventHandler,
+    //                     ); // remove listener
+    //                     console.log('resoved');
+    //                     resolve(menu_id);
+    //                 }
+    //             }
+    //         };
+
+    //         this.m_event_emitter.on('register-menu', eventHandler);
+    //     });
+    // }
 }
 
 //
 // decorators
 //
 
-export function registerKawaiCategory(_category_id: string) {
-    const wrapper = <T extends new (...args: any[]) => KawaiMenuBase>(
-        constructor: T,
-    ) => {
-        const newConstructor = class extends constructor {
-            id: string;
-            constructor(...args: any[]) {
-                super(...args);
-                this.id = _category_id;
-            }
-        };
-        const class_object = new newConstructor();
-        MenuManager.getInstance().add_category(class_object);
-        return newConstructor;
-    };
-    return wrapper;
-}
+// export function registerKawaiCategory(_category_id: string) {
+//     const wrapper = <T extends new (...args: any[]) => KawaiMenuBase>(
+//         constructor: T,
+//     ) => {
+//         const newConstructor = class extends constructor {
+//             id: string;
+//             constructor(...args: any[]) {
+//                 super(...args);
+//                 this.id = _category_id;
+//             }
+//         };
+//         const class_object = new newConstructor();
+//         MenuManager.getInstance().add_category(class_object);
+//         return newConstructor;
+//     };
+//     return wrapper;
+// }
 
 // export function connect_menu(menu_id: string) {
 //     const wrapper_deco = (target_function : ()=>{}) => {
@@ -233,25 +315,25 @@ export function registerKawaiCategory(_category_id: string) {
  * @param menu_id menu id.
  * @returns
  */
-export function connect_menu(menu_id: string) {
-    return function (
-        target: any,
-        propertyKey: string | symbol,
-        descriptor: PropertyDescriptor,
-    ) {
-        const originalMethod = descriptor.value;
+// export function connect_menu(menu_id: string) {
+//     return function (
+//         target: any,
+//         propertyKey: string | symbol,
+//         descriptor: PropertyDescriptor,
+//     ) {
+//         const originalMethod = descriptor.value;
 
-        descriptor.value = function (...args: any[]) {
-            // 원본 메서드를 호출하기 전에 원하는 작업을 할 수 있음
-            MenuManager.getInstance().connectEventListener(
-                menu_id,
-                originalMethod,
-            );
+//         descriptor.value = function (...args: any[]) {
+//             // 원본 메서드를 호출하기 전에 원하는 작업을 할 수 있음
+//             MenuManager.getInstance().connectEventListener(
+//                 menu_id,
+//                 originalMethod,
+//             );
 
-            // 원본 메서드를 호출
-            return originalMethod.apply(this, args);
-        };
+//             // 원본 메서드를 호출
+//             return originalMethod.apply(this, args);
+//         };
 
-        return descriptor; // 수정된 디스크립터 반환
-    };
-}
+//         return descriptor; // 수정된 디스크립터 반환
+//     };
+// }

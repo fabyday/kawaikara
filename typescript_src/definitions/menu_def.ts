@@ -10,7 +10,14 @@ export class KawaiCategoryBase {
     }
 }
 
-export class KawaiMenuBase {
+export interface IKawaiMenu {
+    id: string;
+    category: string;
+    activate?: () => void; // if activate exists then menu manager doesn't emit event.
+    getFaviconUrl? : ()=>string
+}
+
+export class KawaiMenuBase implements IKawaiMenu{
     id: string;
     category: string;
 
@@ -18,7 +25,4 @@ export class KawaiMenuBase {
         this.id = id;
         this.category = category;
     }
-
-
-    public activate(){}; //if return value == true, then close menu.
 }

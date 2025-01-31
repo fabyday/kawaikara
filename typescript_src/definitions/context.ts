@@ -18,12 +18,9 @@ type KawaiId = string;
 
 // KawaiContext Will be saved when quit app.
 export type KawaiContext = {
-    window_mode?: KawaiWindowMode;
+    window_mode?: KawaiWindowMode[];
     current_site_descriptor?: KawaiAbstractSiteDescriptor;
-    current_window_bounds?: KawaiRecursiveTypeRemover<
-        KawaiBounds,
-        KawaiNameProperty
-    >;
+    current_window_bounds?: Electron.Rectangle
 };
 
 export type GlobalObject = {

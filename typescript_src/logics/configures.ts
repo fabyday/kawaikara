@@ -3,6 +3,9 @@ import {
     KawaiConfig,
     KawaiConfigure,
     KawaiLocale,
+    KawaiNameProperty,
+    KawaiShortcut,
+    KawaiWindowPreference,
 } from '../definitions/setting_types';
 
 import * as fs from 'fs';
@@ -14,7 +17,6 @@ import {
     default_locale_directory,
 } from '../component/constants';
 import { global_object } from '../data/context';
-import { ShortcutManager } from '../manager/shortcut_manager';
 import { set_autoupdater, unset_autoupdater } from '../component/autoupdater';
 import log from 'electron-log/main';
 import {
@@ -24,23 +26,18 @@ import {
 import { normalize_locale_string } from './os';
 import { LocaleManager } from '../manager/lcoale_manager';
 import { get_flogger } from '../logging/logger';
+import { KawaiViewManager } from '../manager/view_manager';
+import {
+    KawaiRecursiveTypeExtractor,
+    KawaiRecursiveTypeRemover,
+} from '../definitions/types';
+import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
+import { KawaiWindowManager } from '../manager/window_manager';
+import { ShortcutManager } from '../manager/shortcut_manager';
 
 const flog = get_flogger('configure', 'configure', 'debug');
-function set_general_configuration(jsondata: KawaiConfig) {
-    log.debug('setup general config.');
-}
-function apply_autoupdate() {
-    log.debug('apply auto update');
-    if (
-        global_object.config?.preference?.general?.enable_autoupdate?.value ===
-        true
-    ) {
-        set_autoupdater();
-    } else {
-        unset_autoupdater();
-    }
-}
-function apply_darkmode() {
+
+function apply_darkmode(mode: boolean) {
     if (global_object.config?.preference?.general?.dark_mode?.value === true) {
         nativeTheme.themeSource = 'dark';
     } else {
@@ -49,15 +46,76 @@ function apply_darkmode() {
     log.info(nativeTheme.themeSource, 'mode on.');
     global_object.mainWindow?.reload(); // reload theme.
 }
+function set_general_configuration(config: KawaiConfig) {
+    flog.debug('setup general config.');
 
-function apply_resize_window() {
-    log.info('apply resize window.');
+    apply_darkmode(config.preference?.general?.dark_mode?.value ?? false);
+    apply_autoupdate(
+        config.preference?.general?.enable_autoupdate?.value ?? false,
+    );
+
+    apply_window_prefernece(config.preference?.general?.window_preference);
+    apply_default_main(config.preference?.general?.default_main?.id.value);
 }
 
-function apply_pipmode() {}
+function apply_window_prefernece(
+    window_preference:
+        | KawaiRecursiveTypeRemover<KawaiWindowPreference, KawaiNameProperty>
+        | undefined,
+) {
+    KawaiViewManager.getInstance().resizeWindow(
+        window_preference?.window_size?.width?.value,
+        window_preference?.window_size?.height?.value,
+    );
+    KawaiWindowManager.getInstance().setPiPBounds(
+        window_preference?.pip_window_size?.width?.value,
+        window_preference?.pip_window_size?.height?.value,
+        window_preference?.pip_location?.location?.value,
+        window_preference?.pip_location?.monitor?.value,
+    );
+}
 
-function set_shortcut_configuration(jsondata: KawaiConfig) {
-    // const mgr = ShortcutManager.getInstance().register();
+function apply_default_main(id: string | undefined) {
+    if (typeof id !== 'undefined') {
+        const site_descritor =
+            KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
+                id,
+            );
+        if (typeof site_descritor !== 'undefined') {
+            KawaiViewManager.getInstance().loadUrl(id);
+        }
+    }
+}
+
+function apply_autoupdate(mode: boolean) {
+    log.debug('apply auto update');
+    if (mode === true) {
+        set_autoupdater();
+    } else {
+        unset_autoupdater();
+    }
+}
+
+function set_shortcut_configuration(config: KawaiConfig) {
+    const mgr = ShortcutManager.getInstance();
+    if (typeof config === 'undefined') {
+        return;
+    }
+    if (typeof config.preference === 'undefined') {
+        return;
+    }
+    if (typeof config.preference.shortcut === 'undefined') {
+        return;
+    }
+
+    Object.keys(config.preference.shortcut).forEach((key) => {
+        const value: string | KawaiShortcut | undefined =
+            config.preference!.shortcut?.[key];
+        if (typeof value !== 'undefined' && typeof value !== 'string') {
+            if (typeof value.shortcut_key === 'undefined')
+                mgr.queryAndModifyShortcut(key, value.shortcut_key ?? '');
+        }
+    });
 }
 
 function save_config(config: KawaiConfig, save_path?: string) {
@@ -68,7 +126,6 @@ function save_config(config: KawaiConfig, save_path?: string) {
         fs.writeFileSync(path.join(data_root_path, default_config_path), data);
     }
 }
-
 
 function isJsonObject(input: unknown): input is JSON {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
@@ -147,14 +204,9 @@ export function set_config(data: JSON | string | KawaiConfig) {
     } else {
         global_object.config = { ...global_object.config, ...config };
     }
-    return;
-    flog.debug(config);
-    flog.debug(global_object.config);
 
-    flog.debug('===========');
-
-    // set_general_configuration(global_object.config);
-    // set_shortcut_configuration(global_object.config);
+    set_general_configuration(global_object.config);
+    set_shortcut_configuration(global_object.config);
 }
 
 /**
@@ -199,13 +251,13 @@ export function set_locale(data: JSON | string | KawaiLocale | undefined) {
                             data_root_path,
                             default_locale_directory,
                             system_locale_code + '.json',
-                        )
+                        ),
                 );
                 rawData = JSON.stringify(default_locale);
             }
         }
         jsonData = JSON.parse(rawData);
-        flog.debug(jsonData)
+        flog.debug(jsonData);
         const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
         locale = unknown_type_config as KawaiLocale;
     } else if (isJsonObject(data)) {

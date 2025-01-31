@@ -2,12 +2,14 @@ import { screen } from 'electron/main';
 import {
     KawaiBounds,
     KawaiLocationPresetProperty,
+    KawaiNameProperty,
     KawaiWindowPreset,
 } from '../definitions/setting_types';
 import { BrowserWindow } from 'electron';
 import { global_object } from '../data/context';
 import { get_flogger } from '../logging/logger';
-const flog = get_flogger("WindowManager", "windowmanager", "debug")
+import { KawaiRecursiveTypeRemover } from '../definitions/types';
+const flog = get_flogger('WindowManager', 'windowmanager', 'debug');
 export class KawaiWindowManager {
     static __instance: KawaiWindowManager | undefined = undefined;
     static readonly preset_size = [
@@ -19,6 +21,86 @@ export class KawaiWindowManager {
         [3840, 2160], //4k
         [7680, 4320], // 8k
     ];
+
+    private m_pip_bounds: Electron.Rectangle = {
+        x: -1,
+        y: -1,
+        width: -1,
+        height: -1,
+    };
+    private m_current_window_bounds: Electron.Rectangle = {
+        x: -1,
+        y: -1,
+        width: -1,
+        height: -1,
+    };
+
+    /**
+     *
+     * @param width width selected from pipPreset
+     * @param height height selected from pipPreset
+     * @param pip_location location
+     * @param monitor_name if monitor name wasn't given, then we select default primary monitor.
+     */
+    public setPiPBounds(
+        width?: number,
+        height?: number,
+        pip_location?: KawaiWindowPreset,
+        monitor_name?: string,
+    ) {
+        let sel_disp: Electron.Display | null = null;
+        screen.getAllDisplays().forEach((disp) => {
+            if (disp.label === monitor_name) {
+                sel_disp = disp;
+            }
+        });
+        if (sel_disp != null) {
+            const work_area = (sel_disp as Electron.Display).workAreaSize;
+            const sel_bounds = (sel_disp as Electron.Display).bounds;
+            const sel_x = sel_bounds.x;
+            const sel_y = sel_bounds.y;
+            const selected_width = sel_bounds.width;
+            const selected_height = sel_bounds.height;
+            this.m_current_window_bounds =
+                global_object.mainWindow?.getBounds() ?? {
+                    x: -1,
+                    y: -1,
+                    width: -1,
+                    height: -1,
+                };
+
+                
+                let left_pos_x = 0;
+                let left_pos_y = 0;
+                const min_padding = 2;
+                switch (pip_location) {
+                    case 'top-left': {
+                        left_pos_x = sel_x + min_padding;
+                        left_pos_y = sel_y + min_padding;
+                        break;
+                                        }
+                case 'top-right': {
+                    left_pos_x = sel_x + selected_width - width - min_padding;
+                    left_pos_y = sel_y + min_padding;
+                    break;
+                }
+                case 'bottom-left': {
+                    left_pos_x = sel_x + min_padding;
+                    left_pos_y = sel_y + selected_height - height - min_padding;
+                    break;
+                }
+                case 'bottom-right': {
+                    left_pos_x = sel_x + selected_width - width - min_padding;
+                    left_pos_y = sel_y + selected_height - height - min_padding;
+                }
+            }
+           
+        }
+    }
+
+    public getPipBounds() {
+        return this.m_pip_bounds;
+    }
 
     private constructor() {}
 
@@ -84,7 +166,7 @@ export class KawaiWindowManager {
             [400, 300],
             [600, 400],
         ].concat(preset_size.slice(0, end_index));
-        flog.debug(pip_preset)
+        flog.debug(pip_preset);
         return pip_preset;
     }
     /**
@@ -111,7 +193,9 @@ export class KawaiWindowManager {
         y?: number,
         width?: number,
         height?: number,
-    ): void {}
+    ): void {
+
+    }
 
     public getConfigWindowSize(): Electron.Rectangle {
         const obj: KawaiBounds | undefined =

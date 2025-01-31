@@ -53,11 +53,12 @@ export type KawaiLocationPresetProperty = KawaiNameProperty &
 
 export type KawaiPiPLocation = KawaiNameProperty & {
     [key: string]: KawaiWindowPreset | KawaiStringProperty | undefined;
-    location?: KawaiNameProperty& kawaiProperty<KawaiValueLiteral, KawaiWindowPreset>;
+    location?: KawaiNameProperty &
+        kawaiProperty<KawaiValueLiteral, KawaiWindowPreset>;
     monitor?: KawaiStringProperty;
 };
 
-export type KawaiWindowPreference = KawaiNameProperty&{
+export type KawaiWindowPreference = KawaiNameProperty & {
     [key: string]:
         | KawaiPiPLocation
         | KawaiBounds
@@ -68,7 +69,7 @@ export type KawaiWindowPreference = KawaiNameProperty&{
     window_size?: KawaiBounds;
 };
 
-export type KawaiGeneralCollection = KawaiNameProperty&{
+export type KawaiGeneralCollection = KawaiNameProperty & {
     [key: string]:
         | KawaiPage
         | KawaiWindowPreference
@@ -97,8 +98,7 @@ export type KawaiPreference = KawaiNameProperty & {
 export type KawaiVersion = { version?: string };
 
 export type Favorites = KawaiNameProperty & {
-    [key: string]: KawaiStringProperty[] | undefined;
-    values?: KawaiStringProperty[];
+    [key: string]: KawaiStringProperty | undefined;
 };
 
 export type KawaiConfigure = {
@@ -117,12 +117,17 @@ export type KawaiConfigure = {
  * metaname : name on app display.
  */
 export type LocaleMeta = { filename: string; metaname: string };
-export type SystemLiteralMeta = {[key:string] : string}
+export type SystemLiteralMeta = { [key: string]: string };
 export type KawaiConfig = KawaiRecursiveTypeRemover<
     KawaiConfigure,
     KawaiNameProperty
 >;
+export type KawaiConfisg = KawaiRecursiveTypeRemover<
+    Favorites,
+    KawaiNameProperty
+>;
+
 export type KawaiLocale = KawaiRecursiveTypeExtractor<
     KawaiConfigure,
     KawaiNameProperty
-> & { locale_meta?: LocaleMeta , system_literal? : SystemLiteralMeta};
+> & { locale_meta?: LocaleMeta; system_literal?: SystemLiteralMeta };
