@@ -48,6 +48,11 @@ export class KawaiWindowManager {
         pip_location?: KawaiWindowPreset,
         monitor_name?: string,
     ) {
+        if (typeof width === 'undefined' || typeof height === 'undefined') {
+            width = this.getPictureInPicturePresetSize()[0][0];
+            height = this.getPictureInPicturePresetSize()[0][1];
+        }
+
         let sel_disp: Electron.Display | null = null;
         screen.getAllDisplays().forEach((disp) => {
             if (disp.label === monitor_name) {
@@ -69,16 +74,15 @@ export class KawaiWindowManager {
                     height: -1,
                 };
 
-                
-                let left_pos_x = 0;
-                let left_pos_y = 0;
-                const min_padding = 2;
-                switch (pip_location) {
-                    case 'top-left': {
-                        left_pos_x = sel_x + min_padding;
-                        left_pos_y = sel_y + min_padding;
-                        break;
-                                        }
+            let left_pos_x = 0;
+            let left_pos_y = 0;
+            const min_padding = 2;
+            switch (pip_location) {
+                case 'top-left': {
+                    left_pos_x = sel_x + min_padding;
+                    left_pos_y = sel_y + min_padding;
+                    break;
+                }
                 case 'top-right': {
                     left_pos_x = sel_x + selected_width - width - min_padding;
                     left_pos_y = sel_y + min_padding;
@@ -94,7 +98,6 @@ export class KawaiWindowManager {
                     left_pos_y = sel_y + selected_height - height - min_padding;
                 }
             }
-           
         }
     }
 
@@ -193,9 +196,7 @@ export class KawaiWindowManager {
         y?: number,
         width?: number,
         height?: number,
-    ): void {
-
-    }
+    ): void {}
 
     public getConfigWindowSize(): Electron.Rectangle {
         const obj: KawaiBounds | undefined =

@@ -102,8 +102,9 @@ async function initialize_data() {
  * then find config and states files in AppData on windows and OS specific default app path
  */
 export async function initialize(config_root?: string) {
-    const manager_promise = initialize_manager();
-    const data_initializer_promise = initialize_data();
+    await initialize_manager();
+    await initialize_manager_connection();
+    await initialize_data();
     initialize_global_object_context(config_root);
     if (typeof config_root === 'string') {
         set_config(config_root);
@@ -118,7 +119,4 @@ export async function initialize(config_root?: string) {
     await initialize_views();
     initialize_handler();
     get_preference_instance(); // for Testing .. @TODO REMOVE THIS
-    await manager_promise;
-    await initialize_manager_connection();
-    await data_initializer_promise;
 }

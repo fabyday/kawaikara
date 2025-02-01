@@ -9,7 +9,7 @@ export const config_name = 'kawai-config.json';
 export const default_config: KawaiConfig = {
     preference: {
         general: {
-            dark_mode: { value: true },
+            dark_mode: { value: false },
             default_main: { id: { value: '' } },
             enable_autoupdate: { value: true },
             render_full_size_when_pip_running: { value: true },
@@ -27,7 +27,7 @@ export const default_config: KawaiConfig = {
             selected_locale: { value: '' },
         },
         shortcut: {
-            goto_netflix: { shortcut_key: 'lCtrl+L' },
+            goto_netflix: { shortcut_key: '' },
             goto_laftel: { shortcut_key: '' },
             goto_youtube: { shortcut_key: '' },
             goto_disney: { shortcut_key: '' },

@@ -4,19 +4,19 @@
             "dark_mode": { "name": "다크모드" },
             "default_main": {
                 "name": "홈",
-                "url": { "name":"홈" }
+                "url": { "name": "홈" }
             },
             "enable_autoupdate": { "name": "자동 업데이트 활성화" },
             "render_full_size_when_pip_running": {
                 "name": "render when pip running"
-           },
+            },
             "window_preference": {
                 "pip_location": {
                     "monitor": { "name": "PiP Location" }
-        },
+                },
                 "pip_window_size": {
                     "name": "PiP 윈도우 사이즈",
-                    "x": { "name": "X"},
+                    "x": { "name": "X" },
                     "y": { "name": "Y" },
                     "width": { "name": "너비" },
                     "height": { "name": "높이" }
@@ -42,22 +42,26 @@
             "goto_amazonprime": { "name": "아마존 프라임" }
         }
     },
-    "version": { "name" : "2.0.0"},
+    "version": { "name": "2.0.0" },
     "locale_meta": { "filename": "KR", "metaname": "한국어" },
-    "system_literal" : {
-
-        "menu_main" : "홈",
-        "menu_netflix" : "넷플릭스",
-        "menu_laftel":"라프텔",
-        "menu_disneyplus":"디즈니 플러스",
-        "menu_youtube":"유튜브",
-        "menu_amazonprime" : "아마존 프라임",
-        "menu_wavve" : "웨이브",
-        "menu_watcha" : "왓차",
-        "menu_coupangplay" : "쿠팡 플레이",
-        "menu_tving" : "티빙",
-        "menu_applemusic" : "애플 뮤직",
-        "menu_chzzk" : "치지직",
-        "menu_twitch" : "트위치"
+    "system_literal": {
+        "menu_main": "홈",
+        "menu_netflix": "넷플릭스",
+        "menu_laftel": "라프텔",
+        "menu_disneyplus": "디즈니 플러스",
+        "menu_youtube": "유튜브",
+        "menu_amazonprime": "아마존 프라임",
+        "menu_wavve": "웨이브",
+        "menu_watcha": "왓차",
+        "menu_coupangplay": "쿠팡 플레이",
+        "menu_tving": "티빙",
+        "menu_applemusic": "애플 뮤직",
+        "menu_chzzk": "치지직",
+        "menu_twitch": "트위치",
+        "menu_info": "앱 정보",
+        "menu_preference": "설정",
+        "menu_checkupdate": "업데이트 체크",
+        "menu_github": "깃허브",
+        "menu_discord": "디스코드"
     }
 }

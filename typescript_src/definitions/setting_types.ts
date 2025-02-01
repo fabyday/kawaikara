@@ -122,10 +122,6 @@ export type KawaiConfig = KawaiRecursiveTypeRemover<
     KawaiConfigure,
     KawaiNameProperty
 >;
-export type KawaiConfisg = KawaiRecursiveTypeRemover<
-    Favorites,
-    KawaiNameProperty
->;
 
 export type KawaiLocale = KawaiRecursiveTypeExtractor<
     KawaiConfigure,

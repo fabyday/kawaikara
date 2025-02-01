@@ -24,6 +24,7 @@ export function RegisterShortcut<
 >(constructor: T) {
     constructor;
     const class_object = new constructor();
+    console.log('register', class_object.id)
     ShortcutManager.getInstance().register(class_object);
     return constructor;
 }

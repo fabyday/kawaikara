@@ -60,6 +60,7 @@
     "electron-updater": "^6.1.7",
     "fetch": "^1.1.0",
     "loadash": "^1.0.0",
+    "lodash": "^4.17.21",
     "node-dwmapi": "^1.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

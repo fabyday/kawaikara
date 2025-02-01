@@ -12,6 +12,7 @@ import { get_flogger, get_logger, log } from '../logging/logger';
 import { KawaiViewManager } from './view_manager';
 import { flog } from '../component/predefine/api';
 import { EventEmitter } from 'stream';
+import { normalize_locale_string } from '../logics/os';
 
 /**
  * Action Key Rule
@@ -168,33 +169,129 @@ export class ShortcutManager {
         );
         if (cur_action_map.has(normalized_key_seq)) {
             const item = cur_action_map.get(normalized_key_seq);
-            if (typeof item === 'function') {
-                // log.debug('key activate : ', this.key_states);
+            if (typeof item === 'string' || typeof item === 'undefined') {
+                // it means action ID
+
                 this.key_states = [];
                 if (this.m_cur_timeout_object !== null) {
                     log.debug('clear timeout');
                     clearTimeout(this.m_cur_timeout_object);
                 }
-                // this.m_event_emitter.emit("activated")
-                return item(); // run callback function.
-            } else {
-                this.key_states.push(normalized_key_seq);
             }
+
+            if (typeof item === 'string') {
+                const ActionInterface = this.m_action_map.action_hash.get(item);
+                if (typeof ActionInterface !== 'undefined') {
+                    if (typeof ActionInterface.onActivated === 'undefined') {
+                        this.m_event_emitter.emit(
+                            'activated',
+                            ActionInterface.id,
+                        );
+                    } else {
+                        return ActionInterface.onActivated();
+                    }
+                }
+            } else {
+                return true; // do nothing.
+            }
+        } else {
+            this.key_states.push(normalized_key_seq);
         }
-
-        return true;
     }
-
 
     /**
-     * 
-     * @param id 
+     *
+     * @param id
      * @param key_action "" empty string means delete keyAction.
      */
-    public queryAndModifyShortcut(id:string, key_action:string){
-        
+    public queryAndModifyShortcut(id: string, key_action: string[] | string) {
+        if (this.m_action_map.action_hash.has(id)) {
+            this._deleteActionCache(id);
+        }
+
+        const current_action = this.m_action_map.action_hash.get(id);
+        console.log(`${id} ${key_action} ${current_action}`);
+        if (typeof current_action === 'undefined') {
+            return; // stop this is invalid request. and throw error. so I quit.
+        }
+
+        let actionKey = [];
+        if (Array.isArray(key_action)) {
+            actionKey = key_action;
+        } else {
+            actionKey = [key_action];
+        }
+        this.addActionMap(id, current_action!.targetView, actionKey);
     }
-    
+
+    public _deleteActionCache(id: string) {
+        const target_action = this.m_action_map.action_hash.get(id);
+
+        flogger.debug('delete Action Cahche.');
+
+        /**
+         *
+         * @param ref target to delete
+         * @param actions reversed Action.
+         */
+        const recursive_delete_traveller_f = (ref: any, actions: string[]) => {
+            if (actions.length === 1) {
+                // stop  travel.
+                const action = actions.pop();
+                delete ref[action!];
+            }
+
+            const action = actions.pop();
+            recursive_delete_traveller_f(ref[action!], actions);
+            delete ref[action!];
+            // fucking easy.
+        };
+
+        if (typeof target_action !== 'undefined') {
+            // check undefined KeyActionListenable.
+
+            let actionKey = [];
+            if (!Array.isArray(target_action!.actionKey)) {
+                actionKey = [target_action!.actionKey];
+            } else {
+                actionKey = target_action!.actionKey;
+            }
+
+            {
+                let valid_check = true;
+
+                for (const v of actionKey) {
+                    if (v === '') {
+                        // if current is Empty
+                        valid_check = false;
+                    }
+                    if (!valid_check) {
+                        return; // early stop. cache not exists for empty string ''
+                    }
+                }
+            }
+
+            const target_action_list = actionKey.map((val) => {
+                const norm_actions: string[] = normalize_action_string(val);
+                const action_key = create_action_key_from_string_array(
+                    ...norm_actions,
+                );
+                return action_key;
+            });
+
+            if (this.m_action_map.actionMap.has(target_action!.targetView)) {
+                // check mapped target view exist.
+                const targetview_action_map = this.m_action_map.actionMap.get(
+                    target_action!.targetView,
+                );
+                let cur_ref = targetview_action_map;
+                recursive_delete_traveller_f(
+                    cur_ref,
+                    Array.from(target_action_list).reverse(),
+                );
+            }
+        }
+    }
 
     public register(o: keyActionListenable, overwrite = true) {
         let actionKey = [];
@@ -205,8 +302,15 @@ export class ShortcutManager {
         }
 
         //TODO predefined shortcut need to be skipped.
+        if (this.m_action_map.action_hash.has(o.id)) {
+            if (overwrite) {
+                this.m_action_map.action_hash.set(o.id, o);
+            }
+        } else {
+            this.m_action_map.action_hash.set(o.id, o);
+        }
 
-        this.addActionMap(o.targetView, actionKey, o.onActivated, overwrite);
+        this.addActionMap(o.id, o.targetView, actionKey, overwrite);
     }
 
     public unregister(o: keyActionListenable) {}
@@ -219,12 +323,73 @@ export class ShortcutManager {
     }
 
     protected addActionMap(
+        id: string,
         targetView: string,
         actions: string[],
-        activate_f: ActionCallback,
         overwrite = true,
     ) {
+        {
+            let valid_check = true;
+
+            for (const v of actions) {
+                if (v === '') {
+                    // if current is Empty
+                    valid_check = false;
+                }
+                if (!valid_check) {
+                    return;
+                }
+            }
+        }
         const actionMap = this.m_action_map.actionMap;
+
+        /**
+         *
+         * @param target
+         * @param action_list Action list must be rebuilt to recursive Hierachy. [ Action_A, Action_B] => [Action_B, Action_A]
+         */
+        const recursive_action_inject_f = (
+            target: ActionChainMap,
+            id: string,
+            action_list: string[],
+            overwrite: boolean = true,
+        ) => {
+            if (action_list.length === 0) {
+                return; // finish here to Stop error. this length value is abnormal.
+            }
+
+            if (action_list.length === 1) {
+                // end point. I quit this eternal recursive Function.
+                const last_action = action_list.pop();
+                if (target.has(last_action!)) {
+                    if (overwrite) {
+                        target.set(last_action!, id);
+                    }
+                    return; // the end.
+                } else {
+                    target.set(last_action!, id);
+                    return;
+                }
+            }
+
+            const action = action_list.pop();
+
+            const selected_action = target.get(action!);
+            if (typeof selected_action === 'string') {
+                // we must get inside deeeeep. make this string wrap as ActionChainMap
+                const new_ref: ActionChainMap = new Map();
+                target.set(action!, new_ref);
+                recursive_action_inject_f(new_ref, id, action_list);
+            } else if (typeof selected_action === 'undefined') {
+                // undefeind
+                const new_ref = new Map();
+                target.set(action!, new_ref);
+                recursive_action_inject_f(new_ref, id, action_list);
+            } else {
+                // what about Action Map
+                recursive_action_inject_f(target, id, action_list);
+            }
+        };
 
         const new_actions = actions.map((val) => {
             const norm_actions: string[] = normalize_action_string(val);
@@ -245,49 +410,13 @@ export class ShortcutManager {
         }
 
         var cur_ref = actionMap.get(targetView)!;
-        for (var i = 0; i < new_actions.length; i++) {
-            if (cur_ref.has(new_actions[i])) {
-                const elem = cur_ref.get(new_actions[i])!;
-                if (typeof elem === 'function') {
-                    // this means that end-point.)
-                    if (!overwrite) {
-                        throw 'already function existed.';
-                    } else {
-                        // overwrite
-                        if (i === new_actions.length - 1) {
-                            cur_ref.set(new_actions[i], activate_f);
-                        } else {
-                            const tmp = new Map();
-                            cur_ref.set(new_actions[i], tmp);
-                            cur_ref = tmp;
-                        }
-                    }
-                } else {
-                    // Else then It is Map type.
-                    if (!overwrite) {
-                        throw 'already function existed.';
-                    } else {
-                        // overwrite
-                        if (i === new_actions.length - 1) {
-                            cur_ref.set(new_actions[i], activate_f);
-                        } else {
-                            cur_ref = elem;
-                        }
-                    }
-                }
-            } else {
-                // IF Not has Values about Key.
-                if (i === new_actions.length - 1) {
-                    cur_ref.set(new_actions[i], activate_f);
-                } else {
-                    const tmp = new Map();
-                    cur_ref.set(new_actions[i], tmp);
-                    cur_ref = tmp;
-                }
-            }
-        }
 
-        this.m_action_map.action_hash.set(activate_f.toString(), new_actions);
+        recursive_action_inject_f(
+            cur_ref,
+            id,
+            Array.from(new_actions).reverse(),
+            overwrite,
+        );
     }
 
     public getIgnoredKeySequence() {
@@ -295,6 +424,7 @@ export class ShortcutManager {
     }
 }
 
+/// FUCKING BIG EXAMPLES
 // const a = ShortcutManager.getInstance();
 // a.register({
 //     actionKey: ['alt+tab', 'LCtrl+Q'],

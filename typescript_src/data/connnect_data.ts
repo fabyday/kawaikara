@@ -20,6 +20,17 @@ class KawaiMainTab implements keyActionListenable {
     }
 }
 @RegisterShortcut
+class KawaiPipShortcut implements keyActionListenable {
+    id = 'run_pip';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().openMenu();
+        return true;
+    }
+}
+
+@RegisterShortcut
 class KawaiFullscreenShortcut implements keyActionListenable {
     id = 'goto_fullscreen';
     targetView = mainview;
@@ -34,10 +45,6 @@ class KawaiPiPShortcut implements keyActionListenable {
     id = 'goto_PiP';
     targetView = mainview;
     actionKey = 'lalt+enter';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -45,10 +52,6 @@ class KawaiNetflixShortcut implements keyActionListenable {
     id = 'goto_netflix';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -56,10 +59,6 @@ class KawaiLaftelShortcut implements keyActionListenable {
     id = 'goto_laftel';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -67,10 +66,6 @@ class KawaiDisneyShortcut implements keyActionListenable {
     id = 'goto_disney';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -78,20 +73,12 @@ class KawaiYoutubeShortcut implements keyActionListenable {
     id = 'goto_youtube';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 @RegisterShortcut
 class KawaiAmazonPrimeShortcut implements keyActionListenable {
     id = 'goto_amazonprime';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -99,10 +86,6 @@ class KawaiWavveShortcut implements keyActionListenable {
     id = 'goto_wavve';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -110,10 +93,6 @@ class KawaiWatchaShortcut implements keyActionListenable {
     id = 'goto_watcha';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -121,10 +100,6 @@ class KawaiCoupangPlayShortcut implements keyActionListenable {
     id = 'goto_coupangplay';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -132,10 +107,6 @@ class KawaiTvingShortcut implements keyActionListenable {
     id = 'goto_tving';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -143,10 +114,6 @@ class KawaiTwitchShortcut implements keyActionListenable {
     id = 'goto_twitch';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -154,10 +121,6 @@ class KawaiChzzkShortcut implements keyActionListenable {
     id = 'goto_chzzk';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -165,10 +128,6 @@ class KawaiAppleMusicShortcut implements keyActionListenable {
     id = 'goto_applemusic';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
 
 @RegisterShortcut
@@ -176,8 +135,5 @@ class KawaiMainPageShortcut implements keyActionListenable {
     id = 'goto_main';
     targetView = mainview;
     actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
 }
+

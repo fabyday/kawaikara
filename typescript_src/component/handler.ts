@@ -1,8 +1,12 @@
 import { ipcMain, IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
-import { set_config } from '../logics/configures';
-import { KawaiConfig } from '../definitions/setting_types';
+import { set_config, set_preference } from '../logics/configures';
+import {
+    KawaiConfig,
+    KawaiNameProperty,
+    KawaiPreference,
+} from '../definitions/setting_types';
 import { KawaiWindowManager } from '../manager/window_manager';
 import { LocaleManager } from '../manager/lcoale_manager';
 import { MenuManager } from '../manager/menu_manager';
@@ -13,6 +17,7 @@ import { get_preference_instance } from './preference';
 import { default_config } from '../definitions/default_preference';
 import { KawaiViewManager } from '../manager/view_manager';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
+import { KawaiRecursiveTypeRemover } from '../definitions/types';
 
 /**
  *
@@ -60,7 +65,10 @@ export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.menu.load_favorites_list,
         (event: IpcMainInvokeEvent, ...args: any) => {
-            flog.debug("load favorites", MenuManager.getInstance().getFavorites())
+            flog.debug(
+                'load favorites',
+                MenuManager.getInstance().getFavorites(),
+            );
             return MenuManager.getInstance().getFavorites();
         },
     );
@@ -73,7 +81,7 @@ export function connectMainProcessHandler() {
     );
     ipcMain.handle(
         KAWAI_API_LITERAL.menu.delete_favorites,
-        (event: IpcMainInvokeEvent, id:string) => {
+        (event: IpcMainInvokeEvent, id: string) => {
             return MenuManager.getInstance().deleteFavorites(id);
         },
     );
@@ -94,10 +102,15 @@ export function connectMainProcessHandler() {
 
     ipcMain.handle(
         KAWAI_API_LITERAL.preference.apply_modified_preference,
-        (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
-            const new_conf = args[0] as KawaiConfig;
-            set_config(new_conf!);
-            flog.debug('new config saved.', new_conf);
+        (
+            e: Electron.IpcMainInvokeEvent,
+            config: KawaiRecursiveTypeRemover<
+                KawaiPreference,
+                KawaiNameProperty
+            >,
+        ) => {
+            set_preference(config!);
+            flog.debug('new config saved.', config);
             flog.debug('new config saved.', global_object.config);
             return true;
         },
@@ -114,8 +127,7 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.preference.load_config,
         (event: IpcMainInvokeEvent, ...args: any) => {
             flog.debug(default_config);
-            return default_config.preference;
-            // return global_object.config?.preference;
+            return global_object.config?.preference;
         },
     );
 
@@ -168,9 +180,14 @@ export function connectMainProcessHandler() {
 
     ipcMain.on(
         KAWAI_API_LITERAL.preference.save_and_close,
-        (e: Electron.IpcMainEvent, ...args: any[]) => {
-            const config: KawaiConfig = args[0] as KawaiConfig;
-            set_config(config);
+        (
+            e: Electron.IpcMainEvent,
+            config: KawaiRecursiveTypeRemover<
+                KawaiPreference,
+                KawaiNameProperty
+            >,
+        ) => {
+            set_preference(config);
             global_object.preferenceWindow?.close();
         },
     );

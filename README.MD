@@ -3,7 +3,6 @@
 <p align="center">
   <img src="./imgs/kawaikara_banner_title3.png" />
 </p>
-
 <p align="center">
 <strong>KAWAIKARA</strong> is
 <strong>OTT-Viewer</strong> based on 
@@ -14,7 +13,8 @@
 
 
 [![](https://dcbadge.vercel.app/api/server/JJs974BX45)](https://discord.gg/JJs974BX45)
-![build](https://github.com/fabyday/kwaikara/actions/workflows/publish.yaml/badge.svg)
+![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
+![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
 
 I'm enjoying Discord broadcasting with my friends. and its service fit to me very weeelll. However there are few problems. Discord acquires only single program window and many streaming services use DRM. watching OTT-streaming by Browser may be an alternative way. But Wathching By Browser waste screen area(I just want fullscreen mode but not actually fullscreen. I just want to remove address bar and scrollbar and other UIs.) That's why I decide to develop super-duper-tight&fit OTT-streaming viewer.
 

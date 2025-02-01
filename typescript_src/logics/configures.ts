@@ -4,10 +4,11 @@ import {
     KawaiConfigure,
     KawaiLocale,
     KawaiNameProperty,
+    KawaiPreference,
     KawaiShortcut,
     KawaiWindowPreference,
 } from '../definitions/setting_types';
-
+import * as lodash from 'lodash';
 import * as fs from 'fs';
 import path from 'path';
 import { app, nativeTheme } from 'electron';
@@ -46,6 +47,19 @@ function apply_darkmode(mode: boolean) {
     log.info(nativeTheme.themeSource, 'mode on.');
     global_object.mainWindow?.reload(); // reload theme.
 }
+
+// function set_favorites_configuration(config : KawaiConfig){
+//     flog.debug("setup favorites")
+//     if(typeof config?.favorites === "undefined"){
+//         return;
+//         // if undefined do nothing.
+//     }
+//     for(let key in Object.keys(config!.favorites!) ){
+//         const value = config.favorites[key]
+
+//     }
+// }
+
 function set_general_configuration(config: KawaiConfig) {
     flog.debug('setup general config.');
 
@@ -112,26 +126,41 @@ function set_shortcut_configuration(config: KawaiConfig) {
         const value: string | KawaiShortcut | undefined =
             config.preference!.shortcut?.[key];
         if (typeof value !== 'undefined' && typeof value !== 'string') {
-            if (typeof value.shortcut_key === 'undefined')
+            if (typeof value.shortcut_key !== 'undefined') {
                 mgr.queryAndModifyShortcut(key, value.shortcut_key ?? '');
+            }
         }
     });
 }
 
-function save_config(config: KawaiConfig, save_path?: string) {
+export function save_config(config: KawaiConfig, save_path?: string) {
     const data = JSON.stringify(config);
-    if (typeof save_path === 'string') {
-        fs.writeFileSync(save_path, data);
-    } else {
-        fs.writeFileSync(path.join(data_root_path, default_config_path), data);
+    save_path = save_path ?? path.join(data_root_path, default_config_path);
+    let root_pth =path.dirname(save_path);
+
+    if (!fs.existsSync(root_pth)) {
+        fs.mkdirSync(root_pth, { recursive: true });
     }
+
+    fs.writeFileSync(save_path, data);
 }
 
 function isJsonObject(input: unknown): input is JSON {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
 }
 
-function check_version(version?: string) {}
+function check_lower_than_2_x_version(raw_json: Object) {
+    const json = raw_json as any;
+    if (typeof json?.['version']?.['value'] !== 'undefined') {
+        let version: string = json['version']['value']!;
+        const [major, minor1, minor2] = version.split('.');
+        if (2 >= Number(major)) {
+            return false;
+        }
+    } else {
+        return true;
+    }
+}
 
 /**
  *
@@ -144,67 +173,96 @@ function check_version(version?: string) {}
  *
  */
 
-export function set_config(data: JSON | string | KawaiConfig) {
-    var jsonData: JSON;
-    var config: KawaiConfig;
+function _set_config_from_path(pth: string): KawaiConfig | null {
+    let raw_data = null;
+    try {
+        raw_data = fs.readFileSync(pth, 'utf8');
+    } catch (e) {
+        flog.debug(`${pth} path failed`);
+        flog.debug(e);
+    }
 
-    if (typeof data === 'string') {
-        // if data_path isn't exists
-
-        log.debug('config was set by Json');
-        let rawData;
+    if (raw_data == null) {
         try {
-            flog.debug('load from file ', data);
-            rawData = fs.readFileSync(data, 'utf8');
+            raw_data = fs.readFileSync(path.join(data_root_path, pth), 'utf-8');
         } catch (e) {
-            flog.debug('load was failed from given path.');
-            log.debug('load was failed from given path.');
-            // if failed load default config json
-            try {
-                flog.debug(
-                    'load from default path.',
-                    path.join(data_root_path, default_config_path),
-                );
-                rawData = fs.readFileSync(
-                    path.join(data_root_path, default_config_path),
-                    'utf8',
-                );
-            } catch (e) {
-                flog.debug(
-                    'failed...\nload from default locale.\n',
-                    default_config,
-                );
-                log.debug('default config file was not existed.');
-                rawData = JSON.stringify(default_config);
-                log.debug('load default config.');
-            }
-        } finally {
-            jsonData = JSON.parse(rawData as string);
-            const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-            config = unknown_type_config as KawaiConfig;
-            flog.debug('convert loaded config to KawaiConfig.\n', config);
+            flog.debug(`${pth} path failed`);
         }
-    } else if (isJsonObject(data)) {
-        //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>'
-        // may be a mistake because neither type sufficiently overlaps with the other. If this was intentional,
-        // convert the expression to 'unknown' first.
-        log.debug('config was set by Json');
-        jsonData = data;
-        const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-        config = unknown_type_config as KawaiConfig;
-    } else {
-        log.debug('config was set by KawaiConfig');
-        config = data as KawaiConfig;
     }
-    flog.debug('config start');
-    flog.debug(global_object.config);
-    flog.debug('config  end');
-    if (typeof config.version?.value === 'undefined') {
-        global_object.config = { ...global_object.config, ...default_config };
-    } else {
-        global_object.config = { ...global_object.config, ...config };
+    if (raw_data == null) {
+        try {
+            raw_data = fs.readFileSync(
+                path.join(data_root_path, default_config_path),
+                'utf-8',
+            );
+        } catch (e) {
+            flog.debug(
+                `${path.join(data_root_path, default_config_path)} path failed`,
+            );
+        }
     }
 
+    if (raw_data == null) {
+        return default_config;
+    }
+
+    const config: KawaiConfig = JSON.parse(raw_data) as KawaiConfig;
+    if (check_lower_than_2_x_version(config)) {
+        return default_config;
+    }
+    return config;
+}
+
+function _set_config_from_json(data: JSON): KawaiConfig {
+    const config = data as unknown as KawaiConfig;
+
+    // if (check_lower_than_2_x_version(config)) {
+    //     return default_config;
+    // }
+
+    return config;
+}
+
+export function set_preference(
+    preference: KawaiRecursiveTypeRemover<KawaiPreference, KawaiNameProperty>,
+) {
+    if (typeof global_object.config === 'undefined') {
+        global_object.config = {};
+    }
+    let obj = lodash.merge({}, global_object.config.preference ?? {});
+    obj = lodash.merge(obj, preference);
+    global_object.config.preference = obj;
+    set_general_configuration(global_object.config);
+    set_shortcut_configuration(global_object.config);
+    save_config(global_object.config, path.join(data_root_path, 'test.json'));
+}
+
+export function set_config(data: JSON | string | KawaiConfig | undefined) {
+    var jsonData: JSON;
+    var config: KawaiConfig | null = null;
+
+    if (typeof data === 'string' || typeof data === 'undefined') {
+        let config_path = data;
+        if (typeof config_path === 'undefined') {
+            config_path = path.join(data_root_path, default_config_path);
+        }
+
+        config = _set_config_from_path(config_path!);
+    } else if (isJsonObject(data)) {
+        config = _set_config_from_json(data);
+    } else {
+        config = config;
+        if (check_lower_than_2_x_version(data)) {
+            config = default_config;
+        } else {
+            config = data;
+        }
+        // KAWAI CONFIG
+    }
+
+    let obj = lodash.merge({}, global_object.config);
+    obj = lodash.merge(obj, config);
+    global_object.config = obj;
     set_general_configuration(global_object.config);
     set_shortcut_configuration(global_object.config);
 }

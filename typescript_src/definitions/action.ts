@@ -84,15 +84,15 @@ export interface keyActionListenable {
     id: string;
     targetView: string;
     actionKey: string[] | string;
-    onActivated(): boolean;
+    onActivated?: ()=>boolean;
 }
 
 export type ActionCallback = () => boolean;
 
-export type ActionChainMap = Map<string, ActionCallback | ActionChainMap>;
+export type ActionChainMap = Map<string, string | ActionChainMap>;
 
 export type KawaiActionMap = {
-    action_hash: Map<string, string[]>;
+    action_hash: Map<string, keyActionListenable>;
     actionMap: Map<string, ActionChainMap>;
 };
 export type KawaiActionPreference = {
