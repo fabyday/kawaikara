@@ -36,7 +36,8 @@ class KawaiFullscreenShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = 'lalt+enter';
     onActivated() {
-        KawaiViewManager.getInstance().openMenu();
+        
+        KawaiViewManager.getInstance().fullscreen(true);
         return true;
     }
 }
@@ -45,6 +46,10 @@ class KawaiPiPShortcut implements keyActionListenable {
     id = 'goto_PiP';
     targetView = mainview;
     actionKey = 'lalt+enter';
+    onActivated() {
+        KawaiViewManager.getInstance().pipMode(true);
+        return true;
+    }
 }
 
 @RegisterShortcut

@@ -16,6 +16,7 @@
     "Video-viewer"
   ],
   "devDependencies": {
+    "@types/discord-rpc": "^4.0.8",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "https://github.com/castlabs/electron-releases#v28.0.0+wvcus",
@@ -54,6 +55,8 @@
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "cross-fetch": "^4.0.0",
+    "discord-rpc": "^4.0.1",
+    "dotenv": "^16.4.7",
     "electron-is-dev": "^3.0.1",
     "electron-log": "^5.0.3",
     "electron-preferences": "^2.8.2",

@@ -27,7 +27,6 @@ function KawaiSelector({id, title, preset_list, value , select_f, onselected_cus
 
 useEffect(() => {
         let validValue = value
-        console.log(value)
         validValue = preset_list.includes(value) ? value : preset_list[0];
         set_args(validValue)
         

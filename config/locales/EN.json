@@ -42,8 +42,8 @@
             "goto_amazonprime": { "name": "amazon prime" }
         }
     },
-    "version": { "name": "2.0.0" },
-    "locale_meta": { "filename": "EN", "metaname": "English" },
+    "version": { "name": "version" },
+    "locale_meta": { "filename": "EN", "metaname": "English" , "version" : "2.0.0"},
     "system_literal": {
         "menu_main": "Kawai Main",
         "menu_netflix": "Netflix",

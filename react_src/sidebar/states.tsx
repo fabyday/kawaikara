@@ -7,7 +7,7 @@ import { KawaiLocale } from '../../typescript_src/definitions/setting_types';
 export type KawaiMenuComponent = {
     id: string;
     name: string;
-    favicon?: string;
+    favicon?: string ;
     favorite?: boolean;
 };
 type Id = string;
@@ -20,7 +20,11 @@ type MenuStates = {
     fetch: () => Promise<void>;
     set_current_category: (category: string) => void;
 };
-
+export function isBase64(str: string): boolean {
+    const base64Pattern = /^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/;
+    const res = base64Pattern.test(str);
+    return res
+}
 type get_type = () => MenuStates;
 type set_type = (
     partial:
@@ -37,6 +41,7 @@ const data_init_f = (menu_obj: any[], locale: KawaiLocale) => {
         const category_id = menu_obj[key]['category'];
         const menu_id = menu_obj[key]['id'];
         const favicon = menu_obj[key]['favicon'];
+        
         console.log(locale?.system_literal?.[menu_id]);
         console.log(locale);
         const name = locale?.system_literal?.[menu_id] ?? menu_id;

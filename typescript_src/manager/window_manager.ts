@@ -31,10 +31,33 @@ export class KawaiWindowManager {
     private m_current_window_bounds: Electron.Rectangle = {
         x: -1,
         y: -1,
-        width: -1,
-        height: -1,
+        width: 400,
+        height: 300,
     };
 
+    private m_default_window_size: Electron.Rectangle = {
+        x: -1,
+        y: -1,
+        width: 1280,
+        height: 720,
+    };
+
+    public setDefaultWindowSize(width?: number, height?: number) {
+        if(typeof width === "undefined" || typeof height === "undefined" ){
+            return;
+        }
+        const { x, y } = this.findCenterCoordByBounds(width, height);
+        this.m_default_window_size = {
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+        };
+    }
+
+    public getDefaultWindowSize() {
+        return this.m_default_window_size;
+    }
     /**
      *
      * @param width width selected from pipPreset
@@ -105,7 +128,12 @@ export class KawaiWindowManager {
         return this.m_pip_bounds;
     }
 
-    private constructor() {}
+    private constructor() {
+        this.setDefaultWindowSize(
+            this.m_default_window_size.width,
+            this.m_default_window_size.height,
+        );
+    }
 
     public static getInstance() {
         if (KawaiWindowManager.__instance === undefined) {

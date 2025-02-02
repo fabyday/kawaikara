@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import produce from 'immer';
 import {
     KawaiConfig,
+    KawaiLocale,
     KawaiPreference,
     KawaiShortcut,
     KawaiShortcutCollection,
@@ -29,7 +30,6 @@ export const shortcut_states = create<ShortCutDupStates>((set, get) => ({
         return (get().shortcut_dups as any)[shortcut_id] ?? true;
     },
     fetch: (shortcut_collection?: KawaiShortcutCollection) => {
-        console.log('F!etched');
         if (typeof shortcut_collection === 'undefined') {
             return; // do nothing.
         }
@@ -37,40 +37,27 @@ export const shortcut_states = create<ShortCutDupStates>((set, get) => ({
         skeys = skeys.filter((value) => {
             return value !== 'name';
         });
-        console.log(skeys);
         const shortcut_key_id_map = {} as any;
         skeys.forEach((id) => {
             const shortcut =
                 (shortcut_collection[id] as KawaiShortcut).shortcut_key ?? '';
-            console.log('key', shortcut);
             if (shortcut !== '') {
-                console.log('shortcut_key_id_map', shortcut_key_id_map);
                 if (typeof shortcut_key_id_map[shortcut] === 'undefined') {
                     shortcut_key_id_map[shortcut] = new Set<string>();
                 }
 
                 shortcut_key_id_map[shortcut].add(id);
-                console.log('shortcut_key_id_map', shortcut_key_id_map);
-                console.log(
-                    'shortcut_key_id_map',
-                    shortcut_key_id_map[shortcut],
-                );
             }
         });
-        console.log(skeys);
 
         const result = {} as any;
         skeys.forEach((id) => (result[id] = false));
         Object.keys(shortcut_key_id_map).forEach((sk) => {
-            console.log('res', sk);
-            console.log('res', shortcut_key_id_map[sk]);
             for (let name of shortcut_key_id_map[sk]) {
                 result[name] = shortcut_key_id_map[sk].size > 1 ? true : false;
             }
         });
-        console.log('res', result);
         set((state) => ({ ...state, shortcut_dups: { ...result } }));
-        console.log(get().shortcut_dups, 'Asdads');
     },
 }));
 
@@ -100,14 +87,20 @@ const context = (set: set_type, get: get_type) => ({
     changed_preference: {},
     fetch: async () => {
         const config_ = await window.KAWAI_API.preference.load_config();
-        const locale = await window.KAWAI_API.preference.load_locale();
+        const locale_ : KawaiLocale = await window.KAWAI_API.preference.load_locale() as KawaiLocale;
+        const locale = locale_.preference
+        console.log('context fetch.1');
         console.log(config_);
         console.log(locale);
-        log.debug('context fetch.');
+        console.log('context fetch.2');
         const combine_config = lodash.merge({}, config_);
         const combine_locale = lodash.merge(combine_config, locale);
         set((state) => {
-            return { ...state, perference: { ...combine_locale }, changed_preference : {} };
+            return {
+                ...state,
+                perference: { ...combine_locale },
+                changed_preference: {},
+            };
         });
         shortcut_states.getState().fetch(config_.shortcut);
     },
@@ -136,15 +129,14 @@ const context = (set: set_type, get: get_type) => ({
             }
             return tmp;
         };
-        const has_key = (key_list : string[], pref : KawaiPreference) =>{
+        const has_key = (key_list: string[], pref: KawaiPreference) => {
             let elem = pref;
-            for(const key of key_list){
+            for (const key of key_list) {
                 elem = elem[key] as any;
-                if(elem == null)
-                    return false;
+                if (elem == null) return false;
             }
             return true;
-        }
+        };
         const func_delete = (key_list: string[], pref: KawaiPreference) => {
             if (key_list.length === 1) {
                 delete pref[key_list[0]];
@@ -153,12 +145,9 @@ const context = (set: set_type, get: get_type) => ({
                 return;
             }
             let sep_ = 0;
-            log.info('pref', pref as Object);
             let target = pref;
             for (let i = 0; i < key_list.length - 1; i++) {
-                log.info('key', key_list[i]);
                 target = target[key_list[i]!] as any;
-                log.info('ob', target);
                 if (
                     Object.keys(target! as any).filter((v) => v !== 'name')
                         .length === 1
@@ -175,24 +164,17 @@ const context = (set: set_type, get: get_type) => ({
                     log.info('sep', i + 1);
                     sep_ = i + 1;
                 }
-
-                log.info('sep', sep_);
-                log.info('sel key', key_list[sep_]);
-                log.info('', pref as Object);
             }
             let elem: any = pref;
             for (const key of key_list.slice(0, sep_)) {
                 elem = elem[key];
             }
             delete elem[key_list[sep_]];
-            log.info('test end', pref);
-            console.log(pref);
         };
 
         //TODO If the new value is equal to the old value, remove the modified preference item.
         set(
             produce((state: PreferenceState) => {
-                log.info('proudce path : ', path);
                 const keys = path.split('.');
                 const full_keys = lodash.cloneDeep(keys);
                 log.info(keys.length);
@@ -200,13 +182,11 @@ const context = (set: set_type, get: get_type) => ({
                     return;
                 }
                 const target_key = keys.pop();
-                log.info('target key : ', target_key);
                 // const key = keys.pop();
                 var old_preference = func_Get(keys, state.perference) as any;
 
-                log.info(old_preference, new_value);
                 if (old_preference[target_key!] === new_value) {
-                    if(has_key(full_keys, state.changed_preference)){
+                    if (has_key(full_keys, state.changed_preference)) {
                         func_delete(full_keys, state.changed_preference);
                     }
                 } else {
@@ -220,9 +200,6 @@ const context = (set: set_type, get: get_type) => ({
         );
         const keys = path.split('.');
 
-        log.info('default : ', get().perference);
-        log.info('check changed : ', get().changed_preference, 'changed');
-        // log.info('check changed : ', func_Get(keys, get().changed_preference), 'changed');
         shortcut_states.getState().fetch(get().get_property().shortcut);
     },
 });
@@ -261,7 +238,7 @@ export const preset_data = create<Presets>((set, get) => ({
             await window.KAWAI_API.preference.load_available_site_list();
         const available_pip_location_list =
             await window.KAWAI_API.preference.load_available_pip_location_list();
-            set((state) => ({
+        set((state) => ({
             ...state,
             available_window_size_list: [...available_window_size_list],
             available_monitor_list: [...available_monitor_list],

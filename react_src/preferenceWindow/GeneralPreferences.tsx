@@ -55,10 +55,7 @@ function GeneralPreference() {
     }, []);
 
     useEffect(() => {
-        console.log(
-            'available_site_list, available_site_list',
-            available_site_list,
-        );
+   
         ref_site_map.current.clear();
         ref_site_rmap.current.clear();
         available_site_list.forEach((v) => {
@@ -105,9 +102,16 @@ function GeneralPreference() {
                             val = Array.from(ref_site_map.current.keys());
                         return val;
                     })()}
-                    value={
-                        get_property()?.general?.default_main?.id.name ?? 'main'
-                    }
+                    value={(() => {
+                        let val =
+                            get_property()?.general?.default_main?.id?.value;
+
+                        if (typeof val === 'undefined') {
+                            return '';
+                        }
+
+                        return ref_site_rmap.current.get(val)!;
+                    })()}
                     select_f={(name: string) => {
                         let id = ref_site_rmap.current.get(name);
 
@@ -126,9 +130,13 @@ function GeneralPreference() {
                             val = Array.from(ref_locale_map.current.keys());
                         return val;
                     })()}
-                    value={
-                        get_property()?.locale?.selected_locale?.name ?? 'main'
-                    }
+                    value={(() => {
+                        let id = get_property()?.locale?.selected_locale?.value;
+                        if (typeof id === 'undefined') {
+                            return '';
+                        }
+                        return ref_locale_map.current.get(id)!;
+                    })()}
                     select_f={(name: string) => {
                         let filename = ref_locale_rmap.current.get(name);
 
@@ -249,7 +257,6 @@ function GeneralPreference() {
                         );
                     }}
                     onselected_customize_f={(index: number, size: number) => {
-                        console.log('size?', size);
                         if (index === 0)
                             set_property(
                                 'general.window_preference.window_size.width.value',

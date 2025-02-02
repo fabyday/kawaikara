@@ -160,7 +160,6 @@ function ShortcutTextField({
                 handleOnclick(e);
             }}
             onBlur={(e) => {
-                log.info('bulr ok', textFieldRef.current?.value);
                 set_shortcut_f(textFieldRef.current?.value);
             }}
             inputRef={textFieldRef}

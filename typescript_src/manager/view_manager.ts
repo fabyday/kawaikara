@@ -131,11 +131,13 @@ export class KawaiViewManager {
     }
 
     public closeMenu() {
-        global_object.menu!.webContents.send(
+        global_object.menu?.webContents.send(
             KAWAI_API_LITERAL.menu.on_notify_menu_open,
             'close',
         );
-        Reflect.defineMetadata('open', false, global_object.menu!);
+        if (typeof global_object?.menu !== 'undefined') {
+            Reflect.defineMetadata('open', false, global_object.menu!);
+        }
         global_object.mainWindow?.webContents.focus();
     }
 
@@ -190,9 +192,15 @@ export class KawaiViewManager {
             global_object.mainWindow?.setPosition(x, y, true);
         }
     }
+
+    protected resetViewState() {}
+
     public fullscreen(mode: boolean) {
+        this.resetViewState();
         global_object.mainWindow?.setFullScreen(mode);
     }
+
+   
 
     public resizeWindow(width: undefined | number, height: undefined | number) {
         if (typeof width === 'undefined' || typeof height === 'undefined') {

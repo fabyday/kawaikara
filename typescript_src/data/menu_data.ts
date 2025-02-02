@@ -4,6 +4,12 @@ import { shell } from 'electron';
 import { KawaiMenuBase } from '../definitions/menu_def';
 import { get_preference_instance } from '../component/preference';
 import { registerKawaiMenuItem } from '../logics/register';
+import { checkForUpdates } from '../component/autoupdater';
+import { project_root } from '../component/constants';
+import path from 'path';
+import * as fs from 'fs';
+import { buffer } from 'stream/consumers';
+import { read_image_as_base64 } from '../logics/io';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {}
@@ -42,21 +48,47 @@ class KawaiMenuChzzk extends KawaiMenuBase {}
 class KawaiMenuTwitch extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('Options', 'menu_info')
-class KawaiMenuInfo extends KawaiMenuBase {}
+class KawaiMenuInfo extends KawaiMenuBase {
+    public getFaviconUrl() {
+        return read_image_as_base64(
+            path.join(project_root, 'resources', 'icons', 'info.png'),
+        );
+    }
+}
 
 @registerKawaiMenuItem('Options', 'menu_preference')
 class KawaiMenuPreference extends KawaiMenuBase {
     public activate(): void {
         get_preference_instance();
     }
+
+    public getFaviconUrl() {
+        return read_image_as_base64(
+            path.join(project_root, 'resources', 'icons', 'setting.png'),
+        );
+    }
 }
 
 @registerKawaiMenuItem('Options', 'menu_main')
-class KawaiMenuMainPage extends KawaiMenuBase {}
+class KawaiMenuMainPage extends KawaiMenuBase {
+    public getFaviconUrl() {
+        return read_image_as_base64(
+            path.join(project_root, 'resources', 'icons', 'home.png'),
+        );
+    }
+}
 
 @registerKawaiMenuItem('Options', 'menu_checkupdate')
 class KawaiMenuCheckUpdate extends KawaiMenuBase {
-    public activate(): void {}
+    public activate(): void {
+        checkForUpdates();
+    }
+
+    public getFaviconUrl() {
+        return read_image_as_base64(
+            path.join(project_root, 'resources', 'icons', 'update.png'),
+        );
+    }
 }
 
 @registerKawaiMenuItem('Options', 'menu_github')
@@ -76,6 +108,10 @@ class KawaiMenuDiscord extends KawaiMenuBase {
     }
 
     public getFaviconUrl() {
-        return 'https://discord.com/assets/favicon.ico';
+        // const fbuf= fs.readFileSync(path.join( project_root, "resources","icons","discord.ico"))
+        // return fbuf.toString("base64");
+        return read_image_as_base64(
+            path.join(project_root, 'resources', 'icons', 'discord.ico'),
+        );
     }
 }

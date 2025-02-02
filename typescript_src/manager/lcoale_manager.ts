@@ -65,6 +65,7 @@ export class LocaleManager {
             const meta: KawaiLocaleMeta = read_meta(value) ?? {
                 filename: value,
                 metaname: 'unnamed',
+                version : "2.0.0"
             };
             return meta;
         });

@@ -25,7 +25,6 @@ import {
     default_locale,
 } from '../definitions/default_preference';
 import { normalize_locale_string } from './os';
-import { LocaleManager } from '../manager/lcoale_manager';
 import { get_flogger } from '../logging/logger';
 import { KawaiViewManager } from '../manager/view_manager';
 import {
@@ -48,18 +47,6 @@ function apply_darkmode(mode: boolean) {
     global_object.mainWindow?.reload(); // reload theme.
 }
 
-// function set_favorites_configuration(config : KawaiConfig){
-//     flog.debug("setup favorites")
-//     if(typeof config?.favorites === "undefined"){
-//         return;
-//         // if undefined do nothing.
-//     }
-//     for(let key in Object.keys(config!.favorites!) ){
-//         const value = config.favorites[key]
-
-//     }
-// }
-
 function set_general_configuration(config: KawaiConfig) {
     flog.debug('setup general config.');
 
@@ -77,7 +64,7 @@ function apply_window_prefernece(
         | KawaiRecursiveTypeRemover<KawaiWindowPreference, KawaiNameProperty>
         | undefined,
 ) {
-    KawaiViewManager.getInstance().resizeWindow(
+    KawaiWindowManager.getInstance().setDefaultWindowSize(
         window_preference?.window_size?.width?.value,
         window_preference?.window_size?.height?.value,
     );
@@ -136,7 +123,7 @@ function set_shortcut_configuration(config: KawaiConfig) {
 export function save_config(config: KawaiConfig, save_path?: string) {
     const data = JSON.stringify(config);
     save_path = save_path ?? path.join(data_root_path, default_config_path);
-    let root_pth =path.dirname(save_path);
+    let root_pth = path.dirname(save_path);
 
     if (!fs.existsSync(root_pth)) {
         fs.mkdirSync(root_pth, { recursive: true });
@@ -189,18 +176,7 @@ function _set_config_from_path(pth: string): KawaiConfig | null {
             flog.debug(`${pth} path failed`);
         }
     }
-    if (raw_data == null) {
-        try {
-            raw_data = fs.readFileSync(
-                path.join(data_root_path, default_config_path),
-                'utf-8',
-            );
-        } catch (e) {
-            flog.debug(
-                `${path.join(data_root_path, default_config_path)} path failed`,
-            );
-        }
-    }
+     
 
     if (raw_data == null) {
         return default_config;
@@ -232,8 +208,13 @@ export function set_preference(
     let obj = lodash.merge({}, global_object.config.preference ?? {});
     obj = lodash.merge(obj, preference);
     global_object.config.preference = obj;
+    let v = global_object.config;
+
     set_general_configuration(global_object.config);
     set_shortcut_configuration(global_object.config);
+    set_locale(
+        global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
+    );
     save_config(global_object.config, path.join(data_root_path, 'test.json'));
 }
 
@@ -263,8 +244,52 @@ export function set_config(data: JSON | string | KawaiConfig | undefined) {
     let obj = lodash.merge({}, global_object.config);
     obj = lodash.merge(obj, config);
     global_object.config = obj;
+    let sss = global_object.config ;
+    console.log(sss)
     set_general_configuration(global_object.config);
     set_shortcut_configuration(global_object.config);
+    set_locale(
+        global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
+    );
+}
+
+export function load_locale_from_path(pth: string): KawaiLocale | null {
+    let raw_data = null;
+    try {
+        raw_data = fs.readFileSync(pth, 'utf8');
+    } catch (e) {
+        flog.debug(`${pth} path failed`);
+        flog.debug(e);
+    }
+
+    if (raw_data == null) {
+        try {
+            raw_data = fs.readFileSync(
+                path.join(data_root_path, default_locale_directory, pth),
+                'utf-8',
+            );
+        } catch (e) {
+            flog.debug(
+                `${path.join(data_root_path, default_locale_directory, pth)} path failed`,
+            );
+        }
+    }
+
+    if (raw_data == null) {
+        return default_locale;
+    }
+
+    const config: KawaiLocale = JSON.parse(raw_data) as KawaiLocale;
+    let version_str: string | undefined = config.locale_meta?.version;
+    if (typeof version_str === 'undefined') {
+        return default_locale;
+    }
+    let major_version = Number(version_str.split('.')[0]);
+    if (major_version < 2) {
+        return default_locale;
+    }
+
+    return config;
 }
 
 /**
@@ -272,71 +297,52 @@ export function set_config(data: JSON | string | KawaiConfig | undefined) {
  * @param data
  */
 export function set_locale(data: JSON | string | KawaiLocale | undefined) {
-    var jsonData: JSON;
-    var locale: KawaiLocale;
-    log.info('set locale.');
-    if (typeof data === 'string') {
-        // if data_path isn't exists
-        let rawData;
-        try {
-            rawData = fs.readFileSync(data, 'utf8');
-        } catch (e) {
-            log.debug('file read was failed.');
-            log.debug('err : ', e);
-            try {
-                log.debug(
-                    'find locale in default locale directory. and search system locale.',
-                );
-                const system_locale_code = normalize_locale_string(
-                    app.getSystemLocale(),
-                );
-                rawData = fs.readFileSync(
-                    path.join(
-                        data_root_path,
-                        default_locale_directory,
-                        system_locale_code + '.json',
-                    ),
-                    'utf8',
-                );
-            } catch (e) {
-                const system_locale_code = normalize_locale_string(
-                    app.getSystemLocale(),
-                );
-                log.debug(
-                    "can't find default system locale file.",
-                    'locale path : ' +
-                        path.join(
-                            data_root_path,
-                            default_locale_directory,
-                            system_locale_code + '.json',
-                        ),
-                );
-                rawData = JSON.stringify(default_locale);
+    let locale: KawaiLocale | null = null;
+    console.log(
+        global_object.config?.preference?.locale?.selected_locale?.value,
+    );
+    if (typeof data === 'string' || typeof data === 'undefined') {
+        let config_path = data;
+
+        if (typeof config_path === 'undefined') {
+            let selected_locale_fname = 'EN.json';
+            if (
+                typeof global_object.config?.preference?.locale?.selected_locale
+                    ?.value !== 'undefined'
+            ) {
+                selected_locale_fname =
+                    global_object.config.preference.locale.selected_locale
+                        .value + '.json';
             }
+
+            config_path = path.join(
+                default_locale_directory,
+                selected_locale_fname,
+            );
         }
-        jsonData = JSON.parse(rawData);
-        flog.debug(jsonData);
-        const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-        locale = unknown_type_config as KawaiLocale;
+
+        if (path.extname(config_path) === '') {
+            config_path = config_path + '.json';
+        }
+
+        locale = load_locale_from_path(config_path!);
     } else if (isJsonObject(data)) {
-        //Conversion of type 'JSON' to type 'KawaiRecursiveTypeRemover<KawaiConfigure, KawaiNameProperty>'
-        // may be a mistake because neither type sufficiently overlaps with the other. If this was intentional,
-        // convert the expression to 'unknown' first.
-        jsonData = data;
-        const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-        locale = unknown_type_config as KawaiLocale;
-    } else if (typeof data === 'undefined') {
-        // if undefined, load default locale.
-        let rawData = fs.readFileSync(
-            path.join(data_root_path, default_locale_directory, 'en.json'),
-            'utf8',
-        );
-        jsonData = JSON.parse(rawData);
-        const unknown_type_config: unknown = jsonData as unknown; // remove syntax error
-        locale = unknown_type_config as KawaiLocale;
+        locale = data as unknown as KawaiLocale;
     } else {
-        locale = data as KawaiLocale;
+        if (check_lower_than_2_x_version(data)) {
+            locale = default_locale;
+        } else {
+            locale = data;
+        }
+        // KAWAI CONFIG
     }
 
-    global_object.locale = { ...global_object.locale, ...locale };
+    if (typeof global_object?.locale === 'undefined') {
+        //for safety.
+        global_object.locale = default_locale;
+    }
+
+    if (locale != null) {
+        global_object.locale = locale;
+    }
 }

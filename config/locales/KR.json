@@ -42,8 +42,8 @@
             "goto_amazonprime": { "name": "아마존 프라임" }
         }
     },
-    "version": { "name": "2.0.0" },
-    "locale_meta": { "filename": "KR", "metaname": "한국어" },
+    "version": { "name": "버전" },
+    "locale_meta": { "filename": "KR", "metaname": "한국어" , "version" : "2.0.0"},
     "system_literal": {
         "menu_main": "홈",
         "menu_netflix": "넷플릭스",

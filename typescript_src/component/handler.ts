@@ -174,6 +174,7 @@ export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_locale,
         (e: Electron.IpcMainInvokeEvent) => {
+            let loc = global_object.locale;
             return global_object.locale;
         },
     );

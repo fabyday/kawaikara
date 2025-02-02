@@ -17,8 +17,9 @@ import { setup_pogress_bar } from './autoupdater';
 import { KawaiWindowManager } from '../manager/window_manager';
 import { global_object } from '../data/context';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
-import { flog } from './predefine/api';
+import { flog, select_menu_item_f } from './predefine/api';
 import { KawaiViewManager } from '../manager/view_manager';
+import { save_config } from '../logics/configures';
 
 // ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 //     blocker.enableBlockingInSession(session.defaultSession);
@@ -30,51 +31,53 @@ import { KawaiViewManager } from '../manager/view_manager';
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
 export const get_mainview_instance = (): BrowserWindow => {
-    const conf = global_object.config;
-    let x: number =
-        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-        -1;
-    let y: number =
-        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-        -1;
-    let width: number =
-        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-        -1;
-    let height: number =
-        conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-        -1;
+    // const conf = global_object.config;
+    // let x: number =
+    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+    //     -1;
+    // let y: number =
+    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+    //     -1;
+    // let width: number =
+    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+    //     -1;
+    // let height: number =
+    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
+    //     -1;
 
-    if (width === -1 || height === -1) {
-        const preset_size: number[][] =
-            KawaiWindowManager.getInstance().getPresetSize();
-        const length = preset_size.length;
-        const [selected_width, selected_height]: number[] =
-            length - 2 > 0 ? preset_size[length - 2] : preset_size[length - 1];
-        const xy = KawaiWindowManager.getInstance().findCenterCoordByBounds(
-            selected_width,
-            selected_height,
-        );
-        x = xy.x;
-        y = xy.y;
-        width = selected_width;
-        height = selected_height;
-        conf!.preference = conf?.preference ? conf.preference : {};
-        conf!.preference = {
-            ...conf?.preference,
-            ...{
-                general: {
-                    window_preference: {
-                        window_size: {
-                            x: { value: x },
-                            y: { value: y },
-                            width: { value: selected_width },
-                            height: { value: selected_height },
-                        },
-                    },
-                },
-            },
-        };
-    }
+    // if (width === -1 || height === -1) {
+    //     const preset_size: number[][] =
+    //         KawaiWindowManager.getInstance().getPresetSize();
+    //     const length = preset_size.length;
+    //     const [selected_width, selected_height]: number[] =
+    //         length - 2 > 0 ? preset_size[length - 2] : preset_size[length - 1];
+    //     const xy = KawaiWindowManager.getInstance().findCenterCoordByBounds(
+    //         selected_width,
+    //         selected_height,
+    //     );
+    //     x = xy.x;
+    //     y = xy.y;
+    //     width = selected_width;
+    //     height = selected_height;
+    //     conf!.preference = conf?.preference ? conf.preference : {};
+    //     conf!.preference = {
+    //         ...conf?.preference,
+    //         ...{
+    //             general: {
+    //                 window_preference: {
+    //                     window_size: {
+    //                         x: { value: x },
+    //                         y: { value: y },
+    //                         width: { value: selected_width },
+    //                         height: { value: selected_height },
+    //                     },
+    //                 },
+    //             },
+    //         },
+    //     };
+    // }
+
+    const {x,y,width,height} = KawaiWindowManager.getInstance().getDefaultWindowSize()
     if (typeof global_object?.mainWindow === 'undefined') {
         const mainView = new BrowserWindow({
             x: x,
@@ -97,7 +100,12 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
 
         mainView.on('closed', () => {
-            if (process.platform !== 'darwin') app.quit();
+            if (process.platform !== 'darwin') {
+                app.quit();
+            }
+            if (typeof global_object.config !== 'undefined') {
+                save_config(global_object.config);
+            }
         });
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
@@ -115,10 +123,18 @@ export const get_mainview_instance = (): BrowserWindow => {
         mainView.webContents.session.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 details.requestHeaders['Sec-Ch-Ua'] =
-                '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
+                    '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
                 details.requestHeaders['User-Agent'] =
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
                 // console.log("test detua", details)
+                if (
+                    typeof global_object.context?.current_site_descriptor !==
+                    'undefined'
+                ) {
+                    global_object.context?.current_site_descriptor.onBeforeSendHeaders(
+                        details,
+                    );
+                }
                 callback({ requestHeaders: details.requestHeaders });
             },
         );
@@ -164,9 +180,7 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
-        console.log('new menu opem');
         return global_object.mainWindow;
     }
-    console.log('old menu');
     return global_object!.mainWindow!;
 };

@@ -44,7 +44,14 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Twitch**
 
 
+## Rich Presence On Discord
+<p align="center">
+    <img src="imgs/discord_presence.png" width="30%" >
 
+<p align="center">
+     <Strong>Use Kawaaaaiiii Rich Presence on Discord</strong>
+</p>
+</p>
 ## DRM-problem
 
 Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I couldn't directly use *Electron* frameworks. To support DRM product, I used **castlab**'s electron fork.
@@ -128,14 +135,23 @@ python -m castlabs_evs.account reauth -A ${your_account} -P ${your password}
 ok. then it's done.
 ```
 
+## Make available for disord Rich presence
 
+crete ```.env``` file in your root repository.
+```
+DISCORD_APP_ID=${write App ID here.}
+DISCORD_PUB_KEY=${write App public key here.}
+```
+
+
+
+## Publish To your Own Repository
 You must run this script on powershell.(funtion that generating certification file use powershell functions.)
 ```shell 
 yarn install # install all deps in package.json 
 yarn make-cert # make your self-signed-cert(offical cert is too expensive...) 
 # package_local_only rename to 
 yarn build # it's all done. baby.
-
 ```
 
 

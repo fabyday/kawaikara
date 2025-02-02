@@ -67,9 +67,9 @@ function ShortcutPreference() {
                 <Grid container sx={rawstack_style} spacing={12}>
                     {' '}
                 </Grid>
-                <Grid item xs={6}>
+                <Grid item xs={6} sx={{ display:"flex", alignItems : "center"}}>
                     {' '}
-                    <Typography>
+                    <Typography sx={{ justifyContent : "center"}}>
                         {(value as KawaiShortcut).name ?? key}
                     </Typography>{' '}
                 </Grid>

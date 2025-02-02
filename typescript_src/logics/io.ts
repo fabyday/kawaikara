@@ -1,6 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export function read_image_as_base64(pth : string){
+    let fbuf = new Buffer("");
+    try{
+        fbuf = fs.readFileSync(pth)
+
+    }catch{
+        console.log('error read image')
+    }
+    return `data:image/png;base64,${fbuf.toString("base64")}`
+}
+
+
+
 function write_json(path: string) {}
 
 export function read_json(pth: string) {

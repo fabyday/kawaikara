@@ -116,7 +116,7 @@ export type KawaiConfigure = {
  * filename : file name on filesystem.
  * metaname : name on app display.
  */
-export type LocaleMeta = { filename: string; metaname: string };
+export type LocaleMeta = { filename: string; metaname: string, version : string };
 export type SystemLiteralMeta = { [key: string]: string };
 export type KawaiConfig = KawaiRecursiveTypeRemover<
     KawaiConfigure,

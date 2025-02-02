@@ -159,6 +159,8 @@ jobs:
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
+          DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
+          DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
 
 
   
@@ -228,6 +230,8 @@ jobs:
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
+          DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
+          DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
 
 
   

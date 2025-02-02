@@ -10,21 +10,22 @@ export const default_config: KawaiConfig = {
     preference: {
         general: {
             dark_mode: { value: false },
-            default_main: { id: { value: '' } },
+            default_main: { id: { value: 'main' } },
             enable_autoupdate: { value: true },
             render_full_size_when_pip_running: { value: true },
             window_preference: {
-                pip_location: {},
+                pip_location: { value: 'top-right' },
                 pip_window_size: {
                     x: { value: 300 },
                     y: { value: 400 },
                     height: { value: 300 },
                     width: { value: 400 },
                 },
+                window_size: { height: { value: 720 }, width: { value: 1280 } },
             },
         },
         locale: {
-            selected_locale: { value: '' },
+            selected_locale: { value: 'EN' },
         },
         shortcut: {
             goto_netflix: { shortcut_key: '' },
@@ -40,8 +41,7 @@ export const default_config: KawaiConfig = {
             goto_amazonprime: { shortcut_key: '' },
         },
     },
-    favorites: {
-    },
+    favorites: {},
     version: { value: '2.0.0' },
 };
 
@@ -89,8 +89,8 @@ export const default_locale: KawaiLocale = {
             goto_amazonprime: { name: 'amazon prime' },
         },
     },
-    version: { name: '2.0.0' },
-    locale_meta: { filename: 'EN', metaname: 'eng' },
+    version: { name: 'Version' },
+    locale_meta: { filename: 'EN', metaname: 'eng', version: '2.0.0' },
     system_literal: {
         menu_main: 'Kawai Main',
         menu_netflix: 'Netflix',
@@ -108,7 +108,7 @@ export const default_locale: KawaiLocale = {
         menu_info: 'Info',
         menu_preference: 'Preference',
         menu_checkupdate: 'Update Check',
-        menu_github : "Github",
-        menu_discord : "Discord",
+        menu_github: 'Github',
+        menu_discord: 'Discord',
     },
 };

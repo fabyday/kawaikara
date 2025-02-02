@@ -49,7 +49,8 @@ function Footer() {
                             style = {enable_style}
                             onClick={() => {
                                 if(check_f()){
-                                    console.log("ik")
+                                    // console.log("ik")
+                                    window.KAWAI_API.preference.save_and_close();
                                 }else{
                                     window.KAWAI_API.preference.close();
                                 }

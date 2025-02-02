@@ -26,8 +26,7 @@ import { get_preference_instance } from '../component/preference';
 import { MenuManager } from '../manager/menu_manager';
 import { get_menu_instance } from '../component/menu';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
-import { ShortcutKey } from '@discord/embedded-app-sdk/output/schema/common';
-
+import { set_activity } from '../component/discord';
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
     var root_pth: string;
@@ -105,18 +104,19 @@ export async function initialize(config_root?: string) {
     await initialize_manager();
     await initialize_manager_connection();
     await initialize_data();
+    await set_activity();
     initialize_global_object_context(config_root);
+    initialize_handler();
+
     if (typeof config_root === 'string') {
         set_config(config_root);
     } else {
         set_config(app.getAppPath());
     }
     log.info(global_object.config?.preference?.locale?.selected_locale?.value);
-    set_locale(
-        global_object.config?.preference?.locale?.selected_locale?.value,
-    );
-
+    
+    let Q = global_object.config
     await initialize_views();
-    initialize_handler();
-    get_preference_instance(); // for Testing .. @TODO REMOVE THIS
+    let Q2 = global_object.config
+    console.log("wow")
 }

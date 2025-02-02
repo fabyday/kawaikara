@@ -10,7 +10,8 @@ import {
 } from '@mui/material';
 import KListItemButton from './KListItemButton';
 import StarSharpIcon from '@mui/icons-material/StarSharp';
-import { KawaiMenuComponent } from './states';
+import { isBase64, KawaiMenuComponent } from './states';
+import { link } from 'fs';
 
 type props = {
     menu_item: KawaiMenuComponent[];
@@ -72,6 +73,7 @@ const SubmenuBar = ({ menu_item, onClicked, onFavoritesClick }: props) => {
                                 {/* </img> */}
 
                                 {v.favicon !== '' ? (
+                                    // isBase64(v.favicon!) ? <img src={`data:image/png;base64,${v.favicon!}`}/> :
                                     <img src={v.favicon} />
                                 ) : (
                                     <div></div>

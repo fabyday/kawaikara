@@ -1,3 +1,4 @@
+import { get_flogger } from '../logging/logger';
 import {
     KawaiKeyEvent,
     KawaiKeyState,
@@ -5,6 +6,9 @@ import {
     ModifierKeyMap,
     priority,
 } from './keyboard';
+
+
+const flog = get_flogger("action", "action", "debug")
 
 /**
  * YAYAYA
@@ -31,9 +35,14 @@ export function create_action_key_from_string_array(...args: string[]) {
     //preprocess
     // Ctrl + Alt + Shift + Meta + ....[other keys]
     // make all strings lower case .
-    args = args.map((value) => {
-        return value.toLowerCase();
-    });
+    try{
+        args = args.map((value) => {
+            return value.toLowerCase();
+        });
+
+    } catch(e){
+        flog.debug(`error at action : ${args}`)
+    }
 
     //remove duplicated items.
     args = args.filter((item, index) => {
