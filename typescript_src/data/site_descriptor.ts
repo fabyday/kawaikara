@@ -203,3 +203,22 @@ export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
     //     return '';
     // }
 }
+
+
+
+// @connectToShortcut('goto_crunchyroll')
+// @connectToMenu('menu_crunchyroll')
+// @registerKawaiSiteDescriptor
+// export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
+//     id = 'crunchyroll';
+
+//     loadUrl(browser: Electron.BrowserWindow) {
+//         browser.loadURL(
+//             "https://www.crunchyroll.com/"
+//         );
+//     }
+
+//     LoadFaviconUrl(): string {
+//         return '';
+//     }
+// }

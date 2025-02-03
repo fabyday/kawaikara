@@ -145,7 +145,6 @@ const App: React.FC = () => {
                                         current_category,
                                     )}
                                     onClicked={(id: string) => {
-                                        console.log(id);
                                         window.KAWAI_API.menu.select_menu_item(
                                             id,
                                         );

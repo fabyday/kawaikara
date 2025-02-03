@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, net, protocol } from 'electron';
 import { set_config, set_locale } from './configures';
 import { global_object } from '../data/context';
 import {
@@ -20,13 +20,15 @@ import {
 } from '../manager/shortcut_manager';
 import { get_mainview_instance } from '../component/mainview';
 import log from 'electron-log/main';
-import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { KawaiViewManager } from '../manager/view_manager';
-import { get_preference_instance } from '../component/preference';
 import { MenuManager } from '../manager/menu_manager';
 import { get_menu_instance } from '../component/menu';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 import { set_activity } from '../component/discord';
+import { KAWAI_PROTOCOL_LITERAL } from '../definitions/protocol';
+
+import * as url from 'node:url';
+
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
     var root_pth: string;
@@ -95,12 +97,27 @@ async function initialize_views() {
 async function initialize_data() {
     await import('../data/connnect_data');
 }
+
+async function initialize_protocol() {
+    // seeeeee
+    // https://www.electronjs.org/docs/latest/api/protocol
+    protocol.handle(
+        KAWAI_PROTOCOL_LITERAL.default,
+        (request: GlobalRequest) => {
+            const filePath = request.url.slice(`${KAWAI_PROTOCOL_LITERAL.default}://`.length);
+            const path = url.pathToFileURL(filePath);
+            return net.fetch(path.toString());
+        },
+    );
+}
+
 /**
  *
  * @param config_root : config file root. if it was undefined,
  * then find config and states files in AppData on windows and OS specific default app path
  */
 export async function initialize(config_root?: string) {
+    await initialize_protocol();
     await initialize_manager();
     await initialize_manager_connection();
     await initialize_data();
@@ -114,9 +131,9 @@ export async function initialize(config_root?: string) {
         set_config(app.getAppPath());
     }
     log.info(global_object.config?.preference?.locale?.selected_locale?.value);
-    
-    let Q = global_object.config
+
+    let Q = global_object.config;
     await initialize_views();
-    let Q2 = global_object.config
-    console.log("wow")
+    let Q2 = global_object.config;
+    console.log('wow');
 }

@@ -47,15 +47,6 @@ const shortcut_ignoreset = new Set<string>([
 
 type event_type = 'activated';
 
-class KawaiShortcutProxy implements KawaiAbstractProxy {
-    id: string;
-
-    constructor() {
-        this.id = '100';
-    }
-    connectCallback() {}
-}
-
 export class ShortcutManager {
     static __instance: ShortcutManager | undefined;
 

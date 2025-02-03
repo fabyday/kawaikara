@@ -1,65 +1,63 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Electron: Main",
-      "type": "node",                   //use the node debugger that comes with VS Code
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
-      "env": {"IS_DEV" : "true"},
-      "runtimeArgs": [
-        "--remote-debugging-port=9223"  //open debugging port for renderer process
-      ],
-      "args" : ["."],
-      "outputCapture": "std",
-      "sourceMaps": true,
-      "resolveSourceMapLocations": [
-        "${workspaceFolder}/**",        //use source maps for files in workspace folder
-        "!**/node_modules/**"           //but ignore everything in the node_modules folder
-      ],
-      // "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
-      "console": "integratedTerminal",
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Electron: Main",
+            "type": "node", //use the node debugger that comes with VS Code
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+            "env": { "IS_DEV": "true" },
+            "runtimeArgs": [
+                "--remote-debugging-port=9223", //open debugging port for renderer process
+                "--inspect=9229"
+            ],
+            "args": ["."],
+            "outputCapture": "std",
+            "sourceMaps": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/**", //use source maps for files in workspace folder
+                "!**/node_modules/**" //but ignore everything in the node_modules folder
+            ],
+            // "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
+            "console": "integratedTerminal",
+            "preLaunchTask": "build kawaikara",
+            "postDebugTask" : "stop react dev server",
 
-    },
-    {
-      "name": "Electron: Renderer",
-      "type": "chrome",                 //use the Chrome debugger that comes with VS Code
-      "request": "attach",
-      "port": 9223,                     //use debug port opened in Electron: Main configuration
-      "webRoot": "${workspaceFolder}",
-      "timeout": 30000
-    },
-    {
-      "name": "react server",
-      "type": "node",                   //use the node debugger that comes with VS Code
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "yarn",
-      "args": ["web"],
-      "env": {"IS_DEV" : "true"},
-      "console": "integratedTerminal"
-    }
-  ],
-  "compounds": [                        //launch multiple configurations concurrently
-    {
-      "name": "Electron: All",
-      "configurations": [
-        "Electron: Main",
-        "Electron: Renderer"
-      ],
-      "preLaunchTask": "build kawaikara"
-    },
-    {
-      "name": "Electron: Hot reload Web dev",
-      "configurations": [
-        "Electron: Main",
-        "react server"
-      ],
-      "preLaunchTask": "build kawaikara"
-    }
-  ]
+        },
+        {
+            "name": "Electron: Renderer",
+            "type": "chrome", //use the Chrome debugger that comes with VS Code
+            "request": "attach",
+            // "request": "launch",
+            "port": 9223, //use debug port opened in Electron: Main configuration
+            "webRoot": "${workspaceFolder}",
+            "timeout": 30000
+        },
+        {
+            "name": "Electron Renderer Process",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000/preference.html",
+            "webRoot": "${workspaceFolder}/react_src",
+            "sourceMaps": true,
+            "preLaunchTask": "start react dev server",
+
+        }
+    ],
+    "compounds": [
+        //launch multiple configurations concurrently
+        {
+            "name": "Electron: All",
+            "configurations": ["Electron: Main", "Electron: Renderer"],
+            "preLaunchTask": "build kawaikara"
+        },
+        {
+            "name": "Electron: All2",
+            "configurations": ["Electron: Main", "Electron Renderer Process"],
+        }
+    ]
 }

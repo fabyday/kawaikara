@@ -7,8 +7,6 @@ import { registerKawaiMenuItem } from '../logics/register';
 import { checkForUpdates } from '../component/autoupdater';
 import { project_root } from '../component/constants';
 import path from 'path';
-import * as fs from 'fs';
-import { buffer } from 'stream/consumers';
 import { read_image_as_base64 } from '../logics/io';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
@@ -115,3 +113,5 @@ class KawaiMenuDiscord extends KawaiMenuBase {
         );
     }
 }
+// @registerKawaiMenuItem('OTT', 'menu_crunchyroll')
+// class KawaiMenuCrunchyroll extends KawaiMenuBase {}

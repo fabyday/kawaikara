@@ -42,8 +42,6 @@ const data_init_f = (menu_obj: any[], locale: KawaiLocale) => {
         const menu_id = menu_obj[key]['id'];
         const favicon = menu_obj[key]['favicon'];
         
-        console.log(locale?.system_literal?.[menu_id]);
-        console.log(locale);
         const name = locale?.system_literal?.[menu_id] ?? menu_id;
         if (!category_map.has(category_id)) {
             category_map.set(category_id, {
@@ -75,7 +73,8 @@ export const menu_state = create<MenuStates>(
                 await window.KAWAI_API.preference.load_locale();
             const favorites =
                 await window.KAWAI_API.menu.load_favorites_list();
-            
+            console.log("locale")
+            console.log(locale)
             // const locale : KawaiLocale = await window.KAWAI_API.preference.load_locale();
             const serialized_data = data_init_f(menu_items, locale);
             favorites.forEach((key : any)=>{

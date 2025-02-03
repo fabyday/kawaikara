@@ -3,17 +3,40 @@
     // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
-      {
-        "label": "build kawaikara",
-        "type": "shell",
-        // `dev` keeps running in the background
-        // ideally you should also configure a `problemMatcher`
-        // see https://code.visualstudio.com/docs/editor/tasks#_can-a-background-task-be-used-as-a-prelaunchtask-in-launchjson
-        // "isBackground": true,
-        // change this to your `beforeDevCommand`:
-        "command": "yarn",
-        "args": ["compile:local"]
-      },
-     
+        {
+            "label": "build kawaikara",
+            "type": "shell",
+            // `dev` keeps running in the background
+            // ideally you should also configure a `problemMatcher`
+            // see https://code.visualstudio.com/docs/editor/tasks#_can-a-background-task-be-used-as-a-prelaunchtask-in-launchjson
+            // "isBackground": true,
+            // change this to your `beforeDevCommand`:
+            "command": "yarn",
+            "problemMatcher": ["$tsc"],
+            "args": ["compile:local"]
+        },
+        {
+            "label": "start react dev server",
+            "type": "shell",
+            "problemMatcher": [],
+            // `dev` keeps running in the background
+            // ideally you should also configure a `problemMatcher`
+            // see https://code.visualstudio.com/docs/editor/tasks#_can-a-background-task-be-used-as-a-prelaunchtask-in-launchjson
+            // "isBackground": true,
+            // change this to your `beforeDevCommand`:
+            "options": { "env": { "IS_DEV": "true" } },
+            "command": "yarn",
+            "args": ["web"],
+            "isBackground": true
+        },
+        {
+            "label": "stop react dev server",
+            "type": "shell",
+            "command": "node",
+            "args": [
+                "${workspaceFolder}/scripts/stop-dev-server.js" // universal kill switch
+            ],
+            "problemMatcher": []
+        }
     ]
-  }
+}

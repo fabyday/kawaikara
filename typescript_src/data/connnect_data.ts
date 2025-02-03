@@ -142,3 +142,10 @@ class KawaiMainPageShortcut implements keyActionListenable {
     actionKey = '';
 }
 
+
+// @RegisterShortcut
+// class KawaiCrunchyrollShortcut implements keyActionListenable {
+//     id = 'goto_crunchyroll';
+//     targetView = mainview;
+//     actionKey = '';
+// }

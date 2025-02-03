@@ -162,7 +162,9 @@ export class KawaiViewManager {
             sel_desc?.loadUrl(get_mainview_instance());
         }
         console.log('close!!');
-        this.closeMenu();
+        // if(this.isMenuOpen()){
+        //     this.closeMenu();
+        // }
     }
 
     public pipMode(mode: boolean) {

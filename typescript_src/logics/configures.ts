@@ -34,6 +34,7 @@ import {
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 import { KawaiWindowManager } from '../manager/window_manager';
 import { ShortcutManager } from '../manager/shortcut_manager';
+import { KAWAI_API_LITERAL } from '../definitions/api';
 
 const flog = get_flogger('configure', 'configure', 'debug');
 
@@ -216,6 +217,7 @@ export function set_preference(
         global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
     );
     save_config(global_object.config, path.join(data_root_path, 'test.json'));
+    global_object.menu?.webContents.send(KAWAI_API_LITERAL.menu.notify_menu_update)
 }
 
 export function set_config(data: JSON | string | KawaiConfig | undefined) {

@@ -29,10 +29,9 @@ const SubmenuBar = ({ menu_item, onClicked, onFavoritesClick }: props) => {
     };
 
     const value = menu_item.map((v, i) => {
-        console.log(i.toString() + v.id);
-        console.log(i.toString() + v.favicon);
-        console.log(i.toString() + v.name);
-        console.log(i.toString() + 'fav' + v.favorite);
+        // console.log(i.toString() + v.id);
+        // console.log(i.toString() + v.name);
+        // console.log(i.toString() + 'fav' + v.favorite);
         return (
             <Slide key={v.id} direction="right" in={true} timeout={500}>
                 <KListItemButton
