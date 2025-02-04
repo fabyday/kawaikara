@@ -39,14 +39,19 @@ export function get_logger(logId: string): Logger {
         return newlog;
     }
 }
-export function get_flogger(logId: string, fileName:string, type : "debug"|"info"): Logger {
+export function get_flogger(
+    logId: string,
+    fileName: string,
+    type: 'debug' | 'info',
+): Logger {
     if (LoggerCollection.has(logId)) {
         return LoggerCollection.get(logId)!;
     } else {
         const newlog = logger.create({ logId: logId });
-        newlog.transports.file.level = type;
+        // newlog.transports.file.level = type;
+        newlog.transports.file.level = process.env.IS_DEV ? 'debug' : 'info';
         newlog.transports.console.level = false;
-        newlog.transports.file.fileName = fileName+'.log';
+        newlog.transports.file.fileName = fileName + '.log';
         newlog.transports.file.resolvePathFn = () => {
             return path.join(log_root, newlog.transports.file.fileName);
         };

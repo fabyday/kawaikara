@@ -14,8 +14,13 @@
 [**ENG README**](./README.MD)
 
 
-[![](https://dcbadge.vercel.app/api/server/JJs974BX45)](https://discord.gg/JJs974BX45)
-![build](https://github.com/fabyday/kwaikara/actions/workflows/publish.yaml/badge.svg)
+[![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
+[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
+
+![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
+![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
 
 저는 친구들이랑 디코 방송을 하거나 보는 것을 좋아합니다. 그런데 디코방송은 몇가지 불편한 점들이 있습니다. 디코의 방송은 하나의 프로그램 창만을 캡쳐할 수 있다는 거죠. OTT를 스트리밍하는데 브라우저(**chrome**, **firefox** 등...)를 사용하는 방법도 있지만, 전체화면을 하지 않을 경우 주소창과 같은 불필요한 **UI** 스트리밍 영상의 일정한 부분을 차지할 것입니다. 체감상 이 영역은 __꽤__ 큽니다. 만일 친구들과 같이 OTT를 틀어놓으며 잡담을 하며 일을 하고 싶은 사람이 있다면 이는 보는 입장에서 많이 불편할 것입니다.
  따라서 저는 작은 디스코드 화면에 꽉차게 스트리밍할 수 있는 뷰어를 개발하였습니다.
@@ -107,7 +112,8 @@
 
 따라서 메뉴를 나타나게 하려면 아래의 단축키를 활용하세요.
 
-```메뉴 보기``` : ```alt```
+```메뉴 보기``` : ```Tab```
+
 
 
 ## 크롬 익스텐션

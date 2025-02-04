@@ -11,8 +11,11 @@
 
 [**GO!GO! 한국어 README**](./README_KR.MD)
 
+[![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
+[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
 
-[![](https://dcbadge.vercel.app/api/server/JJs974BX45)](https://discord.gg/JJs974BX45)
 ![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
 ![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
 
@@ -49,9 +52,10 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
     <img src="imgs/discord_presence.png" width="30%" >
 
 <p align="center">
-     <Strong>Use Kawaaaaiiii Rich Presence on Discord</strong>
+     <Strong>Use Kawai Rich Presence on Discord</strong>
 </p>
 </p>
+
 ## DRM-problem
 
 Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I couldn't directly use *Electron* frameworks. To support DRM product, I used **castlab**'s electron fork.

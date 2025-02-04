@@ -14,6 +14,7 @@ import SubmenuBar from './SubmenuBar';
 import Favorites from './Favorites';
 import MenuItemBar from './MenuItemBar';
 import { KawaiMenuComponent, menu_state } from './states';
+import MenuItemBar2 from './menubar';
 const App: React.FC = () => {
     const [
         fetch,
@@ -81,6 +82,7 @@ const App: React.FC = () => {
                     left: 0,
                     overflow: 'hidden',
                     display: 'flex',
+
                     flexDirection: 'column',
                     backgroundColor: 'rgba(0, 0, 0, 0.5)',
                     height: '100%',
@@ -101,15 +103,20 @@ const App: React.FC = () => {
                         justifyContent: 'center',
                         borderRadius: '10px',
                     }}>
-                        
-                        <Favorites
-                            favorites_list={favorites_list!}
-                            onClicked={(id: string) => {
-                                window.KAWAI_API.menu.select_menu_item(id);
-                            }}
-                        />
+                    <Favorites
+                        favorites_list={favorites_list!}
+                        onClicked={async (id: string) => {
+                            await window.KAWAI_API.menu.select_menu_item(id);
+                            setFade(false);
+                            setTimeout(() => {
+                                window.KAWAI_API.menu.close();
+                            }, fade_time);
+                        }}
+                    />
                     <Box
-                       onClick ={(e)=>{e.stopPropagation()}}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
                         display="flex"
                         flexDirection="row"
                         alignItems="flex-start"
@@ -121,7 +128,34 @@ const App: React.FC = () => {
                             justifyContent: 'center',
                             borderRadius: '20px',
                         }}>
-                        <Box
+                        <MenuItemBar2
+                            selected_category_id={current_category}
+                            category_list={get_category_deserialize()}
+                            
+                            onCategoryClick={(id: string) => {
+                                set_current_category(id);
+                            }}
+                            menu_item={get_menu_deserialize(current_category)}
+                            onMenuClick={async (id: string) => {
+                                await window.KAWAI_API.menu.select_menu_item(
+                                    id,
+                                );
+                                setFade(false);
+                                setTimeout(() => {
+                                    window.KAWAI_API.menu.close();
+                                }, fade_time);
+                            }}
+                            onFavoritesClick={(
+                                id: string,
+                                cur_fav_state: boolean,
+                            ) => {
+                                if (cur_fav_state) {
+                                    window.KAWAI_API.menu.delete_favorites(id);
+                                } else {
+                                    window.KAWAI_API.menu.add_favorites(id);
+                                }
+                            }}></MenuItemBar2>
+                        {/* <Box
                             sx={{
                                 flex: 1,
                                 justifyContent: 'center',
@@ -144,10 +178,14 @@ const App: React.FC = () => {
                                     menu_item={get_menu_deserialize(
                                         current_category,
                                     )}
-                                    onClicked={(id: string) => {
-                                        window.KAWAI_API.menu.select_menu_item(
+                                    onClicked={async (id: string) => {
+                                        await window.KAWAI_API.menu.select_menu_item(
                                             id,
                                         );
+                                        setFade(false);
+                                        setTimeout(() => {
+                                            window.KAWAI_API.menu.close();
+                                        }, fade_time);
                                     }}
                                     onFavoritesClick={(
                                         id: string,
@@ -171,7 +209,7 @@ const App: React.FC = () => {
                                 sx={{
                                     flex: 1,
                                 }}></Box>
-                        )}
+                        )} */}
                     </Box>
                 </Box>
             </Box>
