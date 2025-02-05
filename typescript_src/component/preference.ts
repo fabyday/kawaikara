@@ -53,7 +53,6 @@ export const get_preference_instance = (): BrowserWindow => {
             // preferenceWindow!.webContents.send("setup-configure", conf)
         });
 
-        console.log(preferenceWindow.webContents.isDevToolsOpened());
         (preferenceWindow as any).name = 'preference';
         KawaiViewManager.getInstance().trackBrowserFocus(preferenceWindow);
 

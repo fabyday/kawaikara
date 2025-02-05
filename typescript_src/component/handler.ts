@@ -58,7 +58,6 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.menu.load_menu,
         (event: IpcMainInvokeEvent, ...args: any) => {
             const spy = MenuManager.getInstance().getMenuItemsByJson();
-            console.log(spy);
             return MenuManager.getInstance().getMenuItemsByJson();
         },
     );
@@ -95,7 +94,6 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.menu.update_favorites_order,
         (event: IpcMainInvokeEvent, ...args: any) => {
             const spy = MenuManager.getInstance().getMenuItemsByJson();
-            console.log(spy);
             return MenuManager.getInstance().getMenuItemsByJson();
         },
     );

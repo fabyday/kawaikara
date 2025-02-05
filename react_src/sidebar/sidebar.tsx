@@ -9,6 +9,15 @@ const theme = createTheme({
             default : 'rgba(255, 255, 255, 0)'
         }
     },
+    breakpoints:{
+        values : {
+            xs : 0,
+            sm : 600,
+            md : 900,
+            lg : 1200,
+            xl : 1500
+        }
+    },
     components: {
         MuiCssBaseline: {
             styleOverrides: {

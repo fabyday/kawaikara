@@ -76,14 +76,17 @@ export const get_mainview_instance = (): BrowserWindow => {
     //         },
     //     };
     // }
-
-    const {x,y,width,height} = KawaiWindowManager.getInstance().getDefaultWindowSize()
+    const min_sizes = KawaiWindowManager.getInstance().getPresetSize()[0];
+    const { x, y, width, height } =
+        KawaiWindowManager.getInstance().getDefaultWindowSize();
     if (typeof global_object?.mainWindow === 'undefined') {
         const mainView = new BrowserWindow({
             x: x,
             y: y,
             width: width,
             height: height,
+            minWidth: min_sizes[0],
+            minHeight: min_sizes[1],
 
             icon: path.join(__dirname, '../../resources/icons/kawaikara.ico'),
 

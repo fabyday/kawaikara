@@ -56,6 +56,9 @@ export class MenuManager {
         global_object.menu?.webContents.send(
             KAWAI_API_LITERAL.menu.notify_menu_update,
         );
+        global_object.mainWindow?.webContents.send(
+            KAWAI_API_LITERAL.menu.notify_menu_update,
+        );
         return;
     }
     public deleteFavorites(menu_id: string) {
@@ -65,6 +68,9 @@ export class MenuManager {
         const favorites_object = global_object!.config!.favorites!;
         delete favorites_object[menu_id];
         global_object.menu?.webContents.send(
+            KAWAI_API_LITERAL.menu.notify_menu_update,
+        );
+        global_object.mainWindow?.webContents.send(
             KAWAI_API_LITERAL.menu.notify_menu_update,
         );
         return;
@@ -101,7 +107,6 @@ export class MenuManager {
         // );
         const mapObject = new Map();
         this.m_menu_item.forEach((value, key) => {
-            console.log('key', value);
 
             if (typeof value.getFaviconUrl !== 'undefined') {
                 mapObject.set(key, {
@@ -165,7 +170,6 @@ export class MenuManager {
         }
         this.add_category(item.category);
         this.m_menu_item.set(item.id, item);
-        console.log('item!!!', item.id);
         this.m_event_emitter.emit('registered-menu', item.id);
     }
 
@@ -208,7 +212,6 @@ export class MenuManager {
         // if (typeof selected_callbacks === 'undefined') {
         //     return; // do nothing.
         // }
-        console.log('event emit ', id);
         const menu_item = this.m_menu_item.get(id)!;
 
         if (typeof menu_item.activate === 'undefined') {

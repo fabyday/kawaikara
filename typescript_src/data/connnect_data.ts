@@ -19,16 +19,6 @@ class KawaiMainTab implements keyActionListenable {
         return true;
     }
 }
-@RegisterShortcut
-class KawaiPipShortcut implements keyActionListenable {
-    id = 'run_pip';
-    targetView = mainview;
-    actionKey = '';
-    onActivated() {
-        KawaiViewManager.getInstance().openMenu();
-        return true;
-    }
-}
 
 @RegisterShortcut
 class KawaiFullscreenShortcut implements keyActionListenable {
@@ -36,18 +26,17 @@ class KawaiFullscreenShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = 'lalt+enter';
     onActivated() {
-        
-        KawaiViewManager.getInstance().fullscreen(true);
+        KawaiViewManager.getInstance().fullscreen();
         return true;
     }
 }
 @RegisterShortcut
 class KawaiPiPShortcut implements keyActionListenable {
-    id = 'goto_PiP';
+    id = 'run_pip';
     targetView = mainview;
-    actionKey = 'lalt+enter';
+    actionKey = 'lctrl+p';
     onActivated() {
-        KawaiViewManager.getInstance().pipMode(true);
+        KawaiViewManager.getInstance().pipMode();
         return true;
     }
 }
@@ -141,7 +130,6 @@ class KawaiMainPageShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = '';
 }
-
 
 // @RegisterShortcut
 // class KawaiCrunchyrollShortcut implements keyActionListenable {

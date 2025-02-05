@@ -75,6 +75,10 @@ function apply_window_prefernece(
         window_preference?.pip_location?.location?.value,
         window_preference?.pip_location?.monitor?.value,
     );
+
+    const { width, height } =
+        KawaiWindowManager.getInstance().getDefaultWindowSize();
+    KawaiViewManager.getInstance().resizeWindow(width, height);
 }
 
 function apply_default_main(id: string | undefined) {
@@ -115,6 +119,7 @@ function set_shortcut_configuration(config: KawaiConfig) {
             config.preference!.shortcut?.[key];
         if (typeof value !== 'undefined' && typeof value !== 'string') {
             if (typeof value.shortcut_key !== 'undefined') {
+                console.log(key, value.shortcut_key);
                 mgr.queryAndModifyShortcut(key, value.shortcut_key ?? '');
             }
         }
@@ -177,7 +182,6 @@ function _set_config_from_path(pth: string): KawaiConfig | null {
             flog.debug(`${pth} path failed`);
         }
     }
-     
 
     if (raw_data == null) {
         return default_config;
@@ -217,7 +221,9 @@ export function set_preference(
         global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
     );
     save_config(global_object.config, path.join(data_root_path, 'test.json'));
-    global_object.menu?.webContents.send(KAWAI_API_LITERAL.menu.notify_menu_update)
+    global_object.menu?.webContents.send(
+        KAWAI_API_LITERAL.menu.notify_menu_update,
+    );
 }
 
 export function set_config(data: JSON | string | KawaiConfig | undefined) {
@@ -246,8 +252,8 @@ export function set_config(data: JSON | string | KawaiConfig | undefined) {
     let obj = lodash.merge({}, global_object.config);
     obj = lodash.merge(obj, config);
     global_object.config = obj;
-    let sss = global_object.config ;
-    console.log(sss)
+    let sss = global_object.config;
+    console.log(sss);
     set_general_configuration(global_object.config);
     set_shortcut_configuration(global_object.config);
     set_locale(

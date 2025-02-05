@@ -1,45 +1,67 @@
-import { Box, Button } from "@mui/material";
-import { useEffect, useState } from "react";
-import Markdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
-import remarkGfm from 'remark-gfm'
-import { create } from 'zustand';
+import React, { useEffect, useState } from 'react';
+import Box from '@mui/material/Box';
+import { Fade, Typography } from '@mui/material';
+import Favorites from './favorites';
+import { KawaiMenuComponent, menu_state } from './states';
 
 const App: React.FC = () => {
+    const [fetch, favorites_list] = menu_state((state) => [
+        state.fetch,
+        state.favorites,
+    ]);
+    useEffect(() => {
+        fetch();
+        window.KAWAI_API.menu.notify_menu_update(fetch);
+    }, []);
 
-    useEffect(()=>{
-        // window.main_api.get_version().then((version_string : string)=>{
-            
-        //     const version = "v"+version_string
-        //     const readme_url = `https://raw.githubusercontent.com/fabyday/kawaikara/${version}/README.MD`
-        //     const raws_root = `https://github.com/fabyday/kawaikara/raw/${version}`
-        //     fetch(readme_url).then((e)=>e.blob()).then((v)=>v.text()).then(v=>{
-        //         const re =  /(\<img[^\/][\s]*[\w]*src=)["'](\.)(.*)["']/g
-        //         v = v.replaceAll(re, `$1"${raws_root}/$3"`)
-        //         setup(v)
-        //     })
-
-
-    }, [])
-
-    return (
-            <Box
-              sx={{
+    let reval = (
+        <Box
+            sx={{
                 display: 'flex',
-                justifyContent: 'center',   
-                alignItems: 'center',       
-                height: '100vh',            
-                flexDirection: 'row',       
-                flexWrap: 'wrap',           
-                gap: 2                      
-              }}
-            >
-              {/* <Button variant="contained">Button 1</Button> */}
-              {/* <Button variant="contained">Button 2</Button> */}
-              {/* <Button variant="contained">Button 3</Button> */}
-              <Button variant="contained">Button 4</Button>
+                flexDirection: 'column',
+                // backgroundColor: 'transparent',
+                height: '100vh',
+                width: '100vw',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}>
+            <Box>
+                <Typography typography={'Test'} fontSize={"3em"} fontWeight={700}>
+                    KAWAIKARA 2.0.0
+                </Typography>
+                <img></img>
             </Box>
-    )
+
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    // backgroundColor: 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                <img
+                    width={'60%'}
+                    src="kawai://imgs/kawaikara_banner.png"></img>
+            </Box>
+
+            <Box
+                sx={{
+                    width: '80%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                <Favorites
+                    favorites_list={favorites_list!}
+                    onClicked={async (id: string) => {
+                        await window.KAWAI_API.menu.select_menu_item(id);
+                    }}
+                />
+            </Box>
+        </Box>
+    );
+
+    return reval;
 };
 
 export default App;

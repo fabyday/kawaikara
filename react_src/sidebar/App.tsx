@@ -1,20 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
-import {
-    Collapse,
-    Fade,
-    Grid,
-    List,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    ListSubheader,
-} from '@mui/material';
-import SubmenuBar from './SubmenuBar';
+import { Fade } from '@mui/material';
 import Favorites from './Favorites';
-import MenuItemBar from './MenuItemBar';
 import { KawaiMenuComponent, menu_state } from './states';
 import MenuItemBar2 from './menubar';
+
 const App: React.FC = () => {
     const [
         fetch,
@@ -95,24 +85,41 @@ const App: React.FC = () => {
                     sx={{
                         display: 'flex',
                         flexDirection: 'column',
-                        backgroundColor: 'rgb(149, 47, 197)',
-                        // backgroundColor: 'transparent',
+                        // backgroundColor: 'rgb(149, 47, 197)',
+                        backgroundColor: 'transparent',
                         height: '80%',
-                        width: '40%',
+                        // width: '40%',
+                        width: '50%',
+                        '@media (max-width: 1300px)': {
+                            width: '100%',
+                            height: '100%',
+                        },
+                        maxWidth: '100%',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        borderRadius: '10px',
+
                     }}>
-                    <Favorites
-                        favorites_list={favorites_list!}
-                        onClicked={async (id: string) => {
-                            await window.KAWAI_API.menu.select_menu_item(id);
-                            setFade(false);
-                            setTimeout(() => {
-                                window.KAWAI_API.menu.close();
-                            }, fade_time);
-                        }}
-                    />
+                    <Box
+                     sx={{
+                        width: '99%',
+                        justifyContent: 'center',
+                        alignItems : "center",
+                        boxSizing: 'border-box', // border, padding 포함하여 크기 계산
+                }}>
+                    
+                        <Favorites
+                            favorites_list={favorites_list!}
+                            onClicked={async (id: string) => {
+                                await window.KAWAI_API.menu.select_menu_item(
+                                    id,
+                                );
+                                setFade(false);
+                                setTimeout(() => {
+                                    window.KAWAI_API.menu.close();
+                                }, fade_time);
+                            }}
+                        />
+                    </Box>
                     <Box
                         onClick={(e) => {
                             e.stopPropagation();
@@ -131,7 +138,6 @@ const App: React.FC = () => {
                         <MenuItemBar2
                             selected_category_id={current_category}
                             category_list={get_category_deserialize()}
-                            
                             onCategoryClick={(id: string) => {
                                 set_current_category(id);
                             }}
@@ -155,61 +161,6 @@ const App: React.FC = () => {
                                     window.KAWAI_API.menu.add_favorites(id);
                                 }
                             }}></MenuItemBar2>
-                        {/* <Box
-                            sx={{
-                                flex: 1,
-                                justifyContent: 'center',
-                            }}>
-                            <MenuItemBar
-                                selected_category_id={current_category}
-                                category_list={get_category_deserialize()}
-                                onclicked={(id: string) => {
-                                    set_current_category(id);
-                                }}
-                            />
-                        </Box>
-                        {current_category != null ? (
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                    justifyContent: 'center',
-                                }}>
-                                <SubmenuBar
-                                    menu_item={get_menu_deserialize(
-                                        current_category,
-                                    )}
-                                    onClicked={async (id: string) => {
-                                        await window.KAWAI_API.menu.select_menu_item(
-                                            id,
-                                        );
-                                        setFade(false);
-                                        setTimeout(() => {
-                                            window.KAWAI_API.menu.close();
-                                        }, fade_time);
-                                    }}
-                                    onFavoritesClick={(
-                                        id: string,
-                                        cur_fav_state: boolean,
-                                    ) => {
-                                        if (cur_fav_state) {
-                                            window.KAWAI_API.menu.delete_favorites(
-                                                id,
-                                            );
-                                        } else {
-                                            window.KAWAI_API.menu.add_favorites(
-                                                id,
-                                            );
-                                        }
-                                    }}
-                                    // menu_item={get_menu_deserialize("ott")}
-                                />
-                            </Box>
-                        ) : (
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                }}></Box>
-                        )} */}
                     </Box>
                 </Box>
             </Box>

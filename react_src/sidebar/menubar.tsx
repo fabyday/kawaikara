@@ -1,4 +1,4 @@
-import React, { ReactEventHandler, useEffect, useState } from 'react';
+import React, { ReactEventHandler, useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import {
     List,
@@ -7,11 +7,13 @@ import {
     ListItemIcon,
     ListItemText,
     Collapse,
+    IconButton,
 } from '@mui/material';
 import KListItemButton from './KListItemButton';
-import { KawaiMenuComponent } from './states';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import StarSharpIcon from '@mui/icons-material/StarSharp';
+import { isBase64, KawaiMenuComponent } from './states';
 type prop = {
     selected_category_id: string | null;
     category_list: KawaiMenuComponent[];
@@ -30,19 +32,26 @@ const MenuItemBar2 = ({
     onFavoritesClick,
 }: prop) => {
     // return reval;
+    const def = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
 
     const create_menu = () => {
         const flat_cat = category_list.map((categoryComponent) => {
             if (categoryComponent.id) {
-                return create_submenu(categoryComponent.id);
+                return create_submenu(
+                    categoryComponent.id,
+                    (1 / category_list.length) * 100,
+                );
             }
         });
 
         return (
             <List
                 sx={{
-                    width: '100%',
                     height: '100%',
+                    width: '100%',
                     display: 'flex',
                     // border: '1px solid red',
                     justifyContent: 'center',
@@ -55,15 +64,37 @@ const MenuItemBar2 = ({
         );
     };
 
-    const create_submenu = (category_id: string) => {
+
+
+    const create_submenu = (category_id: string, length?: number) => {
         const submenu_bar = menu_item.map((item) => {
             return (
                 <ListItemButton
-                    sx={{}}
+                    key={`${category_id}_${item.id}`}
+                    className={'list-button'}
+                    sx={{
+                        bgcolor: 'rgb(186, 186, 255)',
+                        '&:hover': {
+                            backgroundColor: 'rgb(214, 214, 252)', // hover 시 배경색 변경
+                        },
+                    }}
                     onClick={() => {
                         onMenuClick(item.id);
                     }}>
+                    <ListItemIcon
+                        key={`${category_id}_${item.id}_icon`}
+                        sx={{ width: 28, height: 28 }}>
+                        {/* </img> */}
+
+                        {item.favicon !== '' ? (
+                            // isBase64(v.favicon!) ? <img src={`data:image/png;base64,${v.favicon!}`}/> :
+                            <img src={item.favicon} />
+                        ) : (
+                            <div></div>
+                        )}
+                    </ListItemIcon>
                     <ListItemText
+                        key={`${category_id}_${item.id}_text`}
                         sx={{
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
@@ -71,32 +102,60 @@ const MenuItemBar2 = ({
                         }}
                         primary={item.name}
                     />
+                    <IconButton
+                        key={`${category_id}_${item.id}_iconbutton`}
+                        size="small"
+                        onMouseUp={def}
+                        onClick={(e) => {
+                            def(e);
+                            onFavoritesClick(item.id, item.favorite ?? false);
+                        }}
+                        onMouseDown={def}>
+                        <StarSharpIcon
+                            style={{
+                                color: item.favorite ? 'gold' : 'gray',
+                            }}
+                        />
+                    </IconButton>
                 </ListItemButton>
             );
         });
 
         return (
             <Box
+                key={`${category_id}_root`}
                 sx={{
-                    border: '1px solid blue',
+                    // border: '1px solid blue',
                     height: '100%',
+                    width: `${length}%`,
+                    bgcolor: 'rgb(186, 186, 255)',
                     display: 'flex',
+                    flexShrink: 0, // 자식 요소의 크기에 맞춰 부모 너비 조정
+                    flexGrow: 0, // 자식 요소 크기에 맞춰 크기 조정
+
                     flexDirection: 'column',
                 }}>
-                <Box sx={{ bgcolor: 'blue', flexShrink: 0 }}>
+                <Box
+                    sx={{
+                        bgcolor: 'blue',
+                        flexShrink: 0,
+                        border: '1px solid gray',
+                    }}>
                     <ListSubheader
+                        key={`${category_id}`}
                         sx={{
                             position: 'sticky',
                             top: 0,
                             zIndex: 1000,
                             textOverflow: 'ellipsis',
+                            // minWidth : 100,
                         }}>
                         <ListItemButton
-                         sx={{
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                        }}
+                            sx={{
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                            }}
                             onClick={() => {
                                 onCategoryClick(category_id);
                             }}>
@@ -119,7 +178,7 @@ const MenuItemBar2 = ({
                 <Box
                     sx={{
                         overflow: 'auto',
-                        border: '1px solid red',
+                        // border: '1px solid red',
 
                         '&::-webkit-scrollbar': {
                             width: '8px', // 스크롤바의 너비
@@ -145,6 +204,7 @@ const MenuItemBar2 = ({
                         unmountOnExit>
                         <List
                             sx={{
+                                width: '100%',
                                 margin: 0,
                                 padding: 0,
                             }}>
@@ -160,8 +220,9 @@ const MenuItemBar2 = ({
             sx={{
                 width: '100%',
                 height: '100%',
+                borderRadius: '10px',
                 overflow: 'hidden',
-                border: '1px solid red',
+                // border: '1px solid red',
             }}>
             {create_menu()}
         </Box>

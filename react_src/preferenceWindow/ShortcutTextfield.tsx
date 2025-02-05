@@ -43,7 +43,7 @@ function ShortcutTextField({
     const [key, setKey] = React.useState<Set<string>>(new Set<string>());
 
     // const [combined, setCombined] = React.useState<string>(get_shortcut_f());
-    const [combined, setCombined] = React.useState<string>('');
+    const [combined, setCombined] = React.useState<string>(get_shortcut_f());
 
     const textFieldRef = useRef<HTMLInputElement>(null); // TextField의 내부 input에 대한 ref
     const ignore_flag = useRef<boolean>(false);
@@ -125,7 +125,6 @@ function ShortcutTextField({
             metaKey: true,
             shiftKey: true,
         });
-        log.info('realse');
         if (kawai_modifier_set.has(kawaikey)) {
             if (accelerator!.has(kawaikey)) {
                 accelerator!.delete(kawaikey);
@@ -153,7 +152,7 @@ function ShortcutTextField({
 
     return (
         <TextField
-            id="shortcut"
+            id={id}
             onKeyDown={handleKeyDown}
             onKeyUp={handleKeyUp}
             onClick={(e) => {

@@ -46,26 +46,10 @@ export class KawaiViewManager {
             flogger.info('set borwser window');
 
             view.webContents.on('focus', () => {
-                console.log(
-                    'get browserView',
-                    global_object.mainWindow?.getBrowserView(),
-                );
-                // if (Reflect.getMetadata('open', global_object.menu!) ?? false) {
-                //     // console.log('web content focus');
-                //     global_object!.menu!.webContents.focus();
-                // } else {
-                //     KawaiViewManager.getInstance().setFocusedView(
-                //         (view as any).name,
-                //     );
-                // }
                 KawaiViewManager.getInstance().setFocusedView(
                     (view as any).name,
                 );
             });
-            // view.on('blur', () => {
-            //     KawaiViewManager.getInstance().setFocusedView();
-            //     return;
-            // });
         } else {
             // this is BrowserView.
             // view.webContents.on('focus', () => {
@@ -161,48 +145,113 @@ export class KawaiViewManager {
             }
             sel_desc?.loadUrl(get_mainview_instance());
         }
-        console.log('close!!');
         // if(this.isMenuOpen()){
         //     this.closeMenu();
         // }
     }
 
-    public pipMode(mode: boolean) {
-        if (mode === true) {
-            const bounds = global_object.mainWindow?.getBounds();
+    public pipMode() {
+        if (typeof global_object!.context === 'undefined') {
+            global_object.context = {};
+        }
 
-            if (typeof global_object?.context === 'undefined') {
-                global_object.context = {};
+        if (typeof global_object?.context?.window_mode === 'undefined') {
+            global_object.context.window_mode = 'default';
+        }
+
+        if (global_object.context?.window_mode === 'default') {
+            this.saveViewState();
+        }
+
+        if (
+            global_object.context?.window_mode === 'default' ||
+            global_object.context?.window_mode === 'fullscreen'
+        ) {
+            if (global_object.context.window_mode === 'fullscreen') {
+                global_object.mainWindow?.setFullScreen(false);
+                global_object.mainWindow?.setFullScreenable(false);
             }
 
-            global_object.context.current_window_bounds = bounds;
-
-            const { x, y, width, height } =
-                KawaiWindowManager.getInstance().getPipBounds();
+            const pipBounds = KawaiWindowManager.getInstance().getPipBounds();
+            global_object.mainWindow?.setMinimumSize(
+                pipBounds.width,
+                pipBounds.height,
+            );
+            global_object.mainWindow?.setBounds(pipBounds, true);
             global_object.mainWindow?.setMovable(false);
             global_object.mainWindow?.setResizable(false);
             global_object.mainWindow?.setAlwaysOnTop(true);
-            global_object.mainWindow?.setSize(width, height, true);
-            global_object.mainWindow?.setPosition(x, y, true);
+            global_object.context.window_mode = 'pip';
         } else {
             const { x, y, width, height } =
                 global_object!.context!.current_window_bounds!;
+            const min_win = KawaiWindowManager.getInstance().getPresetSize()[0];
+            global_object.mainWindow?.setMinimumSize(min_win[0], min_win[1]);
             global_object.mainWindow?.setMovable(true);
             global_object.mainWindow?.setResizable(true);
             global_object.mainWindow?.setAlwaysOnTop(false);
             global_object.mainWindow?.setSize(width, height, true);
             global_object.mainWindow?.setPosition(x, y, true);
+            global_object.context.window_mode = 'default';
         }
     }
 
-    protected resetViewState() {}
-
-    public fullscreen(mode: boolean) {
-        this.resetViewState();
-        global_object.mainWindow?.setFullScreen(mode);
+    protected resetDefaultState() {
+        global_object.mainWindow?.setFullScreen(false);
+        global_object.mainWindow?.setFullScreenable(false);
     }
 
-   
+    protected rollbackViewState() {
+        console.log(global_object!.context!.current_window_bounds!);
+        global_object.mainWindow?.setBounds(
+            global_object!.context!.current_window_bounds!,
+        );
+    }
+    protected saveViewState() {
+        // if(global_object.context?.window_mode[0])
+
+        if (typeof global_object.context === 'undefined') {
+            global_object.context = {};
+        }
+        global_object!.context!.current_window_bounds =
+            global_object.mainWindow!.getBounds()!;
+    }
+    public fullscreen() {
+        if (typeof global_object!.context === 'undefined') {
+            global_object.context = {};
+        }
+
+        if (typeof global_object?.context?.window_mode === 'undefined') {
+            global_object.context.window_mode = 'default';
+        }
+
+        if (global_object.context?.window_mode === 'default') {
+            this.saveViewState();
+        }
+
+        if (
+            global_object.context?.window_mode === 'default' ||
+            global_object.context?.window_mode === 'pip'
+        ) {
+            if (global_object.context.window_mode === 'pip') {
+                global_object.mainWindow?.setMovable(true);
+                global_object.mainWindow?.setResizable(true);
+                global_object.mainWindow?.setAlwaysOnTop(false);
+            }
+
+            // if default or pip mode.
+            global_object.mainWindow?.setFullScreenable(true);
+            global_object.mainWindow?.setFullScreen(true);
+            global_object!.context!.window_mode = 'fullscreen';
+        } else {
+            const min_win = KawaiWindowManager.getInstance().getPresetSize()[0];
+            global_object.mainWindow?.setMinimumSize(min_win[0], min_win[1]);
+            global_object.mainWindow?.setFullScreen(false);
+            global_object.mainWindow?.setFullScreenable(false);
+            this.rollbackViewState();
+            global_object!.context!.window_mode = 'default';
+        }
+    }
 
     public resizeWindow(width: undefined | number, height: undefined | number) {
         if (typeof width === 'undefined' || typeof height === 'undefined') {

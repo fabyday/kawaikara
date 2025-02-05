@@ -43,7 +43,7 @@ export class KawaiWindowManager {
     };
 
     public setDefaultWindowSize(width?: number, height?: number) {
-        if(typeof width === "undefined" || typeof height === "undefined" ){
+        if (typeof width === 'undefined' || typeof height === 'undefined') {
             return;
         }
         const { x, y } = this.findCenterCoordByBounds(width, height);
@@ -77,11 +77,14 @@ export class KawaiWindowManager {
         }
 
         let sel_disp: Electron.Display | null = null;
+        sel_disp = screen.getPrimaryDisplay();
         screen.getAllDisplays().forEach((disp) => {
             if (disp.label === monitor_name) {
                 sel_disp = disp;
             }
         });
+
+
         if (sel_disp != null) {
             const work_area = (sel_disp as Electron.Display).workAreaSize;
             const sel_bounds = (sel_disp as Electron.Display).bounds;
@@ -121,6 +124,13 @@ export class KawaiWindowManager {
                     left_pos_y = sel_y + selected_height - height - min_padding;
                 }
             }
+
+            this.m_pip_bounds = {
+                x: left_pos_x,
+                y: left_pos_y,
+                width: width,
+                height: height,
+            };
         }
     }
 

@@ -201,7 +201,6 @@ export class ShortcutManager {
         }
 
         const current_action = this.m_action_map.action_hash.get(id);
-        console.log(`${id} ${key_action} ${current_action}`);
         if (typeof current_action === 'undefined') {
             return; // stop this is invalid request. and throw error. so I quit.
         }
@@ -212,6 +211,7 @@ export class ShortcutManager {
         } else {
             actionKey = [key_action];
         }
+        current_action.actionKey = actionKey;
         this.addActionMap(id, current_action!.targetView, actionKey);
     }
 
@@ -225,16 +225,27 @@ export class ShortcutManager {
          * @param ref target to delete
          * @param actions reversed Action.
          */
-        const recursive_delete_traveller_f = (ref: any, actions: string[]) => {
+        const recursive_delete_traveller_f = (
+            ref: ActionChainMap,
+            actions: string[],
+        ) => {
             if (actions.length === 1) {
                 // stop  travel.
                 const action = actions.pop();
-                delete ref[action!];
+                ref.delete(action!);
+                return;
             }
 
             const action = actions.pop();
-            recursive_delete_traveller_f(ref[action!], actions);
-            delete ref[action!];
+            const action_ref = ref.get(action!);
+            if (
+                typeof action_ref !== 'undefined' &&
+                typeof action_ref !== 'string'
+            ) {
+                recursive_delete_traveller_f(action_ref, actions);
+            }
+            ref.delete(action!);
+
             // fucking easy.
         };
 
