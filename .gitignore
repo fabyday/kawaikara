@@ -10,6 +10,7 @@ lerna-debug.log*
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 public 
+
 # Runtime data
 pids
 *.pid
@@ -75,7 +76,6 @@ web_modules/
 private/
 extensions/
 
-
 # Yarn Integrity file
 .yarn-integrity
 
@@ -137,9 +137,8 @@ public
 .yarn/install-state.gz
 .pnp.*
 
-
-
-
 # ts build
-
 /ts_build
+
+# created file of macos
+.DS_Store

@@ -137,7 +137,7 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 * Fullscreen On/Off : ```Alt+Enter```
 
 
-## build your own OTT-viewer
+## build your own OTT-viewer(Windows 10/11)
 
 This is simple way. Just follow my way. you must prepare *nodejs* environment. I recommend to use *nvm*(node version manager) and *yarn*.
 
@@ -175,12 +175,38 @@ DISCORD_PUB_KEY=${write App public key here.}
 You must run this script on powershell.(funtion that generating certification file use powershell functions.)
 ```shell 
 yarn install # install all deps in package.json 
-yarn make-cert # make your self-signed-cert(offical cert is too expensive...) 
+yarn make-cert:win # make your self-signed-cert(offical cert is too expensive...) 
 # package_local_only rename to 
 yarn build # it's all done. baby.
 ```
 
+## build your own OTT-viewer(MacOS)
 
+
+install ```conda``` environment
+sign up castlab 
+```shell
+conda create -n test_env python=3.10
+conda activate test_env
+pip install castlabs_evs
+
+#make castlabs account
+python -m castlabs_evs.account signup
+
+#after signup. login with your computer.
+python -m castlabs_evs.account reauth -A ${your_account} -P ${your password}
+
+ok. then it's done.
+```
+
+
+You must run this script on powershell.(funtion that generating certification file use powershell functions.)
+```shell 
+yarn install # install all deps in package.json 
+yarn make-cert:mac # make your self-signed-cert(offical cert is too expensive...) 
+# package_local_only rename to 
+yarn build # it's all done. baby.
+```
 
 
 

@@ -1,0 +1,1 @@
+python -m castlabs_evs.account reauth -A $ACCOUNT -P $PASSWORD
