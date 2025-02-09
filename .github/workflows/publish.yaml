@@ -158,7 +158,7 @@ jobs:
         run: yarn release
         env :
           GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
+          CSC_LINK : ${{secrets.SELF_SIGNED_CERT_FOR_MAC}}
           DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
           DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
 
