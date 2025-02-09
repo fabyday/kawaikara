@@ -149,7 +149,7 @@ jobs:
         run: cd react_src && yarn install --frozen-lockfile
 
       - name : test
-        run : powershell.exe ./scripts/reauth.ps1
+        run : sh ./scripts/reauth.sh
         env : 
           ACCOUNT : ${{secrets.ACCOUNT}}
           PASSWORD : ${{secrets.PASSWD}}
