@@ -129,7 +129,9 @@ export class KawaiViewManager {
         // const close_flag = Reflect.getMetadata("close", )
         Reflect.defineMetadata('open', false, global_object.menu!);
         global_object.mainWindow?.removeBrowserView(global_object.menu!);
-        global_object.mainWindow?.webContents.focus();
+        if(this.getFocusedViewName() === "mainview"){
+            global_object.mainWindow?.webContents.focus();
+        }
     }
 
     public loadUrl(desc_id: string) {
@@ -196,6 +198,18 @@ export class KawaiViewManager {
         }
     }
 
+    public notifyToView(event_name: string, viewname?: string, ...args: any[]) {
+        if (typeof viewname === 'undefined') {
+            if (typeof global_object?.mainWindow !== 'undefined') {
+                global_object.mainWindow?.webContents.send(event_name, args);
+            }
+
+            if (typeof global_object.menu !== 'undefined') {
+                global_object.menu?.webContents.send(event_name, args);
+            }
+        }
+    }
+
     protected resetDefaultState() {
         global_object.mainWindow?.setFullScreen(false);
         global_object.mainWindow?.setFullScreenable(false);
@@ -254,6 +268,22 @@ export class KawaiViewManager {
     }
 
     public resizeWindow(width: undefined | number, height: undefined | number) {
+        if (global_object.context?.window_mode === 'fullscreen') {
+            return;
+        }
+
+        if (global_object.context?.window_mode === 'pip') {
+            const { x, y, width, height } =
+                KawaiWindowManager.getInstance().getPipBounds();
+            global_object.mainWindow?.setBounds({
+                x: x === -1 ? 0 : x,
+                y: y === -1 ? 0 : y,
+                width: width,
+                height: height,
+            });
+            return;
+        }
+
         if (typeof width === 'undefined' || typeof height === 'undefined') {
             return;
         }

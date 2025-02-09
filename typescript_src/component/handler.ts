@@ -108,6 +108,9 @@ export function connectMainProcessHandler() {
             >,
         ) => {
             set_preference(config!);
+            KawaiViewManager.getInstance().notifyToView(
+                KAWAI_API_LITERAL.preference.notify_config_update,
+            );
             flog.debug('new config saved.', config);
             flog.debug('new config saved.', global_object.config);
             return true;
@@ -125,6 +128,7 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.preference.load_config,
         (event: IpcMainInvokeEvent, ...args: any) => {
             flog.debug(default_config);
+            log.info('config', global_object.config?.preference);
             return global_object.config?.preference;
         },
     );
@@ -132,7 +136,13 @@ export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.preference.load_available_locale_list,
         (e: Electron.IpcMainInvokeEvent, ...args: any[]) => {
-            return LocaleManager.getInstance().getLocaleMetas();
+            const locale_list = LocaleManager.getInstance().getLocaleMetas();
+            locale_list.forEach((v) => {
+                log.info(
+                    `load available locales list  [${v.filename},${v.version}, ${v.metaname}]`,
+                );
+            });
+            return locale_list;
         },
     );
 
@@ -187,6 +197,9 @@ export function connectMainProcessHandler() {
             >,
         ) => {
             set_preference(config);
+            KawaiViewManager.getInstance().notifyToView(
+                KAWAI_API_LITERAL.preference.notify_config_update,
+            );
             global_object.preferenceWindow?.close();
         },
     );

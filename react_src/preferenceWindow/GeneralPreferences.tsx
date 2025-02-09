@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, useEffect, useRef } from 'react';
+import React, { MouseEventHandler, useEffect, useRef, useState } from 'react';
 import ShortcutTextField from './ShortcutTextfield';
 import { Grid } from '@mui/material';
 import Typography from '@mui/material/Typography';
@@ -22,6 +22,8 @@ import { create } from 'zustand';
 import KawaiSelector from './KawaiSelector';
 
 function GeneralPreference() {
+    const [, forceUpdate] = useState(0);
+
     const ref_site_map = useRef<Map<string, string>>(new Map());
     const ref_site_rmap = useRef<Map<string, string>>(new Map());
     const ref_locale_map = useRef<Map<string, string>>(new Map());
@@ -55,13 +57,13 @@ function GeneralPreference() {
     }, []);
 
     useEffect(() => {
-   
         ref_site_map.current.clear();
         ref_site_rmap.current.clear();
         available_site_list.forEach((v) => {
             ref_site_map.current.set(v.id, v.name ?? v.id);
             ref_site_rmap.current.set(v.name, v.id);
         });
+        forceUpdate((prev) => prev + 1);
     }, [available_site_list]);
     // const f = (value : string)=>{
     //     const [width, height] = value.split("x").map((v)=>Number(v))
@@ -77,6 +79,7 @@ function GeneralPreference() {
             ref_locale_map.current.set(v.filename, v.metaname ?? v.filename);
             ref_locale_rmap.current.set(v.metaname, v.filename);
         });
+        forceUpdate((prev) => prev + 1);
     }, [available_locale_list]);
     return (
         <Box>
@@ -98,8 +101,9 @@ function GeneralPreference() {
                     }
                     preset_list={(() => {
                         let val = Array.from(ref_site_rmap.current.keys());
-                        if (val.length === 0)
+                        if (val.length === 0) {
                             val = Array.from(ref_site_map.current.keys());
+                        }
                         return val;
                     })()}
                     value={(() => {
@@ -107,10 +111,11 @@ function GeneralPreference() {
                             get_property()?.general?.default_main?.id?.value;
 
                         if (typeof val === 'undefined') {
+                            console.log('test und');
                             return '';
                         }
 
-                        return ref_site_rmap.current.get(val)!;
+                        return ref_site_rmap.current.get(val) ?? '';
                     })()}
                     select_f={(name: string) => {
                         let id = ref_site_rmap.current.get(name);
@@ -135,7 +140,7 @@ function GeneralPreference() {
                         if (typeof id === 'undefined') {
                             return '';
                         }
-                        return ref_locale_map.current.get(id)!;
+                        return ref_locale_map.current.get(id) ?? '';
                     })()}
                     select_f={(name: string) => {
                         let filename = ref_locale_rmap.current.get(name);

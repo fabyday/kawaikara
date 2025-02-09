@@ -1,6 +1,6 @@
 // this is default menu data
 
-import { shell } from 'electron';
+import { app, dialog, shell } from 'electron';
 import { KawaiMenuBase } from '../definitions/menu_def';
 import { get_preference_instance } from '../component/preference';
 import { registerKawaiMenuItem } from '../logics/register';
@@ -8,6 +8,7 @@ import { checkForUpdates } from '../component/autoupdater';
 import { project_root } from '../component/constants';
 import path from 'path';
 import { read_image_as_base64 } from '../logics/io';
+import { global_object } from './context';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {}
@@ -47,10 +48,16 @@ class KawaiMenuTwitch extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('Options', 'menu_info')
 class KawaiMenuInfo extends KawaiMenuBase {
+    public activate(): void {
+        const message = `Welcome to Kawaikara ${app.getVersion()}. This application is CHoooO Kawai OTT Streaming Viewer.`;
+        dialog.showMessageBox(global_object!.mainWindow!, {
+            title: 'Kawaikara Info',
+            message: `Kawaikara v${app.getVersion()}`,
+            detail: message,
+        });
+    }
     public getFaviconUrl() {
-        return read_image_as_base64(
-            path.join(project_root, 'resources', 'icons', 'info.png'),
-        );
+        return 'kawai://resources/icons/info.png';
     }
 }
 
@@ -61,18 +68,14 @@ class KawaiMenuPreference extends KawaiMenuBase {
     }
 
     public getFaviconUrl() {
-        return read_image_as_base64(
-            path.join(project_root, 'resources', 'icons', 'setting.png'),
-        );
+        return 'kawai://resources/icons/setting.png';
     }
 }
 
 @registerKawaiMenuItem('Options', 'menu_main')
 class KawaiMenuMainPage extends KawaiMenuBase {
     public getFaviconUrl() {
-        return read_image_as_base64(
-            path.join(project_root, 'resources', 'icons', 'home.png'),
-        );
+        return 'kawai://resources/icons/home.png';
     }
 }
 
@@ -83,9 +86,7 @@ class KawaiMenuCheckUpdate extends KawaiMenuBase {
     }
 
     public getFaviconUrl() {
-        return read_image_as_base64(
-            path.join(project_root, 'resources', 'icons', 'update.png'),
-        );
+        return 'kawai://resources/icons/update.png';
     }
 }
 
@@ -106,12 +107,8 @@ class KawaiMenuDiscord extends KawaiMenuBase {
     }
 
     public getFaviconUrl() {
-        // const fbuf= fs.readFileSync(path.join( project_root, "resources","icons","discord.ico"))
-        // return fbuf.toString("base64");
-        return read_image_as_base64(
-            path.join(project_root, 'resources', 'icons', 'discord.ico'),
-        );
+        return 'kawai://resources/icons/discord.ico';
     }
 }
-// @registerKawaiMenuItem('OTT', 'menu_crunchyroll')
-// class KawaiMenuCrunchyroll extends KawaiMenuBase {}
+@registerKawaiMenuItem('OTT', 'menu_crunchyroll')
+class KawaiMenuCrunchyroll extends KawaiMenuBase {}

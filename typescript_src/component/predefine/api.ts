@@ -109,7 +109,11 @@ export const notify_menu_update_f = (callback : (...args : any[])=>void)=>{
         callback(...args);
     })
 }
-
+export const notify_config_update_f = (callback : (...args : any[])=>void)=>{
+    ipcRenderer.on(KAWAI_API_LITERAL.preference.notify_config_update, (event : Electron.IpcRendererEvent, ...args : any[])=>{
+        callback(...args);
+    })
+}
 
 
 export const keydown_f = async (event: KeyboardEvent) => {

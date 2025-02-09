@@ -1,0 +1,75 @@
+{
+    "preference": {
+        "general": {
+            "name": "一般",
+            "dark_mode": { "name": "ダークモード" },
+            "default_main": {
+                "name": "ホーム",
+                "url": { "name": "ホーム" }
+            },
+            "enable_autoupdate": { "name": "自動更新を有効にする" },
+            "render_full_size_when_pip_running": {
+                "name": "PiP実行中にレンダリング"
+            },
+            "window_preference": {
+                "pip_location": {
+                    "location": { "name": "PiPの位置" },
+                    "monitor": { "name": "PiPモニターの位置" }
+                },
+                "pip_window_size": {
+                    "name": "PiPウィンドウサイズ",
+                    "x": { "name": "X" },
+                    "y": { "name": "Y" },
+                    "width": { "name": "幅" },
+                    "height": { "name": "高さ" }
+                }
+            }
+        },
+        "locale": {
+            "name": "言語",
+            "selected_locale": { "name": "言語選択" }
+        },
+        "shortcut": {
+            "name": "ショートカット",
+            "goto_netflix": { "name": "ネットフリックス" },
+            "goto_laftel": { "name": "ラフテル" },
+            "goto_youtube": { "name": "ユーチューブ" },
+            "goto_disney": { "name": "ディズニープラス" },
+            "goto_wavve": { "name": "ウェイブ" },
+            "goto_tving": { "name": "ティビング" },
+            "goto_twitch": { "name": "ツイッチ" },
+            "run_pip": { "name": "PiP実行" },
+            "goto_applemusic": { "name": "アップルミュージック" },
+            "goto_chzzk": { "name": "チジジク" },
+            "goto_amazonprime": { "name": "アマゾンプライム" },
+            "goto_crunchyroll": { "name": "クランチロール" }
+        }
+    },
+    "version": { "name": "バージョン" },
+    "locale_meta": {
+        "filename": "JP",
+        "metaname": "日本語",
+        "version": "2.0.0"
+    },
+    "system_literal": {
+        "menu_main": "ホーム",
+        "menu_netflix": "ネットフリックス",
+        "menu_laftel": "ラフテル",
+        "menu_disney": "ディズニープラス",
+        "menu_youtube": "ユーチューブ",
+        "menu_amazonprime": "アマゾンプライム",
+        "menu_wavve": "ウェイブ",
+        "menu_watcha": "ワッチャ",
+        "menu_coupangplay": "クパンプレイ",
+        "menu_tving": "ティビング",
+        "menu_applemusic": "アップルミュージック",
+        "menu_chzzk": "チジジク",
+        "menu_twitch": "ツイッチ",
+        "menu_info": "アプリ情報",
+        "menu_preference": "設定",
+        "menu_checkupdate": "アップデート確認",
+        "menu_github": "ギットハブ",
+        "menu_discord": "ディスコード",
+        "menu_crunchyroll": "クランチロール"
+    }
+}

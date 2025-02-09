@@ -66,6 +66,7 @@ export class ShortcutManager {
         this.key_states = [];
         this.actionDelayTime = 1000;
         this.current_view = KawaiViewManager.getInstance().getFocusedViewName();
+        log.info("ShortcutManager was initialized...")
     }
 
     public setActionDelay(d: number) {
@@ -287,10 +288,12 @@ export class ShortcutManager {
                     target_action!.targetView,
                 );
                 let cur_ref = targetview_action_map;
-                recursive_delete_traveller_f(
-                    cur_ref,
-                    Array.from(target_action_list).reverse(),
-                );
+                if (typeof cur_ref !== 'undefined') {
+                    recursive_delete_traveller_f(
+                        cur_ref,
+                        Array.from(target_action_list).reverse(),
+                    );
+                }
             }
         }
     }

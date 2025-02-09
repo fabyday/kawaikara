@@ -49,11 +49,11 @@ export class LocaleManager {
             // check default root
             fclog.info(
                 'Default Searching Directroy : ' +
-                    path.join(data_root_path, default_locale_directory),
+                    path.join(default_locale_directory),
             );
 
             filenames = read_json_filenames_in_dir(
-                path.join(data_root_path, default_locale_directory),
+                path.join(default_locale_directory),
             );
             fclog.debug('searched Files : ' + filenames);
         } else {

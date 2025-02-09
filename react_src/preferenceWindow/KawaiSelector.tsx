@@ -23,14 +23,14 @@ type props = {
 
 function KawaiSelector({id, title, preset_list, value , select_f, onselected_customize_f} : props){
 
-    const [val, set_args] = useState("");
+//     const [val, set_args] = useState("");
 
-useEffect(() => {
-        let validValue = value
-        validValue = preset_list.includes(value) ? value : preset_list[0];
-        set_args(validValue)
+// useEffect(() => {
+//         let validValue = value
+//         validValue = preset_list.includes(value) ? value : preset_list[0];
+//         set_args(validValue)
         
-    }, [value, preset_list]); 
+//     }, [value, preset_list]); 
 
 
 
@@ -43,7 +43,7 @@ return (
                         <Select
                             labelId="sels"
                             id={id}
-                            value={val}
+                            value={value}
                             style={{ minWidth: '200px' }}
                             onChange={(e: SelectChangeEvent) => {
                                 select_f(e.target.value);

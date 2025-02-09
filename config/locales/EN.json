@@ -1,6 +1,7 @@
 {
     "preference": {
         "general": {
+            "name": "General",
             "dark_mode": { "name": "Dark Mode" },
             "default_main": {
                 "name": "Default Main Page",
@@ -12,7 +13,8 @@
             },
             "window_preference": {
                 "pip_location": {
-                    "monitor": { "name": "PiP Location" }
+                    "location": { "name": "PiP Position" },
+                    "monitor": { "name": "PiP Monitor Position" }
                 },
                 "pip_window_size": {
                     "name": "PiP Window Size",
@@ -39,11 +41,16 @@
             "run_pip": { "name": "run pip" },
             "goto_applemusic": { "name": "apple music" },
             "goto_chzzk": { "name": "chzzk" },
-            "goto_amazonprime": { "name": "amazon prime" }
+            "goto_amazonprime": { "name": "amazon prime" },
+            "goto_crunchyroll": { "name": "Crunchyroll" }
         }
     },
     "version": { "name": "version" },
-    "locale_meta": { "filename": "EN", "metaname": "English" , "version" : "2.0.0"},
+    "locale_meta": {
+        "filename": "EN",
+        "metaname": "English",
+        "version": "2.0.0"
+    },
     "system_literal": {
         "menu_main": "Kawai Main",
         "menu_netflix": "Netflix",
@@ -62,6 +69,7 @@
         "menu_preference": "Preference",
         "menu_checkupdate": "Update Check",
         "menu_github": "Github",
-        "menu_discord": "Discord"
+        "menu_discord": "Discord",
+        "menu_crunchyroll": "Crunchyroll"
     }
 }

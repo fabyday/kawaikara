@@ -19,6 +19,7 @@ import {
     load_locale_f,
     load_menu_f,
     load_update_info_f,
+    notify_config_update_f,
     notify_menu_update_f,
     on_notify_menu_open_f,
     save_and_close_preference_f,
@@ -35,7 +36,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_locale: load_locale_f,
 
         load_available_site_list: load_available_site_list_f,
-
+        notify_config_update : notify_config_update_f,
         load_available_locale_list: load_available_locale_list_f,
         load_available_monitor_list: load_available_monitor_list_f,
         load_available_window_size_list: load_available_window_size_list_f,

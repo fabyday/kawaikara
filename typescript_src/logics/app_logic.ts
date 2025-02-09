@@ -4,6 +4,8 @@ import { global_object } from '../data/context';
 import {
     data_root_path,
     default_app_states_path,
+    default_config_path,
+    default_locale_directory,
 } from '../component/constants';
 import path from 'path';
 
@@ -28,6 +30,7 @@ import { set_activity } from '../component/discord';
 import { KAWAI_PROTOCOL_LITERAL } from '../definitions/protocol';
 
 import * as url from 'node:url';
+import { flog, get_flogger, get_logger } from '../logging/logger';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -48,7 +51,7 @@ function initialize_global_object_context(root_path?: string) {
         const unknown_state: unknown = jsonData as unknown; // remove syntax error
         states = unknown_state as KawaiContext;
     } catch {
-        log.debug('err');
+        log.debug("global context save files wasn't existed");
     }
 
     global_object.context = { ...global_object.context, ...states };
@@ -104,13 +107,15 @@ async function initialize_protocol() {
     protocol.handle(
         KAWAI_PROTOCOL_LITERAL.default,
         (request: GlobalRequest) => {
-            const filePath = request.url.slice(`${KAWAI_PROTOCOL_LITERAL.default}://`.length);
+            const filePath = request.url.slice(
+                `${KAWAI_PROTOCOL_LITERAL.default}://`.length,
+            );
             const path = url.pathToFileURL(filePath);
             return net.fetch(path.toString());
         },
     );
 }
-
+const app_flog = get_flogger('app_logic', 'applogic', 'info');
 /**
  *
  * @param config_root : config file root. if it was undefined,
@@ -124,16 +129,13 @@ export async function initialize(config_root?: string) {
     await set_activity();
     initialize_global_object_context(config_root);
     initialize_handler();
+    log.info(`config search path ${data_root_path}`);
+    log.info(`locale search path ${default_locale_directory}`);
+    set_config(config_root);
 
-    if (typeof config_root === 'string') {
-        set_config(config_root);
-    } else {
-        set_config(app.getAppPath());
-    }
-    log.info(global_object.config?.preference?.locale?.selected_locale?.value);
+    log.info(
+        `selected locale ${global_object.config?.preference?.locale?.selected_locale?.value}`,
+    );
 
-    let Q = global_object.config;
     await initialize_views();
-    let Q2 = global_object.config;
-    console.log('wow');
 }

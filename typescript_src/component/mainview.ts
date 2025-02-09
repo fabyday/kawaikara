@@ -19,7 +19,7 @@ import { global_object } from '../data/context';
 import { KawaiKeyboardManager } from '../manager/keyboard_manager';
 import { flog, select_menu_item_f } from './predefine/api';
 import { KawaiViewManager } from '../manager/view_manager';
-import { save_config } from '../logics/configures';
+import { apply_default_main, save_config } from '../logics/configures';
 
 // ElectronBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) => {
 //     blocker.enableBlockingInSession(session.defaultSession);
@@ -31,51 +31,6 @@ import { save_config } from '../logics/configures';
 // https://stackoverflow.com/questions/75691451/can-i-download-chrome-extension-directly-from-an-electron-webview
 
 export const get_mainview_instance = (): BrowserWindow => {
-    // const conf = global_object.config;
-    // let x: number =
-    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-    //     -1;
-    // let y: number =
-    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-    //     -1;
-    // let width: number =
-    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-    //     -1;
-    // let height: number =
-    //     conf?.preference?.general?.window_preference?.window_size?.x?.value ??
-    //     -1;
-
-    // if (width === -1 || height === -1) {
-    //     const preset_size: number[][] =
-    //         KawaiWindowManager.getInstance().getPresetSize();
-    //     const length = preset_size.length;
-    //     const [selected_width, selected_height]: number[] =
-    //         length - 2 > 0 ? preset_size[length - 2] : preset_size[length - 1];
-    //     const xy = KawaiWindowManager.getInstance().findCenterCoordByBounds(
-    //         selected_width,
-    //         selected_height,
-    //     );
-    //     x = xy.x;
-    //     y = xy.y;
-    //     width = selected_width;
-    //     height = selected_height;
-    //     conf!.preference = conf?.preference ? conf.preference : {};
-    //     conf!.preference = {
-    //         ...conf?.preference,
-    //         ...{
-    //             general: {
-    //                 window_preference: {
-    //                     window_size: {
-    //                         x: { value: x },
-    //                         y: { value: y },
-    //                         width: { value: selected_width },
-    //                         height: { value: selected_height },
-    //                     },
-    //                 },
-    //             },
-    //         },
-    //     };
-    // }
     const min_sizes = KawaiWindowManager.getInstance().getPresetSize()[0];
     const { x, y, width, height } =
         KawaiWindowManager.getInstance().getDefaultWindowSize();
@@ -113,16 +68,6 @@ export const get_mainview_instance = (): BrowserWindow => {
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
 
-        // mainView.webContents.once('did-finish-load', async () => {
-        //     await fs.readFile(path.join(__dirname, 'test_extension.js'), 'utf8', (err, data)=>{
-        //         console.log("data")
-        //         console.log(data)
-        //         mainView.webContents.executeJavaScript(
-        //         data
-        //         );
-        //     })
-        // });
-
         mainView.webContents.session.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 details.requestHeaders['Sec-Ch-Ua'] =
@@ -141,40 +86,10 @@ export const get_mainview_instance = (): BrowserWindow => {
                 callback({ requestHeaders: details.requestHeaders });
             },
         );
-        // mainView.webContents.session.webRequest.onBeforeSendHeaders(
-        //     (details, callback) => {
-        //         // const context_id: string | undefined =
-        //         //     global_object.context?.current_site_descriptor;
-        //         // if (typeof context_id === 'string') {
-        //         //     const site_desc =
-        //         //         KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
-        //         //             context_id,
-        //         //         );
-        //         //     if (typeof site_desc !== 'undefined') {
-        //         //         site_desc.onBeforeSendHeaders(details);
-        //         //         callback({ requestHeaders: details.requestHeaders });
-        //         //     }
-        //         // }
-        //         // if else do nothing..
-        //         // details.requestHeaders['Sec-Ch-Ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"'
-        //         // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        //         // details.requestHeaders['User-Agent'] = 'Chrome' // when we want to login to youtube....
-        //     },
-        // );
 
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
-        mainView.loadURL('https://youtube.com/');
-        // mainView.loadURL('https://chzzk.naver.com/',
-        // {
-        // userAgent:
-        // 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        // }
-        // );
-        // mainView.loadURL('https://www.crunchyroll.com/', {
-        //     userAgent:
-        //         'chrome',
-        // });
+
         if (process.env.IS_DEV) {
             mainView.webContents.openDevTools({ mode: 'detach' });
         }
@@ -183,6 +98,11 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         (mainView as any).name = 'mainview';
         global_object.mainWindow = mainView;
+
+        apply_default_main(
+            global_object?.config?.preference?.general?.default_main?.id?.value,
+        );
+
         return global_object.mainWindow;
     }
     return global_object!.mainWindow!;

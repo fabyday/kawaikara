@@ -57,7 +57,7 @@ function set_general_configuration(config: KawaiConfig) {
     );
 
     apply_window_prefernece(config.preference?.general?.window_preference);
-    apply_default_main(config.preference?.general?.default_main?.id.value);
+    // apply_default_main(config.preference?.general?.default_main?.id.value);
 }
 
 function apply_window_prefernece(
@@ -69,6 +69,17 @@ function apply_window_prefernece(
         window_preference?.window_size?.width?.value,
         window_preference?.window_size?.height?.value,
     );
+
+    if (
+        typeof window_preference?.pip_location?.monitor?.value === 'undefined'
+    ) {
+        lodash.set(
+            window_preference!,
+            'pip_location.monitor.value',
+            KawaiWindowManager.getInstance().getPrimaryMonitorName(),
+        );
+    }
+
     KawaiWindowManager.getInstance().setPiPBounds(
         window_preference?.pip_window_size?.width?.value,
         window_preference?.pip_window_size?.height?.value,
@@ -81,7 +92,7 @@ function apply_window_prefernece(
     KawaiViewManager.getInstance().resizeWindow(width, height);
 }
 
-function apply_default_main(id: string | undefined) {
+export function apply_default_main(id: string | undefined) {
     if (typeof id !== 'undefined') {
         const site_descritor =
             KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
@@ -220,9 +231,12 @@ export function set_preference(
     set_locale(
         global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
     );
-    save_config(global_object.config, path.join(data_root_path, 'test.json'));
-    global_object.menu?.webContents.send(
+    save_config(global_object.config, path.join(data_root_path, default_config_path));
+    KawaiViewManager.getInstance().notifyToView(
         KAWAI_API_LITERAL.menu.notify_menu_update,
+    );
+    KawaiViewManager.getInstance().notifyToView(
+        KAWAI_API_LITERAL.preference.notify_config_update,
     );
 }
 
@@ -259,6 +273,12 @@ export function set_config(data: JSON | string | KawaiConfig | undefined) {
     set_locale(
         global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
     );
+    KawaiViewManager.getInstance().notifyToView(
+        KAWAI_API_LITERAL.menu.notify_menu_update,
+    );
+    KawaiViewManager.getInstance().notifyToView(
+        KAWAI_API_LITERAL.preference.notify_config_update,
+    );
 }
 
 export function load_locale_from_path(pth: string): KawaiLocale | null {
@@ -273,12 +293,12 @@ export function load_locale_from_path(pth: string): KawaiLocale | null {
     if (raw_data == null) {
         try {
             raw_data = fs.readFileSync(
-                path.join(data_root_path, default_locale_directory, pth),
+                path.join(default_locale_directory, pth),
                 'utf-8',
             );
         } catch (e) {
             flog.debug(
-                `${path.join(data_root_path, default_locale_directory, pth)} path failed`,
+                `${path.join(default_locale_directory, pth)} path failed`,
             );
         }
     }

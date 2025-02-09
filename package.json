@@ -1,111 +1,130 @@
 {
-  "name": "kawaikara",
-  "version": "1.1.4",
-  "description": "cho kwai OTT-viewer for discord",
-  "main": "public/electron.js",
-  "repository": "git@github.com:fabyday/kawaikara.git",
-  "author": "fabyday",
-  "license": "MIT",
-  "keywords": [
-    "electron",
-    "OTT-viewer",
-    "Streaming-Viewer",
-    "youtube-viewer",
-    "cho-kawai-viewer",
-    "music-streaming",
-    "Video-viewer"
-  ],
-  "devDependencies": {
-    "@types/discord-rpc": "^4.0.8",
-    "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3",
-    "electron": "https://github.com/castlabs/electron-releases#v28.0.0+wvcus",
-    "electron-builder": "^24.9.1",
-    "jest": "^29.7.0",
-    "jest-electron": "^0.1.12",
-    "prettier": "^3.4.2",
-    "ts-jest": "^29.2.5",
-    "typescript-eslint": "^8.19.1",
-    "wait-on": "^7.2.0",
-    "webpack-cli": "^5.1.4"
-  },
-  "scripts": {
-    "web": "cd react_src && yarn web",
-    "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
-    "start:electron": "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
-    "compile:remote": "tsc",
-    "start:local": "yarn compile:local && electron .",
-    "compile:local": "tsc && cd react_src && yarn web-build ",
-    "debug": "electron --inspect=8888 .",
-    "build": "yarn compile:local && electron-builder ",
-    "release": "yarn build && electron-builder --publish always",
-    "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx",
-    "lint": "prettier --write \"typescript_src/**/*.ts\"",
-    "test": "jest"
-  },
-  "dependencies": {
-    "@cliqz/adblocker-electron": "^1.26.12",
-    "@discord/embedded-app-sdk": "^1.7.1",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^29.5.14",
-    "@types/lodash.isequal": "^4.5.8",
-    "@types/node": "^16.18.70",
-    "@types/react": "^18.2.47",
-    "@types/react-dom": "^18.2.18",
-    "cross-fetch": "^4.0.0",
-    "discord-rpc": "^4.0.1",
-    "dotenv": "^16.4.7",
-    "electron-is-dev": "^3.0.1",
-    "electron-log": "^5.0.3",
-    "electron-preferences": "^2.8.2",
-    "electron-updater": "^6.1.7",
-    "fetch": "^1.1.0",
-    "loadash": "^1.0.0",
-    "lodash": "^4.17.21",
-    "node-dwmapi": "^1.0.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "reflect-metadata": "^0.2.2",
-    "typescript": "^5.7.3",
-    "web-vitals": "^2.1.4"
-  },
-  "build": {
-    "files": [
-      "**/*"
+    "name": "kawaikara",
+    "version": "1.1.4",
+    "description": "cho kwai OTT-viewer for discord",
+    "main": "public/electron.js",
+    "repository": "git@github.com:fabyday/kawaikara.git",
+    "author": "fabyday",
+    "license": "MIT",
+    "keywords": [
+        "electron",
+        "OTT-viewer",
+        "Streaming-Viewer",
+        "youtube-viewer",
+        "cho-kawai-viewer",
+        "music-streaming",
+        "Video-viewer"
     ],
-    "extends": null,
-    "appId": "day.faby.kawaikara",
-    "copyright": "Copyright fabyday",
-    "electronDownload": {
-      "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
+    "devDependencies": {
+        "@types/discord-rpc": "^4.0.8",
+        "babel-loader": "^9.2.1",
+        "clean-webpack-plugin": "^4.0.0",
+        "concurrently": "^8.2.2",
+        "cross-env": "^7.0.3",
+        "dotenv-webpack": "^8.1.0",
+        "electron": "https://github.com/castlabs/electron-releases#v28.0.0+wvcus",
+        "electron-builder": "^24.9.1",
+        "fast-glob": "^3.3.3",
+        "html-webpack-plugin": "^5.6.3",
+        "jest": "^29.7.0",
+        "jest-electron": "^0.1.12",
+        "prettier": "^3.4.2",
+        "ts-jest": "^29.2.5",
+        "ts-loader": "^9.5.2",
+        "typescript-eslint": "^8.19.1",
+        "wait-on": "^7.2.0",
+        "webpack": "^5.97.1",
+        "webpack-cli": "^6.0.1"
     },
-    "afterSign": "./build/afterSign.js",
-    "win": {
-      "verifyUpdateCodeSignature": false,
-      "target": [
-        "nsis",
-        "zip"
-      ],
-      "icon": "kawaikara.ico",
-      "extraResources": [
-        {
-          "from": "./build",
-          "to": ".",
-          "filter": [
-            "**/*.ico"
-          ]
+    "scripts": {
+        "web": "cd react_src && yarn web",
+        "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
+        "start:electron": "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
+        "compile:remote": "tsc",
+        "start:local": "yarn compile:local && electron .",
+        "compile:local": "tsc && cd react_src && yarn web-build ",
+        "debug": "electron --inspect=8888 .",
+        "build": "yarn compile:local && node ./scripts/replace-discord.js ./public/component/discord.js && electron-builder ",
+        "web:build": "cd react_src && yarn web-build ",
+        "build:webpack": "webpack --config webpack.config.js && electron-builder",
+        "release:not_yet": "yarn build:webpack && electron-builder --publish always",
+        "release": "yarn build && electron-builder --publish always",
+        "make-cert": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx",
+        "lint": "prettier --write \"typescript_src/**/*.ts\"",
+        "test": "jest"
+    },
+    "dependencies": {
+        "@cliqz/adblocker-electron": "^1.26.12",
+        "@discord/embedded-app-sdk": "^1.7.1",
+        "@testing-library/jest-dom": "^5.17.0",
+        "@testing-library/react": "^13.4.0",
+        "@testing-library/user-event": "^13.5.0",
+        "@types/jest": "^29.5.14",
+        "@types/lodash.isequal": "^4.5.8",
+        "@types/node": "^16.18.70",
+        "@types/react": "^18.2.47",
+        "@types/react-dom": "^18.2.18",
+        "cross-fetch": "^4.0.0",
+        "discord-rpc": "^4.0.1",
+        "dotenv": "^16.4.7",
+        "electron-is-dev": "^3.0.1",
+        "electron-log": "^5.0.3",
+        "electron-preferences": "^2.8.2",
+        "electron-updater": "^6.1.7",
+        "fetch": "^1.1.0",
+        "loadash": "^1.0.0",
+        "lodash": "^4.17.21",
+        "node-dwmapi": "^1.0.1",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-scripts": "5.0.1",
+        "reflect-metadata": "^0.2.2",
+        "typescript": "^5.7.3",
+        "web-vitals": "^2.1.4"
+    },
+    "build": {
+        "files": [
+            "./public/**/*.*",
+            "./node_modules/**/*.js"
+        ],
+        "extends": null,
+        "appId": "day.faby.kawaikara",
+        "copyright": "Copyright fabyday",
+        "electronDownload": {
+            "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
+        },
+        "afterSign": "./build/afterSign.js",
+        "win": {
+            "verifyUpdateCodeSignature": false,
+            "target": [
+                "nsis",
+                "zip"
+            ],
+            "icon": "kawaikara.ico",
+            "extraResources": [
+                {
+                    "from": "./build",
+                    "to": ".",
+                    "filter": [
+                        "**/*.ico"
+                    ]
+                },
+                {
+                    "from": "./config/locales",
+                    "to": "./locales"
+                },
+                {
+                    "from": "./resources/icons",
+                    "to": "./icons"
+                }
+            ],
+            "publish": [
+                "github"
+            ]
+        },
+        "directories": {
+            "buildResources": "build",
+            "output": "output_dist"
         }
-      ],
-      "publish": [
-        "github"
-      ]
-    },
-    "directories": {
-      "buildResources": "build",
-      "output": "output_dist"
     }
-  }
 }

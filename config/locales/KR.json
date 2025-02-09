@@ -1,6 +1,7 @@
 {
     "preference": {
         "general": {
+            "name": "일반",
             "dark_mode": { "name": "다크모드" },
             "default_main": {
                 "name": "홈",
@@ -12,7 +13,8 @@
             },
             "window_preference": {
                 "pip_location": {
-                    "monitor": { "name": "PiP Location" }
+                    "location": { "name": "PiP 위치" },
+                    "monitor": { "name": "PiP 모니터 위치" }
                 },
                 "pip_window_size": {
                     "name": "PiP 윈도우 사이즈",
@@ -39,11 +41,16 @@
             "run_pip": { "name": "PiP 실행" },
             "goto_applemusic": { "name": "애플 뮤직" },
             "goto_chzzk": { "name": "치지직" },
-            "goto_amazonprime": { "name": "아마존 프라임" }
+            "goto_amazonprime": { "name": "아마존 프라임" },
+            "goto_crunchyroll": { "name": "크런치롤" }
         }
     },
     "version": { "name": "버전" },
-    "locale_meta": { "filename": "KR", "metaname": "한국어" , "version" : "2.0.0"},
+    "locale_meta": {
+        "filename": "KR",
+        "metaname": "한국어",
+        "version": "2.0.0"
+    },
     "system_literal": {
         "menu_main": "홈",
         "menu_netflix": "넷플릭스",
@@ -62,6 +69,7 @@
         "menu_preference": "설정",
         "menu_checkupdate": "업데이트 체크",
         "menu_github": "깃허브",
-        "menu_discord": "디스코드"
+        "menu_discord": "디스코드",
+        "menu_crunchyroll": "크런치롤"
     }
 }

@@ -2,6 +2,7 @@ import * as RPC from 'discord-rpc';
 import * as dotenv from 'dotenv';
 import { default_locale_directory, project_root } from './constants';
 import path from 'path';
+import { log } from '../logging/logger';
 
 if (process.env.IS_DEV) {
     dotenv.config({ path: path.join(project_root, '.env') });
@@ -29,9 +30,9 @@ export async function set_activity() {
             smallImageText: 'CHIBI Kawaikara',
         });
     });
-
+    
     rpc.login({
         clientId: process.env.DISCORD_APP_ID!,
         clientSecret: process.env.DISCORD_PUB_KEY!,
-    }).catch(console.error);
+    }).catch(log.error);
 }

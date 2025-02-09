@@ -1,3 +1,4 @@
+
 const api_literal = {
     preference: {
         apply_modified_preference: 'apply-changed-preference',
@@ -7,7 +8,7 @@ const api_literal = {
         load_locale: 'load-locale',
 
         load_available_site_list: 'load-available-site-list',
-
+        notify_config_update : "notify-config-update",
         load_available_locale_list: 'load-available-locale-list',
         load_available_monitor_list: 'load-available-monitor-list',
         load_available_window_size_list: 'load-available-window-size-list',

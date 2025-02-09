@@ -14,7 +14,7 @@ export const default_config: KawaiConfig = {
             enable_autoupdate: { value: true },
             render_full_size_when_pip_running: { value: true },
             window_preference: {
-                pip_location: { value: 'top-right' },
+                pip_location: { location: { value: 'top-right' } },
                 pip_window_size: {
                     x: { value: 300 },
                     y: { value: 400 },
@@ -39,6 +39,7 @@ export const default_config: KawaiConfig = {
             goto_applemusic: { shortcut_key: '' },
             goto_chzzk: { shortcut_key: '' },
             goto_amazonprime: { shortcut_key: '' },
+            goto_crunchyroll: { shortcut_key: '' },
         },
     },
     favorites: {},
@@ -87,6 +88,7 @@ export const default_locale: KawaiLocale = {
             goto_applemusic: { name: 'apple music' },
             goto_chzzk: { name: 'chzzk' },
             goto_amazonprime: { name: 'amazon prime' },
+            goto_crunchyroll: { name: 'crunchyroll' },
         },
     },
     version: { name: 'Version' },
@@ -110,5 +112,6 @@ export const default_locale: KawaiLocale = {
         menu_checkupdate: 'Update Check',
         menu_github: 'Github',
         menu_discord: 'Discord',
+        menu_crunchyroll: 'Crunchyroll',
     },
 };

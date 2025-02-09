@@ -44,19 +44,16 @@ export const get_preference_instance = (): BrowserWindow => {
                 : html_path,
         );
 
-
         preferenceWindow.webContents.on('did-finish-load', (evt: Event) => {
             if (process.env.IS_DEV) {
-                preferenceWindow?.setSize(1200, 600);
-                preferenceWindow!.webContents.openDevTools();
+                // preferenceWindow?.setSize(1200, 600);
+                preferenceWindow!.webContents.openDevTools({ mode: 'detach' });
             }
             // preferenceWindow!.webContents.send("setup-configure", conf)
         });
-
+        
         (preferenceWindow as any).name = 'preference';
         KawaiViewManager.getInstance().trackBrowserFocus(preferenceWindow);
-
     }
-
     return preferenceWindow;
 };

@@ -7,6 +7,9 @@ import {
 } from '../logics/register';
 import { script_root_path } from '../component/constants';
 import path from 'path';
+import { log } from '../logging/logger';
+import * as fs from 'fs';
+import { net } from 'electron';
 
 @connectToShortcut('goto_netflix')
 @connectToMenu('menu_netflix')
@@ -51,7 +54,7 @@ export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
         browser.loadURL('https://www.disneyplus.com/');
     }
     LoadFaviconUrl(): string {
-        return "https://www.disneyplus.com/favicon.ico"
+        return 'https://www.disneyplus.com/favicon.ico';
     }
 }
 @connectToShortcut('goto_youtube')
@@ -164,6 +167,21 @@ export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
             userAgent:
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         });
+
+        //add free scripts
+        net.fetch(
+            'https://raw.githubusercontent.com/krkarma777/UltraFastAdSkipperFromCHZZK/main/CHZZK-Ad-Blocker.user.js',
+        )
+            .then((response) => response.text())
+            .then((script) => {
+                browser.webContents.once('did-finish-load', () => {
+                    browser.webContents.executeJavaScript(script);
+                });
+                log.info('load scripts succ');
+            })
+            .catch(() => {
+                log.info('error when download script.');
+            });
     }
 
     LoadFaviconUrl(): string {
@@ -204,21 +222,17 @@ export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
     // }
 }
 
+@connectToShortcut('goto_crunchyroll')
+@connectToMenu('menu_crunchyroll')
+@registerKawaiSiteDescriptor
+export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
+    id = 'crunchyroll';
 
+    loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://www.crunchyroll.com/');
+    }
 
-// @connectToShortcut('goto_crunchyroll')
-// @connectToMenu('menu_crunchyroll')
-// @registerKawaiSiteDescriptor
-// export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
-//     id = 'crunchyroll';
-
-//     loadUrl(browser: Electron.BrowserWindow) {
-//         browser.loadURL(
-//             "https://www.crunchyroll.com/"
-//         );
-//     }
-
-//     LoadFaviconUrl(): string {
-//         return '';
-//     }
-// }
+    LoadFaviconUrl(): string {
+        return 'kawai://resources/icons/crunchyroll.png';
+    }
+}

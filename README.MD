@@ -9,7 +9,15 @@
 <strong>Electron</strong>
 </p>
 
-[**GO!GO! 한국어 README**](./README_KR.MD)
+
+
+ [![read in eng](https://img.shields.io/badge/README-ENGLISH-blue?style=for-the-badge&labelColor=gray)](./README.MD)
+[![read in kor](https://img.shields.io/badge/README-한국어-blue?style=for-the-badge&labelColor=gray)](./README_KR.MD)
+ [![read in jp](https://img.shields.io/badge/README-日本語-blue?style=for-the-badge&labelColor=gray)](./README_JP.MD)
+
+
+![Windows Support](https://img.shields.io/badge/Windows-Supported-0078D4?style=flat&logo=windows)
+![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
 
 [![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
 [![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
@@ -24,12 +32,14 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 
 ## Features
 
-* **adblock** for youtube
+* ~~**adblock** for youtube~~ (**Library** was Deprecated.)
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
-* **Chrome extension (Now Developing)**
+* ~~**Chrome extension (Now Developing)**~~ (**Canceled**)
+* Wathcing Chzzk with Ad Free
+* Watching OTT with friends on Discord
 
-## available for 
+## Available for 
 - OTT
   - **Netflix**
   - **Lafetel**
@@ -40,8 +50,9 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Watcha**
   - **Coupangplay** 
   - **Tving**
+  - **Crunchyroll**
 - Music
-  - **Apple music** (Connection Issue Exists)
+  - **Apple music** 
 - streaming
   - **Chzzk**
   - **Twitch**
@@ -109,10 +120,21 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 ## Usage 
 
-### download from release.
 
-You can Use ```alt``` key to see Menubar
+<p align="center">  
+  <img src="./imgs/menu.png" align="center" width="60%">  
+</p>
+<p align="center">
+  You can Use <Strong>Tab</Strong>  key to Open Menubar
+<br>
+</p>
 
+1. Click ```Tab``` key to Open Menu.
+2. Select service what you want.
+3. Enjoying Service!
+
+* Open Menu : ```Tab```
+* Fullscreen On/Off : ```Alt+Enter```
 
 
 ## build your own OTT-viewer

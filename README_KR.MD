@@ -1,56 +1,70 @@
-# *카와이카라(KAWAIKARA)*
+# *카와이카라*
 
 <p align="center">
   <img src="./imgs/kawaikara_banner_title3.png" />
 </p>
-
 <p align="center">
-<strong>카와이카라(KAWAIKARA)</strong>는
+<strong>카와이카라</strong>는
 <strong>일렉트론</strong> 기반
-<strong>OTT-Viewer</strong>  입니다.
-
+<strong>OTT 뷰어</strong>입니다
 </p>
 
-[**ENG README**](./README.MD)
+  [![read in eng](https://img.shields.io/badge/README-ENGLISH-blue?style=for-the-badge&labelColor=gray)](./README.MD)
+ [![read in kor](https://img.shields.io/badge/README-한국어-blue?style=for-the-badge&labelColor=gray)](./README_KR.MD)
+  [![read in jp](https://img.shields.io/badge/README-日本語-blue?style=for-the-badge&labelColor=gray)](./README_JP.MD)
+ 
+ 
+ ![Windows Support](https://img.shields.io/badge/Windows-Supported-0078D4?style=flat&logo=windows)
+ ![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
+ 
+ [![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
+ [![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
+ [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
+ [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
+ 
+ ![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
+ ![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
+
+저는 친구들이랑 디코 방송을 하거나 보는 것을 좋아하는 사람입니다. 그런데 디코방송은 몇가지 불편한 점들이 있습니다. 디코의 방송은 하나의 프로그램 창만을 캡쳐할 수 있다는 거죠. OTT를 스트리밍하는데 브라우저(chrome, firefox 등...)를 사용하는 방법도 있지만, 전체화면을 하지 않을 경우 주소창과 같은 불필요한 UI들은 스트리밍 영상의 일정한 부분을 차지할 것입니다. 체감상 이 영역은 꽤 크고 눈에 거슬립니다. 누군가는 친구들과 같이 OTT를 보면서 작업을 하고 싶은 사람이 있을 수도 있죠. 이 작고 귀여운 OTT 뷰어는 그것을
+가능하게 만들어줍니다.
 
 
-[![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
-[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
-[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
-[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
+## Features
 
-![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
-![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
-
-저는 친구들이랑 디코 방송을 하거나 보는 것을 좋아합니다. 그런데 디코방송은 몇가지 불편한 점들이 있습니다. 디코의 방송은 하나의 프로그램 창만을 캡쳐할 수 있다는 거죠. OTT를 스트리밍하는데 브라우저(**chrome**, **firefox** 등...)를 사용하는 방법도 있지만, 전체화면을 하지 않을 경우 주소창과 같은 불필요한 **UI** 스트리밍 영상의 일정한 부분을 차지할 것입니다. 체감상 이 영역은 __꽤__ 큽니다. 만일 친구들과 같이 OTT를 틀어놓으며 잡담을 하며 일을 하고 싶은 사람이 있다면 이는 보는 입장에서 많이 불편할 것입니다.
- 따라서 저는 작은 디스코드 화면에 꽉차게 스트리밍할 수 있는 뷰어를 개발하였습니다.
-
-
-## 주요 기능
-
-* **유뷰트 & 유튜브 광고 제거**
+* ~~**유튜브 애드블록**~~ (**제3자 지원 라이브러리**의 개발 중단)
 * **PiP** (Picture in Picture)
-* 영상 **풀스크린 모드**를 **사용자 지정화면**에 맞도록 변환
-* **크롬 익스텐션(현재 개발 중)**
-## 사용가능한 서비스들 
+* **지정한 윈도우 사이즈**에 **전체화면** 보기
+* ~~**크롬 확장 프로그램**~~ (**개발 취소**)
+* 치지직 광고 없이 보기
+* 친구랑 디스코드에서 OTT 보기
+
+## 가능한 OTT들 
 - OTT
-  - **Netflix**
-  - **Lafetel**
-  - **Youtube**
-  - **Disney plus**
-  - **Amazonprime**
-  - **Wavve**
-  - **Watcha**
-  - **Coupangplay** 
-  - **Tving**
-- 음악
-  - **Apple music** (현재 문제가 있음)
-- 스트리밍
-  - **Chzzk**
-  - **Twitch**
+  - **넷플릭스**
+  - **라프텔**
+  - **유튜브**
+  - **디즈니 플러스**
+  - **아마존 프라임**
+  - **웨이브**
+  - **왓차**
+  - **쿠팡플레이** 
+  - **티빙**
+  - **크런치롤**
+- Music
+  - **애플 뮤직** 
+- streaming
+  - **치지직**
+  - **트위치**
 
 
+## 디스코드 활동 상태(Rich Presence)
+<p align="center">
+    <img src="imgs/discord_presence.png" width="30%" >
 
+<p align="center">
+     <Strong>귀여운 카와이카라의 디스코드 활동 상태</strong>
+</p>
+</p>
 
 
 ## DRM 문제
@@ -105,34 +119,24 @@
 
 
 
+
 ## 사용법 
 
-### 릴리즈(Release)에서 다운받으세요.
-디스코드가 메뉴를 같이 캡쳐하기 때문에 기본적으로 메뉴는 숨겨져 있습니다. 
 
-따라서 메뉴를 나타나게 하려면 아래의 단축키를 활용하세요.
+<p align="center">  
+  <img src="./imgs/menu.png" align="center" width="60%">  
+</p>
+<p align="center">
+  <Strong>Tab</Strong>키를 눌러서 메뉴를 여세요
+<br>
+</p>
 
-```메뉴 보기``` : ```Tab```
+1. ```Tab``` 키를 눌러서 메뉴 열기
+2. 원하는 서비스 선택하기
+3. 즐기기
 
-
-
-## 크롬 익스텐션
-
-*일렉트론*은 크롬 익스텐션을 완벽하게 지원하지 않습니다. 이는 일렉트론이 크롬 확장을 위해 만들어진게 아니기 때문입니다.(웹브라우저가 아닌 데스크톱 앱을 위해 만들어진 것입니다.) 
-
-이런 이유로, *일렉트론*은 크롬 브라우저의 탭이나 다른 구성 요소들을 가지고 있지 않습니다. 따라서 이런 크롬에서만 제공되는 기능들을 사용하는 크롬 익스텐션은 *카와이카라*에서 의도하지 않은 동작을 유발할 수 있습니다. 
-
-제 **결론**은 "가능하다면 사용을 자제하는 게 좋다" 입니다. 그러나 크롬 익스텐션이 카와이카라에 적용되어 좋은 기능들을 제공할 수 있다는 것을 인지하고 있습니다.
-
-### 사용 방법
-```
-  app_path/extension/아래에 extension google file 넣어두기
-  or 
-  google에서 직접 설치한거 가져오기.(app에서 자동으로 찾음)
-  window의 경우 %USERPROFILE%/google/chrome/${hash}/${version}/
-```
-
-
+* 메뉴 열기 : ```Tab```
+* 전체화면 On/Off : ```Alt+Enter```
 
 
 
@@ -166,6 +170,17 @@ python -m castlabs_evs.account reauth -A ${your_account} -P ${your password}
 # 진짜 끝!
 ```
 
+## 디스코드 활동상태 활성화
+
+ 프로젝트 최상위 폴더에 ```.env``` 파일을 만드세요.
+```
+DISCORD_APP_ID=${앱 아이디}
+DISCORD_PUB_KEY=${앱 퍼블릭 키}
+```
+
+
+
+## Publish To your Own Repository
 powershell 에서 아래의 코드를 실행해야 합니다.
 인증서를 생성하는 함수는 powershell의 기능을 사용하기 때문입니다.
 다음은 실제 프로젝트 디렉토리에서 해야할 일입니다.
@@ -176,10 +191,3 @@ yarn make-cert # 사설(?) 인증서 생성(진짜 인증서는 가격이 꽤 �
 yarn build # 빌드 시작.
 
 ```
-
-
-
-
-
-
-

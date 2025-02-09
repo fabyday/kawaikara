@@ -1,4 +1,4 @@
-import { screen } from 'electron/main';
+import { screen } from 'electron';
 import {
     KawaiBounds,
     KawaiLocationPresetProperty,
@@ -53,6 +53,12 @@ export class KawaiWindowManager {
             width: width,
             height: height,
         };
+        if (typeof global_object?.context === 'undefined') {
+            global_object.context = {};
+        }
+
+        global_object.context.current_window_bounds =
+            this.m_default_window_size;
     }
 
     public getDefaultWindowSize() {
@@ -83,7 +89,6 @@ export class KawaiWindowManager {
                 sel_disp = disp;
             }
         });
-
 
         if (sel_disp != null) {
             const work_area = (sel_disp as Electron.Display).workAreaSize;
@@ -210,6 +215,11 @@ export class KawaiWindowManager {
         flog.debug(pip_preset);
         return pip_preset;
     }
+
+    public getPrimaryMonitorName() {
+        return screen.getPrimaryDisplay().label;
+    }
+
     /**
      *
      * @returns get monitor names.
