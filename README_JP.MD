@@ -74,12 +74,12 @@
 
 # 例
 <p align="center">
-  <a href="https://youtu.be/NOlJcX-sri8">
+  <a href="https://youtu.be/rQtkKzEkYrI">
     <img src="https://img.youtube.com/vi/NOlJcX-sri8/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
-  <strong>Laftel</strong>のストリーミング動画の例 <a href="https://youtu.be/NOlJcX-sri8"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
+  のストリーミング動画の例 <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
 </a>
 </p>
 

@@ -101,7 +101,7 @@ jobs:
   # GENERAL electron packaging
   electron-package-mac:
     needs: [warm-up-cache-mac]
-    runs-on: windows-latest
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v2
       - run: echo running on branch $GITHUB_REF

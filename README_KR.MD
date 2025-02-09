@@ -74,12 +74,12 @@
 
 # 사용 예시
 <p align="center">
-  <a href="https://youtu.be/NOlJcX-sri8">
+  <a href="https://youtu.be/rQtkKzEkYrI">
     <img src="https://img.youtube.com/vi/NOlJcX-sri8/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
-  <Strong>라프텔</Strong> 비디오 스트리밍 예시 <a href="https://youtu.be/NOlJcX-sri8"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
+  비디오 스트리밍 예시 <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
 </a>
 </p>
 
