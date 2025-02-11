@@ -50,7 +50,7 @@
         "release:not_yet": "yarn build:webpack && electron-builder --publish always",
         "release": "yarn build && electron-builder --publish always",
         "make-cert:win": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx",
-        "make-cert:mac": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:",  
+        "make-cert:mac": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:",
         "lint": "prettier --write \"typescript_src/**/*.ts\"",
         "test": "jest"
     },
@@ -129,8 +129,20 @@
         },
         "mac": {
             "target": [
-                "dmg",
-                "zip"
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
             ],
             "icon": "./resources/icons/app-kawaikara-mac.png",
             "extraResources": [
@@ -147,5 +159,4 @@
             ]
         }
     }
-    
 }
