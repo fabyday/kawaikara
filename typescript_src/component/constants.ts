@@ -11,7 +11,13 @@ export const data_root_path = process.env.IS_DEV
     ? path.resolve(__dirname, '../../config')
     : path.join(app.getPath('userData'));
 
-export const default_locale_directory = process.env.IS_DEV ? path.join(data_root_path, "locales") : path.join(project_root, 'locales');
+export const plugin_root_path = process.env.IS_DEV
+    ? path.resolve(__dirname, '../../plugins')
+    : path.join(app.getPath('userData'));
+
+export const default_locale_directory = process.env.IS_DEV
+    ? path.join(data_root_path, 'locales')
+    : path.join(project_root, 'locales');
 
 export const default_config_path = 'kawai-config.json';
 

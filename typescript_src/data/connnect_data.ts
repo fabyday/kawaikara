@@ -137,3 +137,10 @@ class KawaiCrunchyrollShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = '';
 }
+
+@RegisterShortcut
+class KawaiAppleTvShortcut implements keyActionListenable {
+    id = 'goto_appletv';
+    targetView = mainview;
+    actionKey = '';
+}

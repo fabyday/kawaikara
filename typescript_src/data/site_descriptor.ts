@@ -124,6 +124,15 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
     LoadFaviconUrl(): string {
         return 'https://www.coupangplay.com/favicon.ico';
     }
+    onBeforeSendHeaders(
+        details: Electron.OnBeforeSendHeadersListenerDetails,
+    ): void {
+        details.requestHeaders['Sec-Ch-Ua'] =
+            '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+        details.requestHeaders['User-Agent'] =
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+        console.log('test detua', details);
+    }
 }
 
 @connectToShortcut('goto_tving')
@@ -155,6 +164,23 @@ export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
 
     LoadFaviconUrl(): string {
         return 'https://twitch.com/favicon.ico';
+    }
+}
+
+@connectToShortcut('goto_appletv')
+@connectToMenu('menu_appletv')
+@registerKawaiSiteDescriptor
+export class KawaiAppleTvDesc extends KawaiAbstractSiteDescriptor {
+    id = 'appletv';
+    loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://tv.apple.com/', {
+            userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        });
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://tv.apple.com/favicon.ico';
     }
 }
 @connectToShortcut('goto_chzzk')

@@ -67,13 +67,12 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
-
         mainView.webContents.session.webRequest.onBeforeSendHeaders(
             (details, callback) => {
-                details.requestHeaders['Sec-Ch-Ua'] =
-                    '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
-                details.requestHeaders['User-Agent'] =
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+                // details.requestHeaders['Sec-Ch-Ua'] =
+                //     '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+                // details.requestHeaders['User-Agent'] =
+                //     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
                 // console.log("test detua", details)
                 if (
                     typeof global_object.context?.current_site_descriptor !==
