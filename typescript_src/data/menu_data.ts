@@ -10,6 +10,7 @@ import path from 'path';
 import { read_image_as_base64 } from '../logics/io';
 import { global_object } from './context';
 import * as fs from 'fs';
+import { get_bgtask_view_instnace } from '../component/background_task_view';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {}
@@ -84,6 +85,17 @@ class KawaiMenuOpenDownloadDirectory extends KawaiMenuBase {
 
     public getFaviconUrl() {
         return 'kawai://resources/icons/folder.png';
+    }
+}
+
+@registerKawaiMenuItem('Options', 'menu_bgtaskview')
+class KawaiMenuBackgroundTaskView extends KawaiMenuBase {
+    public activate(): void {
+        get_bgtask_view_instnace();
+    }
+
+    public getFaviconUrl() {
+        return 'kawai://resources/icons/bgtask.png';
     }
 }
 

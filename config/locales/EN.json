@@ -77,6 +77,8 @@
         "menu_appletv": "appleTV",
         "menu_youtubemusic" : "youtubeMusic",
         "menu_spotify" : "Spotify",
-        "menu_opendownloaddirectory" : "download directory"
+        "menu_opendownloaddirectory" : "Download directory",
+        "menu_bgtaskview" : "background Task View"
+
     }
 }

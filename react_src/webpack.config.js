@@ -10,7 +10,9 @@ module.exports = (env, options) => {
   return {
   target: devMode ? ["web", 'electron-renderer'] : ["web"] ,
   mode : devMode ? "production" : "development",
-  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx", sidebar : __dirname+"/sidebar/sidebar.tsx"},
+  entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx", sidebar : __dirname+"/sidebar/sidebar.tsx",
+    bgtaskview : __dirname + "/bgTaskWindow/mainwindow.tsx"
+  },
   output : {
     path : __dirname+"/../public/pages",
     filename : "[name].js",
@@ -77,6 +79,15 @@ module.exports = (env, options) => {
                 } : false,
                 filename : "sidebar.html",
                 chunks : ["sidebar"]
+    }),
+    new HtmlWebpackPlugin({
+      template: './bgTaskWindow/mainwindow.html',
+                minify: process.env.NODE_ENV === 'production' ? {
+                    collapseWhitespace: true, // remove empty
+                    removeComments: true, // remove comment
+                } : false,
+                filename : "bgtaskview.html",
+                chunks : ["bgtaskview"]
     }),
     new CleanWebpackPlugin()
 

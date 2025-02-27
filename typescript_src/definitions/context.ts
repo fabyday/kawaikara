@@ -20,11 +20,12 @@ type KawaiId = string;
 export type KawaiContext = {
     window_mode?: KawaiWindowMode;
     current_site_descriptor?: KawaiAbstractSiteDescriptor;
-    current_window_bounds?: Electron.Rectangle
+    current_window_bounds?: Electron.Rectangle;
 };
 
 export type GlobalObject = {
     mainWindow?: BrowserWindow;
+    taskWindow?: BrowserWindow;
     preferenceWindow?: BrowserWindow;
     menu?: BrowserView;
     config?: KawaiConfig;

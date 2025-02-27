@@ -77,6 +77,8 @@
         "menu_appletv": "アップルティービー",
         "menu_youtubemusic": "YouTubeミュージック",
         "menu_spotify": "Spotify",
-        "menu_opendownloaddirectory" : "ダウンロードフォルダー"
+        "menu_opendownloaddirectory" : "ダウンロードフォルダー",
+        "menu_bgtaskview" : "バックグラウンド作業"
+
     }
 }

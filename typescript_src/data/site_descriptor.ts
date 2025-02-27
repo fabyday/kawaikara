@@ -383,7 +383,7 @@ export class KawaiYoutubeMusicDesc extends KawaiAbstractSiteDescriptor {
 
     async unload(browser: Electron.BrowserWindow) {
         // youtube music need to stop when change view.(I have no idea what reason it is)
-        browser.webContents.executeJavaScript(
+        await browser.webContents.executeJavaScript(
             "window.document.querySelector('video').pause();",
         );
     }
