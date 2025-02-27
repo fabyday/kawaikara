@@ -38,10 +38,7 @@ export const update_favorites_order_f = (
 
 // only allow shortcut key
 export const add_favorites_f = (menu_id: string) => {
-    ipcRenderer.invoke(
-        KAWAI_API_LITERAL.menu.add_favorites,
-        menu_id,
-    );
+    ipcRenderer.invoke(KAWAI_API_LITERAL.menu.add_favorites, menu_id);
 };
 
 export const apply_preference_f = (config: KawaiConfig) => {
@@ -103,18 +100,22 @@ export const select_menu_item_f = (id: string) => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.menu.select_menu_item, id);
 };
 
-
-export const notify_menu_update_f = (callback : (...args : any[])=>void)=>{
-    ipcRenderer.on(KAWAI_API_LITERAL.menu.notify_menu_update, (event : Electron.IpcRendererEvent, ...args : any[])=>{
-        callback(...args);
-    })
-}
-export const notify_config_update_f = (callback : (...args : any[])=>void)=>{
-    ipcRenderer.on(KAWAI_API_LITERAL.preference.notify_config_update, (event : Electron.IpcRendererEvent, ...args : any[])=>{
-        callback(...args);
-    })
-}
-
+export const notify_menu_update_f = (callback: (...args: any[]) => void) => {
+    ipcRenderer.on(
+        KAWAI_API_LITERAL.menu.notify_menu_update,
+        (event: Electron.IpcRendererEvent, ...args: any[]) => {
+            callback(...args);
+        },
+    );
+};
+export const notify_config_update_f = (callback: (...args: any[]) => void) => {
+    ipcRenderer.on(
+        KAWAI_API_LITERAL.preference.notify_config_update,
+        (event: Electron.IpcRendererEvent, ...args: any[]) => {
+            callback(...args);
+        },
+    );
+};
 
 export const keydown_f = async (event: KeyboardEvent) => {
     const keyData = {
@@ -133,7 +134,7 @@ export const keydown_f = async (event: KeyboardEvent) => {
 export const keyup_f = async (event: KeyboardEvent) => {
     const keyData = {
         key: event.key,
-        code : event.code,
+        code: event.code,
         ctrlKey: event.ctrlKey,
         shiftKey: event.shiftKey,
         altKey: event.altKey,
@@ -155,14 +156,18 @@ export function flog(...args: any[]) {}
 export function log(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
 }
-export function custom_callback(name: string, ...args: any[]) {
-    ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
+export function custom_callback_f(name: string, ...args: any[]) {
+    ipcRenderer.send(KAWAI_API_LITERAL.custom.custom_callback, name, ...args);
 }
 export function close_menu_f() {
     ipcRenderer.send(KAWAI_API_LITERAL.menu.close);
 }
 
-
-export function on_notify_menu_open_f(callback : (state:string)=>void){
-    ipcRenderer.on(KAWAI_API_LITERAL.menu.on_notify_menu_open, (e, s:string)=>{callback(s)});
+export function on_notify_menu_open_f(callback: (state: string) => void) {
+    ipcRenderer.on(
+        KAWAI_API_LITERAL.menu.on_notify_menu_open,
+        (e, s: string) => {
+            callback(s);
+        },
+    );
 }

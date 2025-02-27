@@ -5,6 +5,7 @@ import {
     apply_preference_f,
     close_menu_f,
     close_preference_f,
+    custom_callback_f,
     delete_favorites_list_f,
     keydown_f,
     keyup_f as keyup_f,
@@ -36,7 +37,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_locale: load_locale_f,
 
         load_available_site_list: load_available_site_list_f,
-        notify_config_update : notify_config_update_f,
+        notify_config_update: notify_config_update_f,
         load_available_locale_list: load_available_locale_list_f,
         load_available_monitor_list: load_available_monitor_list_f,
         load_available_window_size_list: load_available_window_size_list_f,
@@ -54,12 +55,15 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
         load_menu: load_menu_f,
         select_menu_item: select_menu_item_f,
         notify_menu_update: notify_menu_update_f,
-        close : close_menu_f,
+        close: close_menu_f,
 
-        on_notify_menu_status : on_notify_menu_open_f
+        on_notify_menu_status: on_notify_menu_open_f,
     },
     etc: {
         load_update_info: load_update_info_f,
+    },
+    custom: {
+        custom_callback: custom_callback_f,
     },
 });
 

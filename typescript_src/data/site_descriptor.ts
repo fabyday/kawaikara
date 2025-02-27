@@ -5,11 +5,17 @@ import {
     connectToMenu as connectToMenu,
     connectToShortcut,
 } from '../logics/register';
-import { script_root_path } from '../component/constants';
+import {
+    project_root,
+    script_root_path,
+    third_party_bin_path,
+} from '../component/constants';
 import path from 'path';
 import { log } from '../logging/logger';
 import * as fs from 'fs';
-import { net } from 'electron';
+import { ipcMain, net, shell } from 'electron';
+import { spawn } from 'child_process';
+import { KAWAI_API_LITERAL } from '../definitions/api';
 
 @connectToShortcut('goto_netflix')
 @connectToMenu('menu_netflix')
@@ -62,8 +68,117 @@ export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
     id = 'youtube';
+
+    event_: any = null; // add button callback
+    event2_: any = null; // donwload callback
+
     async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://youtube.com/');
+        this.event_ = () => {
+            log.info('apply this');
+            browser.webContents.executeJavaScript(`
+                const observer = new MutationObserver((mutations) => {
+    if (
+        document.querySelector(
+            'div.ytp-popup.ytp-contextmenu div.ytp-panel-menu',
+        )
+    ) {
+        console.log('video 태그가 생성되었습니다!');
+
+        const newItem = window.document.createElement('div');
+        newItem.classList.add('ytp-menuitem');
+        // 아이콘 생성
+        const icon = window.document.createElement('div');
+        icon.classList.add('ytp-menuitem-icon');
+
+        // 라벨(텍스트) 생성
+        const label = window.document.createElement('div');
+        label.classList.add('ytp-menuitem-label');
+        label.textContent = 'Download Video'; // ✅ Trusted DOM 정책을 위반하지 않음
+
+        // 내용 생성
+        const content = window.document.createElement('div');
+        content.classList.add('ytp-menuitem-content');
+
+        // 요소 추가
+        newItem.appendChild(icon);
+        newItem.appendChild(label);
+        newItem.appendChild(content);
+        newItem.onclick = (e) => {
+            const ctxmenu = document.querySelector(
+                'div.ytp-popup.ytp-contextmenu',
+            );
+            if (ctxmenu) {
+                ctxmenu.style.display = 'none'; // 메뉴 닫기
+            }
+            // https://stackoverflow.com/questions/3452546/how-do-i-get-the-youtube-video-id-from-a-url
+            const videoUrl = window.location.href;
+            const yotube_regex =
+                \/^.*(?:(?:youtu\.be\\/|v\\/|vi\\/|u\\/\\w\\/|embed\\/|shorts\\/)|(?:(?:watch)?\\?v(?:i)?=|\\&v(?:i)?=))([^#\\&\\?]*).*\/;
+            // this regex transform this https://www.youtube.com/watch?v=7qX8_vf7Yt4&ab_channel=%EB%AA%B0%EB%9D%BC as 7qX8_vf7Yt4;
+            // if you want to create youtu.be link concat it yotu.be+"/"+7qX8_vf7Yt4
+            console.log(videoUrl.match(yotube_regex)[1]);
+            // 클릭 시 전파 방지 (필요한 경우)
+            const url = videoUrl.match(yotube_regex)[1];
+            e.stopPropagation();
+            window.KAWAI_API.custom.custom_callback('youtube', url);
+        };
+        // get context panel code.
+        const ctxmenu = window.document.querySelector(
+            'div.ytp-popup.ytp-contextmenu div.ytp-panel-menu',
+        );
+        ctxmenu.appendChild(newItem);
+        observer.disconnect(); // 감지가 완료되면 더 이상 감지할 필요 없으므로 중단
+    }
+});
+
+// body 태그 아래의 모든 요소 변화를 감지
+observer.observe(document.body, { childList: true, subtree: true });
+
+                `);
+        };
+        (this.event2_ = (
+            e: Electron.IpcMainEvent,
+            tag: string,
+            youtube_video_tag: string,
+        ) => {
+            if (tag === 'youtube') {
+                log.info(path.join(third_party_bin_path, 'yt-dlp'));
+                if (!fs.existsSync(path.resolve(project_root, 'download'))) {
+                    fs.mkdirSync(path.resolve(project_root, 'download'), {
+                        recursive: true,
+                    });
+                }
+                const yt_dlp = spawn(
+                    path.join(third_party_bin_path, 'yt-dlp'),
+                    [
+                        '-f',
+                        'bestvideo+bestaudio', // download best
+                        '--merge-output-format', // merge audio and video option
+                        'mp4', // file type
+                        '-P',
+                        path.resolve(project_root, 'download'), // save directory
+                        'https://youtu.be/' + youtube_video_tag, // output
+                    ],
+                );
+                
+            }
+        }),
+            ipcMain.on(KAWAI_API_LITERAL.custom.custom_callback, this.event2_);
+
+        browser.webContents.on('did-finish-load', this.event_);
+    }
+
+    async unload(browser: Electron.BrowserWindow): Promise<void> {
+        if (this.event_ != null) {
+            browser.webContents.removeListener('did-finish-load', this.event_);
+        }
+        if (this.event2_ != null) {
+            ipcMain.removeListener(
+                KAWAI_API_LITERAL.custom.custom_callback,
+                this.event2_,
+            );
+        }
     }
 
     LoadFaviconUrl(): string {
@@ -187,6 +302,9 @@ export class KawaiAppleTvDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
     id = 'chzzk';
+
+    event_: any = null; // variable for anonymous event
+
     async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://chzzk.naver.com/', {
             userAgent:
@@ -199,14 +317,19 @@ export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
         )
             .then((response) => response.text())
             .then((script) => {
-                browser.webContents.once('did-finish-load', () => {
+                this.event_ = () => {
                     browser.webContents.executeJavaScript(script);
-                });
+                };
+                browser.webContents.on('did-finish-load', this.event_);
                 log.info('load scripts succ');
             })
             .catch(() => {
                 log.info('error when download script.');
             });
+    }
+
+    async unload(browser: Electron.BrowserWindow): Promise<void> {
+        browser.webContents.removeListener('did-finish-load', this.event_);
     }
 
     LoadFaviconUrl(): string {

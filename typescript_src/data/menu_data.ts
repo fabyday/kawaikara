@@ -9,6 +9,7 @@ import { project_root } from '../component/constants';
 import path from 'path';
 import { read_image_as_base64 } from '../logics/io';
 import { global_object } from './context';
+import * as fs from 'fs';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {}
@@ -67,6 +68,22 @@ class KawaiMenuInfo extends KawaiMenuBase {
     }
     public getFaviconUrl() {
         return 'kawai://resources/icons/info.png';
+    }
+}
+
+@registerKawaiMenuItem('Options', 'menu_opendownloaddirectory')
+class KawaiMenuOpenDownloadDirectory extends KawaiMenuBase {
+    public activate(): void {
+        if (!fs.existsSync(path.resolve(project_root, 'download'))) {
+            fs.mkdirSync(path.resolve(project_root, 'download'), {
+                recursive: true,
+            });
+        }
+        shell.openPath(path.resolve(project_root, 'download'));
+    }
+
+    public getFaviconUrl() {
+        return 'kawai://resources/icons/folder.png';
     }
 }
 

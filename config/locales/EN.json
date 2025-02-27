@@ -76,6 +76,7 @@
         "menu_crunchyroll": "Crunchyroll",        
         "menu_appletv": "appleTV",
         "menu_youtubemusic" : "youtubeMusic",
-        "menu_spotify" : "Spotify"
+        "menu_spotify" : "Spotify",
+        "menu_opendownloaddirectory" : "download directory"
     }
 }

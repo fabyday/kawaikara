@@ -76,6 +76,7 @@
         "menu_crunchyroll": "クランチロール",
         "menu_appletv": "アップルティービー",
         "menu_youtubemusic": "YouTubeミュージック",
-        "menu_spotify": "Spotify"
+        "menu_spotify": "Spotify",
+        "menu_opendownloaddirectory" : "ダウンロードフォルダー"
     }
 }

@@ -11,6 +11,7 @@
         "OTT-viewer",
         "Streaming-Viewer",
         "youtube-viewer",
+        "youtube-downloader",
         "cho-kawai-viewer",
         "music-streaming",
         "Video-viewer"
@@ -118,6 +119,10 @@
                 {
                     "from": "./resources/icons",
                     "to": "./icons"
+                },
+                {
+                    "from": "thirdparty",
+                    "to": "./thirdparty"
                 }
             ],
             "publish": [
@@ -153,6 +158,18 @@
                     "filter": [
                         "**/*.ico"
                     ]
+                },
+                {
+                    "from": "./config/locales",
+                    "to": "./locales"
+                },
+                {
+                    "from": "./resources/icons",
+                    "to": "./icons"
+                },
+                {
+                    "from": "thirdparty",
+                    "to": "./thirdparty"
                 }
             ],
             "publish": [

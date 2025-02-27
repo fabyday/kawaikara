@@ -22,3 +22,8 @@ export const default_locale_directory = process.env.IS_DEV
 export const default_config_path = 'kawai-config.json';
 
 export const default_app_states_path = 'kawai-states.json';
+
+export const third_party_bin_path = path.resolve(
+    project_root,
+    `thirdparty/bin/${process.platform}`,
+);

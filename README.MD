@@ -32,12 +32,13 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 
 ## Features
 
-* ~~**adblock** for youtube~~ (**Library** was Deprecated.)
+* ~~**adblock** for youtube~~ (**Library** was Deprecated)
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
 * ~~**Chrome extension (Now Developing)**~~ (**Canceled**)
 * Wathcing Chzzk with Ad Free
 * Watching OTT with friends on Discord
+* Download Youtube Video Easily
 
 ## Available for 
 - OTT
@@ -53,6 +54,8 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Crunchyroll**
 - Music
   - **Apple music** 
+  - **Youtube music** 
+  - **Spotify** 
 - streaming
   - **Chzzk**
   - **Twitch**
@@ -116,10 +119,25 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
   <Strong>discord streaming<br></Strong> (full screen mode)
 </p>
 
+<p align="center">  
+  <img src="./imgs/youtube_download_example.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>Download Youtube Video<br></Strong> 
+</p>
+
+<p align="center">  
+  <img src="./imgs/youtube_donwload_example2.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>Downloaded Video in Download Directory<br></Strong> 
+</p>
+
+
+
 
 
 ## Usage 
-
 
 <p align="center">  
   <img src="./imgs/menu.png" align="center" width="60%">  
