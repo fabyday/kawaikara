@@ -21,7 +21,7 @@ export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
 
     onBeforeSendHeaders(detail: Electron.OnBeforeSendHeadersListenerDetails) {}
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://netflix.com/');
     }
 
@@ -36,7 +36,7 @@ export class KawaiNetflixDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
     shortcut_id = 'goto_laftel';
     id = 'laftel';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://laftel.net/');
     }
 
@@ -50,7 +50,7 @@ export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
     id = 'disneyplus';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.disneyplus.com/');
     }
     LoadFaviconUrl(): string {
@@ -62,7 +62,7 @@ export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
     id = 'youtube';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://youtube.com/');
     }
 
@@ -76,7 +76,7 @@ export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor {
     id = 'amazonprime';
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.primevideo.com/');
     }
 
@@ -89,7 +89,7 @@ export class KawaiAmazonPrimeDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiWavveDesc extends KawaiAbstractSiteDescriptor {
     id = 'wavve';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.wavve.com/');
     }
 
@@ -103,7 +103,7 @@ export class KawaiWavveDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor {
     id = 'watcha';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://watcha.com/');
     }
 
@@ -117,7 +117,7 @@ export class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
     id = 'coupangplay';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.coupangplay.com/');
     }
 
@@ -131,7 +131,6 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
             '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
         details.requestHeaders['User-Agent'] =
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-        console.log('test detua', details);
     }
 }
 
@@ -141,7 +140,7 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
     id = 'tving';
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.tving.com/');
     }
 
@@ -155,7 +154,7 @@ export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
     id = 'twitch';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.twitch.tv/', {
             userAgent:
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -172,7 +171,7 @@ export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiAppleTvDesc extends KawaiAbstractSiteDescriptor {
     id = 'appletv';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://tv.apple.com/', {
             userAgent:
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -188,7 +187,7 @@ export class KawaiAppleTvDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
     id = 'chzzk';
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://chzzk.naver.com/', {
             userAgent:
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -221,12 +220,49 @@ export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiAppleMusicDesc extends KawaiAbstractSiteDescriptor {
     id = 'applemusic';
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://music.apple.com/');
     }
 
     LoadFaviconUrl(): string {
         return 'https://music.apple.com/favicon.ico';
+    }
+}
+
+@connectToShortcut('goto_spotify')
+@connectToMenu('menu_spotify')
+@registerKawaiSiteDescriptor
+export class KawaiSpotifyDesc extends KawaiAbstractSiteDescriptor {
+    id = 'spotify';
+
+    async loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://spotify.com');
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://spotify.com/favicon.ico';
+    }
+}
+
+@connectToShortcut('goto_youtubemusic')
+@connectToMenu('menu_youtubemusic')
+@registerKawaiSiteDescriptor
+export class KawaiYoutubeMusicDesc extends KawaiAbstractSiteDescriptor {
+    id = 'youtubemusic';
+
+    async loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://music.youtube.com/');
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://music.youtube.com/favicon.ico';
+    }
+
+    async unload(browser: Electron.BrowserWindow) {
+        // youtube music need to stop when change view.(I have no idea what reason it is)
+        browser.webContents.executeJavaScript(
+            "window.document.querySelector('video').pause();",
+        );
     }
 }
 
@@ -236,7 +272,7 @@ export class KawaiAppleMusicDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
     id = 'main';
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         let html_path = path.resolve(script_root_path, './pages/main.html');
         browser.loadURL(
             process.env.IS_DEV ? 'http://localhost:3000/main.html' : html_path,
@@ -254,7 +290,7 @@ export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
     id = 'crunchyroll';
 
-    loadUrl(browser: Electron.BrowserWindow) {
+    async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.crunchyroll.com/');
     }
 

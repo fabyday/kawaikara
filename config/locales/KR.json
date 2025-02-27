@@ -42,7 +42,10 @@
             "goto_applemusic": { "name": "애플 뮤직" },
             "goto_chzzk": { "name": "치지직" },
             "goto_amazonprime": { "name": "아마존 프라임" },
-            "goto_crunchyroll": { "name": "크런치롤" }
+            "goto_crunchyroll": { "name": "크런치롤" },
+            "goto_appletv": { "name": "애플티비" },
+            "goto_spotify": { "name": "스포티파이" },
+            "goto_youtubemusic": { "name": "유튜브뮤직" }
         }
     },
     "version": { "name": "버전" },
@@ -70,6 +73,10 @@
         "menu_checkupdate": "업데이트 체크",
         "menu_github": "깃허브",
         "menu_discord": "디스코드",
-        "menu_crunchyroll": "크런치롤"
+        "menu_crunchyroll": "크런치롤",
+        "menu_appletv": "애플티비",
+        "menu_youtubemusic" : "유튜브 뮤직",
+        "menu_spotify" : "스포티파이"
+
     }
 }

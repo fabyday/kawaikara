@@ -43,6 +43,12 @@ class KawaiMenuAppleTv extends KawaiMenuBase {}
 @registerKawaiMenuItem('Music', 'menu_applemusic')
 class KawaiMenuAppleMusic extends KawaiMenuBase {}
 
+@registerKawaiMenuItem('Music', 'menu_spotify')
+class KawaiMenuSpotify extends KawaiMenuBase {}
+
+@registerKawaiMenuItem('Music', 'menu_youtubemusic')
+class KawaiMenuYoutubeMusic extends KawaiMenuBase {}
+
 @registerKawaiMenuItem('Streaming', 'menu_chzzk')
 class KawaiMenuChzzk extends KawaiMenuBase {}
 

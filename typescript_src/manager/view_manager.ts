@@ -129,23 +129,26 @@ export class KawaiViewManager {
         // const close_flag = Reflect.getMetadata("close", )
         Reflect.defineMetadata('open', false, global_object.menu!);
         global_object.mainWindow?.removeBrowserView(global_object.menu!);
-        if(this.getFocusedViewName() === "mainview"){
+        if (this.getFocusedViewName() === 'mainview') {
             global_object.mainWindow?.webContents.focus();
         }
     }
 
-    public loadUrl(desc_id: string) {
+    public async loadUrl(desc_id: string) {
         const sel_desc =
             KawaiSiteDescriptorManager.getInstance().qeury_site_descriptor_by_name(
                 desc_id,
             );
+        const view = get_mainview_instance();
         if (typeof sel_desc !== 'undefined') {
             if (typeof global_object.context === 'undefined') {
                 global_object.context = {};
             } else {
+                await global_object.context.current_site_descriptor?.unload(view);
                 global_object.context.current_site_descriptor = sel_desc;
             }
-            sel_desc?.loadUrl(get_mainview_instance());
+
+            sel_desc?.loadUrl(view);
         }
         // if(this.isMenuOpen()){
         //     this.closeMenu();

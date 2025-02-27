@@ -123,6 +123,18 @@ class KawaiAppleMusicShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = '';
 }
+@RegisterShortcut
+class KawaiYoutubeMusicShortcut implements keyActionListenable {
+    id = 'goto_youtubemusic';
+    targetView = mainview;
+    actionKey = '';
+}
+@RegisterShortcut
+class KawaiSpotifyShortcut implements keyActionListenable {
+    id = 'goto_spotify';
+    targetView = mainview;
+    actionKey = '';
+}
 
 @RegisterShortcut
 class KawaiMainPageShortcut implements keyActionListenable {

@@ -42,7 +42,10 @@
             "goto_applemusic": { "name": "アップルミュージック" },
             "goto_chzzk": { "name": "チジジク" },
             "goto_amazonprime": { "name": "アマゾンプライム" },
-            "goto_crunchyroll": { "name": "クランチロール" }
+            "goto_crunchyroll": { "name": "クランチロール" },
+            "goto_appletv": { "name": "アップルティービー" },
+            "goto_spotify": { "name": "Spotify" },
+            "goto_youtubemusic": { "name": "YouTubeミュージック" }
         }
     },
     "version": { "name": "バージョン" },
@@ -70,6 +73,9 @@
         "menu_checkupdate": "アップデート確認",
         "menu_github": "ギットハブ",
         "menu_discord": "ディスコード",
-        "menu_crunchyroll": "クランチロール"
+        "menu_crunchyroll": "クランチロール",
+        "menu_appletv": "アップルティービー",
+        "menu_youtubemusic": "YouTubeミュージック",
+        "menu_spotify": "Spotify"
     }
 }

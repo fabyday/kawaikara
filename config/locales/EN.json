@@ -42,7 +42,10 @@
             "goto_applemusic": { "name": "apple music" },
             "goto_chzzk": { "name": "chzzk" },
             "goto_amazonprime": { "name": "amazon prime" },
-            "goto_crunchyroll": { "name": "Crunchyroll" }
+            "goto_crunchyroll": { "name": "Crunchyroll" },
+            "goto_appletv": { "name": "Apple TV" },
+            "goto_spotify": { "name": "Spotify" },
+            "goto_youtubemusic": { "name": "Youtube Music" }
         }
     },
     "version": { "name": "version" },
@@ -70,6 +73,9 @@
         "menu_checkupdate": "Update Check",
         "menu_github": "Github",
         "menu_discord": "Discord",
-        "menu_crunchyroll": "Crunchyroll"
+        "menu_crunchyroll": "Crunchyroll",        
+        "menu_appletv": "appleTV",
+        "menu_youtubemusic" : "youtubeMusic",
+        "menu_spotify" : "Spotify"
     }
 }

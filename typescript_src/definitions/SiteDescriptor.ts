@@ -20,8 +20,11 @@ export class KawaiAbstractSiteDescriptor {
         // do nothing in abstract class
     }
 
-    loadUrl(borwser: Electron.BrowserWindow): void {
+    async loadUrl(borwser: Electron.BrowserWindow): Promise<void> {
         // do nothing in abstract class
+    }
+
+    async unload(browser : Electron.BrowserWindow) : Promise<void> {
     }
 
     LoadFaviconUrl(): string {
