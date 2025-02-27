@@ -123,14 +123,14 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
   <img src="./imgs/youtube_download_example.png" align="center" width="90%">  
 </p>
 <p align="center">
-  <Strong>Download Youtube Video<br></Strong> 
+  <Strong>Download Youtube Video<br></Strong>(Right Click)
 </p>
 
 <p align="center">  
   <img src="./imgs/youtube_donwload_example2.png" align="center" width="90%">  
 </p>
 <p align="center">
-  <Strong>Downloaded Video in Download Directory<br></Strong> 
+  <Strong>Downloaded Video in Download Directory<br></Strong>(see Below)
 </p>
 
 
@@ -153,6 +153,8 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 
 * Open Menu : ```Tab```
 * Fullscreen On/Off : ```Alt+Enter```
+
+**Open Download Directory** : ```Menu > Options > Download Directory```
 
 
 ## build your own OTT-viewer(Windows 10/11)
