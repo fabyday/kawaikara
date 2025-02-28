@@ -13,7 +13,7 @@ import {
 import path from 'path';
 import { log } from '../logging/logger';
 import * as fs from 'fs';
-import { ipcMain, net, shell } from 'electron';
+import { ipcMain, net, session, shell } from 'electron';
 import { spawn } from 'child_process';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 
@@ -74,9 +74,10 @@ export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
 
     async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://youtube.com/');
-        this.event_ = () => {
+
+        this.event_ = async () => {
             log.info('apply this');
-            browser.webContents.executeJavaScript(`
+            await browser.webContents.executeJavaScript(`
                 const observer = new MutationObserver((mutations) => {
     if (
         document.querySelector(
@@ -113,8 +114,10 @@ export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
             }
             // https://stackoverflow.com/questions/3452546/how-do-i-get-the-youtube-video-id-from-a-url
             const videoUrl = window.location.href;
+            console.log(videoUrl)
             const yotube_regex =
-                \/^.*(?:(?:youtu\.be\\/|v\\/|vi\\/|u\\/\\w\\/|embed\\/|shorts\\/)|(?:(?:watch)?\\?v(?:i)?=|\\&v(?:i)?=))([^#\\&\\?]*).*\/;
+            // \/^.*(?:(?:youtu\\.be\\/|v\\/|vi\/|u\\/\\w\\/|embed\\/|shorts\\/|live\\/)|(?:(?:watch)?\\?v(?:i)?=|\\&v(?:i)?=))([^#\\&\\?]*).*\/;
+                 \/^.*(?:(?:youtu\.be\\/|v\\/|vi\\/|u\\/\\w\\/|embed\\/|shorts\\/|live\\/)|(?:(?:watch)?\\?v(?:i)?=|\\&v(?:i)?=))([^#\\&\\?]*).*\/;
             // this regex transform this https://www.youtube.com/watch?v=7qX8_vf7Yt4&ab_channel=%EB%AA%B0%EB%9D%BC as 7qX8_vf7Yt4;
             // if you want to create youtu.be link concat it yotu.be+"/"+7qX8_vf7Yt4
             console.log(videoUrl.match(yotube_regex)[1]);
@@ -136,8 +139,10 @@ export class KawaiYoutubeDesc extends KawaiAbstractSiteDescriptor {
 observer.observe(document.body, { childList: true, subtree: true });
 
                 `);
+            log.info('apply extention');
         };
-        (this.event2_ = (
+
+        (this.event2_ = async (
             e: Electron.IpcMainEvent,
             tag: string,
             youtube_video_tag: string,
@@ -149,6 +154,23 @@ observer.observe(document.body, { childList: true, subtree: true });
                         recursive: true,
                     });
                 }
+                const getCookiesString = async (
+                    url: string,
+                ): Promise<string> => {
+                    const cookies = await session.defaultSession.cookies.get({
+                        domain: url,
+                    });
+                    return cookies
+                        .map(({ name, value }) => `${name}=${value}`)
+                        .join('; ');
+                };
+
+                const cookieString = await getCookiesString(
+                    'https://www.youtube.com',
+                );
+
+                // const args = ['--add-header', `Cookie: ${cookieString}`];
+
                 const yt_dlp = spawn(
                     path.join(third_party_bin_path, 'yt-dlp'),
                     [
@@ -158,15 +180,24 @@ observer.observe(document.body, { childList: true, subtree: true });
                         'mp4', // file type
                         '-P',
                         path.resolve(project_root, 'download'), // save directory
+                        '--cookies',
+                        cookieString,
                         'https://youtu.be/' + youtube_video_tag, // output
                     ],
                 );
-                
             }
         }),
             ipcMain.on(KAWAI_API_LITERAL.custom.custom_callback, this.event2_);
 
         browser.webContents.on('did-finish-load', this.event_);
+    }
+
+    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' {
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            return 'open';
+        } else {
+            return 'external';
+        }
     }
 
     async unload(browser: Electron.BrowserWindow): Promise<void> {

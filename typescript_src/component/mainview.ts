@@ -67,7 +67,7 @@ export const get_mainview_instance = (): BrowserWindow => {
         });
         mainView.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(mainView);
-        
+
         mainView.webContents.session.webRequest.onBeforeSendHeaders(
             (details, callback) => {
                 if (
@@ -96,6 +96,28 @@ export const get_mainview_instance = (): BrowserWindow => {
 
         apply_default_main(
             global_object?.config?.preference?.general?.default_main?.id?.value,
+        );
+
+        mainView.webContents.setWindowOpenHandler(
+            (details: Electron.HandlerDetails) => {
+                console.log(details.url);
+                mainView.loadURL(details.url);
+
+                const value =
+                    global_object.context?.current_site_descriptor?.onNewWindowCreated(
+                        details.url,
+                    ) ?? 'suppress';
+
+                switch (value) {
+                    case 'external':
+                        shell.openExternal(details.url);
+                        break;
+                    case 'open':
+                        mainView.loadURL(details.url);
+                        break;
+                }
+                return { action: 'deny' };
+            },
         );
 
         return global_object.mainWindow;

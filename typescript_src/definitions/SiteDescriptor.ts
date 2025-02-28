@@ -20,19 +20,25 @@ export class KawaiAbstractSiteDescriptor {
         // do nothing in abstract class
     }
 
+    /**
+     *
+     * @param url requested url
+     * @returns if return external, then url will be opened in external browser(Chrome, Firefox what you selected default.)
+     * if return "open", then url will be opended in kawaikara mainView.
+     * if return "suppress" then do nothing.
+     * default value is suppress
+     */
+    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' {
+        return 'suppress';
+    }
+
     async loadUrl(borwser: Electron.BrowserWindow): Promise<void> {
         // do nothing in abstract class
     }
 
-    async unload(browser : Electron.BrowserWindow) : Promise<void> {
-    }
+    async unload(browser: Electron.BrowserWindow): Promise<void> {}
 
     LoadFaviconUrl(): string {
         return '';
     }
 }
-
-
-
-
-

@@ -1,3 +1,4 @@
+
 // const observer = new MutationObserver((mutations) => {
 //     if (
 //         document.querySelector(
@@ -35,7 +36,9 @@
 //             // https://stackoverflow.com/questions/3452546/how-do-i-get-the-youtube-video-id-from-a-url
 //             const videoUrl = window.location.href;
 //             const yotube_regex =
-//                 /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+// /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|live\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/
+
+// //                 /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
 //             // this regex transform this https://www.youtube.com/watch?v=7qX8_vf7Yt4&ab_channel=%EB%AA%B0%EB%9D%BC as 7qX8_vf7Yt4;
 //             // if you want to create youtu.be link concat it yotu.be+"/"+7qX8_vf7Yt4
 //             console.log(videoUrl.match(yotube_regex)[1]);
