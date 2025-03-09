@@ -2,6 +2,7 @@ import { ipcRenderer } from 'electron';
 import { KawaiConfig } from '../../definitions/setting_types';
 import { KAWAI_API_LITERAL } from '../../definitions/api';
 import { KawaiLogType } from '../../logging/logger';
+import { EventEmitter } from 'stream';
 
 export const load_update_info_f = () => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.load_update_info);
@@ -159,6 +160,22 @@ export function log(name: string, ...args: any[]) {
 export function custom_callback_f(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.custom.custom_callback, name, ...args);
 }
+
+export const custom_callback_map = new Map<
+    string,
+    (...args: any[]) => Promise<any>
+>();
+
+
+export const custom_callback_emitter = new EventEmitter();
+
+export function custom_recv_callback_f(
+    name: string,
+    callback: (...args: any[]) => any,
+) {
+    custom_callback_emitter.on(name, callback);
+}
+
 export function close_menu_f() {
     ipcRenderer.send(KAWAI_API_LITERAL.menu.close);
 }

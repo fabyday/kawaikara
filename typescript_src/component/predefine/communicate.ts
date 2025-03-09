@@ -5,7 +5,9 @@ import {
     apply_preference_f,
     close_menu_f,
     close_preference_f,
+    custom_callback_emitter,
     custom_callback_f,
+    custom_recv_callback_f,
     delete_favorites_list_f,
     keydown_f,
     keyup_f as keyup_f,
@@ -27,6 +29,7 @@ import {
     select_menu_item_f,
     update_favorites_order_f,
 } from './api';
+import { KAWAI_API_LITERAL } from '../../definitions/api';
 
 contextBridge.exposeInMainWorld('KAWAI_API', {
     preference: {
@@ -64,9 +67,20 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
     custom: {
         custom_callback: custom_callback_f,
+        custom_callback_recv : custom_recv_callback_f
     },
 });
 
 // inject Keyboard hijacking
 window.addEventListener('keydown', keydown_f);
 window.addEventListener('keyup', keyup_f);
+
+
+
+ipcRenderer.on(
+    KAWAI_API_LITERAL.custom.custom_callback,
+    async (event: Electron.IpcRendererEvent, ...args: any[]) => {
+        const [name, ...remai_args] = args;
+        custom_callback_emitter.emit(name, ...remai_args);
+    },
+);

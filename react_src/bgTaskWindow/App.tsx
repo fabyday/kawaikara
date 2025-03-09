@@ -1,36 +1,77 @@
-import { useEffect, useState } from "react";
-import Markdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
-import remarkGfm from 'remark-gfm'
+import { Box, LinearProgress, List } from '@mui/material';
+import { useEffect, useState } from 'react';
+import Markdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
+import { KawaiProgressBar } from './progressbar';
+import { bgTasks } from './states';
 
 const App: React.FC = () => {
-    const [post, setup] = useState("")
-    
-    useEffect(()=>{
-        window.main_api.get_version().then((version_string : string)=>{
+    const [bgtask_map, fetch_task, pause, resume, delete_task] = bgTasks(
+        (state) => [
+            state.bgtask_map,
+            state.fetch,
+            state.pause,
+            state.resume,
+            state.delete,
+        ],
+    );
+    useEffect(() => {
+        fetch_task().then(() => {
+            console.log('fetched');
+        });
+        // window.KAWAI_API.custom.custom_callback_recv('add', () => {});
+        // window.KAWAI_API.custom.custom_callback_recv('delete');
+        // window.KAWAI_API.custom.custom_callback_recv('update');
+        // window.KAWAI_API.custom.custom_callback_recv('pause');
+        // window.KAWAI_API.custom.custom_callback_recv('resume');
+    }, []);
 
-            const version = "v"+version_string
-            const readme_url = `https://raw.githubusercontent.com/fabyday/kawaikara/${version}/README.MD`
-            const raws_root = `https://github.com/fabyday/kawaikara/raw/${version}`
-            fetch(readme_url).then((e)=>e.blob()).then((v)=>v.text()).then(v=>{
-                const re =  /(\<img[^\/][\s]*[\w]*src=)["'](\.)(.*)["']/g
-                v = v.replaceAll(re, `$1"${raws_root}/$3"`)
-                setup(v)
-            })
-        })
+    const list_map = [...bgtask_map.entries()].map(([values, compoent]) => {
+        return (
+            <KawaiProgressBar
+                id={compoent.id}
+                filename={compoent.filename}
+                progressValue={compoent.value}
+                onPaused={async (id) => {
+                    return await pause(id);
+                }}
+                onResumed={async (id) => {
+                    return await resume(id);
+                }}
+                onDelete={async (id) => {
+                    return await delete_task(id);
+                }}
+            />
+        );
+    });
 
-    }, [])
-    
+    //
+    // return (
+    //     <Box>
+    //         <List>{list_map}</List>
+    //     </Box>
+    // );
     return (
-        
-            <Markdown 
-            remarkPlugins={[remarkGfm]} 
-            rehypePlugins={[rehypeRaw]}
-            components={{img:({node,...props})=><img style={{maxWidth:'100%'}}{...props}/>}}
-            >
-                {post}
-            </Markdown>
-    )
+        <Box>
+            <List>
+                <KawaiProgressBar
+                    id={'test'}
+                    filename={'filename'}
+                    progressValue={10}
+                    onPaused={async (id) => {
+                        return true;
+                    }}
+                    onResumed={async (id) => {
+                        return true;
+                    }}
+                    onDelete={async (id) => {
+                        return true;
+                    }}
+                />
+            </List>
+        </Box>
+    );
 };
 
 export default App;

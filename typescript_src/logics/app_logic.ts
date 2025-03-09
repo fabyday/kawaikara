@@ -31,6 +31,7 @@ import { KAWAI_PROTOCOL_LITERAL } from '../definitions/protocol';
 
 import * as url from 'node:url';
 import { flog, get_flogger, get_logger } from '../logging/logger';
+import { KawaiBgTaskManager } from '../manager/background_task_manager';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -70,6 +71,7 @@ async function initialize_manager() {
     await KawaiViewManager.getInstance().initialize();
     await MenuManager.getInstance().initialize();
     await KawaiShortcutManager.getInstance().initialize();
+    await KawaiBgTaskManager.getInstance().initialize();
 }
 
 async function initialize_manager_connection() {
