@@ -157,15 +157,22 @@ export function flog(...args: any[]) {}
 export function log(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.logging.log, ...args);
 }
-export function custom_callback_f(name: string, ...args: any[]) {
+export async function custom_callback_f(name: string, ...args: any[]) {
     ipcRenderer.send(KAWAI_API_LITERAL.custom.custom_callback, name, ...args);
+}
+
+export async function custom_invoke_f(name: string, ...args: any[]) {
+    return await ipcRenderer.invoke(
+        KAWAI_API_LITERAL.custom.custom_callback,
+        name,
+        ...args,
+    );
 }
 
 export const custom_callback_map = new Map<
     string,
     (...args: any[]) => Promise<any>
 >();
-
 
 export const custom_callback_emitter = new EventEmitter();
 

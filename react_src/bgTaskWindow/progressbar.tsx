@@ -4,11 +4,12 @@ import PlayCircleFilledWhiteIcon from '@mui/icons-material/PlayCircleFilledWhite
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from 'react';
 import { KawaiProgressValue } from './states';
+import { KawaiPrgoress } from '../../typescript_src/definitions/bg_task';
 
 type props = {
     id: string;
     filename: string;
-    progressValue : KawaiProgressValue;
+    progressValue: KawaiProgressValue;
     onPaused: (id: string) => Promise<boolean>;
     onResumed: (id: string) => Promise<boolean>;
     onDelete: (id: string) => Promise<boolean>;
@@ -59,15 +60,19 @@ export const KawaiProgressBar = (prop: props) => {
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
                             maxWidth: '100%',
+                            wordBreak: 'break-all',
                         }}>
                         {prop.filename}
                     </Typography>
                 </Box>
                 <Box sx={{ minWidth: '6em', width: '30%' }}>
-                    <LinearProgress variant="determinate" value={0} />
+                    <LinearProgress
+                        variant="determinate"
+                        value={prop.progressValue.progress}
+                    />
                 </Box>
                 <Box sx={{ alignItems: 'center', margin: 1, minWidth: '35' }}>
-                    <Typography>10%</Typography>
+                    <Typography>{prop.progressValue.progress}%</Typography>
                 </Box>
                 <Box sx={{ alignItems: 'center', margin: 1, minWidth: '35' }}>
                     <IconButton

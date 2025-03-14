@@ -87,7 +87,7 @@ export const getValidCookieFile = async (
         cookie_string = await convertToNetscapeCookies(cookies);
         const promise_ = fs.writeFile(file_pth, cookie_string, 'utf-8');
         const cookie_key_value = await parseNetscapeCookies(cookie_string);
-        let reval: 'fail' | 'success' = 'fail';
+        let reval: 'fail' | 'success' = 'success';
         if (
             await checkValidateCookieFromSite(cookie_key_value, validation_url)
         ) {

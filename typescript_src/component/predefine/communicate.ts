@@ -7,6 +7,7 @@ import {
     close_preference_f,
     custom_callback_emitter,
     custom_callback_f,
+    custom_invoke_f,
     custom_recv_callback_f,
     delete_favorites_list_f,
     keydown_f,
@@ -67,6 +68,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
     custom: {
         custom_callback: custom_callback_f,
+        custom_invoke : custom_invoke_f,
         custom_callback_recv : custom_recv_callback_f
     },
 });
