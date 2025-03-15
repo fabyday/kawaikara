@@ -28,16 +28,15 @@ const App: React.FC = () => {
         state.completed,
     ]);
 
-
-    useEffect(()=>{
-        console.log("changed ", bgtask_map)
-    }, [bgtask_map])
+    useEffect(() => {
+        console.log('changed ', bgtask_map);
+    }, [bgtask_map]);
     useEffect(() => {
         console.log('init');
         fetch_task().then(() => {
             console.log('fetched');
         });
-        
+
         window.KAWAI_API.custom.custom_callback_recv(
             'bg:stdout',
             (data: string) => {
@@ -48,7 +47,6 @@ const App: React.FC = () => {
         window.KAWAI_API.custom.custom_callback_recv(
             'bg:progress',
             async (data: KawaiPrgoress) => {
-
                 await update_task(data);
 
                 // console.log(data);s
@@ -56,10 +54,15 @@ const App: React.FC = () => {
         );
         window.KAWAI_API.custom.custom_callback_recv(
             'bg:tasks:created',
-            (id: string) => {
+            async (id: string) => {
                 console.log('created task');
-                created({
-                    filename: '',
+                const res = await window.KAWAI_API.custom.custom_invoke(
+                    'bg:tasks',
+                    id,
+                );
+                console.log(res)
+                await created({
+                    filename: res.result[0].name,
                     id: id,
                     states: 'running',
                     value: {

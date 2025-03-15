@@ -25,7 +25,6 @@
             // "preLaunchTask": "build kawaikara",   //recompile before debugging (execute the compile script defined in package.json)
             "console": "integratedTerminal",
             "preLaunchTask": "build kawaikara",
-            "postDebugTask" : "stop react dev server",
 
         },
         {
@@ -52,7 +51,7 @@
         //launch multiple configurations concurrently
         {
             "name": "Electron: All",
-            "configurations": ["Electron: Main", "Electron: Renderer"],
+            "configurations": ["Electron: Main"],
             "preLaunchTask": "build kawaikara"
         },
         {

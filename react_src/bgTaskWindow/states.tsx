@@ -67,8 +67,8 @@ export const bgTasks = create<BgTaskStates>((set: set_type, get: get_type) => ({
     completed: async (component: KawaiBgTaskComponent) => {
         set((state: BgTaskStates) => {
             const newMap = state.bgtask_map;
-            console.log(Array.from(newMap.keys()))
-            console.log(["1", "2"])
+            console.log(Array.from(newMap.keys()));
+            console.log(['1', '2']);
             console.log('deleted fin', newMap);
             console.log('delted?  :', newMap.delete(component.id));
             console.log('deleted fin', newMap);

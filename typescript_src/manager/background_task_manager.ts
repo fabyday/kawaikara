@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import {
-    BackgroundStates,
+    BackgroundState,
     KawaiBackgrounRunnable,
     KawaiPrgoress,
 } from '../definitions/bg_task';
@@ -280,7 +280,7 @@ export class KawaiBgTaskManager {
             `bg:progress:${id}`,
             data,
         );
-        log.info(data);
+        // log.info(data);
     }
 
     protected static async _stdoutLogic(id: string, msg: string) {
@@ -329,7 +329,7 @@ export class KawaiBgTaskManager {
     async registerBgTask(bg_task: KawaiBackgrounRunnable) {
         const id = this._createId().toString();
         this.task_map.set(id, bg_task);
-        
+
         await bg_task.progressCallback(
             KawaiBgTaskManager._progressMessageLogic.bind(null, id.toString()),
         );
@@ -340,13 +340,13 @@ export class KawaiBgTaskManager {
             KawaiBgTaskManager._stderrLogic.bind(null, id.toString()),
         );
         await bg_task.attachCloseCallback(
-            this._closeLogic.bind(this,id.toString()),
+            this._closeLogic.bind(this, id.toString()),
         );
+        await bg_task.run(); // await meta data loading...
         global_object.taskWindow?.webContents.send(
             KAWAI_API_LITERAL.custom.custom_callback,
             `bg:tasks:created`,
             id,
         );
-        bg_task.run();
     }
 }

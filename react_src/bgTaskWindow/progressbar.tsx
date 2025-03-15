@@ -31,11 +31,12 @@ export const KawaiProgressBar = (prop: props) => {
                 <Box sx={{ minWidth: '35' }}>
                     <IconButton
                         onClick={async (e) => {
-                            setPaused(!isPaused);
                             if (isPaused) {
-                                await prop.onPaused(prop.id);
+                                const paused = await prop.onPaused(prop.id);
+                                setPaused(paused ? true : false);
                             } else {
-                                await prop.onResumed(prop.id);
+                                const resumed = await prop.onResumed(prop.id);
+                                setPaused(resumed ? false : true);
                             }
                         }}>
                         {isPaused ? (
@@ -76,8 +77,8 @@ export const KawaiProgressBar = (prop: props) => {
                 </Box>
                 <Box sx={{ alignItems: 'center', margin: 1, minWidth: '35' }}>
                     <IconButton
-                        onClick={(e) => {
-                            prop.onDelete(prop.id);
+                        onClick={async (e) => {
+                            const result = await prop.onDelete(prop.id);
                         }}>
                         <DeleteIcon />
                     </IconButton>

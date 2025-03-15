@@ -5,12 +5,13 @@ import {
     exec,
     spawn,
 } from 'node:child_process';
-import internal from 'node:stream';
-import { third_party_bin_path } from '../component/constants';
+import { project_root, third_party_bin_path } from '../component/constants';
 import path from 'node:path';
 import { log } from '../logging/logger';
 import { promisify } from 'node:util';
-
+import psTree from 'ps-tree';
+import { reject } from 'lodash';
+import fsprom from 'fs/promises';
 export type BackgroundState =
     | 'idle' // 아직 시작되지 않음
     | 'ready' // 시작 가능 상태
@@ -30,6 +31,31 @@ export type BackgroundEvent =
 export type BgTaskMeta = {
     name: string;
     content: string;
+};
+
+const killChildrenRecursivelyPromise = (pid: number) => {
+    return new Promise((resolve, reject) => {
+        psTree(pid, (err, children) => {
+            if (err) {
+                reject(err);
+                log.info('FAILED.... ', err);
+            }
+
+            children.forEach((child) => {
+                try {
+                    process.kill(Number(child.PID), 'SIGINT');
+                    log.info(`success to terminate child process ${child.PID}`);
+                } catch (err) {
+                    log.info(
+                        `failed to terminate child process ${child.PID}`,
+                        err,
+                    );
+                }
+            });
+
+            resolve(true);
+        });
+    });
 };
 
 export interface KawaiBackgrounRunnable {
@@ -152,16 +178,8 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
         if (this.m_obj == null) {
             return false; // do nothing .
         }
-
-        switch (process.platform) {
-            case 'win32':
-                this.m_obj.stdin.write('p');
-                break;
-            case 'linux':
-            case 'darwin':
-            default:
-                this.m_obj.kill('SIGSTOP');
-        }
+        await killChildrenRecursivelyPromise(this.m_obj.pid!);
+        this.m_obj = null;
         this.m_state = 'paused';
         return true;
     }
@@ -228,38 +246,33 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
 
     async run() {
         const execProm = promisify(exec);
-        const get_title_command_args = '--get-title';
-        log.info(
-            `test code : ${this.m_prog} ${get_title_command_args} ${this.m_url}`,
-        );
-        try {
-            const { stdout } = await execProm(
-                `${this.m_prog} ${get_title_command_args} ${this.m_url}`,
-                { encoding: 'utf-8' },
+        if (this.m_state === 'ready') {
+            const get_title_command_args = '--get-title --encoding utf-8';
+            log.info(
+                `test code : ${this.m_prog} ${get_title_command_args} ${this.m_url}`,
             );
-            this.m_output_filename = stdout.trim();
-            log.info(`file name : ${this.m_output_filename}`);
-        } catch (error) {
-            throw new Error(`Error fetching title ${error}`);
+            try {
+                const { stdout } = await execProm(
+                    `${this.m_prog} ${get_title_command_args} ${this.m_url}`,
+                );
+
+                this.m_output_filename = stdout.trim();
+                log.info(`file name : ${this.m_output_filename}`);
+            } catch (error) {
+                throw new Error(`Error fetching title ${error}`);
+            }
         }
 
-        if (this.m_state === 'ready' || this.m_obj == null) {
+        if (
+            this.m_state === 'paused' ||
+            this.m_state === 'ready' ||
+            this.m_obj == null
+        ) {
             this.m_obj = spawn(this.m_prog, [...this.m_args, this.m_url], {
                 stdio: ['pipe', 'pipe', 'pipe'],
             });
-
             this.m_state = 'running';
             this._attachCallback();
-        } else if (this.m_state === 'paused') {
-            switch (process.platform) {
-                case 'win32':
-                    return this.m_obj.stdin.write('p');
-                    break;
-                case 'darwin':
-                case 'linux':
-                default:
-                    return this.m_obj.kill('SIGCONT');
-            }
         } else {
             return false;
         }
@@ -268,7 +281,52 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
     }
     async finalize() {
         if (this.m_obj != null) {
-            this.m_obj?.kill();
+            this.m_obj.on('exit', async (code, signal) => {
+                console.log(
+                    `Process Terminated: Exit Code ${code}, Terminate Signal ${signal}`,
+                );
+
+                // delete temoprary files.
+                const yotube_regex =
+                    /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|live\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+
+                const url = this.m_url.match(yotube_regex);
+
+                if (url != null) {
+                    const youtube_link = url[1];
+
+                    const searching_pattern = new RegExp(
+                        `^.*${youtube_link}.*\\.[a-zA-Z0-9]+$`,
+                    );
+                    const files = await fsprom.readdir(
+                        path.resolve(project_root, 'download'),
+                    );
+                    log.info(files);
+                    const matched_file = files.filter((file) =>
+                        searching_pattern.test(file),
+                    );
+                    matched_file.forEach(async (pth) => {
+                        try {
+                            await fsprom.unlink(
+                                path.resolve(
+                                    path.join(project_root, 'download'),
+                                    pth,
+                                ),
+                            );
+                            log.info(
+                                `deleted file ${path.resolve(path.join(project_root, 'download'), pth)}`,
+                            );
+                        } catch (err) {
+                            log.info(
+                                `Failed to delete file ${path.resolve(path.join(project_root, 'download'), pth)}\n ${err}`,
+                            );
+                        }
+                    });
+                }
+            });
+            // kill childprocess recursively.
+            await killChildrenRecursivelyPromise(this.m_obj.pid!);
+
             return true;
         }
         return false;
