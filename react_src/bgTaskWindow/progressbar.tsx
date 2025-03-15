@@ -73,7 +73,7 @@ export const KawaiProgressBar = (prop: props) => {
                     />
                 </Box>
                 <Box sx={{ alignItems: 'center', margin: 1, minWidth: '35' }}>
-                    <Typography>{prop.progressValue.progress}%</Typography>
+                    <Typography>{prop.progressValue.progress.toFixed(1).padStart(5, " ")}%</Typography>
                 </Box>
                 <Box sx={{ alignItems: 'center', margin: 1, minWidth: '35' }}>
                     <IconButton

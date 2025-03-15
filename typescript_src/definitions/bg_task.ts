@@ -153,8 +153,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
         this.m_args = args;
         this.m_url = url;
         this.m_donwload_regex =
-            /(\d+\.\d+)% of\s+([\d.]+)MiB at\s+([\d.]+)MiB\/s ETA (\d+):(\d+)/;
-
+            /\[download\]\s+([\d.]+)%\s+of\s+([\d.]+[KMGT]?iB)\s+at\s+([\d.]+[KMGT]?iB\/s)?\s+ETA\s+(\d+:\d+)/;
         this.m_filenamePattern = /Destination:\s(.+)/;
     }
 
@@ -198,7 +197,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
                 this.m_stdout_callbacks.forEach((callback) => {
                     callback(data);
                 });
-
+                // console.log(`${datastring}`);
                 // const filematch = datastring.match(this.m_filenamePattern);
                 // if (filematch != null) {
                 //     this.m_output_filename = filematch[1];
@@ -211,6 +210,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
                     const speed = parseFloat(match[3]); // speed (MiB/s)
                     const etaMinutes = parseInt(match[4], 10); // min
                     const etaSeconds = parseInt(match[5], 10); //sec
+
                     const value: KawaiPrgoress = {
                         id: '',
                         filename: this.m_output_filename,
@@ -223,6 +223,8 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
                         },
                         state: 'running',
                     };
+
+                    console.log(value);
 
                     this.m_pregress_callbacks.forEach((callback) => {
                         callback(value);
@@ -282,7 +284,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
     async finalize() {
         if (this.m_obj != null) {
             this.m_obj.on('exit', async (code, signal) => {
-                console.log(
+                log.info(
                     `Process Terminated: Exit Code ${code}, Terminate Signal ${signal}`,
                 );
 
