@@ -211,7 +211,7 @@ observer.observe(document.body, { childList: true, subtree: true });
                     'https://www.youtube.com/getAccountInfo',
                 );
 
-                switch (res) {
+                switch (res.result) {
                     case 'success':
                         {
                             const bgtask = new KawaiYoutuebeBgChild(
@@ -236,8 +236,6 @@ observer.observe(document.body, { childList: true, subtree: true });
                     case 'fail':
                         break;
                 }
-
-              
             } else if (tag.startsWith('youtube:bg')) {
                 const child_strings = tag.slice('youtube:bg'.length + 1);
             }

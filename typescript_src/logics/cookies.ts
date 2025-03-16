@@ -67,7 +67,7 @@ export const getValidCookieFile = async (
     url: string,
     file_pth: string,
     validation_url: string,
-): Promise<'fail' | 'success'> => {
+): Promise<{ result: 'fail' | 'success'; cookie_string: string }> => {
     let cookie_string = '';
     try {
         await fs.access(file_pth);
@@ -77,7 +77,7 @@ export const getValidCookieFile = async (
         if (
             await checkValidateCookieFromSite(cookie_key_value, validation_url)
         ) {
-            return 'success';
+            return { result: 'success', cookie_string: cookie_string };
         } else {
             throw 'err';
         }
@@ -94,7 +94,7 @@ export const getValidCookieFile = async (
             reval = 'success';
         }
         await promise_;
-        return reval;
+        return { result: reval, cookie_string: cookie_string };
     }
 };
 

@@ -12,6 +12,7 @@ import { promisify } from 'node:util';
 import psTree from 'ps-tree';
 import { reject } from 'lodash';
 import fsprom from 'fs/promises';
+import { getValidCookieFile } from '../logics/cookies';
 export type BackgroundState =
     | 'idle' // 아직 시작되지 않음
     | 'ready' // 시작 가능 상태
@@ -135,6 +136,14 @@ type KawaiYoutubeBgTaskArgs = {
 
 /**
  * lazy initialize
+ * 
+ * 
+ * NOTICE
+ * https://github.com/yt-dlp/yt-dlp/issues/8227
+ * I first tried to export cookies and use --cookies "%~dp0\cookies.txt" to specify cookies, but after a few minutes, 
+ * it became invalid. When I downloaded member-only videos, it prompted me to need a higher level. permission.
+
+
  */
 export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
     private m_obj: ChildProcessWithoutNullStreams | null;
@@ -192,7 +201,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
 
     _parseStdoutString(str: string) {}
 
-    protected _inflateArgs(): string[] {
+    protected async _inflateArgs(): Promise<string[]> {
         const args = [];
         if (typeof this.m_args.format !== 'undefined') {
             args.push('-f', this.m_args.format);
@@ -204,6 +213,11 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
             args.push('-P', this.m_args.save_directory);
         }
         if (typeof this.m_args.cookie_path !== 'undefined') {
+            await getValidCookieFile(
+                '.youtube.com',
+                this.m_args.cookie_path,
+                'https://www.youtube.com/getAccountInfo',
+            );
             args.push('--cookies', this.m_args.cookie_path);
         }
 
@@ -248,7 +262,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
                         state: 'running',
                     };
 
-                    console.log(value);
+                    // console.log(value);
 
                     this.m_pregress_callbacks.forEach((callback) => {
                         callback(value);
@@ -305,9 +319,15 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
             this.m_state === 'ready' ||
             this.m_obj == null
         ) {
+            log.info(`status : ${this.m_state} => running`);
+
+            log.info(this.m_prog);
+            log.info(
+                `inflate : ${[...(await this._inflateArgs())]},url ${this.m_url}`,
+            );
             this.m_obj = spawn(
                 this.m_prog,
-                [...this._inflateArgs(), this.m_url],
+                [...(await this._inflateArgs()), this.m_url],
                 {
                     stdio: ['pipe', 'pipe', 'pipe'],
                 },
