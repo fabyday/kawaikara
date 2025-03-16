@@ -215,17 +215,16 @@ observer.observe(document.body, { childList: true, subtree: true });
                     case 'success':
                         {
                             const bgtask = new KawaiYoutuebeBgChild(
-                                'https://youtu.be/' + youtube_video_tag, // output
-                                [
-                                    '-f',
-                                    'bestvideo+bestaudio', // download best
-                                    '--merge-output-format', // merge audio and video option
-                                    'mp4', // file type
-                                    '-P',
-                                    path.resolve(project_root, 'download'), // save directory
-                                    '--cookies',
-                                    yt_cookie_pth,
-                                ],
+                                'https://youtu.be/' + youtube_video_tag,
+                                {
+                                    merge_output_format: 'mp4',
+                                    cookie_path: yt_cookie_pth,
+                                    format: 'bestvideo+bestaudio',
+                                    save_directory: path.resolve(
+                                        project_root,
+                                        'download',
+                                    ),
+                                },
                             );
 
                             KawaiBgTaskManager.getInstance().registerBgTask(
@@ -238,72 +237,7 @@ observer.observe(document.body, { childList: true, subtree: true });
                         break;
                 }
 
-                // const args = ['--add-header', `Cookie: ${cookieString}`];
-
-                // const yt_dlp = spawn(
-                //     path.join(third_party_bin_path, 'yt-dlp'),
-                //     [
-                //         '-f',
-                //         'bestvideo+bestaudio', // download best
-                //         '--merge-output-format', // merge audio and video option
-                //         'mp4', // file type
-                //         '-P',
-                //         path.resolve(project_root, 'download'), // save directory
-                //         '--cookies',
-                //         path.resolve(data_root_path, './yt.txt'),
-                //         'https://youtu.be/' + youtube_video_tag, // output
-                //     ],
-                // );
-
-                // // 데이터 출력 (Buffer → String 변환)
-                // const donwload_regex =
-                //     /(\d+\.\d+)% of\s+([\d.]+)MiB at\s+([\d.]+)MiB\/s ETA (\d+):(\d+)/;
-                // const filenamePattern = /Destination:\s(.+)/;
-                // let filename = '';
-                // yt_dlp.stdout.on('data', (data) => {
-                //     const datastring: string = data.toString().trim();
-
-                //     const filematch = datastring.match(filenamePattern);
-                //     if (filematch != null) {
-                //         filename = filematch[1];
-                //     }
-                //     const match = datastring.match(donwload_regex);
-                //     if (match != null) {
-                //         const progress = parseFloat(match[1]); // progress percentage (%)
-                //         const totalSize = parseFloat(match[2]); // total size (MiB)
-                //         const speed = parseFloat(match[3]); // speed (MiB/s)
-                //         const etaMinutes = parseInt(match[4], 10); // min
-                //         const etaSeconds = parseInt(match[5], 10); //sec
-                //         const value = {
-                //             id: '',
-                //             filename: filename,
-                //             value: {
-                //                 progress: progress,
-                //                 total_size: totalSize,
-                //                 speed: speed,
-                //                 eta_minutes: etaMinutes,
-                //                 eta_seconds: etaSeconds,
-                //             },
-                //             state: 'download',
-                //         };
-                //         browser.webContents.send(
-                //             KAWAI_API_LITERAL.custom.custom_callback,
-                //             value,
-                //         );
-                //     }
-                // });
-
-                // // 에러 출력
-                // yt_dlp.stderr.on('data', (data) => {
-                //     log.error(`[yt-dlp ERROR] ${data.toString().trim()}`);
-                // });
-
-                // 다운로드 완료 이벤트
-                // yt_dlp.on('close', (code) => {
-                //     console.log(
-                //         `[yt-dlp] process was terminated. (code: ${code})`,
-                //     );
-                // });
+              
             } else if (tag.startsWith('youtube:bg')) {
                 const child_strings = tag.slice('youtube:bg'.length + 1);
             }

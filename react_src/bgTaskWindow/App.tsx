@@ -1,4 +1,11 @@
-import { Box, LinearProgress, List } from '@mui/material';
+import {
+    Box,
+    colors,
+    Divider,
+    LinearProgress,
+    List,
+    Typography,
+} from '@mui/material';
 import { useEffect, useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -60,7 +67,7 @@ const App: React.FC = () => {
                     'bg:tasks',
                     id,
                 );
-                console.log(res)
+                console.log(res);
                 await created({
                     filename: res.result[0].name,
                     id: id,
@@ -99,51 +106,67 @@ const App: React.FC = () => {
         // window.KAWAI_API.custom.custom_callback_recv('resume');
     }, []);
 
-    const list_map = [...bgtask_map.entries()].map(([values, compoent]) => {
-        return (
-            <KawaiProgressBar
-                key={compoent.id + '_progress'}
-                id={compoent.id}
-                filename={compoent.filename}
-                progressValue={compoent.value}
-                onPaused={async (id) => {
-                    return await pause(id);
-                }}
-                onResumed={async (id) => {
-                    return await resume(id);
-                }}
-                onDelete={async (id) => {
-                    return await delete_task(id);
-                }}
-            />
-        );
-    });
+    const list_map = [...bgtask_map.entries()].map(
+        ([values, compoent], index) => {
+            return (
+                <Box>
+                    <KawaiProgressBar
+                        index={index + 1}
+                        key={compoent.id + '_progress'}
+                        id={compoent.id}
+                        filename={compoent.filename}
+                        progressValue={compoent.value}
+                        onPaused={async (id) => {
+                            return await pause(id);
+                        }}
+                        onResumed={async (id) => {
+                            return await resume(id);
+                        }}
+                        onDelete={async (id) => {
+                            return await delete_task(id);
+                        }}
+                    />
+                    <Divider />
+                </Box>
+            );
+        },
+    );
 
     return (
         <Box>
-            <List>{list_map}</List>
+            <Box
+                sx={{
+                    margin: "0",
+                    outlineOffset : "-3px",
+                    padding: 0,
+                    height: '3em',
+                    bgcolor: 'skyblue',
+                    alignContent: 'center',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    outline: "3px solid rgb(90, 167, 250)", // 윤곽선 추가 (파란색)
+                }}>
+                <Typography
+                    sx={{
+                        color: '#4169E1',
+                        fontVariant: 'h4',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100%',
+                    }}>
+                    Kawai Background Tasks
+                </Typography>
+            </Box>
+            <Box sx={{ margin: 0, padding: 0 }}>
+                <List sx={{ margin: 0, padding: 0 }}>
+                    {[<Divider />, ...list_map]}
+                </List>
+            </Box>
         </Box>
     );
-    // return (
-    //     <Box>
-    //         <List>
-    //             <KawaiProgressBar
-    //                 id={'test'}
-    //                 filename={'filename'}
-    //                 progressValue={10}
-    //                 onPaused={async (id) => {
-    //                     return true;
-    //                 }}
-    //                 onResumed={async (id) => {
-    //                     return true;
-    //                 }}
-    //                 onDelete={async (id) => {
-    //                     return true;
-    //                 }}
-    //             />
-    //         </List>
-    //     </Box>
-    // );
 };
 
 export default App;

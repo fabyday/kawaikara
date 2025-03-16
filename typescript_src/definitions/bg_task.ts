@@ -126,6 +126,13 @@ export class KawaiAbstractBgTask implements KawaiBackgrounRunnable {
     }
 }
 
+type KawaiYoutubeBgTaskArgs = {
+    format?: string; // -f option
+    merge_output_format?: string; // --merge-output-format option
+    save_directory?: string; // -P option
+    cookie_path?: string; // --cookies option
+};
+
 /**
  * lazy initialize
  */
@@ -133,7 +140,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
     private m_obj: ChildProcessWithoutNullStreams | null;
     private m_prog: string;
     private m_url: string;
-    private m_args: string[];
+    private m_args: KawaiYoutubeBgTaskArgs;
     private m_state: BackgroundState;
 
     private m_donwload_regex: RegExp;
@@ -146,11 +153,11 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
     private m_stderr_callbacks: any[] = [];
     private m_close_callbacks: any[] = [];
 
-    constructor(url: string, args: string[]) {
+    constructor(url: string, args?: KawaiYoutubeBgTaskArgs) {
         this.m_state = 'ready';
         this.m_obj = null;
         this.m_prog = path.join(third_party_bin_path, 'yt-dlp');
-        this.m_args = args;
+        this.m_args = args ?? {};
         this.m_url = url;
         this.m_donwload_regex =
             /\[download\]\s+([\d.]+)%\s+of\s+([\d.]+[KMGT]?iB)\s+at\s+([\d.]+[KMGT]?iB\/s)?\s+ETA\s+(\d+:\d+)/;
@@ -185,7 +192,24 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
 
     _parseStdoutString(str: string) {}
 
-    _attachCallback() {
+    protected _inflateArgs(): string[] {
+        const args = [];
+        if (typeof this.m_args.format !== 'undefined') {
+            args.push('-f', this.m_args.format);
+        }
+        if (typeof this.m_args.merge_output_format !== 'undefined') {
+            args.push('--merge-output-format', this.m_args.merge_output_format);
+        }
+        if (typeof this.m_args.save_directory !== 'undefined') {
+            args.push('-P', this.m_args.save_directory);
+        }
+        if (typeof this.m_args.cookie_path !== 'undefined') {
+            args.push('--cookies', this.m_args.cookie_path);
+        }
+
+        return args;
+    }
+    protected _attachCallback() {
         if (this.m_obj == null) {
             return;
         }
@@ -234,6 +258,9 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
         );
         this.m_obj.on('close', (code: any) => {
             log.info(`[yt-dlp] process was terminated. (code: ${code})`);
+            if (this.m_state === 'paused') {
+                return; // if paused do nothing.
+            }
             this.m_close_callbacks.forEach((callback) => {
                 callback(code);
             });
@@ -251,11 +278,19 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
         if (this.m_state === 'ready') {
             const get_title_command_args = '--get-title --encoding utf-8';
             log.info(
-                `test code : ${this.m_prog} ${get_title_command_args} ${this.m_url}`,
+                `test code : ${this.m_prog} ${get_title_command_args} ${
+                    this.m_args.cookie_path
+                        ? `--cookies ${this.m_args.cookie_path}`
+                        : ''
+                } ${this.m_url}`,
             );
             try {
                 const { stdout } = await execProm(
-                    `${this.m_prog} ${get_title_command_args} ${this.m_url}`,
+                    `${this.m_prog} ${get_title_command_args} ${
+                        this.m_args.cookie_path
+                            ? `--cookies ${this.m_args.cookie_path}`
+                            : ''
+                    } ${this.m_url}`,
                 );
 
                 this.m_output_filename = stdout.trim();
@@ -270,9 +305,13 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
             this.m_state === 'ready' ||
             this.m_obj == null
         ) {
-            this.m_obj = spawn(this.m_prog, [...this.m_args, this.m_url], {
-                stdio: ['pipe', 'pipe', 'pipe'],
-            });
+            this.m_obj = spawn(
+                this.m_prog,
+                [...this._inflateArgs(), this.m_url],
+                {
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                },
+            );
             this.m_state = 'running';
             this._attachCallback();
         } else {
@@ -282,6 +321,13 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
         return true;
     }
     async finalize() {
+        if (this.m_state === 'paused') {
+            this.m_close_callbacks.forEach((callback) => {
+                callback(0);
+            });
+            return true;
+        }
+
         if (this.m_obj != null) {
             this.m_obj.on('exit', async (code, signal) => {
                 log.info(
