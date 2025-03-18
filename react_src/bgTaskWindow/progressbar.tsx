@@ -10,7 +10,6 @@ import PlayCircleFilledWhiteIcon from '@mui/icons-material/PlayCircleFilledWhite
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useState } from 'react';
 import { KawaiProgressValue } from './states';
-import { KawaiPrgoress } from '../../typescript_src/definitions/bg_task';
 
 type props = {
     index: number;

@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import path from 'path';
+import os from 'os';
 
 export const script_root_path = path.resolve(__dirname, '../');
 
@@ -14,6 +15,12 @@ export const data_root_path = process.env.IS_DEV
 export const plugin_root_path = process.env.IS_DEV
     ? path.resolve(__dirname, '../../plugins')
     : path.join(app.getPath('userData'));
+
+export const log_root_path = process.env.IS_DEV
+    ? path.resolve(project_root, 'logs')
+    : process.platform === 'win32'
+      ? path.resolve(project_root, 'logs')
+      : path.resolve(os.homedir(), 'Library', 'Logs', 'kawaikara');
 
 export const default_locale_directory = process.env.IS_DEV
     ? path.join(data_root_path, 'locales')

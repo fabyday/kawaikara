@@ -8,6 +8,10 @@ import { KAWAI_API_LITERAL } from '../definitions/api';
 import { KawaiViewManager } from './view_manager';
 import { global_object } from '../data/context';
 import { flog, log } from '../logging/logger';
+import { project_root } from '../component/constants';
+import { promises as fs } from 'fs';
+
+import path from 'path';
 
 /**
  * Background Task message
@@ -62,6 +66,7 @@ export type BgTaskMeta = {
 export type KawaiBgMsgType = 'tasks' | 'pause' | 'resume' | 'delete';
 
 export type KawaiMsgStatus = 'failed' | 'succeed';
+export type KawaiBgTaskScheduleMode = 'sequential' | 'parallel';
 
 export type KawaiBgMsgResult = {
     status: KawaiMsgStatus;
@@ -70,12 +75,48 @@ export type KawaiBgMsgResult = {
     result?: BgTaskMeta[];
 };
 
+/**
+ * default mode is sequential
+ */
 export class KawaiBgTaskManager {
     private static __instance: KawaiBgTaskManager | undefined;
     private static __id: number = 0;
+    private m_mode: KawaiBgTaskScheduleMode;
     private task_map: Map<string, KawaiBackgrounRunnable>;
     private constructor() {
         this.task_map = new Map<string, KawaiBackgrounRunnable>();
+        this.m_mode = 'sequential';
+    }
+
+    public async setMode(mode: KawaiBgTaskScheduleMode): Promise<void> {
+        this.m_mode = mode;
+        this._changeOngoingTaskMode();
+    }
+
+    /**
+     * Stop all tasks except the first ongoing task.
+     */
+    protected async _changeOngoingTaskMode(): Promise<void> {}
+
+    
+    protected async _findAndResumeIncompleteTasks(): Promise<void> {
+        // const downloadDir = path.resolve(project_root, 'download');
+        // try {
+        //     const extracted: string[] = [];
+        //     const files = await fs.readdir(downloadDir);
+        //     files.forEach((filename: string) => {
+        //         if (!filename.endsWith('.part')) return;
+        //         const match = filename.match(/\[([^\[\]]+)\]/);
+        //         if (match) {
+        //             extracted.push(match[1]);
+        //         }
+        //     });
+        // } catch (err) {}
+        // if (!filename.endsWith('.part')) {
+        //     return null;
+        // }
+        // const match = filename.match(/\[([^\[\]]+)\]/);
+        // return match ? match[1] : null;
     }
 
     public static getInstance() {
@@ -89,6 +130,8 @@ export class KawaiBgTaskManager {
         KawaiBgTaskManager.__id = 0;
         this.task_map = new Map<string, KawaiBackgrounRunnable>();
         await this._initialize_message();
+        this.setMode('sequential');
+        await this._findAndResumeIncompleteTasks();
     }
 
     public async _initialize_message() {

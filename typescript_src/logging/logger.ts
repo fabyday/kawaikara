@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import logger from 'electron-log/main';
 import path from 'node:path';
-import { project_root } from '../component/constants';
+import { log_root_path, project_root } from '../component/constants';
 import { Logger } from 'electron-log';
-
+import os from 'os';
 logger.initialize();
 
 export const flog = logger.create({ logId: 'filelogger' });
@@ -13,8 +13,10 @@ flog.transports.console.level = false;
 flog.transports.file.resolvePathFn = () => {
     return path.join(log_root, flog.transports.file.fileName);
 };
-console.log('root ; ', path.resolve(project_root, 'logs'));
-const log_root = path.resolve(project_root, 'logs');
+
+// const log_root = path.resolve(project_root, 'logs');
+const log_root = log_root_path;
+console.log(`Log File Root :${log_root}`);
 if (!fs.existsSync(log_root)) {
     fs.mkdirSync(log_root, { recursive: true });
     console.log('make dir');
