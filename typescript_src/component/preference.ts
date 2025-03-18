@@ -1,6 +1,5 @@
-import { BrowserWindow, ipcMain, app, screen } from 'electron';
+import { BrowserWindow} from 'electron';
 import * as path from 'path';
-import * as fs from 'fs';
 import { Event } from 'electron/main';
 import { script_root_path } from './constants';
 import { KawaiViewManager } from '../manager/view_manager';

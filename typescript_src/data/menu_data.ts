@@ -7,7 +7,6 @@ import { registerKawaiMenuItem } from '../logics/register';
 import { checkForUpdates } from '../component/autoupdater';
 import { project_root } from '../component/constants';
 import path from 'path';
-import { read_image_as_base64 } from '../logics/io';
 import { global_object } from './context';
 import * as fs from 'fs';
 import { get_bgtask_view_instnace } from '../component/background_task_view';

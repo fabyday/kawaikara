@@ -1,12 +1,4 @@
-import { app, BrowserWindow, BrowserView } from 'electron';
-import lodash from 'lodash';
-import {
-    KawaiConfigure,
-    KawaiNameProperty,
-    KawaiPreference,
-    KawaiShortcutCollection,
-    KawaiVersion,
-} from './setting_types';
+
 
 type LOCALE_LITERAL = 'LOCALE';
 type CONFIG_LITERAL = 'CONFIG';

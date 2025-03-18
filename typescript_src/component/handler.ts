@@ -1,9 +1,8 @@
-import { ipcMain, IpcMainEvent, IpcMainInvokeEvent } from 'electron';
+import { ipcMain, IpcMainInvokeEvent } from 'electron';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
 import { set_config, set_preference } from '../logics/configures';
 import {
-    KawaiConfig,
     KawaiNameProperty,
     KawaiPreference,
 } from '../definitions/setting_types';

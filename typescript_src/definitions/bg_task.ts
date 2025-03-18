@@ -1,6 +1,4 @@
-import { app } from 'electron';
 import {
-    ChildProcessByStdio,
     ChildProcessWithoutNullStreams,
     exec,
     spawn,
@@ -10,7 +8,6 @@ import path from 'node:path';
 import { log } from '../logging/logger';
 import { promisify } from 'node:util';
 import psTree from 'ps-tree';
-import { reject } from 'lodash';
 import fsprom from 'fs/promises';
 import { getValidCookieFile } from '../logics/cookies';
 export type BackgroundState =

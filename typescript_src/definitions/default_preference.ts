@@ -1,8 +1,6 @@
 import {
     KawaiConfig,
-    KawaiConfigure,
     KawaiLocale,
-    KawaiLocaleConfigure,
 } from './setting_types';
 export const config_name = 'kawai-config.json';
 

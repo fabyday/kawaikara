@@ -4,10 +4,7 @@
 //     onBeforeSendHeaders? : (details : Electron.OnBeforeSendHeadersListenerDetails ) => void ;
 // }
 
-import Logger from 'electron-log';
-import log from 'electron-log/main';
-import { exit } from 'node:process';
-import { global_object } from '../data/context';
+
 
 export class KawaiAbstractSiteDescriptor {
     readonly id: string | undefined; // descriptor id.

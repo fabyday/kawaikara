@@ -1,4 +1,3 @@
-import { KawaiAction } from './types';
 
 type KawaiId = string;
 

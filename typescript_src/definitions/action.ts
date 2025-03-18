@@ -1,9 +1,6 @@
 import { get_flogger } from '../logging/logger';
 import {
-    KawaiKeyEvent,
     KawaiKeyState,
-    KeyEventListenable,
-    ModifierKeyMap,
     priority,
 } from './keyboard';
 

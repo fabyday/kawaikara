@@ -1,16 +1,9 @@
 import { BrowserView, BrowserWindow } from 'electron';
 import {
-    KawaiBounds,
     KawaiConfig,
-    KawaiLiteralPorperty,
     KawaiLocale,
-    KawaiNameProperty,
-    KawaiWindowPreset,
 } from './setting_types';
-import {
-    KawaiRecursiveTypeExtractor,
-    KawaiRecursiveTypeRemover,
-} from './types';
+
 import { KawaiAbstractSiteDescriptor } from './SiteDescriptor';
 
 type KawaiWindowMode = 'pip' | 'fullscreen' | 'default';
