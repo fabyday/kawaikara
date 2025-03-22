@@ -24,11 +24,9 @@ import {
     default_config,
     default_locale,
 } from '../definitions/default_preference';
-import { normalize_locale_string } from './os';
 import { get_flogger } from '../logging/logger';
 import { KawaiViewManager } from '../manager/view_manager';
 import {
-    KawaiRecursiveTypeExtractor,
     KawaiRecursiveTypeRemover,
 } from '../definitions/types';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
