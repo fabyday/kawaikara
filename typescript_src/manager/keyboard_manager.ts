@@ -39,18 +39,21 @@ export class KawaiKeyboardManager {
         this.m_key_preference = { actionDelay: 1000 };
         this.m_keystates = { keys: new Set<string>() };
         this.m_action_states = { keys: new Set<string>() };
-        KawaiViewManager.getInstance().addListener(this.keyRleaseAll.bind(this));
+        KawaiViewManager.getInstance().addListener(
+            this.keyRleaseAll.bind(this),
+        );
         // this.m_targetview_map = new Map<string, TargetView>();
     }
     public keyRleaseAll() {
-        Array.from(this.m_keystates.keys).forEach((k)=>{
-            this.onKeyReleased(k)
-        })
+        Array.from(this.m_keystates.keys).forEach((k) => {
+            this.onKeyReleased(k);
+        });
         this.m_keystates.keys.clear();
     }
 
-    public keyboard_logics(type: string, key_event: KawaiKeyEvent) {
+    public async keyboard_logics(type: string, key_event: KawaiKeyEvent) {
         const kawai_key_code = convertKawaiKeyCode(key_event);
+        let action_mode = false;
         switch (type) {
             case 'keyup':
                 this.m_keystates.keys.delete(kawai_key_code);
@@ -60,20 +63,14 @@ export class KawaiKeyboardManager {
                 this.onKeyPressed();
                 if (!this.m_keystates.keys.has(kawai_key_code)) {
                     this.m_keystates.keys.add(kawai_key_code);
-                    this.onKeyClicked(kawai_key_code);
+                    action_mode = await this.onKeyClicked(kawai_key_code);
                 }
                 break;
         }
 
-        if(this.action_mode){
-            return true;
-        }
-        else{
-            return false;
-        }
+        return action_mode;
         // log.debug(Array.from(this.m_keystates.keys));
     }
-
 
     /**
      *
@@ -135,7 +132,6 @@ export class KawaiKeyboardManager {
         }
     }
 
-
     public setActionDelayTime(new_delay: number) {
         this.m_key_preference.actionDelay = new_delay;
     }
@@ -144,17 +140,15 @@ export class KawaiKeyboardManager {
      * emit once when key presssed.
      * @param key
      */
-    public onKeyClicked(key: string) {
-        ShortcutManager.getInstance().onClicked(
-            key
-        ).then((ignore_flag)=>{this.action_mode = true });
+    public async onKeyClicked(key: string) : Promise<boolean>{
+        return await ShortcutManager.getInstance().onClicked(key);
     }
 
     public onKeyPressed() {
         return true;
     }
 
-    public onKeyReleased(key : string) {
+    public onKeyReleased(key: string) {
         ShortcutManager.getInstance().onReleased(key);
     }
 

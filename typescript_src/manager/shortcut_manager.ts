@@ -66,7 +66,7 @@ export class ShortcutManager {
         this.key_states = [];
         this.actionDelayTime = 1000;
         this.current_view = KawaiViewManager.getInstance().getFocusedViewName();
-        log.info("ShortcutManager was initialized...")
+        log.info('ShortcutManager was initialized...');
     }
 
     public setActionDelay(d: number) {
@@ -134,16 +134,16 @@ export class ShortcutManager {
         return this.onActivate(Array.from(this.pressed_keys));
     }
 
-    public async onActivate(key_sequence: string[]) {
+    public async onActivate(key_sequence: string[]) : Promise<boolean>{
         flogger.debug('activate');
         flogger.debug('current view:', this.current_view);
         if (this.current_view == null) {
             return false;
         }
-
         let cur_action_map = this.m_action_map.actionMap.get(
             this.current_view,
         )!;
+
         if (typeof cur_action_map === 'undefined') {
             return false;
         }
@@ -159,6 +159,7 @@ export class ShortcutManager {
         const normalized_key_seq = create_action_key_from_string_array(
             ...key_sequence,
         );
+        
         if (cur_action_map.has(normalized_key_seq)) {
             const item = cur_action_map.get(normalized_key_seq);
             if (typeof item === 'string' || typeof item === 'undefined') {
@@ -170,7 +171,6 @@ export class ShortcutManager {
                     clearTimeout(this.m_cur_timeout_object);
                 }
             }
-
             if (typeof item === 'string') {
                 const ActionInterface = this.m_action_map.action_hash.get(item);
                 if (typeof ActionInterface !== 'undefined') {
@@ -179,16 +179,21 @@ export class ShortcutManager {
                             'activated',
                             ActionInterface.id,
                         );
+                        return true;
                     } else {
                         return ActionInterface.onActivated();
                     }
                 }
+            return false;
             } else {
                 return true; // do nothing.
             }
         } else {
             this.key_states.push(normalized_key_seq);
+            return true;
         }
+
+
     }
 
     /**

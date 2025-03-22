@@ -36,8 +36,8 @@ export function connectMainWindowHandler() {}
 export function connectMainProcessHandler() {
     ipcMain.handle(
         KAWAI_API_LITERAL.input.keydown,
-        (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
-            return KawaiKeyboardManager.getInstance().keyboard_logics(
+        async (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
+            return await KawaiKeyboardManager.getInstance().keyboard_logics(
                 'keydown',
                 key_event,
             );
@@ -45,8 +45,8 @@ export function connectMainProcessHandler() {
     );
     ipcMain.handle(
         KAWAI_API_LITERAL.input.keyup,
-        (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
-            return KawaiKeyboardManager.getInstance().keyboard_logics(
+        async (event: IpcMainInvokeEvent, key_event: KawaiKeyEvent) => {
+            return await KawaiKeyboardManager.getInstance().keyboard_logics(
                 'keyup',
                 key_event,
             );
