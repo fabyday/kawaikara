@@ -21,6 +21,7 @@ import { Domain } from 'domain';
 import { getValidCookieFile } from '../logics/cookies';
 import { KawaiYoutuebeBgChild } from '../definitions/bg_task';
 import { KawaiBgTaskManager } from '../manager/background_task_manager';
+import { cvrt_electron_path } from '../logics/path';
 
 @connectToShortcut('goto_netflix')
 @connectToMenu('menu_netflix')
@@ -487,7 +488,9 @@ export class KawaiMainDesc extends KawaiAbstractSiteDescriptor {
     id = 'main';
 
     async loadUrl(browser: Electron.BrowserWindow) {
-        let html_path = path.resolve(script_root_path, './pages/main.html');
+        let html_path = cvrt_electron_path(
+            path.resolve(script_root_path, './pages/main.html'),
+        );
         browser.loadURL(
             process.env.IS_DEV ? 'http://localhost:3000/main.html' : html_path,
         );

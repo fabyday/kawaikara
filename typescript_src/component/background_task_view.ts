@@ -7,6 +7,7 @@ import { KawaiWindowManager } from '../manager/window_manager';
 import { global_object } from '../data/context';
 import { KawaiViewManager } from '../manager/view_manager';
 import { script_root_path } from './constants';
+import { cvrt_electron_path } from '../logics/path';
 
 export const get_bgtask_view_instnace = (): BrowserWindow => {
     const min_sizes = KawaiWindowManager.getInstance().getPresetSize()[0];
@@ -33,9 +34,8 @@ export const get_bgtask_view_instnace = (): BrowserWindow => {
 
         taskview.setMenu(null);
         KawaiViewManager.getInstance().trackBrowserFocus(taskview);
-        let html_path = path.resolve(
-            script_root_path,
-            './pages/bgtaskview.html',
+        let html_path = cvrt_electron_path(
+            path.resolve(script_root_path, './pages/bgtaskview.html'),
         );
 
         taskview.on('closed', () => {
