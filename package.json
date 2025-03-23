@@ -46,7 +46,7 @@
         "start:local": "yarn compile:local && electron .",
         "compile:local": "tsc && cd react_src && yarn web-build ",
         "debug": "electron --inspect=8888 .",
-        "build": "yarn compile:local && node ./scripts/replace-discord.js ./public/component/discord.js && electron-builder ",
+        "build": "yarn compile:local && node ./scripts/executable_auth_scripts.js && node ./scripts/replace-discord.js ./public/component/discord.js && electron-builder ",
         "web:build": "cd react_src && yarn web-build ",
         "build:webpack": "webpack --config webpack.config.js && electron-builder",
         "release:not_yet": "yarn build:webpack && electron-builder --publish always",
