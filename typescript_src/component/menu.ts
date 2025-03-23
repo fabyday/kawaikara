@@ -25,8 +25,7 @@ export function get_menu_instance() {
             view.setBounds({ x: 0, y: 0, width: width, height: height });
         });
         global_object.menu = view;
-        const { x, y, width, height } = global_object!.mainWindow!.getBounds()!;
-        view.setBounds({ x: 0, y: 0, width: width, height: height });
+
         let html_path = cvrt_electron_path(
             path.resolve(script_root_path, './pages/sidebar.html'),
         );
@@ -47,6 +46,9 @@ export function get_menu_instance() {
         (view as any).name = 'menu';
         KawaiViewManager.getInstance().trackBrowserFocus(view);
     }
+    
+    const { x, y, width, height } = global_object!.mainWindow!.getBounds()!;
+    global_object.menu.setBounds({ x: 0, y: 0, width: width, height: height });
 
     return global_object!.menu;
 }
