@@ -218,6 +218,12 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
             args.push('--cookies', this.m_args.cookie_path);
         }
 
+        const ffmpeg_pth = path.resolve(
+            third_party_bin_path,
+            process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg',
+        );
+        args.push('--ffmpeg-location', ffmpeg_pth);
+
         return args;
     }
     protected _attachCallback() {
