@@ -8,9 +8,17 @@ export const project_root = process.env.IS_DEV
     ? path.resolve(__dirname, '../..')
     : path.resolve(process.resourcesPath); // exe_dir_path/resources/
 
+export const resources_root = process.env.IS_DEV
+    ? path.resolve(__dirname, '../../resources')
+    : path.resolve(process.resourcesPath); // exe_dir_path/resources/
+
 export const data_root_path = process.env.IS_DEV
     ? path.resolve(__dirname, '../../config')
     : path.join(app.getPath('userData'));
+
+export const download_root_path = process.env.IS_DEV
+    ? path.resolve(__dirname, '../../download')
+    : path.join(app.getPath('userData'), 'donwload');
 
 export const plugin_root_path = process.env.IS_DEV
     ? path.resolve(__dirname, '../../plugins')

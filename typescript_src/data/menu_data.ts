@@ -5,7 +5,7 @@ import { KawaiMenuBase } from '../definitions/menu_def';
 import { get_preference_instance } from '../component/preference';
 import { registerKawaiMenuItem } from '../logics/register';
 import { checkForUpdates } from '../component/autoupdater';
-import { project_root } from '../component/constants';
+import { download_root_path, project_root } from '../component/constants';
 import path from 'path';
 import { global_object } from './context';
 import * as fs from 'fs';
@@ -74,12 +74,12 @@ class KawaiMenuInfo extends KawaiMenuBase {
 @registerKawaiMenuItem('Options', 'menu_opendownloaddirectory')
 class KawaiMenuOpenDownloadDirectory extends KawaiMenuBase {
     public activate(): void {
-        if (!fs.existsSync(path.resolve(project_root, 'download'))) {
-            fs.mkdirSync(path.resolve(project_root, 'download'), {
+        if (!fs.existsSync(download_root_path)) {
+            fs.mkdirSync(download_root_path, {
                 recursive: true,
             });
         }
-        shell.openPath(path.resolve(project_root, 'download'));
+        shell.openPath(download_root_path);
     }
 
     public getFaviconUrl() {

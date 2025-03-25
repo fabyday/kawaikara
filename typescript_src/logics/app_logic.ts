@@ -6,6 +6,8 @@ import {
     default_app_states_path,
     default_config_path,
     default_locale_directory,
+    project_root,
+    resources_root,
 } from '../component/constants';
 import path from 'path';
 
@@ -112,8 +114,20 @@ async function initialize_protocol() {
             const filePath = request.url.slice(
                 `${KAWAI_PROTOCOL_LITERAL.default}://`.length,
             );
-            const path = url.pathToFileURL(filePath);
-            return net.fetch(path.toString());
+            const keyword = filePath.split('/')[0] || '';
+            let pth = '';
+            switch (keyword) {
+                case 'resources':
+                    pth = path.join(
+                        resources_root,
+                        filePath.substring(keyword.length + 1),
+                    );
+            }
+
+            // const pth = url.pathToFileURL(filePath);
+
+            // console.log('pth', pth.href);
+            return net.fetch(pth);
         },
     );
 }
