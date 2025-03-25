@@ -34,6 +34,7 @@ import { KAWAI_PROTOCOL_LITERAL } from '../definitions/protocol';
 import * as url from 'node:url';
 import { flog, get_flogger, get_logger } from '../logging/logger';
 import { KawaiBgTaskManager } from '../manager/background_task_manager';
+import { cvrt_electron_path } from './path';
 
 function initialize_global_object_context(root_path?: string) {
     // initialize global object states
@@ -127,7 +128,7 @@ async function initialize_protocol() {
             // const pth = url.pathToFileURL(filePath);
 
             // console.log('pth', pth.href);
-            return net.fetch(pth);
+            return net.fetch(cvrt_electron_path(pth));
         },
     );
 }
