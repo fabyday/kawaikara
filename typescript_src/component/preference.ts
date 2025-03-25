@@ -1,8 +1,9 @@
-import { BrowserWindow} from 'electron';
+import { BrowserWindow } from 'electron';
 import * as path from 'path';
 import { Event } from 'electron/main';
 import { script_root_path } from './constants';
 import { KawaiViewManager } from '../manager/view_manager';
+import { cvrt_electron_path } from '../logics/path';
 
 let preferenceWindow: BrowserWindow | null = null;
 
@@ -25,9 +26,8 @@ export const get_preference_instance = (): BrowserWindow => {
         });
 
         preferenceWindow.setMenu(null);
-        let html_path = path.resolve(
-            script_root_path,
-            './pages/preference.html',
+        let html_path = cvrt_electron_path(
+            path.resolve(script_root_path, './pages/preference.html'),
         );
         // mainView.loadURL(process.env.IS_DEV?"http://localhost:3000/preference.html" : html_path)
 
@@ -50,7 +50,7 @@ export const get_preference_instance = (): BrowserWindow => {
             }
             // preferenceWindow!.webContents.send("setup-configure", conf)
         });
-        
+
         (preferenceWindow as any).name = 'preference';
         KawaiViewManager.getInstance().trackBrowserFocus(preferenceWindow);
     }

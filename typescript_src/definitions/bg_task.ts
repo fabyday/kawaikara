@@ -297,7 +297,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
             log.info(
                 `test code : ${this.m_prog} ${get_title_command_args} ${
                     this.m_args.cookie_path
-                        ? `--cookies ${this.m_args.cookie_path}`
+                        ? `--cookies "${this.m_args.cookie_path}"`
                         : ''
                 } ${this.m_url}`,
             );
