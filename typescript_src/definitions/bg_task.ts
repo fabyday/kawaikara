@@ -305,7 +305,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
                 const { stdout } = await execProm(
                     `${this.m_prog} ${get_title_command_args} ${
                         this.m_args.cookie_path
-                            ? `--cookies ${this.m_args.cookie_path}`
+                            ? `--cookies "${this.m_args.cookie_path}"`
                             : ''
                     } ${this.m_url}`,
                 );
