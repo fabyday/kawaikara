@@ -20,7 +20,8 @@
 ![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
 
 [![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
-[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
+[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/2.1.0)
+
 [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
 [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
 
@@ -39,6 +40,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 * Wathcing Chzzk with Ad Free
 * Watching OTT with friends on Discord
 * Download Youtube Video Easily
+* **MacOS** Suppport (experimental)
 
 ## Available for 
 - OTT
@@ -52,6 +54,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Coupangplay** 
   - **Tving**
   - **Crunchyroll**
+  - **AppleTV** 
 - Music
   - **Apple music** 
   - **Youtube music** 
@@ -77,13 +80,24 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 # Examples
 <p align="center">
   <a href="https://youtu.be/rQtkKzEkYrI">
-    <img src="https://img.youtube.com/vi/NOlJcX-sri8/0.jpg" width="90%" >
+    <img src="https://img.youtube.com/vi/rQtkKzEkYrI/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
-   streaming video examples <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
+   <strong>streaming video examples</strong> <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/rQtkKzEkYrI">
 </a>
 </p>
+
+<p align="center">
+  <a href="https://youtu.be/E042q0tFjSc">
+    <img src="https://img.youtube.com/vi/E042q0tFjSc/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <strong>streaming video examples(MacOS)</strong> <a href="https://youtu.be/E042q0tFjSc"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/E042q0tFjSc">
+</a>
+</p>
+
 
 
 
@@ -133,6 +147,17 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
   <Strong>Downloaded Video in Download Directory<br></Strong>(see Below)
 </p>
 
+
+
+<p align="center">
+  <a href="https://youtu.be/KMCZB3F6c1I">
+    <img src="https://img.youtube.com/vi/KMCZB3F6c1I/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <Strong>Youtube Download Example</strong> <a href="https://youtu.be/KMCZB3F6c1I"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/KMCZB3F6c1I">
+</a>
+</p>
 
 
 

@@ -9,21 +9,25 @@
 <strong>OTT 뷰어</strong>입니다
 </p>
 
-  [![read in eng](https://img.shields.io/badge/README-ENGLISH-blue?style=for-the-badge&labelColor=gray)](./README.MD)
- [![read in kor](https://img.shields.io/badge/README-한국어-blue?style=for-the-badge&labelColor=gray)](./README_KR.MD)
-  [![read in jp](https://img.shields.io/badge/README-日本語-blue?style=for-the-badge&labelColor=gray)](./README_JP.MD)
- 
- 
- ![Windows Support](https://img.shields.io/badge/Windows-Supported-0078D4?style=flat&logo=windows)
- ![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
- 
- [![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
- [![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/1.1.3)
- [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
- [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
- 
- ![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
- ![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
+
+
+ [![read in eng](https://img.shields.io/badge/README-ENGLISH-blue?style=for-the-badge&labelColor=gray)](./README.MD)
+[![read in kor](https://img.shields.io/badge/README-한국어-blue?style=for-the-badge&labelColor=gray)](./README_KR.MD)
+ [![read in jp](https://img.shields.io/badge/README-日本語-blue?style=for-the-badge&labelColor=gray)](./README_JP.MD)
+
+
+![Windows Support](https://img.shields.io/badge/Windows-Supported-0078D4?style=flat&logo=windows)
+![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
+
+[![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
+[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/2.1.0)
+
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
+[![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
+
+![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
+![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
+
 
 저는 친구들이랑 디코 방송을 하거나 보는 것을 좋아하는 사람입니다. 그런데 디코방송은 몇가지 불편한 점들이 있습니다. 디코의 방송은 하나의 프로그램 창만을 캡쳐할 수 있다는 거죠. OTT를 스트리밍하는데 브라우저(chrome, firefox 등...)를 사용하는 방법도 있지만, 전체화면을 하지 않을 경우 주소창과 같은 불필요한 UI들은 스트리밍 영상의 일정한 부분을 차지할 것입니다. 체감상 이 영역은 꽤 크고 눈에 거슬립니다. 누군가는 친구들과 같이 OTT를 보면서 작업을 하고 싶은 사람이 있을 수도 있죠. 이 작고 귀여운 OTT 뷰어는 그것을
 가능하게 만들어줍니다.
@@ -38,6 +42,7 @@
 * 치지직 광고 없이 보기
 * 친구랑 디스코드에서 OTT 보기
 * 간편하게 유튜브 동영상 다운로드 지원
+* **MacOS** 지원 (실험적)
 
 ## 가능한 OTT들 
 - OTT
@@ -51,6 +56,7 @@
   - **쿠팡플레이** 
   - **티빙**
   - **크런치롤**
+  - **애플TV**
 - Music
   - **애플 뮤직** 
   - **유튜브 뮤직**
@@ -78,15 +84,23 @@
 # 사용 예시
 <p align="center">
   <a href="https://youtu.be/rQtkKzEkYrI">
-    <img src="https://img.youtube.com/vi/NOlJcX-sri8/0.jpg" width="90%" >
+    <img src="https://img.youtube.com/vi/rQtkKzEkYrI/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
-  비디오 스트리밍 예시 <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
+   <strong>비디오 스트리밍 예시</strong> <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/rQtkKzEkYrI">
 </a>
 </p>
 
-
+<p align="center">
+  <a href="https://youtu.be/E042q0tFjSc">
+    <img src="https://img.youtube.com/vi/E042q0tFjSc/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <strong>비디오 스트리밍 예시(MacOS)</strong> <a href="https://youtu.be/E042q0tFjSc"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/E042q0tFjSc">
+</a>
+</p>
 
 <p align="center">  
 <br>
@@ -120,6 +134,31 @@
   <Strong>디스코드 스트리밍<br></Strong> (풀스크린 모드)
 </p>
 
+<p align="center">  
+  <img src="./imgs/youtube_download_example.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>유튜브 다운로드 예시<br></Strong>(Right Click)
+</p>
+
+<p align="center">  
+  <img src="./imgs/youtube_donwload_example2.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>유튜브 다운로드 저장 디렉토리<br></Strong>(see Below)
+</p>
+
+
+
+<p align="center">
+  <a href="https://youtu.be/KMCZB3F6c1I">
+    <img src="https://img.youtube.com/vi/KMCZB3F6c1I/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <Strong>유튜브 다운로드 예시 영상</strong> <a href="https://youtu.be/KMCZB3F6c1I"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/KMCZB3F6c1I">
+</a>
+</p>
 
 
 

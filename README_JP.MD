@@ -36,7 +36,7 @@
 * ~~**Chrome拡張（現在開発中）**~~（**キャンセル**）
 * 広告なしでChzzkを視聴
 * Discordで友達と一緒にOTTを視聴
-
+* **MacOS** サポート（試験的）
 
 ## 対応サービス
 
@@ -51,6 +51,7 @@
   - **Coupang Play**
   - **Tving**
   - **Crunchyroll**
+  - **AppleTv**
 - 音楽
   - **Apple Music**
 - ストリーミング
@@ -75,14 +76,23 @@
 # 例
 <p align="center">
   <a href="https://youtu.be/rQtkKzEkYrI">
-    <img src="https://img.youtube.com/vi/NOlJcX-sri8/0.jpg" width="90%" >
+    <img src="https://img.youtube.com/vi/rQtkKzEkYrI/0.jpg" width="90%" >
   </a>
 </p>
 <p align="center">
-  のストリーミング動画の例 <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/NOlJcX-sri8">
+   <strong>ストリーミング動画の例</strong> <a href="https://youtu.be/rQtkKzEkYrI"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/rQtkKzEkYrI">
 </a>
 </p>
 
+<p align="center">
+  <a href="https://youtu.be/E042q0tFjSc">
+    <img src="https://img.youtube.com/vi/E042q0tFjSc/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <strong>ストリーミング動画の例(MacOS)</strong> <a href="https://youtu.be/E042q0tFjSc"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/E042q0tFjSc">
+</a>
+</p>
 
 
 <p align="center">  
@@ -113,6 +123,31 @@
 
 <p align="center"> <img src="./imgs/discord_examples2.png" align="center" width="90%"> </p> <p align="center"> <strong>Discordのストリーミング<br></strong>（フルスクリーンモード） </p>
 
+<p align="center">  
+  <img src="./imgs/youtube_download_example.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>YouTubeの動画をダウンロードする方法<br></Strong>(Right Click)
+</p>
+
+<p align="center">  
+  <img src="./imgs/youtube_donwload_example2.png" align="center" width="90%">  
+</p>
+<p align="center">
+  <Strong>ダウンロードした動画はダウンロードフォルダに保存されます。<br></Strong>(see Below)
+</p>
+
+
+
+<p align="center">
+  <a href="https://youtu.be/KMCZB3F6c1I">
+    <img src="https://img.youtube.com/vi/KMCZB3F6c1I/0.jpg" width="90%" >
+  </a>
+</p>
+<p align="center">
+   <Strong>YouTube動画をダウンロードする例</strong> <a href="https://youtu.be/KMCZB3F6c1I"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/KMCZB3F6c1I">
+</a>
+</p>
 
 ## 使い方
 
