@@ -3,8 +3,12 @@ import {
     exec,
     spawn,
 } from 'node:child_process';
-import { project_root, third_party_bin_path } from '../component/constants';
-import path from 'node:path';
+import {
+    data_root_path,
+    project_root,
+    third_party_bin_path,
+} from '../component/constants';
+import path, { format } from 'node:path';
 import { log } from '../logging/logger';
 import { promisify } from 'node:util';
 import psTree from 'ps-tree';
@@ -226,6 +230,76 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
 
         return args;
     }
+
+    protected async _check_yt_dlp_updated() {
+        const target_file = path.join(data_root_path, 'yt_dlp_updated.txt');
+        const today = new Date();
+        const formatted_today_string = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const execProm = promisify(exec);
+        const isYtDlpUpdated = (stdout: string): boolean => {
+            return (
+                stdout.includes('Updating to') &&
+                stdout.includes('Updated yt-dlp to')
+            );
+        };
+        const parseYtDlpUpdate = (
+            stdout: string,
+        ): { from: string; to: string } | null => {
+            const currentVersionMatch = stdout.match(
+                /Current version: (stable@\d{4}\.\d{2}\.\d{2})/,
+            );
+            const newVersionMatch = stdout.match(
+                /Updating to (stable@\d{4}\.\d{2}\.\d{2})/,
+            );
+
+            if (currentVersionMatch && newVersionMatch) {
+                return {
+                    from: currentVersionMatch[1], // 업데이트 전 버전
+                    to: newVersionMatch[1], // 업데이트 후 버전
+                };
+            }
+
+            return null; // 업데이트되지 않았거나 정보 부족
+        };
+
+        const parseYtDlpVersion = (stdout: string): string | null => {
+            const match = stdout.match(
+                /yt-dlp is up to date \(?(stable@\d{4}\.\d{2}\.\d{2}) from yt-dlp\/yt-dlp\)?/,
+            );
+            return match ? match[1] : null;
+        };
+
+        try {
+            fsprom.access(target_file);
+            const content = await fsprom.readFile(target_file, 'utf8');
+            // if (content < formatted_today_string) {
+            const { stdout } = await execProm(`${this.m_prog} -U`);
+            if (isYtDlpUpdated(stdout)) {
+                const updated = parseYtDlpUpdate(stdout);
+                log.info(`upadated from ${updated?.from} to ${updated?.to}`);
+            } else {
+                // if stable
+                const version = parseYtDlpVersion(stdout);
+                log.info(`ytdlp is up to date, version : ${version}`);
+            }
+            fsprom.writeFile(target_file, formatted_today_string);
+            // }
+        } catch (err) {
+            log.info('file not exists.');
+            fsprom.writeFile(target_file, formatted_today_string);
+            const { stdout } = await execProm(`${this.m_prog} -U`);
+            log.info('check updated...');
+            if (isYtDlpUpdated(stdout)) {
+                const updated = parseYtDlpUpdate(stdout);
+                log.info(`upadated from ${updated?.from} to ${updated?.to}`);
+            } else {
+                // if stable
+                const version = parseYtDlpVersion(stdout);
+                log.info(`ytdlp is up to date, version : ${version}`);
+            }
+        }
+    }
+
     protected _attachCallback() {
         if (this.m_obj == null) {
             return;
@@ -292,6 +366,7 @@ export class KawaiYoutuebeBgChild implements KawaiBackgrounRunnable {
 
     async run() {
         const execProm = promisify(exec);
+        await this._check_yt_dlp_updated();
         if (this.m_state === 'ready') {
             const get_title_command_args = '--get-title --encoding utf-8';
             log.info(
