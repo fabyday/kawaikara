@@ -1,6 +1,6 @@
 {
     "name": "kawaikara",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "description": "cho kwai OTT-viewer for discord",
     "main": "public/electron.js",
     "repository": "git@github.com:fabyday/kawaikara.git",
