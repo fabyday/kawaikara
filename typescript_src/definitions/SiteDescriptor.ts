@@ -4,8 +4,6 @@
 //     onBeforeSendHeaders? : (details : Electron.OnBeforeSendHeadersListenerDetails ) => void ;
 // }
 
-
-
 export class KawaiAbstractSiteDescriptor {
     readonly id: string | undefined; // descriptor id.
     readonly category: string | undefined; // category info on menubar
@@ -17,6 +15,13 @@ export class KawaiAbstractSiteDescriptor {
         // do nothing in abstract class
     }
 
+    //TODO
+    onBeforeRequest(details: Electron.OnBeforeRequestListenerDetails): {
+        cancel?: boolean;
+        redirectURL?: string;
+    } {
+        return {};
+    }
     /**
      *
      * @param url requested url

@@ -82,6 +82,21 @@ export const get_mainview_instance = (): BrowserWindow => {
             },
         );
 
+        mainView.webContents.session.webRequest.onBeforeRequest(
+            (details, callback) => {
+                if (
+                    typeof global_object.context?.current_site_descriptor !==
+                    'undefined'
+                ) {
+                    const { cancel, redirectURL } =
+                        global_object.context?.current_site_descriptor.onBeforeRequest(
+                            details,
+                        );
+                    callback({ cancel: cancel, redirectURL: redirectURL });
+                }
+            },
+        );
+
         mainView.setFullScreenable(false);
         setup_pogress_bar(mainView);
 

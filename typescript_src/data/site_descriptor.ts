@@ -353,12 +353,106 @@ export class KawaiChzzkDesc extends KawaiAbstractSiteDescriptor {
     id = 'chzzk';
 
     event_: any = null; // variable for anonymous event
+    adfree_event: any = null;
+
+    onBeforeRequest(details: Electron.OnBeforeRequestListenerDetails): {
+        cancel?: boolean;
+        redirectURL?: string;
+    } {
+        // @seeaslso https://github.com/bass9030/FUCK-CHZZK-GRID/blob/master/background.js
+        const requestFilter = {
+            urls: ['<all_urls>'],
+            types: ['xmlhttprequest'],
+        };
+
+        const URL_MATCH_PATTERN = [
+            /chunklist_480p.m3u8/g,
+            /[A-z0-9]+\/480p\/hdntl=.+\/chunklist.m3u8/g,
+            /[0-9a-z]+\/480p\/chunklist.m3u8/g,
+        ];
+        function changeResolution(url: string, newResolution: string): string {
+            // Find and replace the resolution part in the URL
+            return url.replace(/(\d{3})p/, `${newResolution}p`);
+        }
+        function changeResolutionIfExists(
+            url: string,
+            newResolution: string,
+        ): string | null {
+            // Check if the resolution exists in the URL
+            if (url.includes('480p')) {
+                // If it exists, replace 480p with the new resolution
+                return url.replace('480p', `${newResolution}p`);
+            } else {
+                // If it doesn't exist, return the original URL
+                // console.log('Resolution 480p not found in URL.');
+                return null;
+            }
+        }
+        const url = details.url;
+        const new_url = changeResolutionIfExists(url, '1080');
+        if (new_url == null) {
+            return {};
+        }
+        return { redirectURL: new_url };
+        // for (let i = 0; i < URL_MATCH_PATTERN.length; i++) {
+        // if (url.match(URL_MATCH_PATTERN[i])) {
+        // log.info(`pattern matched ${url}`);
+        // return { redirectURL: url.replace('480p', '1080p') };
+        // }
+        // }
+
+        return {};
+    }
 
     async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://chzzk.naver.com/', {
             userAgent:
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
         });
+
+        browser.webContents.executeJavaScript(`
+            
+            var FCG_attempt = 0;
+
+console.log("[FUCK CHZZK GRID] script inject!");
+
+function changeText() {
+    if (FCG_attempt > 5) {
+        console.log("[FUCK CHZZK GRID] Failed to inject - element not found");
+        return;
+    }
+    FCG_attempt++;
+    let qualitys = document.querySelectorAll(
+        "div.pzp-setting-quality-pane > div:nth-child(2) > ul > li"
+    );
+    let qualityElement;
+    // 480p 텍스트 찾기
+    for (let i = 0; i < qualitys.length; i++) {
+        let e = qualitys[i];
+        if (e.innerText.trim().includes("480p")) {
+            qualityElement = e;
+            break;
+        }
+    }
+    let video = document.querySelector(
+        "div[class^='live_information_details']"
+    );
+
+    if (!!video && !!qualityElement) {
+        qualityElement.querySelector(
+            "li > div:nth-child(2) > span > div"
+        ).innerHTML =
+            '<span class="pzp-pc-ui-setting-quality-item__prefix">1080p&nbsp;<div class="pzp-ui-track-badge"><em style="vertical-align:super;" class="pzp-ui-track-badge__badge">with FUCK GRID™</em> <!----></div></span>';
+        console.log("[FUCK CHZZK GRID] inject complete!");
+    } else setTimeout(changeText, 500);
+
+
+
+    console.log("script done")
+}
+
+changeText();
+            `);
 
         //add free scripts
         net.fetch(
