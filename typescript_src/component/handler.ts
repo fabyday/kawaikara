@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { app, ipcMain, IpcMainInvokeEvent } from 'electron';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { global_object } from '../data/context';
 import { set_config, set_preference } from '../logics/configures';
@@ -206,6 +206,13 @@ export function connectMainProcessHandler() {
         KAWAI_API_LITERAL.menu.close,
         (e: Electron.IpcMainEvent, ...args: any[]) => {
             KawaiViewManager.getInstance()._closeMenu();
+        },
+    );
+
+    ipcMain.handle(
+        KAWAI_API_LITERAL.etc.version,
+        (event: IpcMainInvokeEvent, args: any[]) => {
+            return app.getVersion();
         },
     );
 }

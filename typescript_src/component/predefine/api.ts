@@ -1,4 +1,4 @@
-import { ipcRenderer } from 'electron';
+import { app, ipcRenderer } from 'electron';
 import { KawaiConfig } from '../../definitions/setting_types';
 import { KAWAI_API_LITERAL } from '../../definitions/api';
 import { KawaiLogType } from '../../logging/logger';
@@ -6,6 +6,10 @@ import { EventEmitter } from 'stream';
 
 export const load_update_info_f = () => {
     return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.load_update_info);
+};
+
+export const get_version_f = () => {
+    return ipcRenderer.invoke(KAWAI_API_LITERAL.etc.version);
 };
 
 export const load_locale_f = () => {

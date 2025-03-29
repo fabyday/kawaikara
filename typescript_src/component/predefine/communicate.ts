@@ -10,6 +10,7 @@ import {
     custom_invoke_f,
     custom_recv_callback_f,
     delete_favorites_list_f,
+    get_version_f,
     keydown_f,
     keyup_f as keyup_f,
     load_available_locale_list_f,
@@ -65,19 +66,18 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
     etc: {
         load_update_info: load_update_info_f,
+        version : get_version_f,
     },
     custom: {
         custom_callback: custom_callback_f,
-        custom_invoke : custom_invoke_f,
-        custom_callback_recv : custom_recv_callback_f
+        custom_invoke: custom_invoke_f,
+        custom_callback_recv: custom_recv_callback_f,
     },
 });
 
 // inject Keyboard hijacking
 window.addEventListener('keydown', keydown_f);
 window.addEventListener('keyup', keyup_f);
-
-
 
 ipcRenderer.on(
     KAWAI_API_LITERAL.custom.custom_callback,

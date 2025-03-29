@@ -13,7 +13,7 @@ const App: React.FC = () => {
     ]);
 
     const [darkmode, setDarkMode] = useState(false);
-
+    const [version, setVersion] = useState('');
     const theme = createTheme({
         palette: {
             mode: darkmode ? 'dark' : 'light',
@@ -22,6 +22,9 @@ const App: React.FC = () => {
 
     useEffect(() => {
         fetch();
+        window.KAWAI_API.etc.version().then((version: string) => {
+            setVersion(version);
+        });
         window.KAWAI_API.preference
             .load_config()
             .then((config: KawaiConfig) => {
@@ -53,7 +56,7 @@ const App: React.FC = () => {
                         typography={'Test'}
                         fontSize={'3em'}
                         fontWeight={700}>
-                        KAWAIKARA 2.0.0
+                        KAWAIKARA {version}
                     </Typography>
                 </Box>
 
