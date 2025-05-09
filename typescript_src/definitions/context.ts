@@ -6,7 +6,7 @@ import {
 
 import { KawaiAbstractSiteDescriptor } from './SiteDescriptor';
 
-type KawaiWindowMode = 'pip' | 'fullscreen' | 'default';
+type KawaiWindowMode = 'pip' | 'fullscreen' | 'default' | 'always_on_top';
 type KawaiId = string;
 
 // KawaiContext Will be saved when quit app.

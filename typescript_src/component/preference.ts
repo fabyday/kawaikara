@@ -43,7 +43,9 @@ export const get_preference_instance = (): BrowserWindow => {
                 : html_path,
         );
 
-        preferenceWindow.webContents.on('did-finish-load', (evt: Event) => {
+
+
+        preferenceWindow.webContents.on('did-finish-load', () => {
             if (process.env.IS_DEV) {
                 // preferenceWindow?.setSize(1200, 600);
                 preferenceWindow!.webContents.openDevTools({ mode: 'detach' });

@@ -103,6 +103,10 @@ export const get_mainview_instance = (): BrowserWindow => {
         if (process.env.IS_DEV) {
             mainView.webContents.openDevTools({ mode: 'detach' });
         }
+
+        //for testing
+        mainView.webContents.openDevTools({ mode: 'detach' });
+
         mainView.webContents.on('page-title-updated', () => {
             mainView.setTitle(app.getName());
         });
@@ -113,27 +117,47 @@ export const get_mainview_instance = (): BrowserWindow => {
             global_object?.config?.preference?.general?.default_main?.id?.value,
         );
 
-        mainView.webContents.setWindowOpenHandler(
-            (details: Electron.HandlerDetails) => {
-                console.log(details.url);
-                mainView.loadURL(details.url);
+        // // for testing
+        // mainView.webContents.session.webRequest.onHeadersReceived(
+        //     { urls: ['*://*/*'] },
+        //     (details, callback) => {
+        //         if (details && details.responseHeaders) {
+        //             if (details.responseHeaders['X-Frame-Options']) {
+        //                 delete details.responseHeaders['X-Frame-Options'];
+        //             } else if (details.responseHeaders['x-frame-options']) {
+        //                 delete details.responseHeaders['x-frame-options'];
+        //             }
+        //         }
+        //         callback({
+        //             cancel: false,
+        //             responseHeaders: details.responseHeaders,
+        //         });
+        //     },
+        // );
+        // "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Safari/537.36"
+        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        mainView.webContents.setUserAgent(userAgent);
+        // mainView.webContents.setWindowOpenHandler(
+        //     (details: Electron.HandlerDetails) => {
+        //         console.log('set on : ', details.url);
+        //         // mainView.loadURL(details.url);s
 
-                const value =
-                    global_object.context?.current_site_descriptor?.onNewWindowCreated(
-                        details.url,
-                    ) ?? 'suppress';
+        //         const value =
+        //             global_object.context?.current_site_descriptor?.onNewWindowCreated(
+        //                 details.url,
+        //             ) ?? 'suppress';
 
-                switch (value) {
-                    case 'external':
-                        shell.openExternal(details.url);
-                        break;
-                    case 'open':
-                        mainView.loadURL(details.url);
-                        break;
-                }
-                return { action: 'deny' };
-            },
-        );
+        //         switch (value) {
+        //             case 'external':
+        //                 shell.openExternal(details.url);
+        //                 break;
+        //             case 'open':
+        //                 mainView.loadURL(details.url);
+        //                 break;
+        //         }
+        //         return { action: 'deny' };
+        //     },
+        // );
 
         return global_object.mainWindow;
     }

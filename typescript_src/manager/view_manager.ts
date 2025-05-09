@@ -12,6 +12,33 @@ import { KawaiWindowManager } from './window_manager';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
 
+const obj = {
+    test: {
+        a: {
+            b: 'value',
+        },
+        c: 'another',
+    },
+} as const;
+
+type ObjPaths = Path<typeof obj>;
+function getValue(path: ObjPaths) {
+    // 실제 동작은 여기서 구현
+    return path;
+}
+
+// 자동완성됨!
+getValue('test.a.b');
+getValue('test.c');
+
+type Path<T, Prefix extends string = ''> = T extends object
+    ? {
+          [K in keyof T]: K extends string
+              ? `${Prefix}${K}` | Path<T[K], `${Prefix}${K}.`>
+              : never;
+      }[keyof T]
+    : never;
+
 export class KawaiViewManager {
     private static __instance: KawaiViewManager | undefined;
     private m_focused_view: string;
@@ -144,7 +171,9 @@ export class KawaiViewManager {
             if (typeof global_object.context === 'undefined') {
                 global_object.context = {};
             } else {
-                await global_object.context.current_site_descriptor?.unload(view);
+                await global_object.context.current_site_descriptor?.unload(
+                    view,
+                );
                 global_object.context.current_site_descriptor = sel_desc;
             }
 
@@ -198,6 +227,32 @@ export class KawaiViewManager {
             global_object.mainWindow?.setSize(width, height, true);
             global_object.mainWindow?.setPosition(x, y, true);
             global_object.context.window_mode = 'default';
+        }
+    }
+
+    public alwaysOnTopMode() {
+        if (typeof global_object!.context === 'undefined') {
+            global_object.context = {};
+        }
+
+        if (typeof global_object?.context?.window_mode === 'undefined') {
+            global_object.context.window_mode = 'default';
+        }
+
+        if (global_object.context?.window_mode === 'default') {
+            this.saveViewState();
+        }
+        const transit = () => {};
+        const rollback = () => {};
+        switch (global_object.context.window_mode) {
+            case 'default':
+                break;
+            case 'always_on_top':
+                break;
+            case 'fullscreen':
+                break;
+            case 'pip':
+                break;
         }
     }
 

@@ -66,7 +66,11 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
     etc: {
         load_update_info: load_update_info_f,
+<<<<<<< Updated upstream
         version : get_version_f,
+=======
+        version: get_version_f,
+>>>>>>> Stashed changes
     },
     custom: {
         custom_callback: custom_callback_f,
@@ -86,3 +90,57 @@ ipcRenderer.on(
         custom_callback_emitter.emit(name, ...remai_args);
     },
 );
+
+import { applySpoofing, platforms } from './spoof';
+const args = process.argv;
+const spoofArg = args.find((arg) => arg.startsWith('--spoofTarget='));
+const target = spoofArg ? spoofArg.split('=')[1] : 'windows';
+const target_literal = target as keyof typeof platforms;
+applySpoofing(target_literal);
+/// spoofing code
+// preload.ts
+// 반드시 tsconfig에 "dom" 타입 포함되어 있어야 함
+
+// const spoofedUA =
+//     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36';
+
+// Object.defineProperty(window.navigator, 'userAgent', {
+//     get: () => spoofedUA,
+// });
+
+// Object.defineProperty(window.navigator, 'platform', {
+//     get: () => 'Win32',
+// });
+
+// Object.defineProperty(window.navigator, 'userAgentData', {
+//     get: () => ({
+//         brands: [
+//             { brand: 'Chromium', version: '122' },
+//             { brand: 'Google Chrome', version: '122' },
+//             { brand: 'Not-A.Brand', version: '99' },
+//         ],
+//         mobile: false,
+//         platform: 'Windows',
+//         getHighEntropyValues: async (hints: string[]) => {
+//             const data: Record<string, string | boolean | object[]> = {
+//                 architecture: 'x86',
+//                 model: '',
+//                 platform: 'Windows',
+//                 platformVersion: '10.0.0',
+//                 uaFullVersion: '122.0.0.0',
+//                 fullVersionList: [
+//                     { brand: 'Chromium', version: '122.0.0.0' },
+//                     { brand: 'Google Chrome', version: '122.0.0.0' },
+//                     { brand: 'Not-A.Brand', version: '99.0.0.0' },
+//                 ],
+//                 bitness: '64',
+//                 wow64: false,
+//             };
+//             const result: Record<string, any> = {};
+//             hints.forEach((key) => {
+//                 result[key] = data[key];
+//             });
+//             return result;
+//         },
+//     }),
+// });

@@ -30,8 +30,8 @@ export class KawaiAbstractSiteDescriptor {
      * if return "suppress" then do nothing.
      * default value is suppress
      */
-    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' {
-        return 'suppress';
+    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' | "basic" {
+        return 'basic';
     }
 
     async loadUrl(borwser: Electron.BrowserWindow): Promise<void> {

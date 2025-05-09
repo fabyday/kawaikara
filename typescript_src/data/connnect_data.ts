@@ -118,6 +118,13 @@ class KawaiChzzkShortcut implements keyActionListenable {
 }
 
 @RegisterShortcut
+class KawaiSoopShortcut implements keyActionListenable {
+    id = 'goto_soop';
+    targetView = mainview;
+    actionKey = '';
+}
+
+@RegisterShortcut
 class KawaiAppleMusicShortcut implements keyActionListenable {
     id = 'goto_applemusic';
     targetView = mainview;

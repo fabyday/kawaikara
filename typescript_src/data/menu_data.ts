@@ -10,6 +10,8 @@ import path from 'path';
 import { global_object } from './context';
 import * as fs from 'fs';
 import { get_bgtask_view_instnace } from '../component/background_task_view';
+import { KawaiViewManager } from '../manager/view_manager';
+import { get_mainview_instance } from '../component/mainview';
 
 @registerKawaiMenuItem('OTT', 'menu_netflix')
 class KawaiMenuNetflix extends KawaiMenuBase {}
@@ -52,6 +54,9 @@ class KawaiMenuYoutubeMusic extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('Streaming', 'menu_chzzk')
 class KawaiMenuChzzk extends KawaiMenuBase {}
+
+@registerKawaiMenuItem('Streaming', 'menu_soop')
+class KawaiMenuSoop extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('Streaming', 'menu_twitch')
 class KawaiMenuTwitch extends KawaiMenuBase {}
@@ -147,5 +152,28 @@ class KawaiMenuDiscord extends KawaiMenuBase {
         return 'kawai://resources/icons/discord.ico';
     }
 }
+
+@registerKawaiMenuItem('Options', 'menu_alwaysontop')
+class KawaiMenuAlwaysOnTop extends KawaiMenuBase {
+    public activate(): void {
+        KawaiViewManager.getInstance().alwaysOnTopMode();
+    }
+
+    public getFaviconUrl() {
+        return '';
+    }
+}
+
+@registerKawaiMenuItem('Options', 'menu_alwaysontop')
+class KawaiMenuDevConsole extends KawaiMenuBase {
+    public activate(): void {
+        get_mainview_instance().webContents.openDevTools({ mode: 'detach' });
+    }
+
+    public getFaviconUrl() {
+        return '';
+    }
+}
+
 @registerKawaiMenuItem('OTT', 'menu_crunchyroll')
 class KawaiMenuCrunchyroll extends KawaiMenuBase {}
