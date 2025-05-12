@@ -66,11 +66,7 @@ contextBridge.exposeInMainWorld('KAWAI_API', {
     },
     etc: {
         load_update_info: load_update_info_f,
-<<<<<<< Updated upstream
-        version : get_version_f,
-=======
         version: get_version_f,
->>>>>>> Stashed changes
     },
     custom: {
         custom_callback: custom_callback_f,
@@ -93,8 +89,9 @@ ipcRenderer.on(
 
 import { applySpoofing, platforms } from './spoof';
 const args = process.argv;
-const spoofArg = args.find((arg) => arg.startsWith('--spoofTarget='));
+const spoofArg = args.find((arg) => arg.startsWith('--platform='));
 const target = spoofArg ? spoofArg.split('=')[1] : 'windows';
+console.log(target)
 const target_literal = target as keyof typeof platforms;
 applySpoofing(target_literal);
 /// spoofing code

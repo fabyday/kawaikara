@@ -49,6 +49,7 @@ export const get_mainview_instance = (): BrowserWindow => {
                 preload: path.resolve(__dirname, 'predefine/communicate.js'),
                 contextIsolation: true,
                 nodeIntegration: false,
+                additionalArguments: [`--platform=${process.platform}`],
                 sandbox: false,
                 // preload: path.join(__dirname, 'predefine/communicate.js'),
                 backgroundThrottling:
@@ -104,9 +105,6 @@ export const get_mainview_instance = (): BrowserWindow => {
             mainView.webContents.openDevTools({ mode: 'detach' });
         }
 
-        //for testing
-        mainView.webContents.openDevTools({ mode: 'detach' });
-
         mainView.webContents.on('page-title-updated', () => {
             mainView.setTitle(app.getName());
         });
@@ -135,29 +133,33 @@ export const get_mainview_instance = (): BrowserWindow => {
         //     },
         // );
         // "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Safari/537.36"
-        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-        mainView.webContents.setUserAgent(userAgent);
-        // mainView.webContents.setWindowOpenHandler(
-        //     (details: Electron.HandlerDetails) => {
-        //         console.log('set on : ', details.url);
-        //         // mainView.loadURL(details.url);s
+        // const userAgent =
+        //     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        // mainView.webContents.setUserAgent(userAgent);
+        mainView.webContents.setWindowOpenHandler(
+            (details: Electron.HandlerDetails) => {
+                console.log('set on : ', details.url);
+                // mainView.loadURL(details.url);s
 
-        //         const value =
-        //             global_object.context?.current_site_descriptor?.onNewWindowCreated(
-        //                 details.url,
-        //             ) ?? 'suppress';
+                const value =
+                    global_object.context?.current_site_descriptor?.onNewWindowCreated(
+                        details.url,
+                    ) ?? 'suppress';
 
-        //         switch (value) {
-        //             case 'external':
-        //                 shell.openExternal(details.url);
-        //                 break;
-        //             case 'open':
-        //                 mainView.loadURL(details.url);
-        //                 break;
-        //         }
-        //         return { action: 'deny' };
-        //     },
-        // );
+                switch (value) {
+                    case 'external': // open url on external brwosers or apps
+                        shell.openExternal(details.url);
+                        return { action: 'deny' };
+                    case 'open': // open it main view
+                        mainView.loadURL(details.url);
+                        return { action: 'deny' };
+                    case 'suppress': //suppress : do nothing
+                        return { action: 'deny' };
+                    case 'basic': // open url default action in electron.
+                        return { action: 'allow' };
+                }
+            },
+        );
 
         return global_object.mainWindow;
     }

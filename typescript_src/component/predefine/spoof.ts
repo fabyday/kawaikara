@@ -48,7 +48,7 @@
 /// spoofing code
 // preload.ts
 export const platforms = {
-    windows: {
+    win32: {
         userAgent:
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
         platform: 'Win32',
@@ -59,7 +59,7 @@ export const platforms = {
             model: '',
         },
     },
-    macos: {
+    darwin: {
         userAgent:
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
         platform: 'MacIntel',
@@ -81,7 +81,18 @@ export const platforms = {
             model: '',
         },
     },
-    unix: {
+    openbsd: {
+        userAgent:
+            'Mozilla/5.0 (X11; Unix) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
+        platform: 'Unix',
+        userAgentData: {
+            platform: 'Unix',
+            platformVersion: '',
+            architecture: '',
+            model: '',
+        },
+    },
+    freebsd: {
         userAgent:
             'Mozilla/5.0 (X11; Unix) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36',
         platform: 'Unix',

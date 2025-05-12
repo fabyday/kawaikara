@@ -164,7 +164,7 @@ class KawaiMenuAlwaysOnTop extends KawaiMenuBase {
     }
 }
 
-@registerKawaiMenuItem('Options', 'menu_alwaysontop')
+@registerKawaiMenuItem('Options', 'menu_devconsole')
 class KawaiMenuDevConsole extends KawaiMenuBase {
     public activate(): void {
         get_mainview_instance().webContents.openDevTools({ mode: 'detach' });

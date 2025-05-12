@@ -56,18 +56,10 @@ export class KawaiLaftelDesc extends KawaiAbstractSiteDescriptor {
     LoadFaviconUrl(): string {
         return 'https://static.laftel.net/favicon.ico';
     }
-    onBeforeSendHeaders(
-        details: Electron.OnBeforeSendHeadersListenerDetails,
-    ): void {
-        details.requestHeaders['Sec-Ch-Ua'] =
-            '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-        details.requestHeaders['User-Agent'] =
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-    }
 
-    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' {
-        return 'open';
-    }
+    // onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' | 'basic' {
+    //     return 'basic';
+    // }
 }
 
 @connectToShortcut('goto_disney')
@@ -215,7 +207,9 @@ observer.observe(document.body, { childList: true, subtree: true });
         browser.webContents.on('did-finish-load', this.event_);
     }
 
-    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' {
+    onNewWindowCreated(
+        url: string,
+    ): 'external' | 'open' | 'suppress' | 'basic' {
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
             if (
                 /https?:\/\/(www\.)?youtube\.com\/(redirect\?|ads\/|pagead\/)/.test(
