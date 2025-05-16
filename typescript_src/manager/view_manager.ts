@@ -9,27 +9,18 @@ import { ipcMain } from 'electron/main';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { KawaiSiteDescriptorManager } from './site_descriptor_manager';
 import { KawaiWindowManager } from './window_manager';
+import {
+    disable_always_on_top,
+    disable_fullscreen,
+    disable_pipmode,
+    eanble_always_on_top,
+    enable_fullscreen,
+    enable_pipmode,
+    rollback_bounds,
+    save_view_bounds,
+} from '../logics/mainview_logic';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
-
-const obj = {
-    test: {
-        a: {
-            b: 'value',
-        },
-        c: 'another',
-    },
-} as const;
-
-type ObjPaths = Path<typeof obj>;
-function getValue(path: ObjPaths) {
-    // 실제 동작은 여기서 구현
-    return path;
-}
-
-// 자동완성됨!
-getValue('test.a.b');
-getValue('test.c');
 
 type Path<T, Prefix extends string = ''> = T extends object
     ? {
@@ -192,41 +183,21 @@ export class KawaiViewManager {
         if (typeof global_object?.context?.window_mode === 'undefined') {
             global_object.context.window_mode = 'default';
         }
-
-        if (global_object.context?.window_mode === 'default') {
-            this.saveViewState();
-        }
-
-        if (
-            global_object.context?.window_mode === 'default' ||
-            global_object.context?.window_mode === 'fullscreen'
-        ) {
-            if (global_object.context.window_mode === 'fullscreen') {
-                global_object.mainWindow?.setFullScreen(false);
-                global_object.mainWindow?.setFullScreenable(false);
-            }
-
-            const pipBounds = KawaiWindowManager.getInstance().getPipBounds();
-            global_object.mainWindow?.setMinimumSize(
-                pipBounds.width,
-                pipBounds.height,
-            );
-            global_object.mainWindow?.setBounds(pipBounds, true);
-            global_object.mainWindow?.setMovable(false);
-            global_object.mainWindow?.setResizable(false);
-            global_object.mainWindow?.setAlwaysOnTop(true);
-            global_object.context.window_mode = 'pip';
-        } else {
-            const { x, y, width, height } =
-                global_object!.context!.current_window_bounds!;
-            const min_win = KawaiWindowManager.getInstance().getPresetSize()[0];
-            global_object.mainWindow?.setMinimumSize(min_win[0], min_win[1]);
-            global_object.mainWindow?.setMovable(true);
-            global_object.mainWindow?.setResizable(true);
-            global_object.mainWindow?.setAlwaysOnTop(false);
-            global_object.mainWindow?.setSize(width, height, true);
-            global_object.mainWindow?.setPosition(x, y, true);
+        if (global_object.context.window_mode === 'pip') {
+            disable_pipmode(global_object.mainWindow!, global_object.context);
+            rollback_bounds(global_object.mainWindow!, global_object.context);
             global_object.context.window_mode = 'default';
+        } else {
+            const pipBounds = KawaiWindowManager.getInstance().getPipBounds();
+            // global_object.mainWindow?.setMinimumSize(
+            //     pipBounds.width,
+            //     pipBounds.height,
+            // );
+            enable_pipmode(
+                global_object.mainWindow!,
+                global_object.context,
+                pipBounds,
+            );
         }
     }
 
@@ -234,25 +205,23 @@ export class KawaiViewManager {
         if (typeof global_object!.context === 'undefined') {
             global_object.context = {};
         }
-
         if (typeof global_object?.context?.window_mode === 'undefined') {
             global_object.context.window_mode = 'default';
         }
 
-        if (global_object.context?.window_mode === 'default') {
-            this.saveViewState();
-        }
-        const transit = () => {};
-        const rollback = () => {};
-        switch (global_object.context.window_mode) {
-            case 'default':
-                break;
-            case 'always_on_top':
-                break;
-            case 'fullscreen':
-                break;
-            case 'pip':
-                break;
+        if (global_object.context.window_mode === 'always_on_top') {
+            save_view_bounds(global_object.mainWindow!, global_object.context);
+            disable_always_on_top(
+                global_object.mainWindow!,
+                global_object.context,
+            );
+            rollback_bounds(global_object.mainWindow!, global_object.context);
+            global_object.context.window_mode = 'default';
+        } else {
+            eanble_always_on_top(
+                global_object.mainWindow!,
+                global_object.context,
+            );
         }
     }
 
@@ -275,6 +244,9 @@ export class KawaiViewManager {
 
     protected rollbackViewState() {
         console.log(global_object!.context!.current_window_bounds!);
+        const win_mode = global_object.context?.saved_window_mode;
+        global_object.context!.saved_window_mode = undefined;
+
         global_object.mainWindow?.setBounds(
             global_object!.context!.current_window_bounds!,
         );
@@ -287,41 +259,26 @@ export class KawaiViewManager {
         }
         global_object!.context!.current_window_bounds =
             global_object.mainWindow!.getBounds()!;
+        global_object!.context!.saved_window_mode =
+            global_object.context.window_mode ?? 'default';
     }
+
     public fullscreen() {
         if (typeof global_object!.context === 'undefined') {
             global_object.context = {};
         }
 
-        if (typeof global_object?.context?.window_mode === 'undefined') {
+        if (global_object.context.window_mode === 'fullscreen') {
+            disable_fullscreen(
+                global_object.mainWindow!,
+                global_object.context,
+            );
+            rollback_bounds(global_object.mainWindow!, global_object.context);
             global_object.context.window_mode = 'default';
-        }
-
-        if (global_object.context?.window_mode === 'default') {
-            this.saveViewState();
-        }
-
-        if (
-            global_object.context?.window_mode === 'default' ||
-            global_object.context?.window_mode === 'pip'
-        ) {
-            if (global_object.context.window_mode === 'pip') {
-                global_object.mainWindow?.setMovable(true);
-                global_object.mainWindow?.setResizable(true);
-                global_object.mainWindow?.setAlwaysOnTop(false);
-            }
-
-            // if default or pip mode.
-            global_object.mainWindow?.setFullScreenable(true);
-            global_object.mainWindow?.setFullScreen(true);
-            global_object!.context!.window_mode = 'fullscreen';
-        } else {
             const min_win = KawaiWindowManager.getInstance().getPresetSize()[0];
             global_object.mainWindow?.setMinimumSize(min_win[0], min_win[1]);
-            global_object.mainWindow?.setFullScreen(false);
-            global_object.mainWindow?.setFullScreenable(false);
-            this.rollbackViewState();
-            global_object!.context!.window_mode = 'default';
+        } else {
+            enable_fullscreen(global_object.mainWindow!, global_object.context);
         }
     }
 

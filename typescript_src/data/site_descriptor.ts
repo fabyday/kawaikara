@@ -486,77 +486,78 @@ changeText();
     }
 }
 
-@connectToShortcut('goto_soop')
-@connectToMenu('menu_soop')
-@registerKawaiSiteDescriptor
-export class KawaiSoopDesc extends KawaiAbstractSiteDescriptor {
-    id = 'soop';
+// @connectToShortcut('goto_soop')
+// @connectToMenu('menu_soop')
+// @registerKawaiSiteDescriptor
+// export class KawaiSoopDesc extends KawaiAbstractSiteDescriptor {
+//     id = 'soop';
 
-    onBeforeRequest(details: Electron.OnBeforeRequestListenerDetails): {
-        cancel?: boolean;
-        redirectURL?: string;
-    } {
-        function changeResolutionIfExists(
-            url: string,
-            newResolution: string,
-        ): string | null {
-            // Check if the resolution exists in the URL
-            if (url.includes('960x540')) {
-                // If it exists, replace 480p with the new resolution
-                return url.replace('960x540', `${newResolution}`);
-            } else if (url.includes('640x360')) {
-                return url.replace('640x360', `${newResolution}`);
-            } else {
-                // If it doesn't exist, return the original URL
-                // console.log('Resolution 480p not found in URL.');
-                return null;
-            }
-        }
-        const url = details.url;
-        if (!url.includes('preview')) {
-            const new_url = changeResolutionIfExists(url, '640x360');
-            if (new_url == null) {
-                return {};
-            }
-            return { redirectURL: new_url };
-        } else {
-            return {};
-        }
-    }
+//     onBeforeRequest(details: Electron.OnBeforeRequestListenerDetails): {
+//         cancel?: boolean;
+//         redirectURL?: string;
+//     } {
+//         function changeResolutionIfExists(
+//             url: string,
+//             newResolution: string,
+//         ): string | null {
+//             // Check if the resolution exists in the URL
+//             if (url.includes('960x540')) {
+//                 // If it exists, replace 480p with the new resolution
+//                 return url.replace('960x540', `${newResolution}`);
+//             } else if (url.includes('640x360')) {
+//                 return url.replace('640x360', `${newResolution}`);
+//             } else {
+//                 // If it doesn't exist, return the original URL
+//                 // console.log('Resolution 480p not found in URL.');
+//                 return null;
+//             }
+//         }
+//         const url = details.url;
+//         if (!url.includes('preview')) {
+//             const new_url = changeResolutionIfExists(url, '640x360');
+//             if (new_url == null) {
+//                 return {};
+//             }
+//             return { redirectURL: new_url };
+//         } else {
+//             return {};
+//         }
+//     }
 
-    async loadUrl(browser: Electron.BrowserWindow) {
-        browser.loadURL('https://www.sooplive.co.kr/', {
-            userAgent:
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        });
-    }
+//     async loadUrl(browser: Electron.BrowserWindow) {
+//         browser.loadURL('https://www.sooplive.co.kr/', {
+//             userAgent:
+//                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+//         });
+//     }
 
-    onBeforeSendHeaders(
-        details: Electron.OnBeforeSendHeadersListenerDetails,
-    ): void {
-        if (typeof details.url === 'undefined') {
-            return;
-        }
-        try {
-            if (details.url.includes('play.sooplive.co.kr')) {
-                // details.requestHeaders['Referer'] = 'https://play.sooplive.co.kr'; // 원하는 Referer로 변경
-                // details.requestHeaders['Origin'] = 'https://play.sooplive.co.kr'; // CORS 우회용 Origin 수정
-                const pth = details.requestHeaders['path'];
-                if (pth.includes('640x360')) {
-                    pth.replace('960x540', '1920x1080');
-                } else if (pth.includes('960x540'))
-                    pth.replace('960x540', '1920x1080');
-                details.requestHeaders['path'] = pth;
-            }
-        } catch (err) {
-            console.log(err);
-        }
-    }
+//     onBeforeSendHeaders(
+//         details: Electron.OnBeforeSendHeadersListenerDetails,
+//     ): void {
+//         if (typeof details.url === 'undefined') {
+//             return;
+//         }
+//         try {
+//             if (details.url.includes('play.sooplive.co.kr')) {
+//                 // details.requestHeaders['Referer'] = 'https://play.sooplive.co.kr'; // 원하는 Referer로 변경
+//                 // details.requestHeaders['Origin'] = 'https://play.sooplive.co.kr'; // CORS 우회용 Origin 수정
+//                 const pth = details.requestHeaders['path'];
+//                 if (pth.includes('640x360')) {
+//                     pth.replace('960x540', '1920x1080');
+//                 } else if (pth.includes('960x540'))
+//                     pth.replace('960x540', '1920x1080');
+//                 details.requestHeaders['path'] = pth;
+//             }
+//         } catch (err) {
+//             console.log(err);
+//         }
+//     }
 
-    LoadFaviconUrl(): string {
-        return 'https://www.sooplive.co.kr/favicon.ico';
-    }
-}
+//     LoadFaviconUrl(): string {
+//         return 'https://www.sooplive.co.kr/favicon.ico';
+//     }
+// }
+
 @connectToShortcut('goto_applemusic')
 @connectToMenu('menu_applemusic')
 @registerKawaiSiteDescriptor

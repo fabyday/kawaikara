@@ -55,8 +55,8 @@ class KawaiMenuYoutubeMusic extends KawaiMenuBase {}
 @registerKawaiMenuItem('Streaming', 'menu_chzzk')
 class KawaiMenuChzzk extends KawaiMenuBase {}
 
-@registerKawaiMenuItem('Streaming', 'menu_soop')
-class KawaiMenuSoop extends KawaiMenuBase {}
+// @registerKawaiMenuItem('Streaming', 'menu_soop')
+// class KawaiMenuSoop extends KawaiMenuBase {}
 
 @registerKawaiMenuItem('Streaming', 'menu_twitch')
 class KawaiMenuTwitch extends KawaiMenuBase {}

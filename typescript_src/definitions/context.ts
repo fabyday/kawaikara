@@ -1,8 +1,5 @@
 import { BrowserView, BrowserWindow } from 'electron';
-import {
-    KawaiConfig,
-    KawaiLocale,
-} from './setting_types';
+import { KawaiConfig, KawaiLocale } from './setting_types';
 
 import { KawaiAbstractSiteDescriptor } from './SiteDescriptor';
 
@@ -14,6 +11,7 @@ export type KawaiContext = {
     window_mode?: KawaiWindowMode;
     current_site_descriptor?: KawaiAbstractSiteDescriptor;
     current_window_bounds?: Electron.Rectangle;
+    saved_window_mode?: KawaiWindowMode;
 };
 
 export type GlobalObject = {

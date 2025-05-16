@@ -39,6 +39,7 @@
             "goto_tving": { "name": "tving" },
             "goto_twitch": { "name": "twitch" },
             "run_pip": { "name": "run pip" },
+            "run_always_on_top" : {"name" : "run always on top"},
             "goto_applemusic": { "name": "apple music" },
             "goto_chzzk": { "name": "chzzk" },
             "goto_amazonprime": { "name": "amazon prime" },
@@ -78,7 +79,9 @@
         "menu_youtubemusic" : "youtubeMusic",
         "menu_spotify" : "Spotify",
         "menu_opendownloaddirectory" : "Download directory",
-        "menu_bgtaskview" : "background Task View"
+        "menu_bgtaskview" : "background Task View",
+        "menu_alwaysontop" : "run always on top",
+        "menu_devconsole" : "Open dev console"
 
     }
 }

@@ -39,6 +39,8 @@
             "goto_tving": { "name": "ティビング" },
             "goto_twitch": { "name": "ツイッチ" },
             "run_pip": { "name": "PiP実行" },
+            "run_always_on_top": { "name": "always on top 実行" },
+
             "goto_applemusic": { "name": "アップルミュージック" },
             "goto_chzzk": { "name": "チジジク" },
             "goto_amazonprime": { "name": "アマゾンプライム" },
@@ -77,8 +79,9 @@
         "menu_appletv": "アップルティービー",
         "menu_youtubemusic": "YouTubeミュージック",
         "menu_spotify": "Spotify",
-        "menu_opendownloaddirectory" : "ダウンロードフォルダー",
-        "menu_bgtaskview" : "バックグラウンド作業"
-
+        "menu_opendownloaddirectory": "ダウンロードフォルダー",
+        "menu_bgtaskview": "バックグラウンド作業",
+        "menu_alwaysontop": "always on top 実行",
+        "menu_devconsole": "デベロッパーツールを開く"
     }
 }

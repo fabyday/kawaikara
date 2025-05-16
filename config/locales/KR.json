@@ -39,6 +39,7 @@
             "goto_tving": { "name": "티빙" },
             "goto_twitch": { "name": "트위치" },
             "run_pip": { "name": "PiP 실행" },
+            "run_always_on_top": { "name": "always on top 실행" },
             "goto_applemusic": { "name": "애플 뮤직" },
             "goto_chzzk": { "name": "치지직" },
             "goto_amazonprime": { "name": "아마존 프라임" },
@@ -75,9 +76,11 @@
         "menu_discord": "디스코드",
         "menu_crunchyroll": "크런치롤",
         "menu_appletv": "애플티비",
-        "menu_youtubemusic" : "유튜브 뮤직",
-        "menu_spotify" : "스포티파이",
-        "menu_opendownloaddirectory" : "다운로드 폴더",
-        "menu_bgtaskview" : "백그라운드 작업"
+        "menu_youtubemusic": "유튜브 뮤직",
+        "menu_spotify": "스포티파이",
+        "menu_opendownloaddirectory": "다운로드 폴더",
+        "menu_bgtaskview": "백그라운드 작업",
+        "menu_alwaysontop": "always on top 실행",
+        "menu_devconsole": "개발 콘솔 열기"
     }
 }

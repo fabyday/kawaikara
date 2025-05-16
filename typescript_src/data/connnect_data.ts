@@ -40,6 +40,16 @@ class KawaiPiPShortcut implements keyActionListenable {
         return true;
     }
 }
+@RegisterShortcut
+class KawaiAlwaysOnTopShortcut implements keyActionListenable {
+    id = 'run_always_on_top';
+    targetView = mainview;
+    actionKey = '';
+    onActivated() {
+        KawaiViewManager.getInstance().alwaysOnTopMode();
+        return true;
+    }
+}
 
 @RegisterShortcut
 class KawaiNetflixShortcut implements keyActionListenable {
@@ -117,12 +127,12 @@ class KawaiChzzkShortcut implements keyActionListenable {
     actionKey = '';
 }
 
-@RegisterShortcut
-class KawaiSoopShortcut implements keyActionListenable {
-    id = 'goto_soop';
-    targetView = mainview;
-    actionKey = '';
-}
+// @RegisterShortcut
+// class KawaiSoopShortcut implements keyActionListenable {
+//     id = 'goto_soop';
+//     targetView = mainview;
+//     actionKey = '';
+// }
 
 @RegisterShortcut
 class KawaiAppleMusicShortcut implements keyActionListenable {
