@@ -145,6 +145,9 @@
             "output": "output_dist"
         },
         "mac": {
+            "identity": "-",
+            "hardenedRuntime": false,
+            "gatekeeperAssess": false,
             "target": [
                 {
                     "target": "dmg",
