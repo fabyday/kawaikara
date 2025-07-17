@@ -54,13 +54,13 @@ jobs:
             ARM_SHA=${{steps.kawai_meta.outputs.arm_sha}}
             ARM_URL=${{steps.kawai_meta.outputs.arm_url}}
 
-            sed -i "s/__ARM_SHA__/${ARM_SHA}/g" Casks/kawaikara.rb
+            sed -i "s#__ARM_SHA__#${ARM_SHA}#g" Casks/kawaikara.rb
             sed -i "s#__ARM_URL__#${ARM_URL}#g" Casks/kawaikara.rb
-            sed -i "s/__INTEL_SHA__/${INTEL_SHA}/g" Casks/kawaikara.rb
+            sed -i "s#__INTEL_SHA__#${INTEL_SHA}#g" Casks/kawaikara.rb
             sed -i "s#__INTEL_URL__#${INTEL_URL}#g" Casks/kawaikara.rb
 
-            sed -i "s/__VERSION__/${VERSION}/g" Casks/kawaikara.rb
-            sed -i "s/__VERIFIED__/${VERIFIED}/g" Casks/kawaikara.rb
+            sed -i "s#__VERSION__#${VERSION}#g" Casks/kawaikara.rb
+            sed -i "s#__VERIFIED__#${VERIFIED}#g" Casks/kawaikara.rb
             
             cp Casks/kawaikara.rb Casks/kawaikara@${VERSION}.rb
 
