@@ -63,6 +63,36 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Twitch**
 
 
+
+# Install Guide
+
+
+### Windows10/11
+Download from the [**Releases**](https://github.com/fabyday/kawaikara/releases) page
+### MacOS
+See the README in the [**homebrew-kawaikara**](https://github.com/fabyday/homebrew-kawaikara) repository
+
+## Usage 
+
+<p align="center">  
+  <img src="./imgs/menu.png" align="center" width="60%">  
+</p>
+<p align="center">
+  You can Use <Strong>Tab</Strong>  key to Open Menubar
+<br>
+</p>
+
+1. Click ```Tab``` key to Open Menu.
+2. Select service what you want.
+3. Enjoying Service!
+
+* Open Menu : ```Tab```
+* Fullscreen On/Off : ```Alt+Enter```
+
+**Open Download Directory** : ```Menu > Options > Download Directory```
+
+
+
 ## Rich Presence On Discord
 <p align="center">
     <img src="imgs/discord_presence.png" width="30%" >
@@ -71,10 +101,6 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
      <Strong>Use Kawai Rich Presence on Discord</strong>
 </p>
 </p>
-
-## DRM-problem
-
-Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I couldn't directly use *Electron* frameworks. To support DRM product, I used **castlab**'s electron fork.
 
 # Examples
 <p align="center">
@@ -96,7 +122,6 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
    <strong>streaming video examples(MacOS)</strong> <a href="https://youtu.be/E042q0tFjSc"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/E042q0tFjSc">
 </a>
 </p>
-
 
 
 
@@ -159,26 +184,9 @@ Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I cou
 </p>
 
 
+## DRM-problem
 
-
-## Usage 
-
-<p align="center">  
-  <img src="./imgs/menu.png" align="center" width="60%">  
-</p>
-<p align="center">
-  You can Use <Strong>Tab</Strong>  key to Open Menubar
-<br>
-</p>
-
-1. Click ```Tab``` key to Open Menu.
-2. Select service what you want.
-3. Enjoying Service!
-
-* Open Menu : ```Tab```
-* Fullscreen On/Off : ```Alt+Enter```
-
-**Open Download Directory** : ```Menu > Options > Download Directory```
+Yes, *Electron* doesn't support _CDM_ due to the Liscense. In this reason, I couldn't directly use *Electron* frameworks. To support DRM product, I used **castlab**'s electron fork.
 
 
 ## build your own OTT-viewer(Windows 10/11)

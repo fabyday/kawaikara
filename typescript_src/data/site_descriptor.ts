@@ -74,6 +74,7 @@ export class KawaiDisneyDesc extends KawaiAbstractSiteDescriptor {
         return 'https://www.disneyplus.com/favicon.ico';
     }
 }
+
 @connectToShortcut('goto_youtube')
 @connectToMenu('menu_youtube')
 @registerKawaiSiteDescriptor
@@ -644,3 +645,25 @@ export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
         return 'kawai://resources/icons/crunchyroll.png';
     }
 }
+
+
+// // TODO viewer html page is not ready.
+// @connectToShortcut('goto_videoview')
+// @connectToMenu('menu_videoview')
+// @registerKawaiSiteDescriptor
+// export class KawaiVideoViewDesc extends KawaiAbstractSiteDescriptor {
+//     id = 'video';
+
+//     async loadUrl(browser: Electron.BrowserWindow) {
+//         let html_path = cvrt_electron_path(
+//             path.resolve(script_root_path, './pages/videoview.html'),
+//         );
+//         browser.loadURL(
+//             process.env.IS_DEV ? 'http://localhost:3000/videoview.html' : html_path,
+//         );
+//     }
+
+//     LoadFaviconUrl(): string {
+//         return 'kawai://resources/icons/crunchyroll.png';
+//     }
+// }
