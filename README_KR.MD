@@ -28,7 +28,6 @@
 ![build](https://github.com/fabyday/kawaikara/actions/workflows/publish.yaml/badge.svg)
 ![build](https://github.com/fabyday/kawaikara/actions/workflows/build-dev-branch.yaml/badge.svg)
 
-
 저는 친구들이랑 디코 방송을 하거나 보는 것을 좋아하는 사람입니다. 그런데 디코방송은 몇가지 불편한 점들이 있습니다. 디코의 방송은 하나의 프로그램 창만을 캡쳐할 수 있다는 거죠. OTT를 스트리밍하는데 브라우저(chrome, firefox 등...)를 사용하는 방법도 있지만, 전체화면을 하지 않을 경우 주소창과 같은 불필요한 UI들은 스트리밍 영상의 일정한 부분을 차지할 것입니다. 체감상 이 영역은 꽤 크고 눈에 거슬립니다. 누군가는 친구들과 같이 OTT를 보면서 작업을 하고 싶은 사람이 있을 수도 있죠. 이 작고 귀여운 OTT 뷰어는 그것을
 가능하게 만들어줍니다.
 
@@ -65,6 +64,36 @@
   - **트위치**
 
 
+
+# 설치 가이드
+
+
+### Windows10/11
+[**Releases**](https://github.com/fabyday/kawaikara/releases) 페이지에서 다운로드하세요
+### MacOS
+[**homebrew-kawaikara**](https://github.com/fabyday/homebrew-kawaikara) 저장소의 README를 참고하세요
+
+## 사용법 
+
+<p align="center">  
+  <img src="./imgs/menu.png" align="center" width="60%">  
+</p>
+<p align="center">
+  <Strong>Tab</Strong>키를 눌러서 메뉴를 여세요
+<br>
+</p>
+
+1. ```Tab``` 키를 눌러서 메뉴 열기
+2. 원하는 서비스 선택하기
+3. 즐기기
+
+* 메뉴 열기 : ```Tab```
+* 전체화면 On/Off : ```Alt+Enter```
+
+**다운로드 디렉토리 열기** : ```메뉴 > 옵션 > 다운로드 디렉토리```
+
+
+
 ## 디스코드 활동 상태(Rich Presence)
 <p align="center">
     <img src="imgs/discord_presence.png" width="30%" >
@@ -73,12 +102,6 @@
      <Strong>귀여운 카와이카라의 디스코드 활동 상태</strong>
 </p>
 </p>
-
-
-## DRM 문제
-
-넵, **일렉트론**은 기본적으로 _CDM_ 을 지원하지 않습니다. **castlab**에서 제공하는 다른 **일렉트론**을 포크를 사용하여 제작되었습니다.
-
 
 # 사용 예시
 <p align="center">
@@ -100,6 +123,8 @@
    <strong>비디오 스트리밍 예시(MacOS)</strong> <a href="https://youtu.be/E042q0tFjSc"><img alt="YouTube Video Views" src="https://img.shields.io/youtube/views/E042q0tFjSc">
 </a>
 </p>
+
+
 
 <p align="center">  
 <br>
@@ -160,25 +185,9 @@
 </p>
 
 
+## DRM 문제
 
-## 사용법 
-
-
-<p align="center">  
-  <img src="./imgs/menu.png" align="center" width="60%">  
-</p>
-<p align="center">
-  <Strong>Tab</Strong>키를 눌러서 메뉴를 여세요
-<br>
-</p>
-
-1. ```Tab``` 키를 눌러서 메뉴 열기
-2. 원하는 서비스 선택하기
-3. 즐기기
-
-* 메뉴 열기 : ```Tab```
-* 전체화면 On/Off : ```Alt+Enter```
-
+넵, **일렉트론**은 기본적으로 _CDM_ 을 지원하지 않습니다. **castlab**에서 제공하는 다른 **일렉트론**을 포크를 사용하여 제작되었습니다.
 
 
 ## 카와이카라 뷰어 직접 빌드하기(Windows 10/11)
@@ -263,6 +272,8 @@ yarn make-cert:mac # 사설(?) 인증서 생성(진짜 인증서는 가격이 �
 yarn build # 빌드 시작.
 
 ```
+
+
 
 
 ## MIT 라이선스

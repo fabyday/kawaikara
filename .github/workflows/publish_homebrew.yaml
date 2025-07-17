@@ -1,0 +1,75 @@
+name : update Home brew 
+on:
+  release: 
+    types: [published]
+
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name : "Extract Version and SHA"
+        id: kawai_meta
+        run: |
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            ARM_URL="https://github.com/fabyday/kawaikara/releases/download/v$VERSION/kawaikara-$VERSION-arm64-mac.zip"
+            INTEL_URL="https://github.com/fabyday/kawaikara/releases/download/v$VERSION/kawaikara-$VERSION-mac.zip"
+            
+            echo "arm_url=$ARM_URL" >> $GITHUB_OUTPUT
+            echo "intel_url=$INTEL_URL" >> $GITHUB_OUTPUT
+            
+            
+            curl -L -o arm64.zip $ARM_URL
+            curl -L -o intel.zip $INTEL_URL
+            echo "arm_sha=$(shasum -a 256 arm64.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
+            echo "intel_sha=$(shasum -a 256 intel.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+
+
+
+      - name: Checkout Tap 
+        uses: actions/checkout@v4
+        with:
+            repository: fabyday/homebrew-kawaikara
+            token: ${{ secrets.HOMEBREW_KAWAIKARA_REPO_TOKEN }}
+            path: tap
+        
+
+      - name: Update Cask file
+        run: |
+            cd tap
+
+            cp .github/templates/kawaikara.rb.template Casks/kawaikara.rb
+
+
+            VERSION=${{steps.kawai_meta.outputs.version}}
+            VERIFIED="github.com/fabyday/kawaikara/"
+            INTEL_SHA=${{steps.kawai_meta.outputs.intel_sha}}
+            INTEL_URL=${{steps.kawai_meta.outputs.intel_url}}
+            ARM_SHA=${{steps.kawai_meta.outputs.arm_sha}}
+            ARM_URL=${{steps.kawai_meta.outputs.arm_url}}
+
+            sed -i "s/__ARM_SHA__/${ARM_SHA}/g" kawaikara.rb
+            sed -i "s#__ARM_URL__#${ARM_URL}#g" kawaikara.rb
+            sed -i "s/__INTEL_SHA__/${INTEL_SHA}/g" kawaikara.rb
+            sed -i "s#__INTEL_URL__#${INTEL_URL}#g" kawaikara.rb
+
+            sed -i "s/__VERSION__/${VERSION}/g" kawaikara.rb
+            sed -i "s/__VERIFIED__/${VERIFIED}/g" kawaikara.rb
+            
+            cp Casks/kawaikara.rb Casks/kawaikara@${VERSION}.rb
+
+
+      - name: "Commit and Push changes"
+        run: |
+            cd tap
+            git config user.name "github-actions[bot]"
+            git config user.email "actions@github.com"
+            git add Casks/kawaikara.rb Casks/kawaikara@${{steps.kawai_meta.outputs.version}}.rb
+            git commit -m "Update cask to version ${{steps.kawai_meta.outputs.version}}"
+            git push origin main
