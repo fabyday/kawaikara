@@ -647,23 +647,3 @@ export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
 }
 
 
-// // TODO viewer html page is not ready.
-// @connectToShortcut('goto_videoview')
-// @connectToMenu('menu_videoview')
-// @registerKawaiSiteDescriptor
-// export class KawaiVideoViewDesc extends KawaiAbstractSiteDescriptor {
-//     id = 'video';
-
-//     async loadUrl(browser: Electron.BrowserWindow) {
-//         let html_path = cvrt_electron_path(
-//             path.resolve(script_root_path, './pages/videoview.html'),
-//         );
-//         browser.loadURL(
-//             process.env.IS_DEV ? 'http://localhost:3000/videoview.html' : html_path,
-//         );
-//     }
-
-//     LoadFaviconUrl(): string {
-//         return 'kawai://resources/icons/crunchyroll.png';
-//     }
-// }
