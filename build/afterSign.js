@@ -11,7 +11,7 @@ exports.default = function (context) {
   const {
     execSync
   } = require('child_process')
-  console.log(context)
+  // console.log(context)
   const { arch, packager } = context;
   
   const platform = packager.platform; // 'darwin', 'win32' else 
