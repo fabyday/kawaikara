@@ -326,10 +326,7 @@ export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
     id = 'twitch';
     async loadUrl(browser: Electron.BrowserWindow) {
-        browser.loadURL('https://www.twitch.tv/', {
-            userAgent:
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        });
+        browser.loadURL('https://www.twitch.tv/');
     }
 
     LoadFaviconUrl(): string {
@@ -646,4 +643,23 @@ export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
     }
 }
 
+// // TODO viewer html page is not ready.
+// @connectToShortcut('goto_videoview')
+// @connectToMenu('menu_videoview')
+// @registerKawaiSiteDescriptor
+// export class KawaiVideoViewDesc extends KawaiAbstractSiteDescriptor {
+//     id = 'video';
 
+//     async loadUrl(browser: Electron.BrowserWindow) {
+//         let html_path = cvrt_electron_path(
+//             path.resolve(script_root_path, './pages/videoview.html'),
+//         );
+//         browser.loadURL(
+//             process.env.IS_DEV ? 'http://localhost:3000/videoview.html' : html_path,
+//         );
+//     }
+
+//     LoadFaviconUrl(): string {
+//         return 'kawai://resources/icons/crunchyroll.png';
+//     }
+// }
