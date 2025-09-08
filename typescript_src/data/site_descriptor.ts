@@ -326,10 +326,7 @@ export class KawaiTvingDesc extends KawaiAbstractSiteDescriptor {
 export class KawaiTwitchDesc extends KawaiAbstractSiteDescriptor {
     id = 'twitch';
     async loadUrl(browser: Electron.BrowserWindow) {
-        browser.loadURL('https://www.twitch.tv/', {
-            userAgent:
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-        });
+        browser.loadURL('https://www.twitch.tv/');
     }
 
     LoadFaviconUrl(): string {
@@ -645,7 +642,6 @@ export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
         return 'kawai://resources/icons/crunchyroll.png';
     }
 }
-
 
 // // TODO viewer html page is not ready.
 // @connectToShortcut('goto_videoview')
