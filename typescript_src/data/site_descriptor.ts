@@ -663,3 +663,17 @@ export class KawaiCrunchyrollDesc extends KawaiAbstractSiteDescriptor {
 //         return 'kawai://resources/icons/crunchyroll.png';
 //     }
 // }
+@connectToShortcut('goto_ridibooks')
+@connectToMenu('menu_ridibooks')
+@registerKawaiSiteDescriptor
+export class KawaiRidibooksDesc extends KawaiAbstractSiteDescriptor {
+    id = 'ridibooks';
+
+    async loadUrl(browser: Electron.BrowserWindow) {
+        browser.loadURL('https://ridibooks.com/');
+    }
+
+    LoadFaviconUrl(): string {
+        return 'https://ridibooks.com/favicon.ico';
+    }
+}

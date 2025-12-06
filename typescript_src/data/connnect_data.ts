@@ -112,6 +112,12 @@ class KawaiTvingShortcut implements keyActionListenable {
     targetView = mainview;
     actionKey = '';
 }
+@RegisterShortcut
+class KawaiRidibooksShortcut implements keyActionListenable {
+    id = 'goto_ridibooks';
+    targetView = mainview;
+    actionKey = '';
+}
 
 @RegisterShortcut
 class KawaiTwitchShortcut implements keyActionListenable {
