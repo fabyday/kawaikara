@@ -30,7 +30,9 @@ export class KawaiAbstractSiteDescriptor {
      * if return "suppress" then do nothing.
      * default value is suppress
      */
-    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' | "basic" {
+    onNewWindowCreated(
+        url: string,
+    ): 'external' | 'open' | 'suppress' | 'basic' {
         return 'basic';
     }
 
@@ -42,5 +44,21 @@ export class KawaiAbstractSiteDescriptor {
 
     LoadFaviconUrl(): string {
         return '';
+    }
+
+    /**
+     * The caller of this method is tightly coupled to the chrome-cookies-secure library, making it browser-specific.
+     * Returns domains whose cookies should be loaded into the main session.
+     * @returns A list of cookie domains
+     * @example
+     * class MyDesc extends KawaiAbstractSiteDescriptor{
+     *
+     *      async getDomainsForCookies(): Promise<string[]> {
+     *          return ["www.domain1.com", "www.domain2.com"];
+     *        }
+     * }
+     */
+    async getDomainsForCookies(): Promise<string[]> {
+        return [];
     }
 }
