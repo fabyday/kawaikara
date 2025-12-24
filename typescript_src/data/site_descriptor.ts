@@ -1,5 +1,8 @@
 import { connect } from 'http2';
-import { KawaiAbstractSiteDescriptor } from '../definitions/SiteDescriptor';
+import {
+    KawaiAbstractSiteDescriptor,
+    KawaikaraViewAction,
+} from '../definitions/SiteDescriptor';
 import {
     registerKawaiSiteDescriptor,
     connectToMenu as connectToMenu,
@@ -23,6 +26,7 @@ import { getValidCookieFile } from '../logics/cookies';
 import { KawaiYoutuebeBgChild } from '../definitions/bg_task';
 import { KawaiBgTaskManager } from '../manager/background_task_manager';
 import { cvrt_electron_path } from '../logics/path';
+import { launchExternalBrowser, setExternalBrowserDataPath } from '../component/externalBrowser';
 
 @connectToShortcut('goto_netflix')
 @connectToMenu('menu_netflix')
@@ -290,6 +294,26 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
     id = 'coupangplay';
     async loadUrl(browser: Electron.BrowserWindow) {
         browser.loadURL('https://www.coupangplay.com/');
+    }
+
+    async preload(
+        view: Electron.BrowserWindow,
+        action: KawaikaraViewAction,
+    ): Promise<void> {
+        let html_path = cvrt_electron_path(
+            path.resolve(script_root_path, './pages/redirect.html'),
+        );
+        view.loadURL(
+            process.env.IS_DEV
+                ? 'http://localhost:3000/redirect.html'
+                : html_path,
+        );
+        await setExternalBrowserDataPath("./useData")
+        await launchExternalBrowser({
+            url: 'https://www.coupangplay.com',
+            persist: true,
+        });
+        await action.wait(async () => {});
     }
 
     LoadFaviconUrl(): string {

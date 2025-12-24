@@ -2,6 +2,7 @@ import { BrowserView, BrowserWindow } from 'electron';
 import { KawaiConfig, KawaiLocale } from './setting_types';
 
 import { KawaiAbstractSiteDescriptor } from './SiteDescriptor';
+import { Browser, BrowserContext } from 'patchright';
 
 type KawaiWindowMode = 'pip' | 'fullscreen' | 'default' | 'always_on_top';
 type KawaiId = string;
@@ -14,6 +15,15 @@ export type KawaiContext = {
     saved_window_mode?: KawaiWindowMode;
 };
 
+/**
+ *
+ */
+export type ExternalBrowserOptions = {
+    dataPath?: string;
+    browser?: Browser;
+    browserContext?: BrowserContext;
+};
+
 export type GlobalObject = {
     mainWindow?: BrowserWindow;
     taskWindow?: BrowserWindow;
@@ -22,4 +32,5 @@ export type GlobalObject = {
     config?: KawaiConfig;
     locale?: KawaiLocale;
     context?: KawaiContext;
+    externalBrowser?: ExternalBrowserOptions;
 };

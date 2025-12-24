@@ -1,0 +1,17 @@
+{
+    "entryPoints": ["typescript_src"],
+    "entryPointStrategy": "expand",
+    "out": "docs/astro/src/content/api",
+    "cleanOutputDir": true,
+    "readme": "none",
+    "tsconfig": "./tsconfig.json",
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeExternals": false,
+    "includeVersion": true,
+    "disableSources": false,
+    "categorizeByGroup": true,
+    "searchInComments": false,
+    "skipErrorChecking": true,
+    "plugin": ["typedoc-plugin-markdown"]
+}

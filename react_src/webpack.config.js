@@ -11,7 +11,8 @@ module.exports = (env, options) => {
   target: devMode ? ["web", 'electron-renderer'] : ["web"] ,
   mode : devMode ? "production" : "development",
   entry: {main : __dirname + "/mainWindow/mainwindow.tsx", preference : __dirname + "/preferenceWindow/preference.tsx", sidebar : __dirname+"/sidebar/sidebar.tsx",
-    bgtaskview : __dirname + "/bgTaskWindow/mainwindow.tsx"
+    bgtaskview : __dirname + "/bgTaskWindow/mainwindow.tsx",
+    redirect : __dirname + "/redirectWindow/mainwindow.tsx"
   },
   output : {
     path : __dirname+"/../public/pages",
@@ -88,6 +89,15 @@ module.exports = (env, options) => {
                 } : false,
                 filename : "bgtaskview.html",
                 chunks : ["bgtaskview"]
+    }),
+    new HtmlWebpackPlugin({
+      template: './redirectWindow/mainwindow.html',
+                minify: process.env.NODE_ENV === 'production' ? {
+                    collapseWhitespace: true, // remove empty
+                    removeComments: true, // remove comment
+                } : false,
+                filename : "redirect.html",
+                chunks : ["redirect"]
     }),
     new CleanWebpackPlugin()
 

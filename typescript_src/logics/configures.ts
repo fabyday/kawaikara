@@ -26,9 +26,7 @@ import {
 } from '../definitions/default_preference';
 import { get_flogger } from '../logging/logger';
 import { KawaiViewManager } from '../manager/view_manager';
-import {
-    KawaiRecursiveTypeRemover,
-} from '../definitions/types';
+import { KawaiRecursiveTypeRemover } from '../definitions/types';
 import { KawaiSiteDescriptorManager } from '../manager/site_descriptor_manager';
 import { KawaiWindowManager } from '../manager/window_manager';
 import { ShortcutManager } from '../manager/shortcut_manager';
@@ -229,7 +227,10 @@ export function set_preference(
     set_locale(
         global_object?.config?.preference?.locale?.selected_locale?.value ?? '',
     );
-    save_config(global_object.config, path.join(data_root_path, default_config_path));
+    save_config(
+        global_object.config,
+        path.join(data_root_path, default_config_path),
+    );
     KawaiViewManager.getInstance().notifyToView(
         KAWAI_API_LITERAL.menu.notify_menu_update,
     );

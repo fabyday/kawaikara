@@ -19,8 +19,18 @@ import {
     rollback_bounds,
     save_view_bounds,
 } from '../logics/mainview_logic';
+import { KawaikaraViewAction } from '../definitions/SiteDescriptor';
+import { reject } from 'lodash';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
+
+type abortCallbackType = () => Promise<void>;
+
+export interface PreloadController {
+    wait: (abortCallback: abortCallbackType) => Promise<void>;
+    resume: () => void;
+    abort: () => void;
+}
 
 type Path<T, Prefix extends string = ''> = T extends object
     ? {
@@ -34,11 +44,20 @@ export class KawaiViewManager {
     private static __instance: KawaiViewManager | undefined;
     private m_focused_view: string;
 
+    /**
+     * preload controller is Pormise<void>
+     */
+    private m_preload_controller: PreloadController | null;
+
     private m_listeners: Array<() => void> = [];
     private constructor() {
         this.m_focused_view = this.getFocusedViewName();
+        this.m_preload_controller = null;
     }
 
+    /**
+     * initialize runtime values.
+     */
     public async initialize() {}
 
     public static getInstance() {
@@ -167,12 +186,53 @@ export class KawaiViewManager {
                 );
                 global_object.context.current_site_descriptor = sel_desc;
             }
-
-            sel_desc?.loadUrl(view);
+            await sel_desc?.preload(view, this._createController());
+            await sel_desc?.loadUrl(view);
         }
         // if(this.isMenuOpen()){
         //     this.closeMenu();
         // }
+    }
+
+    /**
+     * create controller, if queued controller exists then abort previous controller fisrt,
+     * @returns create wait function
+     */
+    private _createController(): KawaikaraViewAction {
+        // abort fisrt
+        this.m_preload_controller?.abort();
+
+        let resolver: (() => void) | null = null;
+        let rejecter: ((reason?: string) => void) | null = null;
+        let abortCallback: abortCallbackType | null = null;
+
+        this.m_preload_controller = {
+            abort: () => {
+                abortCallback?.();
+                rejecter?.('abort');
+                resolver = null;
+                rejecter = null;
+                abortCallback = null;
+                this.m_preload_controller = null;
+            },
+            resume: () => {
+                if (resolver) {
+                    resolver();
+                    resolver = null;
+                }
+            },
+            wait: (abortFunction) =>
+                new Promise<void>((resolve, reject) => {
+                    rejecter = reject;
+                    resolver = resolve;
+                    abortCallback = abortFunction;
+                }),
+        };
+
+        return {
+            wait: this.m_preload_controller.wait,
+            resume: this.m_preload_controller.resume,
+        };
     }
 
     public pipMode() {

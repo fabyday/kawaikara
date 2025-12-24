@@ -70,6 +70,7 @@
         "@testing-library/jest-dom": "^5.17.0",
         "@testing-library/react": "^13.4.0",
         "@testing-library/user-event": "^13.5.0",
+        "@types/electron": "^1.6.12",
         "@types/jest": "^29.5.14",
         "@types/lodash.isequal": "^4.5.8",
         "@types/node": "^16.18.70",
@@ -88,7 +89,13 @@
         "loadash": "^1.0.0",
         "lodash": "^4.17.21",
         "node-dwmapi": "^1.0.1",
+        "patchright": "^1.57.0",
+        "playwright": "^1.57.0",
+        "playwright-core": "^1.57.0",
         "ps-tree": "^1.2.0",
+        "puppeteer": "^24.33.0",
+        "puppeteer-extra": "^3.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-scripts": "5.0.1",
@@ -96,7 +103,6 @@
         "typescript": "^5.7.3",
         "web-vitals": "^2.1.4"
     },
-    "private": "true",
     "build": {
         "files": [
             "./public/**/*.*",
