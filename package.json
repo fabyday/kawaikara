@@ -1,6 +1,6 @@
 {
     "name": "kawaikara",
-    "version": "2.2.2",
+    "version": "2.3.0",
     "description": "cho kwai OTT-viewer for discord",
     "main": "public/electron.js",
     "repository": "git@github.com:fabyday/kawaikara.git",
@@ -95,7 +95,6 @@
         "typescript": "^5.7.3",
         "web-vitals": "^2.1.4"
     },
-    "private": "true",
     "build": {
         "files": [
             "./public/**/*.*",
@@ -149,7 +148,6 @@
             "hardenedRuntime": false,
             "gatekeeperAssess": false,
             "target": [
-           
                 {
                     "target": "zip",
                     "arch": [
