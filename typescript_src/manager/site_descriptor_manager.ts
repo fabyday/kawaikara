@@ -1,6 +1,9 @@
 import { EventEmitter } from 'stream';
 import { global_object } from '../data/context';
-import { KawaiAbstractSiteDescriptor } from '../definitions/SiteDescriptor';
+import {
+    KawaiAbstractSiteDescriptor,
+    KawaikaraViewAction,
+} from '../definitions/SiteDescriptor';
 import { KawaiViewManager } from './view_manager';
 import { once } from 'events';
 
@@ -69,14 +72,14 @@ export class KawaiSiteDescriptorManager {
     }
 
     public runEventLogic(id: string) {
-        console.log("id", id)
+        console.log('id', id);
         const desc_id = this.m_meta_map.get(id);
-        console.log("desc id", desc_id)
+        console.log('desc id', desc_id);
         if (typeof desc_id !== 'undefined') {
-            console.log("desc id2", desc_id)
+            console.log('desc id2', desc_id);
             const site_descritor = this.qeury_site_descriptor_by_name(desc_id);
             if (typeof site_descritor !== 'undefined') {
-                console.log("load url")
+                console.log('load url');
                 KawaiViewManager.getInstance().loadUrl(desc_id);
             }
         }

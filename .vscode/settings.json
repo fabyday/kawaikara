@@ -1,3 +1,4 @@
 {
-    "typescript.tsserver.watchOptions": {}
+    "typescript.tsserver.watchOptions": {},
+    "typescript.tsdk": "node_modules\\typescript\\lib"
 }

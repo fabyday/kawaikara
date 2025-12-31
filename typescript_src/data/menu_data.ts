@@ -43,6 +43,9 @@ class KawaiMenuTving extends KawaiMenuBase {}
 @registerKawaiMenuItem('OTT', 'menu_appletv')
 class KawaiMenuAppleTv extends KawaiMenuBase {}
 
+@registerKawaiMenuItem('OTT', 'menu_ridibooks')
+class KawaiMenuRidibooks extends KawaiMenuBase {}
+
 @registerKawaiMenuItem('Music', 'menu_applemusic')
 class KawaiMenuAppleMusic extends KawaiMenuBase {}
 

@@ -1,3 +1,8 @@
+export interface KawaikaraViewAction {
+    wait: (abortCallback: () => Promise<void> | void) => void;
+    resume: () => void;
+}
+
 // export type KawaiSiteDescriptor={
 //     id : string, // id_name
 //     loadurl : (browser : Electron.BrowserWindow ) => void ; // default values
@@ -30,9 +35,37 @@ export class KawaiAbstractSiteDescriptor {
      * if return "suppress" then do nothing.
      * default value is suppress
      */
-    onNewWindowCreated(url: string): 'external' | 'open' | 'suppress' | "basic" {
+    onNewWindowCreated(
+        url: string,
+    ): 'external' | 'open' | 'suppress' | 'basic' {
         return 'basic';
     }
+
+    //
+    // Loading Mechanism
+    // preload() -> loadUrl() -> unload()
+    // preload :
+    // loadUrl : load page on kawaikara
+    // unload :
+    //
+
+    // /**
+    //  * preload function, it's called before calling loadUrl.(loading sites)
+    //  * this feature help to customize loading url behavior for programmers and plugin desinger.
+    //  * for examples, developer can delay loading url when user close external browser and so on.
+    //  * or developer inject or load small code in kawaikara
+    //  * @example
+    //  * async preload(action: @argument KawaikaraViewAction){
+    //  * await action.wait()
+    //  * }
+    //  * @see KawaiViewManager
+    //  */
+    // async preload(
+    //     borwser: Electron.BrowserWindow,
+    //     action: KawaikaraViewAction,
+    // ): Promise<void> {
+    //     action.resume(); // default do nothing, just rusume...
+    // }
 
     async loadUrl(borwser: Electron.BrowserWindow): Promise<void> {
         // do nothing in abstract class
@@ -42,5 +75,21 @@ export class KawaiAbstractSiteDescriptor {
 
     LoadFaviconUrl(): string {
         return '';
+    }
+
+    /**
+     * The caller of this method is tightly coupled to the chrome-cookies-secure library, making it browser-specific.
+     * Returns domains whose cookies should be loaded into the main session.
+     * @returns A list of cookie domains
+     * @example
+     * class MyDesc extends KawaiAbstractSiteDescriptor{
+     *
+     *      async getDomainsForCookies(): Promise<string[]> {
+     *          return ["www.domain1.com", "www.domain2.com"];
+     *        }
+     * }
+     */
+    async getDomainsForCookies(): Promise<string[]> {
+        return [];
     }
 }
