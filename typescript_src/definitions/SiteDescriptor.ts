@@ -1,5 +1,5 @@
 export interface KawaikaraViewAction {
-    wait: (abortCallback: () => Promise<void>) => void;
+    wait: (abortCallback: () => Promise<void> | void) => void;
     resume: () => void;
 }
 
@@ -49,23 +49,23 @@ export class KawaiAbstractSiteDescriptor {
     // unload :
     //
 
-    /**
-     * preload function, it's called before calling loadUrl.(loading sites)
-     * this feature help to customize loading url behavior for programmers and plugin desinger.
-     * for examples, developer can delay loading url when user close external browser and so on.
-     * or developer inject or load small code in kawaikara
-     * @example
-     * async preload(action: @argument KawaikaraViewAction){
-     * await action.wait()
-     * }
-     * @see KawaiViewManager
-     */
-    async preload(
-        borwser: Electron.BrowserWindow,
-        action: KawaikaraViewAction,
-    ): Promise<void> {
-        action.resume(); // default do nothing, just rusume...
-    }
+    // /**
+    //  * preload function, it's called before calling loadUrl.(loading sites)
+    //  * this feature help to customize loading url behavior for programmers and plugin desinger.
+    //  * for examples, developer can delay loading url when user close external browser and so on.
+    //  * or developer inject or load small code in kawaikara
+    //  * @example
+    //  * async preload(action: @argument KawaikaraViewAction){
+    //  * await action.wait()
+    //  * }
+    //  * @see KawaiViewManager
+    //  */
+    // async preload(
+    //     borwser: Electron.BrowserWindow,
+    //     action: KawaikaraViewAction,
+    // ): Promise<void> {
+    //     action.resume(); // default do nothing, just rusume...
+    // }
 
     async loadUrl(borwser: Electron.BrowserWindow): Promise<void> {
         // do nothing in abstract class

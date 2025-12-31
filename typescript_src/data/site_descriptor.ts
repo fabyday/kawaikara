@@ -22,11 +22,21 @@ import { ipcMain, net, session, shell } from 'electron';
 import { spawn } from 'child_process';
 import { KAWAI_API_LITERAL } from '../definitions/api';
 import { Domain } from 'domain';
-import { getValidCookieFile } from '../logics/cookies';
+import {
+    convertPlayWrightCookieToElectron,
+    getValidCookieFile,
+} from '../logics/cookies';
 import { KawaiYoutuebeBgChild } from '../definitions/bg_task';
 import { KawaiBgTaskManager } from '../manager/background_task_manager';
 import { cvrt_electron_path } from '../logics/path';
-import { launchExternalBrowser, setExternalBrowserDataPath } from '../component/externalBrowser';
+import {
+    closeAllExtenalBrowser,
+    closeOnTargetURL,
+    launchExternalBrowser,
+    setExternalBrowserDataPath,
+} from '../component/externalBrowser';
+import { Page } from 'patchright';
+import { KawaiViewManager } from '../manager/view_manager';
 
 @connectToShortcut('goto_netflix')
 @connectToMenu('menu_netflix')
@@ -292,7 +302,91 @@ export class KawaiWatchaDesc extends KawaiAbstractSiteDescriptor {
 @registerKawaiSiteDescriptor
 export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
     id = 'coupangplay';
+    _LoginBtnInjectFn: (() => void) | null = null;
+    _customCallback: ((e: Electron.IpcMainEvent, tag: string) => void) | null =
+        null;
     async loadUrl(browser: Electron.BrowserWindow) {
+        this._LoginBtnInjectFn = () => {
+            console.log('inject install');
+            const loginAnchor = document.querySelector(
+                'a[data-cy="loginBtn"]',
+            ) as HTMLAnchorElement | undefined;
+
+            if (loginAnchor && !loginAnchor.dataset.hack) {
+                /**
+                 * 1. CLONE NODE TO STRIP EVENT LISTENERS
+                 * We clone the element to remove all existing event listeners attached by the original site.
+                 * This is more reliable than stopPropagation() as it creates a "clean slate" element.
+                 */
+                const newAnchor = loginAnchor.cloneNode(
+                    true,
+                ) as HTMLAnchorElement;
+                newAnchor.dataset.hack = `true`;
+                /**
+                 * 2. DISABLE DEFAULT NAVIGATION
+                 * Setting href to 'javascript:void(0)' ensures the browser doesn't attempt
+                 * to redirect or refresh the page, which often causes "Access Denied" errors
+                 * or interrupts our custom logic.
+                 */
+                newAnchor.href = 'javascript:void(0)';
+
+                newAnchor.addEventListener(
+                    'click',
+                    (e) => {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        console.log('ingoring click Event.');
+                        if ((window as any).KAWAI_API) {
+                            // @ts-ignore
+                            window.KAWAI_API.custom.custom_callback(
+                                'coupang:login',
+                            );
+                            console.log('load external coupang');
+                        }
+                    },
+                    { capture: true },
+                );
+
+                const button = newAnchor?.querySelector('button');
+
+                if (button) {
+                    button.style.setProperty(
+                        'background-color',
+                        '#FF0000',
+                        'important',
+                    );
+                }
+                loginAnchor?.parentNode?.replaceChild(newAnchor, loginAnchor);
+            }
+        };
+        // open external browwser
+        this._customCallback = async (
+            e: Electron.IpcMainEvent,
+            tag: string,
+        ) => {
+            log.info('try to login coupang');
+            if (tag.startsWith('coupang:login')) {
+                console.log('test!!!');
+                const controller =
+                    KawaiViewManager.getInstance()._createController();
+                await this.preload(browser, controller);
+                browser.loadURL('https://www.coupangplay.com/');
+                log.info('login coupang');
+            }
+        };
+
+        ipcMain.on(
+            KAWAI_API_LITERAL.custom.custom_callback,
+            this._customCallback,
+        );
+        console.log(`(${this._LoginBtnInjectFn?.toString()})()`);
+        browser.webContents.on('did-finish-load', async () => {
+            console.log('attach inject code');
+            browser.webContents.executeJavaScript(
+                `(${this._LoginBtnInjectFn?.toString()})()`,
+            );
+        });
+
         browser.loadURL('https://www.coupangplay.com/');
     }
 
@@ -300,6 +394,25 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
         view: Electron.BrowserWindow,
         action: KawaikaraViewAction,
     ): Promise<void> {
+        const syncCookies = async (targetPage: Page) => {
+            try {
+                const cookies = await targetPage.context().cookies();
+                // map보다는 for...of나 Promise.all을 써야 모든 쿠키가 세팅되는 것을 보장합니다.
+                await Promise.all(
+                    cookies.map(async (cookie) => {
+                        const electronCookie =
+                            await convertPlayWrightCookieToElectron(cookie);
+                        return session.defaultSession.cookies.set(
+                            electronCookie,
+                        );
+                    }),
+                );
+                console.log('Cookies synced to Electron successfully.');
+            } catch (e) {
+                console.error('Failed to sync cookies:', e);
+            }
+        };
+
         let html_path = cvrt_electron_path(
             path.resolve(script_root_path, './pages/redirect.html'),
         );
@@ -308,17 +421,64 @@ export class KawaiCoupangPlayDesc extends KawaiAbstractSiteDescriptor {
                 ? 'http://localhost:3000/redirect.html'
                 : html_path,
         );
-        await setExternalBrowserDataPath("./useData")
-        await launchExternalBrowser({
-            url: 'https://www.coupangplay.com',
+        // await setExternalBrowserDataPath('./useData');
+        const page = await launchExternalBrowser({
             persist: true,
+            headless: false,
         });
-        await action.wait(async () => {});
+
+        if (page) {
+            closeOnTargetURL(
+                page,
+                /\/(home|profile)/,
+                async (targetPage: Page) => {
+                    await syncCookies(targetPage);
+                    closeAllExtenalBrowser();
+                    action.resume();
+                },
+                async (targetPage: Page) => {
+                    closeAllExtenalBrowser();
+                    action.resume();
+                },
+            );
+        }
+        try {
+            await page?.goto('https://www.coupangplay.com/');
+            console.log('external launch');
+        } catch (e) {
+            console.log(`goto failed, ignore exception ${e}`);
+        }
+
+        await action.wait(async () => {
+            console.log('abroted!!!');
+            closeAllExtenalBrowser();
+        });
+        console.log('end!!!!');
     }
 
     LoadFaviconUrl(): string {
         return 'https://www.coupangplay.com/favicon.ico';
     }
+
+    async unload(browser: Electron.BrowserWindow): Promise<void> {
+        await KawaiViewManager.getInstance()._abortCurrentController();
+        if (this._LoginBtnInjectFn != null) {
+            browser.webContents.removeListener(
+                'did-finish-load',
+                this._LoginBtnInjectFn,
+            );
+            this._LoginBtnInjectFn = null;
+        }
+
+        if (this._customCallback != null) {
+            ipcMain.removeListener(
+                KAWAI_API_LITERAL.custom.custom_callback,
+                this._customCallback,
+            );
+            this._customCallback = null;
+        }
+    }
+
     onBeforeSendHeaders(
         details: Electron.OnBeforeSendHeadersListenerDetails,
     ): void {

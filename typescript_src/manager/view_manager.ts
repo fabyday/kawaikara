@@ -21,10 +21,11 @@ import {
 } from '../logics/mainview_logic';
 import { KawaikaraViewAction } from '../definitions/SiteDescriptor';
 import { reject } from 'lodash';
+import { closeAllExtenalBrowser } from '../component/externalBrowser';
 
 const flogger = get_flogger('ViewManager', 'viewmanager', 'debug');
 
-type abortCallbackType = () => Promise<void>;
+type abortCallbackType = () => Promise<void> | void;
 
 export interface PreloadController {
     wait: (abortCallback: abortCallbackType) => Promise<void>;
@@ -186,7 +187,12 @@ export class KawaiViewManager {
                 );
                 global_object.context.current_site_descriptor = sel_desc;
             }
-            await sel_desc?.preload(view, this._createController());
+
+            // await sel_desc?.preload(view, this._createController());
+            // console.log('preload ends');
+            // await closeAllExtenalBrowser();
+            console.log('close called!');
+
             await sel_desc?.loadUrl(view);
         }
         // if(this.isMenuOpen()){
@@ -194,21 +200,25 @@ export class KawaiViewManager {
         // }
     }
 
+    public _abortCurrentController() {
+        this.m_preload_controller?.abort();
+    }
+
     /**
      * create controller, if queued controller exists then abort previous controller fisrt,
      * @returns create wait function
      */
-    private _createController(): KawaikaraViewAction {
+    public _createController(): KawaikaraViewAction {
         // abort fisrt
         this.m_preload_controller?.abort();
 
         let resolver: (() => void) | null = null;
         let rejecter: ((reason?: string) => void) | null = null;
         let abortCallback: abortCallbackType | null = null;
-
+        let isResumed = false; // check If resume already works
         this.m_preload_controller = {
-            abort: () => {
-                abortCallback?.();
+            abort: async () => {
+                await abortCallback?.();
                 rejecter?.('abort');
                 resolver = null;
                 rejecter = null;
@@ -216,22 +226,30 @@ export class KawaiViewManager {
                 this.m_preload_controller = null;
             },
             resume: () => {
+                isResumed = true;
                 if (resolver) {
                     resolver();
+                    console.log('resume');
                     resolver = null;
                 }
             },
             wait: (abortFunction) =>
                 new Promise<void>((resolve, reject) => {
+                    if (isResumed) {
+                        resolve();
+                        console.log('already resumed');
+                        return;
+                    }
                     rejecter = reject;
                     resolver = resolve;
                     abortCallback = abortFunction;
                 }),
         };
 
+        // issue.. value copy
         return {
-            wait: this.m_preload_controller.wait,
-            resume: this.m_preload_controller.resume,
+            wait: (abortFn) => this.m_preload_controller?.wait(abortFn),
+            resume: () => this.m_preload_controller?.resume(),
         };
     }
 

@@ -126,9 +126,7 @@ async function checkValidateCookieFromSite(
  * @param cookie playwright cookie Object
  * @returns
  */
-export async function convertPlayWrightCookieToElectron(
-    cookie: Cookie,
-): Promise<Electron.Cookie> {
+export async function convertPlayWrightCookieToElectron(cookie: Cookie) {
     let sameSiteValue:
         | 'no_restriction'
         | 'lax'
