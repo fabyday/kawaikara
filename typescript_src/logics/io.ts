@@ -4,6 +4,7 @@ import * as path from 'path';
 export function read_image_as_base64(pth : string){
     let fbuf = new Buffer("");
     try{
+        //@ts-ignore
         fbuf = fs.readFileSync(pth)
 
     }catch{

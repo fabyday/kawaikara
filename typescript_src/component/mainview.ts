@@ -9,7 +9,6 @@ import {
 
 import * as path from 'path';
 import * as fs from 'node:fs';
-import { ElectronBlocker } from '@cliqz/adblocker-electron';
 import fetch from 'cross-fetch'; // required 'fetch'
 // import isDev from 'electron-is-dev';
 import { setup_pogress_bar } from './autoupdater';
@@ -51,7 +50,6 @@ export const get_mainview_instance = (): BrowserWindow => {
                 nodeIntegration: false,
                 additionalArguments: [`--platform=${process.platform}`],
                 sandbox: false,
-                // preload: path.join(__dirname, 'predefine/communicate.js'),
                 backgroundThrottling:
                     !global_object.config?.preference?.general
                         ?.render_full_size_when_pip_running?.value,
@@ -115,27 +113,6 @@ export const get_mainview_instance = (): BrowserWindow => {
             global_object?.config?.preference?.general?.default_main?.id?.value,
         );
 
-        // // for testing
-        // mainView.webContents.session.webRequest.onHeadersReceived(
-        //     { urls: ['*://*/*'] },
-        //     (details, callback) => {
-        //         if (details && details.responseHeaders) {
-        //             if (details.responseHeaders['X-Frame-Options']) {
-        //                 delete details.responseHeaders['X-Frame-Options'];
-        //             } else if (details.responseHeaders['x-frame-options']) {
-        //                 delete details.responseHeaders['x-frame-options'];
-        //             }
-        //         }
-        //         callback({
-        //             cancel: false,
-        //             responseHeaders: details.responseHeaders,
-        //         });
-        //     },
-        // );
-        // "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.86 Safari/537.36"
-        // const userAgent =
-        //     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-        // mainView.webContents.setUserAgent(userAgent);
         mainView.webContents.setWindowOpenHandler(
             (details: Electron.HandlerDetails) => {
                 console.log('set on : ', details.url);
@@ -160,7 +137,6 @@ export const get_mainview_instance = (): BrowserWindow => {
                 }
             },
         );
-
         return global_object.mainWindow;
     }
     return global_object!.mainWindow!;

@@ -15,7 +15,7 @@ jobs:
       - run: echo running on branch $GITHUB_REF
       - uses: actions/setup-node@v2
         with:
-          node-version: "21.4.0"
+          node-version: "22.21.1"
 
       
 
@@ -57,7 +57,7 @@ jobs:
       - run: echo running on branch $GITHUB_REF
       - uses: actions/setup-node@v2
         with:
-          node-version: "21.4.0"
+          node-version: "22.21.1"
 
       
 
@@ -108,7 +108,7 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: "21.4.0"
+          node-version: "22.21.1"
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -180,7 +180,7 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: "21.4.0"
+          node-version: "22.21.1"
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
