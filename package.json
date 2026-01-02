@@ -50,6 +50,7 @@
         "webpack": "^5.97.1",
         "webpack-cli": "^6.0.1"
     },
+    "private": "true",
     "scripts": {
         "web": "cd react_src && yarn web",
         "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
