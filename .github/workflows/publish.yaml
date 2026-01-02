@@ -48,7 +48,7 @@ jobs:
         if: |
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
+        run: yarn install 
 
   warm-up-cache-mac:
     runs-on: macos-14
@@ -90,7 +90,7 @@ jobs:
         if: |
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
 
 
@@ -144,9 +144,9 @@ jobs:
         if: |
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile 
+        run: yarn install 
       - name: Install dependencies yarn
-        run: cd react_src && yarn install --frozen-lockfile
+        run: cd react_src && yarn install 
 
       - name : test
         run : sh ./scripts/reauth.sh
@@ -216,9 +216,9 @@ jobs:
         if: |
           steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
           steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install --frozen-lockfile 
+        run: yarn install
       - name: Install dependencies yarn
-        run: cd react_src && yarn install --frozen-lockfile
+        run: cd react_src && yarn install 
 
       - name : test
         run : powershell.exe ./scripts/reauth.ps1

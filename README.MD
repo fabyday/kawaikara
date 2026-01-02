@@ -33,10 +33,8 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 
 ## Features
 
-* ~~**adblock** for youtube~~ (**Library** was Deprecated)
 * **PiP** (Picture in Picture)
 * **fullscreen** to **user fixed window**
-* ~~**Chrome extension (Now Developing)**~~ (**Canceled**)
 * Watching OTT with friends on Discord
 * Download Youtube Video Easily
 * **MacOS** Suppport (experimental)
@@ -54,6 +52,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
   - **Tving**
   - **Crunchyroll**
   - **AppleTV** 
+  - **RIDIBooks** 
 - Music
   - **Apple music** 
   - **Youtube music** 
