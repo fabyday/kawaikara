@@ -1,238 +1,220 @@
 name: Release
 
 on:
-  push:
-    branches: 
-      - main
-    tags :
-      - v*
+    push:
+        branches:
+            - main
+        tags:
+            - v*
 
 jobs:
-  warm-up-cache-win:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo running on branch $GITHUB_REF
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22.21.1"
+    warm-up-cache-win:
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v2
+            - run: echo running on branch $GITHUB_REF
+            - uses: actions/setup-node@v2
+              with:
+                  node-version: '22.21.1'
 
-      
+            # yarn setup
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "::set-output name=dir::$(yarn cache dir)"
 
-   
-      # yarn setup
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+            - name: Cache yarn cache
+              uses: actions/cache@v3
+              id: cache-yarn-cache
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
 
-      - name: Cache yarn cache
-        uses: actions/cache@v3
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+            - name: Cache node_modules
+              id: cache-node-modules
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      **/node_modules
+                  key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
 
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
+            - name: Install dependencies
+              if: |
+                  steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+                  steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: yarn install
 
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install 
+    warm-up-cache-mac:
+        runs-on: macos-14
+        steps:
+            - uses: actions/checkout@v2
+            - run: echo running on branch $GITHUB_REF
+            - uses: actions/setup-node@v2
+              with:
+                  node-version: '22.21.1'
 
-  warm-up-cache-mac:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo running on branch $GITHUB_REF
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22.21.1"
+            # yarn setup
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "::set-output name=dir::$(yarn cache dir)"
 
-      
+            - name: Cache yarn cache
+              uses: actions/cache@v3
+              id: cache-yarn-cache
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
 
-   
-      # yarn setup
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
+            - name: Cache node_modules
+              id: cache-node-modules
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      **/node_modules
+                  key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
 
-      - name: Cache yarn cache
-        uses: actions/cache@v3
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+            - name: Install dependencies
+              if: |
+                  steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+                  steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: yarn install
 
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
+    # GENERAL electron packaging
+    electron-package-mac:
+        needs: [warm-up-cache-mac]
+        runs-on: macos-14
+        steps:
+            - uses: actions/checkout@v2
+            - run: echo running on branch $GITHUB_REF
 
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install
+            - uses: actions/setup-node@v2
+              with:
+                  node-version: '22.21.1'
 
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "::set-output name=dir::$(yarn cache dir)"
 
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              id: setup-python
+              with:
+                  python-version: '3.10'
+                  cache: 'pip' # caching pip dependencies
+            - run: pip install -r requirements.txt
 
+            - name: Cache yarn cache
+              uses: actions/cache@v3
+              id: cache-yarn-cache
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
 
+            - name: Cache node_modules
+              id: cache-node-modules
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      **/node_modules
+                  key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
 
+            - name: Install dependencies
+              if: |
+                  steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+                  steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: yarn install
 
-  
-  # GENERAL electron packaging
-  electron-package-mac:
-    needs: [warm-up-cache-mac]
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo running on branch $GITHUB_REF
+            - name: Install dependencies yarn
+              run: cd react_src && yarn install
 
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22.21.1"
+            - name: test
+              run: sh ./scripts/reauth.sh
+              env:
+                  ACCOUNT: ${{secrets.ACCOUNT}}
+                  PASSWORD: ${{secrets.PASSWD}}
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-      
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        id : setup-python
-        with:
-          python-version: '3.10'
-          cache: 'pip' # caching pip dependencies
-      - run: pip install -r requirements.txt
+            - name: Build electron package
+              run: yarn release
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  CSC_LINK: ${{secrets.SELF_SIGNED_CERT_FOR_MAC}}
+                  CSC_KEY_PASSWORD: ${{secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD}}
+                  DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
+                  DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
 
-      - name: Cache yarn cache
-        uses: actions/cache@v3
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+    # GENERAL electron packaging
+    electron-package-win:
+        needs: [warm-up-cache-win]
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v2
+            - run: echo running on branch $GITHUB_REF
 
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install 
-      - name: Install dependencies yarn
-        run: cd react_src && yarn install 
+            - uses: actions/setup-node@v2
+              with:
+                  node-version: '22.21.1'
 
-      - name : test
-        run : sh ./scripts/reauth.sh
-        env : 
-          ACCOUNT : ${{secrets.ACCOUNT}}
-          PASSWORD : ${{secrets.PASSWD}}
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "::set-output name=dir::$(yarn cache dir)"
 
-      - name: Build electron package
-        run: yarn release
-        env :
-          GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK : ${{secrets.SELF_SIGNED_CERT_FOR_MAC}}
-          CSC_KEY_PASSWORD  : ${{secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD}}
-          DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
-          DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              id: setup-python
+              with:
+                  python-version: '3.10'
+                  cache: 'pip' # caching pip dependencies
+            - run: pip install -r requirements.txt
 
+            - name: Cache yarn cache
+              uses: actions/cache@v3
+              id: cache-yarn-cache
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
 
-  
+            - name: Cache node_modules
+              id: cache-node-modules
+              uses: actions/cache@v3
+              with:
+                  path: |
+                      **/node_modules
+                  key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
 
+            - name: Install dependencies
+              if: |
+                  steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
+                  steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: yarn install
 
+            - name: Install dependencies yarn
+              run: cd react_src && yarn install
 
+            - name: test
+              run: powershell.exe ./scripts/reauth.ps1
+              env:
+                  ACCOUNT: ${{secrets.ACCOUNT}}
+                  PASSWORD: ${{secrets.PASSWD}}
 
-  
-  # GENERAL electron packaging
-  electron-package-win:
-    needs: [warm-up-cache-win]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: echo running on branch $GITHUB_REF
-
-      - uses: actions/setup-node@v2
-        with:
-          node-version: "22.21.1"
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-      
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        id : setup-python
-        with:
-          python-version: '3.10'
-          cache: 'pip' # caching pip dependencies
-      - run: pip install -r requirements.txt
-
-      - name: Cache yarn cache
-        uses: actions/cache@v3
-        id: cache-yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            **/node_modules
-          key: ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.node-version }}-nodemodules-
-      - name: Install dependencies
-        if: |
-          steps.cache-yarn-cache.outputs.cache-hit != 'true' ||
-          steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: yarn install
-      - name: Install dependencies yarn
-        run: cd react_src && yarn install 
-
-      - name : test
-        run : powershell.exe ./scripts/reauth.ps1
-        env : 
-          ACCOUNT : ${{secrets.ACCOUNT}}
-          PASSWORD : ${{secrets.PASSWD}}
-
-      - name: Build electron package
-        run: yarn release
-        env :
-          GITHUB_TOKEN : ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK : ${{secrets.SELF_SIGNED_CERT}}
-          DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
-          DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
-
-
-  
+            - name: Build electron package
+              run: yarn release
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  CSC_LINK: ${{secrets.SELF_SIGNED_CERT}}
+                  DISCORD_APP_ID: ${{secrets.DISCORD_APP_ID}}
+                  DISCORD_PUB_KEY: ${{secrets.DISCORD_PUB_KEY}}
