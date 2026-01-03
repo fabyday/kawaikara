@@ -16,7 +16,11 @@ jobs:
               with:
                   node-version: '22.21.1'
                   cache: 'yarn'
-            - run: yarn install
+            
+            - name: Enable Corepack
+              run: corepack enable
+
+            - run: yarn install --immutable
 
     warm-up-cache-mac:
         runs-on: macos-14
@@ -26,7 +30,10 @@ jobs:
               with:
                   node-version: '22.21.1'
                   cache: 'yarn'
-            - run: yarn install
+            - name: Enable Corepack
+              run: corepack enable
+
+            - run: yarn install --immutable
 
     # GENERAL electron packaging
     electron-package-mac:
@@ -85,7 +92,7 @@ jobs:
               with:
                   node-version: '22.21.1'
                   cache: 'yarn' # caching yarn dependencies
-                  
+
             - name: Enable Corepack
               run: corepack enable
 
