@@ -117,5 +117,6 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
+                  CSC_KEY_PASSWORD: ${{ secrets.SELF_SIGNED_CERT_PASSWD }}
                   DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
                   DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
