@@ -15,7 +15,6 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: '22.21.1'
-                  cache: 'yarn'
             
             - name: Enable Corepack
               run: corepack enable
@@ -29,7 +28,6 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version: '22.21.1'
-                  cache: 'yarn'
             - name: Enable Corepack
               run: corepack enable
 
@@ -47,7 +45,6 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: '22.21.1'
-                  cache: 'yarn' # caching yarn dependencies
             
             - name: Enable Corepack
               run: corepack enable
@@ -91,7 +88,6 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: '22.21.1'
-                  cache: 'yarn' # caching yarn dependencies
 
             - name: Enable Corepack
               run: corepack enable
