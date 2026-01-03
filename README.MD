@@ -38,6 +38,7 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 * Watching OTT with friends on Discord
 * Download Youtube Video Easily
 * **MacOS** Suppport (experimental)
+* Support for external browser login
 
 ## Available for 
 - OTT
