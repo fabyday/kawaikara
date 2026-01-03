@@ -72,7 +72,7 @@ jobs:
 
     # GENERAL electron packaging
     electron-package-win:
-    needs: [warm-up-cache-win]
+        needs: [warm-up-cache-win]
         runs-on: windows-latest
         steps:
             - name: Checkout
@@ -80,8 +80,8 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                node-version: '22.21.1'
-                cache: 'yarn' # caching yarn dependencies
+                  node-version: '22.21.1'
+                  cache: 'yarn' # caching yarn dependencies
 
             - name: Setup Python
               uses: actions/setup-python@v5
@@ -92,7 +92,7 @@ jobs:
               run: pip install -r requirements.txt
 
             - name: Install JS dependencies
-              
+
               # cache: 'yarn' in setup-node should handle caching, so we can directly install here
               run: yarn install --immutable
 
@@ -100,13 +100,13 @@ jobs:
               # powersell script for windows
               run: powershell.exe ./scripts/reauth.ps1
               env:
-                ACCOUNT: ${{ secrets.ACCOUNT }}
-                PASSWORD: ${{ secrets.PASSWD }}
+                  ACCOUNT: ${{ secrets.ACCOUNT }}
+                  PASSWORD: ${{ secrets.PASSWD }}
 
             - name: Build electron package
               run: yarn release
               env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
-                DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-                DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
+                  DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+                  DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
