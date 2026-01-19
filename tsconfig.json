@@ -1,25 +1,23 @@
 {
-  "compilerOptions": {
-    "target": "ES5", 
-    // "rootDir": "./typescript_src",
-    "outDir" : "./public",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": false,
-    "sourceMap": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-
-  },
-  "include": [ "typescript_src/**/*.ts" ], 
+    "compilerOptions": {
+        "target": "esnext",
+        "outDir": "./public",
+        "allowJs": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "lib": ["ESNext"],
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": false,
+        "sourceMap": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
+    }
 
 }

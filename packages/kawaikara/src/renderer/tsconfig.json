@@ -1,0 +1,13 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "module": "ESNext", // react budler compatibility
+        "moduleResolution": "bundler", // 
+        "lib": ["DOM", "DOM.Iterable", "ESNext"],
+        "jsx": "react-jsx", // react 17 new JSX transform
+        "outDir": "../../dist/renderer",
+        "esModuleInterop": true, // for HtmlWebpackPlugin,
+        "allowSyntheticDefaultImports": true
+    },
+    "include": ["."]
+}
