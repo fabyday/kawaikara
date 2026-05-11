@@ -1,0 +1,32 @@
+---
+title: Package Structure
+description: Main, preload, renderer, and docs package boundaries.
+---
+
+Kawaikara is organized as a pnpm workspace. The actual Electron app lives in `packages/kawaikara`.
+
+## Main Process
+
+`packages/kawaikara/src/main` contains the Electron entrypoint and runtime managers.
+
+- `electron.ts` waits for Electron and CastLabs components, then initializes the app.
+- `component/` creates windows, BrowserViews, preload-facing handlers, and updater integration.
+- `manager/` owns runtime state for menus, shortcuts, keyboard input, site descriptors, views, and windows.
+- `data/` registers built-in menu items, shortcuts, and site descriptors.
+- `logics/` contains reusable app behavior such as path conversion, config application, and view-mode transitions.
+
+## Preload
+
+`packages/kawaikara/src/preload` builds the preload entry into `dist/main/predefine/communicate.js`.
+
+The preload layer exposes `window.KAWAI_API` and wires keyboard events back to the main process. Renderer code should use that API instead of importing Electron directly.
+
+## Renderer
+
+`packages/kawaikara/src/renderer` contains the React windows and BrowserView pages. Webpack emits them to `dist/pages`.
+
+Each renderer surface has its own entrypoint and HTML template. The app currently builds main, preferences, menu, update, background task, redirect, info, plugin, console, and video viewer pages.
+
+## Docs
+
+`packages/docs` is the Astro Starlight documentation site. It documents architecture decisions and user-visible behavior without being part of the packaged Electron app.
