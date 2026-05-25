@@ -1,8 +1,7 @@
 {
-    "name": "kawaikara",
+    "name": "kawaikara-workspace",
     "version": "2.3.0",
     "description": "cho kwai OTT-viewer for discord",
-    "main": "public/electron.js",
     "repository": "git@github.com:fabyday/kawaikara.git",
     "author": "fabyday",
     "private": true,
@@ -22,18 +21,22 @@
         "pnpm": ">=10"
     },
     "scripts": {
+        "dev": "pnpm --filter kawaikara start:dev",
+        "start": "pnpm --filter kawaikara start:prod",
         "start:kawaikara:prod": "pnpm --filter kawaikara start:prod",
         "start:kawaikara:dev": "pnpm --filter kawaikara start:dev",
-        "start:installer": "pnpm --filter installer build ",
+        "build": "pnpm --filter kawaikara build",
         "build:kawaikara": "pnpm --filter kawaikara build",
-        "build:installer": "pnpm",
-        "story:kawaikara": "pnpm",
-        "story:installer": "pnpm",
-        "test:all": "pnpm",
-        "test:kawaikara": "pnpm",
-        "test:installer": "pnpm",
-        "publish:all": "pnpm publish:kawaikara && pnpm publish:installer",
-        "publish:kawaikara": "",
-        "publish:installer": ""
+        "build:dev": "pnpm --filter kawaikara build:dev:all",
+        "build:prod": "pnpm --filter kawaikara build:prod:all",
+        "typecheck": "pnpm --filter kawaikara typecheck",
+        "typecheck:kawaikara": "pnpm --filter kawaikara typecheck",
+        "storybook:kawaikara": "pnpm --filter kawaikara storybook",
+        "test:kawaikara": "pnpm --filter kawaikara test",
+        "package:kawaikara:dir": "pnpm --filter kawaikara package:dir",
+        "docs:dev": "pnpm --filter kawaikara-docs dev",
+        "docs:build": "pnpm --filter kawaikara-docs build",
+        "docs:preview": "pnpm --filter kawaikara-docs preview",
+        "publish:kawaikara": ""
     }
 }

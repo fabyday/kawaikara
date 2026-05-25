@@ -1,0 +1,121 @@
+---
+title: はじめに
+description: カワイイカラのインストール、使い方、ビルド方法です。
+---
+
+<p align="center">
+  <img src="/imgs/kawaikara_banner_title3.png" alt="カワイイカラ" />
+</p>
+
+カワイイカラは Electron ベースの OTT ビューアです。ブラウザのアドレスバーなどの余分な UI を避け、Discord 配信にも使いやすい小さなウィンドウで OTT サービスを視聴できます。
+
+## 機能
+
+- PiP（ピクチャー・イン・ピクチャー）。
+- ユーザーが指定したウィンドウサイズでのフルスクリーン表示。
+- Discord で友達と一緒に OTT を視聴。
+- YouTube 動画の簡単なダウンロード。
+- macOS サポート（試験的）。
+- 外部ブラウザでのログイン対応。
+
+## 対応サービス
+
+OTT:
+
+- Netflix
+- Lafetel
+- YouTube
+- Disney+
+- Amazon Prime
+- Wavve
+- Watcha
+- Coupang Play
+- Tving
+- Crunchyroll
+- Apple TV
+- RIDIBooks
+
+音楽:
+
+- Apple Music
+- YouTube Music
+- Spotify
+
+ストリーミング:
+
+- Chzzk
+- Twitch
+
+## インストール
+
+### Windows 10/11
+
+[GitHub Releases](https://github.com/fabyday/kawaikara/releases) ページからダウンロードしてください。
+
+### macOS
+
+[homebrew-kawaikara](https://github.com/fabyday/homebrew-kawaikara) リポジトリの README を参照してください。
+
+## 基本的な使い方
+
+1. `Tab` キーを押してメニューを開きます。
+2. 使いたいサービスを選択します。
+3. 視聴を開始します。
+
+ショートカット:
+
+- メニューを開く: `Tab`
+- フルスクリーンのオン/オフ: `Alt+Enter`
+- ダウンロードディレクトリを開く: `メニュー > オプション > ダウンロードディレクトリ`
+
+## Discord リッチプレゼンス
+
+自分でビルドする場合、Discord Rich Presence を有効にするにはリポジトリのルートに `.env` ファイルを作成します。
+
+```shell
+DISCORD_APP_ID=${your_app_id}
+DISCORD_PUB_KEY=${your_app_public_key}
+```
+
+## DRM について
+
+Electron はライセンスの関係で CDM を標準ではサポートしていません。カワイイカラは DRM が必要なサービスをサポートするため、CastLabs の Electron フォークを使用しています。
+
+## 自分でビルドする
+
+まず Node.js 環境を準備してください。ルート README では `nvm` と `yarn` の使用が推奨されています。
+
+ビルドの前に CastLabs アカウントを作成して認証します。
+
+```shell
+conda create -n test_env python=3.10
+conda activate test_env
+pip install castlabs_evs
+
+python -m castlabs_evs.account signup
+python -m castlabs_evs.account reauth -A ${your_account} -P ${your_password}
+```
+
+### Windows ビルド
+
+プロジェクトディレクトリで PowerShell から実行します。
+
+```shell
+yarn install
+yarn make-cert:win
+yarn build
+```
+
+### macOS ビルド
+
+プロジェクトディレクトリで PowerShell から実行します。
+
+```shell
+yarn install
+yarn make-cert:mac
+yarn build
+```
+
+## リポジトリメモ
+
+`packages/installer` の README は現在、標準の Tauri + React + TypeScript テンプレート説明です。このページはルート README の Electron アプリ内容を基準に整理しています。

@@ -2,7 +2,7 @@
   "name": "kawaikara",
   "version": "2.3.0",
   "description": "cho kwai OTT-viewer for discord",
-  "main": "public/electron.js",
+  "main": "dist/main/main.js",
   "repository": "git@github.com:fabyday/kawaikara.git",
   "author": "fabyday",
   "private": true,
@@ -16,9 +16,6 @@
     "cho-kawai-viewer",
     "music-streaming",
     "Video-viewer"
-  ],
-  "workspaces": [
-    "react_src"
   ],
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
@@ -73,38 +70,44 @@
     "webpack-merge": "^6.0.1"
   },
   "scripts": {
-    "start:dev": "webpack --config ./src/main/webpack.main.config.ts && webpack --config ./src/renderer/webpack.renderer.config.ts",
-    "start:prod": "pnpm build:prod:all",
-    "build:prod:all": "pnpm build:prod:main && pnpm build:prod:renderer && pnpm build:prod:preload",
+    "start:dev": "pnpm run build:dev:all && cross-env IS_DEV=true electron .",
+    "start:prod": "pnpm run build:prod:all && electron .",
+    "build": "pnpm run build:prod:all",
+    "build:prod:all": "pnpm run build:prod:main && pnpm run build:prod:preload && pnpm run build:prod:renderer",
     "build:prod:main": "webpack --config ./src/main/webpack.main.prod.ts",
     "build:prod:renderer": "webpack --config ./src/renderer/webpack.renderer.prod.ts",
     "build:prod:preload": "webpack --config ./src/preload/webpack.preload.prod.ts",
-    "build:dev:all": "pnpm build:dev:main && pnpm build:dev:renderer && pnpm build:dev:preload",
+    "build:dev:all": "pnpm run build:dev:main && pnpm run build:dev:preload && pnpm run build:dev:renderer",
     "build:dev:main": "webpack --config ./src/main/webpack.main.dev.ts",
     "build:dev:renderer": "webpack --config ./src/renderer/webpack.renderer.dev.ts",
     "build:dev:preload": "webpack --config ./src/preload/webpack.preload.dev.ts",
-    "start:remote": "concurrently \"yarn compile:remote\" \"yarn web\" \"cross-env-shell IS_DEV=true electron .\"",
-    "start:electron": "concurrently \"yarn compile:remote\" \"cross-env-shell IS_DEV=true electron .\"",
+    "typecheck": "pnpm run typecheck:main && pnpm run typecheck:preload && pnpm run typecheck:renderer",
+    "typecheck:main": "tsc --noEmit -p src/main/tsconfig.json",
+    "typecheck:preload": "tsc --noEmit -p src/preload/tsconfig.json",
+    "typecheck:renderer": "tsc --noEmit -p src/renderer/tsconfig.json",
     "storybook": "storybook dev -p 6006",
     "debug": "electron --inspect=8888 .",
-    "build": "pnpm compile:local && node ./scripts/executable_auth_scripts.js && node ./scripts/replace-discord.js ./public/component/discord.js && electron-builder ",
-    "web:build": "cd react_src && yarn web-build ",
-    "build:webpack": "webpack --config webpack.config.js && electron-builder",
-    "release:not_yet": "pnpm build:webpack && electron-builder --publish always",
-    "release": "pnpm build && electron-builder --publish always",
+    "package:dir": "pnpm run build:prod:all && cross-env KAWAI_SKIP_VMP_SIGN=true electron-builder --dir",
+    "release:not_yet": "pnpm run build:prod:all && electron-builder --publish always",
+    "release": "pnpm run build:prod:all && electron-builder --publish always",
     "make-cert:win": "electron-builder create-self-signed-cert -p fabyday & mkdir private & mv fabyday.pfx private/fabyday.pfx",
     "make-cert:mac": "openssl req -x509 -newkey rsa:4096 -keyout private/fabyday.key -out private/fabyday.crt -days 365 -nodes -subj \"/CN=localhost\" && openssl pkcs12 -export -out private/fabyday.pfx -inkey private/fabyday.key -in private/fabyday.crt -passout pass:",
-    "lint": "prettier --write \"typescript_src/**/*.ts\"",
+    "lint": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "test": "jest",
     "build-storybook": "storybook build"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.7.1",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/material": "^5.15.6",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@types/electron": "^1.6.12",
     "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.21",
     "@types/lodash.isequal": "^4.5.8",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
@@ -117,7 +120,9 @@
     "electron-preferences": "^2.8.2",
     "electron-updater": "^6.1.7",
     "fetch": "^1.1.0",
+    "immer": "^9.0.21",
     "loadash": "^1.0.0",
+    "lodash.isequal": "^4.5.0",
     "lodash": "^4.17.21",
     "patchright": "^1.57.0",
     "playwright": "^1.57.0",
@@ -125,14 +130,20 @@
     "ps-tree": "^1.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.21.3",
     "react-scripts": "5.0.1",
     "reflect-metadata": "^0.2.2",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "zustand": "^4.5.0",
     "web-vitals": "^2.1.4"
   },
   "build": {
     "files": [
-      "./public/**/*.*",
-      "./node_modules/**/*.js"
+      "dist/**/*",
+      "package.json",
+      "node_modules/**/*"
     ],
     "extends": null,
     "appId": "day.faby.kawaikara",
@@ -140,7 +151,7 @@
     "electronDownload": {
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
     },
-    "afterSign": "./build/afterSign.js",
+    "afterSign": "../../build/afterSign.js",
     "win": {
       "verifyUpdateCodeSignature": false,
       "target": [
@@ -150,22 +161,22 @@
       "icon": "kawaikara.ico",
       "extraResources": [
         {
-          "from": "./build",
+          "from": "../../build",
           "to": ".",
           "filter": [
             "**/*.ico"
           ]
         },
         {
-          "from": "./config/locales",
+          "from": "../../config/locales",
           "to": "./locales"
         },
         {
-          "from": "./resources/icons",
+          "from": "../../resources/icons",
           "to": "./icons"
         },
         {
-          "from": "thirdparty",
+          "from": "../../thirdparty",
           "to": "./thirdparty"
         }
       ],
@@ -174,7 +185,7 @@
       ]
     },
     "directories": {
-      "buildResources": "build",
+      "buildResources": "../../build",
       "output": "output_dist"
     },
     "mac": {
@@ -190,25 +201,25 @@
           ]
         }
       ],
-      "icon": "./resources/icons/app-kawaikara-mac.png",
+      "icon": "../../resources/icons/app-kawaikara-mac.png",
       "extraResources": [
         {
-          "from": "./build",
+          "from": "../../build",
           "to": ".",
           "filter": [
             "**/*.ico"
           ]
         },
         {
-          "from": "./config/locales",
+          "from": "../../config/locales",
           "to": "./locales"
         },
         {
-          "from": "./resources/icons",
+          "from": "../../resources/icons",
           "to": "./icons"
         },
         {
-          "from": "thirdparty",
+          "from": "../../thirdparty",
           "to": "./thirdparty"
         }
       ],

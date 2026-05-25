@@ -1,0 +1,121 @@
+---
+title: Get Started
+description: Install, use, and build Kawaikara.
+---
+
+<p align="center">
+  <img src="/imgs/kawaikara_banner_title3.png" alt="Kawaikara" />
+</p>
+
+Kawaikara is an Electron-based OTT viewer for watching streaming services in a compact, Discord-friendly window. It is designed for people who want browser-like OTT playback without extra browser chrome taking up screen space.
+
+## Features
+
+- Picture in Picture.
+- Fullscreen viewing inside a user-sized window.
+- OTT watch workflows with friends on Discord.
+- Easy YouTube video downloads.
+- Experimental macOS support.
+- External browser login support.
+
+## Supported Services
+
+OTT:
+
+- Netflix
+- Lafetel
+- YouTube
+- Disney Plus
+- Amazon Prime
+- Wavve
+- Watcha
+- Coupang Play
+- Tving
+- Crunchyroll
+- Apple TV
+- RIDIBooks
+
+Music:
+
+- Apple Music
+- YouTube Music
+- Spotify
+
+Streaming:
+
+- Chzzk
+- Twitch
+
+## Install
+
+### Windows 10/11
+
+Download Kawaikara from the [GitHub Releases](https://github.com/fabyday/kawaikara/releases) page.
+
+### macOS
+
+Follow the README in the [homebrew-kawaikara](https://github.com/fabyday/homebrew-kawaikara) repository.
+
+## Basic Usage
+
+1. Press `Tab` to open the menu.
+2. Select the service you want to watch.
+3. Start watching.
+
+Shortcuts:
+
+- Open menu: `Tab`
+- Toggle fullscreen: `Alt+Enter`
+- Open download directory: `Menu > Options > Download Directory`
+
+## Discord Rich Presence
+
+Kawaikara can show a Discord Rich Presence status for the current app activity. To enable it while building your own copy, create a `.env` file in the repository root:
+
+```shell
+DISCORD_APP_ID=${your_app_id}
+DISCORD_PUB_KEY=${your_app_public_key}
+```
+
+## DRM Note
+
+Electron does not include CDM support by default because of licensing. Kawaikara uses CastLabs' Electron fork to support DRM-enabled streaming services.
+
+## Build Your Own Copy
+
+Prepare a Node.js environment first. The root README recommends `nvm` and `yarn`.
+
+Before building, create and authenticate a CastLabs account:
+
+```shell
+conda create -n test_env python=3.10
+conda activate test_env
+pip install castlabs_evs
+
+python -m castlabs_evs.account signup
+python -m castlabs_evs.account reauth -A ${your_account} -P ${your_password}
+```
+
+### Windows Build
+
+Run these commands from the project directory in PowerShell:
+
+```shell
+yarn install
+yarn make-cert:win
+yarn build
+```
+
+### macOS Build
+
+Run these commands from the project directory in PowerShell:
+
+```shell
+yarn install
+yarn make-cert:mac
+yarn build
+```
+
+## Repository Note
+
+The `packages/installer` README currently describes the default Tauri + React + TypeScript template. This guide focuses on the Electron app described by the root README files.

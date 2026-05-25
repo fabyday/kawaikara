@@ -43,6 +43,7 @@
 
             "goto_applemusic": { "name": "アップルミュージック" },
             "goto_chzzk": { "name": "チジジク" },
+            "goto_soop": { "name": "SOOP" },
             "goto_amazonprime": { "name": "アマゾンプライム" },
             "goto_crunchyroll": { "name": "クランチロール" },
             "goto_appletv": { "name": "アップルティービー" },
@@ -69,6 +70,7 @@
         "menu_tving": "ティビング",
         "menu_applemusic": "アップルミュージック",
         "menu_chzzk": "チジジク",
+        "menu_soop": "SOOP",
         "menu_twitch": "ツイッチ",
         "menu_info": "アプリ情報",
         "menu_preference": "設定",

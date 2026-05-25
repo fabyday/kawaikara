@@ -3,9 +3,9 @@ import baseConfig from './webpack.renderer.base';
 
 export default merge(baseConfig, {
     mode: 'production',
-    devtool: 'source-map', // keep source maps for easier debugging
+    devtool: 'source-map',
     optimization: {
-        minimize: true, // when in development, do not minimize for easier debugging
-        usedExports: true, // disable tree shaking in development
+        minimize: true,
+        usedExports: true,
     },
 });

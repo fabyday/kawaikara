@@ -1,37 +1,15 @@
 ---
-title: Overview
-description: What Kawaikara is and how the app is organized.
+title: Kawaikara Docs
+description: Redirects to the best getting started guide for your browser language.
+template: splash
 ---
 
-<p align="center">
-  <img src="/imgs/kawaikara_banner_title3.png" alt="Kawaikara" />
-</p>
+import LocaleRedirect from '../../components/LocaleRedirect.astro';
 
-Kawaikara is an Electron-based OTT viewer focused on compact streaming windows, PiP, fullscreen viewing, and Discord watch workflows.
+<LocaleRedirect />
 
-## Current Direction
+Kawaikara Docs will open the getting started guide that best matches your browser language.
 
-The app is being moved into a clearer package layout:
-
-- `src/main` owns Electron windows, BrowserViews, update flow, keyboard handling, menus, site descriptors, and app state.
-- `src/preload` exposes the safe renderer API through `window.KAWAI_API`.
-- `src/renderer` owns the React views bundled into `dist/pages`.
-
-The production build compiles main, preload, and renderer separately with webpack, then Electron loads `dist/main/main.js`.
-
-## App Surfaces
-
-- Main window: service launcher and active streaming view.
-- Menu overlay: service/category selector shown over the main window.
-- Update overlay: update progress and actions shown over the main window at the same bounds as the menu overlay.
-- Preferences window: configuration UI for general settings, window sizing, PiP, locale, and shortcuts.
-- Background task window: long-running task status.
-
-## Verification Targets
-
-The baseline completion checks are:
-
-- `pnpm typecheck`
-- `pnpm build`
-- `pnpm package:kawaikara:dir`
-- short Electron smoke runs for dev and packaged app folders
+- [English](./getstart/)
+- [한국어](./ko/getstart/)
+- [日本語](./ja/getstart/)

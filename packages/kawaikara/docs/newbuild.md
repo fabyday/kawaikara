@@ -1,0 +1,1 @@
+yarn electron-rebuild // rebuild c/c++ node library to compatiable with electron's node version

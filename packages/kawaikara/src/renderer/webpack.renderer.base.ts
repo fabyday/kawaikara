@@ -1,23 +1,92 @@
 import path from 'path';
-import { Configuration } from 'webpack';
+import { Configuration, ProvidePlugin } from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 
-const kawaikaraRoot = path.dirname(require.resolve(`kawaikara/package.json`));
+const packageRoot = path.resolve(__dirname, '../..');
+
+type RendererEntry = {
+    title: string;
+    entry: string;
+    template: string;
+    html: string;
+};
+
+const rendererEntries: Record<string, RendererEntry> = {
+    main: {
+        title: 'Kawaikara',
+        entry: path.resolve(__dirname, 'mainWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'mainWindow/mainwindow.html'),
+        html: 'main.html',
+    },
+    preference: {
+        title: 'Kawaikara Preferences',
+        entry: path.resolve(__dirname, 'preferenceWindow/preference.tsx'),
+        template: path.resolve(__dirname, 'preferenceWindow/preference.html'),
+        html: 'preference.html',
+    },
+    sidebar: {
+        title: 'Kawaikara Menu',
+        entry: path.resolve(__dirname, 'sidebar/sidebar.tsx'),
+        template: path.resolve(__dirname, 'sidebar/sidebar.html'),
+        html: 'sidebar.html',
+    },
+    bgtaskview: {
+        title: 'Kawaikara Background Tasks',
+        entry: path.resolve(__dirname, 'bgTaskWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'bgTaskWindow/mainwindow.html'),
+        html: 'bgtaskview.html',
+    },
+    redirect: {
+        title: 'Kawaikara Redirect',
+        entry: path.resolve(__dirname, 'redirectWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'redirectWindow/mainwindow.html'),
+        html: 'redirect.html',
+    },
+    info: {
+        title: 'Kawaikara Info',
+        entry: path.resolve(__dirname, 'infoWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'infoWindow/mainwindow.html'),
+        html: 'info.html',
+    },
+    plugin: {
+        title: 'Kawaikara Plugins',
+        entry: path.resolve(__dirname, 'PluginWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'PluginWindow/mainwindow.html'),
+        html: 'plugin.html',
+    },
+    console: {
+        title: 'Kawaikara Console',
+        entry: path.resolve(__dirname, 'consoleWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'consoleWindow/mainwindow.html'),
+        html: 'console.html',
+    },
+    videoview: {
+        title: 'Kawaikara Video Viewer',
+        entry: path.resolve(__dirname, 'videoViewerWindow/mainwindow.tsx'),
+        template: path.resolve(__dirname, 'videoViewerWindow/mainwindow.html'),
+        html: 'videoview.html',
+    },
+    update: {
+        title: 'Kawaikara Update',
+        entry: path.resolve(__dirname, 'updateWindow/update.tsx'),
+        template: path.resolve(__dirname, 'updateWindow/update.html'),
+        html: 'update.html',
+    },
+};
 
 const config: Configuration = {
-    mode: 'development',
-    entry: {
-        OverlayMenu: path.resolve(__dirname, 'view/OverlayMenu/App.tsx'),
-        Preferences: path.resolve(__dirname, './view/Preferences/App.tsx'),
-        BackgroundViewer: path.resolve(
-            __dirname,
-            './view/BackgroundViewer/App.tsx',
-        ),
-    }, // 리액트 시작점
-    target: 'electron-renderer', // 중요: 일렉트론 렌더러 타겟 설정
+    entry: Object.fromEntries(
+        Object.entries(rendererEntries).map(([name, view]) => [
+            name,
+            view.entry,
+        ]),
+    ),
+    target: 'electron-renderer',
     output: {
-        path: path.resolve(kawaikaraRoot, './dist/renderer'),
-        filename: 'renderer.js',
+        path: path.resolve(packageRoot, 'dist/pages'),
+        filename: '[name].js',
+        publicPath: './',
+        clean: true,
     },
     module: {
         rules: [
@@ -27,8 +96,8 @@ const config: Configuration = {
                 use: {
                     loader: 'ts-loader',
                     options: {
-                        // 리액트용 tsconfig 연결
                         configFile: path.resolve(__dirname, 'tsconfig.json'),
+                        transpileOnly: true,
                     },
                 },
             },
@@ -53,27 +122,25 @@ const config: Configuration = {
         ],
     },
     plugins: [
-        new HtmlWebpackPlugin({
-            filename: 'OverlayMenu.html',
-            title: 'Overlay Menu',
-            chunks: ['OverlayMenu'],
-            template: path.resolve(__dirname, './Templates/index.html'), // 리액트가 담길 HTML 파일
+        new ProvidePlugin({
+            React: 'react',
         }),
-        new HtmlWebpackPlugin({
-            filename: 'Preferences.html',
-            title: 'Preferences',
-            chunks: ['Preferences'],
-            template: path.resolve(__dirname, './Templates/index.html'), // 리액트가 담길 HTML 파일
-        }),
-        new HtmlWebpackPlugin({
-            filename: 'BackgroundViewer.html',
-            title: 'Background Viewer',
-            chunks: ['BackgroundViewer'],
-            template: path.resolve(__dirname, './Templates/index.html'), // 리액트가 담길 HTML 파일
-        }),
+        ...Object.entries(rendererEntries).map(
+            ([name, view]) =>
+                new HtmlWebpackPlugin({
+                    filename: view.html,
+                    title: view.title,
+                    chunks: [name],
+                    template: view.template,
+                }),
+        ),
     ],
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],
+        fallback: {
+            fs: false,
+            path: false,
+        },
     },
 };
 

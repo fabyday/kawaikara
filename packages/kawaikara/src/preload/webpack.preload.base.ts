@@ -1,16 +1,32 @@
 import path from 'path';
 import { Configuration } from 'webpack';
 
-const kawaikaraRoot = path.dirname(require.resolve(`kawaikara/package.json`));
+const packageRoot = path.resolve(__dirname, '../..');
+const externalizeNodeModule = (
+    { request }: { request?: string },
+    callback: (error?: Error | null, result?: string) => void,
+) => {
+    if (!request || request.startsWith('.') || path.isAbsolute(request)) {
+        callback();
+        return;
+    }
+
+    callback(null, `commonjs2 ${request}`);
+};
 
 const baseConfig: Configuration = {
-    mode: 'development',
     entry: path.resolve(__dirname, 'entry.ts'),
     target: 'electron-preload',
     output: {
-        path: path.resolve(kawaikaraRoot, 'dist/preload'),
-        filename: 'entry.js',
+        path: path.resolve(packageRoot, 'dist/main/predefine'),
+        filename: 'communicate.js',
+        clean: true,
     },
+    node: {
+        __dirname: false,
+        __filename: false,
+    },
+    externals: [externalizeNodeModule],
     module: {
         rules: [
             {
@@ -19,8 +35,8 @@ const baseConfig: Configuration = {
                 use: {
                     loader: 'ts-loader',
                     options: {
-                        // 메인 프로세스용 tsconfig 연결
                         configFile: path.resolve(__dirname, 'tsconfig.json'),
+                        transpileOnly: true,
                     },
                 },
             },
