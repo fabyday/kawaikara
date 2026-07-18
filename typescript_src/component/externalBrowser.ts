@@ -73,7 +73,8 @@ export function closeOnTargetURL(
         }
     };
     const requestHandler = async (request: Request) => {
-        if (request.resourceType() === 'docmument') {
+        // 'docmument' 오타를 'document'로 수정
+        if (request.resourceType() === 'document') {
             check(page.url());
         }
     };
@@ -112,22 +113,32 @@ async function createBrowser(persist: boolean, headless: boolean) {
     // remove url bar
     // show empty browser
     const args = ['--app=data:text/html,<html></html>'];
+    
+    const chromeOptions = { headless, channel: 'chrome', args };
+    const edgeOptions = { headless, channel: 'msedge', args };
+
     if (persist) {
-        global_object.externalBrowser.browserContext =
-            await chromium.launchPersistentContext(
-                global_object.externalBrowser?.dataPath!,
-                {
-                    headless: headless,
-                    channel: 'chrome',
-                    args: args,
-                },
-            );
+        try {
+            global_object.externalBrowser.browserContext =
+                await chromium.launchPersistentContext(
+                    global_object.externalBrowser?.dataPath!,
+                    chromeOptions
+                );
+        } catch (error) {
+            console.log('Chrome not found, trying msedge instead.');
+            global_object.externalBrowser.browserContext =
+                await chromium.launchPersistentContext(
+                    global_object.externalBrowser?.dataPath!,
+                    edgeOptions
+                );
+        }
     } else {
-        global_object.externalBrowser.browser = await chromium.launch({
-            headless: headless,
-            channel: 'chrome',
-            args: args,
-        });
+        try {
+            global_object.externalBrowser.browser = await chromium.launch(chromeOptions);
+        } catch (error) {
+            console.log('Chrome not found, trying msedge instead.');
+            global_object.externalBrowser.browser = await chromium.launch(edgeOptions);
+        }
     }
 }
 
