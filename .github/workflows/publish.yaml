@@ -9,7 +9,7 @@ on:
 
 jobs:
     warm-up-cache-win:
-        runs-on: windows-latest
+        runs-on: windows-2022
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -80,7 +80,7 @@ jobs:
     # GENERAL electron packaging
     electron-package-win:
         needs: [warm-up-cache-win]
-        runs-on: windows-latest
+        runs-on: windows-2022
         steps:
             - name: Checkout
               uses: actions/checkout@v4 # v4 is the latest version as of June 2024
@@ -117,6 +117,6 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
-                  CSC_KEY_PASSWORD: ${{ secrets.SELF_SIGNED_CERT_PASSWD }}
+                  CSC_KEY_PASSWORD: ""
                   DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
                   DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
