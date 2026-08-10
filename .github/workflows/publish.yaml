@@ -112,11 +112,70 @@ jobs:
                   ACCOUNT: ${{ secrets.ACCOUNT }}
                   PASSWORD: ${{ secrets.PASSWD }}
 
+            - name: Repackage Windows signing certificate
+              shell: pwsh
+              env:
+                  WINDOWS_CERTIFICATE: ${{ secrets.SELF_SIGNED_CERT }}
+              run: |
+                  $ErrorActionPreference = 'Stop'
+
+                  $sourcePfx = Join-Path $env:RUNNER_TEMP 'kawaikara-source.p12'
+                  $pemBundle = Join-Path $env:RUNNER_TEMP 'kawaikara-signing.pem'
+                  $repackedPfx = Join-Path $env:RUNNER_TEMP 'kawaikara-signing.p12'
+
+                  $certificateBase64 = $env:WINDOWS_CERTIFICATE.Trim()
+                  $dataUrlMarker = 'base64,'
+                  $dataUrlIndex = $certificateBase64.IndexOf($dataUrlMarker)
+                  if ($dataUrlIndex -ge 0) {
+                      $certificateBase64 = $certificateBase64.Substring($dataUrlIndex + $dataUrlMarker.Length)
+                  }
+
+                  try {
+                      $certificateBytes = [Convert]::FromBase64String($certificateBase64)
+                  } catch {
+                      throw 'SELF_SIGNED_CERT is not a valid base64-encoded PKCS#12 file.'
+                  }
+                  if ($certificateBytes.Length -eq 0) {
+                      throw 'SELF_SIGNED_CERT decoded to an empty file.'
+                  }
+                  [IO.File]::WriteAllBytes($sourcePfx, $certificateBytes)
+
+                  $openSslCommand = Get-Command openssl -ErrorAction SilentlyContinue
+                  if ($null -ne $openSslCommand) {
+                      $openSsl = $openSslCommand.Source
+                  } else {
+                      $openSsl = 'C:\Program Files\Git\usr\bin\openssl.exe'
+                      if (-not (Test-Path -LiteralPath $openSsl -PathType Leaf)) {
+                          throw 'OpenSSL was not found on the Windows runner.'
+                      }
+                  }
+
+                  & $openSsl pkcs12 -legacy -in $sourcePfx -passin 'pass:' -nodes -out $pemBundle
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'The signing certificate could not be opened with an empty password.'
+                  }
+
+                  & $openSsl pkey -in $pemBundle -noout
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'SELF_SIGNED_CERT does not contain an accessible private key.'
+                  }
+
+                  $passwordBytes = [byte[]]::new(32)
+                  [Security.Cryptography.RandomNumberGenerator]::Fill($passwordBytes)
+                  $repackedPassword = [Convert]::ToBase64String($passwordBytes)
+                  Write-Output "::add-mask::$repackedPassword"
+
+                  & $openSsl pkcs12 -export -in $pemBundle -out $repackedPfx -passout "pass:$repackedPassword" -name 'fabyday'
+                  if ($LASTEXITCODE -ne 0) {
+                      throw 'Failed to repackage the Windows signing certificate.'
+                  }
+
+                  "WIN_CSC_LINK=$repackedPfx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                  "WIN_CSC_KEY_PASSWORD=$repackedPassword" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
             - name: Build electron package
               run: yarn release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
-                  CSC_KEY_PASSWORD: ""
                   DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
                   DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
