@@ -150,9 +150,9 @@ jobs:
                       }
                   }
 
-                  & $openSsl pkcs12 -legacy -in $sourcePfx -passin 'pass:' -nodes -out $pemBundle
+                  & $openSsl pkcs12 -in $sourcePfx -passin 'pass:' -nodes -out $pemBundle
                   if ($LASTEXITCODE -ne 0) {
-                      throw 'The signing certificate could not be opened with an empty password.'
+                      throw 'OpenSSL could not open SELF_SIGNED_CERT with an empty password.'
                   }
 
                   & $openSsl pkey -in $pemBundle -noout
