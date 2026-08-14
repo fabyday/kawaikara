@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": [
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx",
+    "stories/**/*.ts",
+    "stories/**/*.tsx",
+    "src/Common/**/*.ts",
+    "src/Renderer/**/*.ts",
+    "src/Renderer/**/*.tsx"
+  ]
+}

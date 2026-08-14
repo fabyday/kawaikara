@@ -99,7 +99,7 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
-output_dist*
+/builds/
 public
 # Gatsby files
 .cache/
@@ -147,3 +147,9 @@ public
 
 *storybook.log
 storybook-static
+
+
+# build output
+output_dist/
+
+    

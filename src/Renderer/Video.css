@@ -1,0 +1,109 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050506;
+}
+
+.video-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 20%, rgb(59 35 82 / 36%), transparent 45%),
+    #050506;
+}
+
+.video-player {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+}
+
+.video-overlay-controls {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.video-overlay-controls > * {
+  pointer-events: auto;
+}
+
+.video-toolbar {
+  border-color: rgb(255 255 255 / 12%);
+  background: rgb(24 24 27 / 88%);
+  backdrop-filter: blur(24px);
+}
+
+.video-source-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.video-source-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-file-input {
+  display: none;
+}
+
+.youtube-downloader-panel {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 190px);
+  margin-left: auto;
+  overflow: auto;
+  border-color: rgb(255 255 255 / 12%);
+  background: rgb(18 18 21 / 96%);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+  backdrop-filter: blur(28px);
+}
+
+.youtube-download-queue {
+  max-height: 220px;
+  padding-right: 4px;
+}
+
+.youtube-download-row {
+  border-color: rgb(255 255 255 / 9%);
+  background: rgb(255 255 255 / 3%);
+}
+
+.youtube-download-title,
+.youtube-download-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .video-overlay-controls {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .youtube-downloader-panel {
+    max-height: calc(100vh - 150px);
+  }
+}

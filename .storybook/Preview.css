@@ -1,0 +1,75 @@
+html,
+body,
+#storybook-root {
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #09090b;
+}
+
+.storybook-app-canvas {
+  box-sizing: border-box;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 75% 10%, rgb(88 55 130 / 24%), transparent 35%),
+    #09090b;
+  color: var(--kawai-color-foreground);
+}
+
+.storybook-menu-frame {
+  width: min(380px, 100vw);
+  height: min(800px, 100vh);
+}
+
+.storybook-preference-frame {
+  width: 100vw;
+  height: 100vh;
+  min-width: 720px;
+  min-height: 480px;
+}
+
+.storybook-preference-panel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 20px;
+  border-radius: 16px;
+  background: rgb(24 24 27 / 96%);
+}
+
+.storybook-video-frame {
+  width: 100vw;
+  height: 100vh;
+  min-height: 560px;
+}
+
+.storybook-component-frame {
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 32px));
+  padding: 16px;
+}
+
+.storybook-downloader-frame {
+  min-height: 100vh;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 80% 10%, rgb(99 63 145 / 28%), transparent 42%),
+    #050506;
+  box-sizing: border-box;
+}
+
+.storybook-downloader-frame .youtube-downloader-panel {
+  max-height: none;
+  margin: 0 auto;
+}
+
+.storybook-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}

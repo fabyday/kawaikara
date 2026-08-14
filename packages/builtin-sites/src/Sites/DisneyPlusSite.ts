@@ -1,0 +1,16 @@
+import { site } from '@kawaikara/site-api';
+import { BUILTIN_SITE_LOCALE } from '../SiteDefaults';
+import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
+
+@site({
+  id: 'kawaikara.disneyplus',
+  title: 'Disney+',
+  shortcut: { defaultKey: 'Control+Alt+3' },
+  locale: BUILTIN_SITE_LOCALE,
+  isolation: { drm: true },
+  menu: { category: 'OTT', order: 30, icon: 'https://www.disneyplus.com/favicon.ico' },
+  permissions: ['navigation'],
+})
+export class DisneyPlusSite extends UrlSiteDescriptor {
+  protected readonly url = 'https://www.disneyplus.com/';
+}

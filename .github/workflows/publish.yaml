@@ -1,122 +1,77 @@
-name: Release
+name: Publish Kawaikara channel
 
 on:
-    push:
-        branches:
-            - main
-        tags:
-            - v*
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel
+        required: true
+        default: nightly
+        type: choice
+        options:
+          - stable
+          - staging
+          - nightly
+      version:
+        description: SemVer without the v prefix (optional)
+        required: false
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
-    warm-up-cache-win:
-        runs-on: windows-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            
-            - name: Enable Corepack
-              run: corepack enable
-
-            - run: yarn install --immutable
-
-    warm-up-cache-mac:
-        runs-on: macos-14
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            - name: Enable Corepack
-              run: corepack enable
-
-            - run: yarn install --immutable
-
-    # GENERAL electron packaging
-    electron-package-mac:
-        needs: [warm-up-cache-mac]
-        runs-on: macos-14
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4 # v4 is the latest version as of June 2024
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            
-            - name: Enable Corepack
-              run: corepack enable
-
-            - name: Setup Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: '3.10'
-                  cache: 'pip'
-
-            - name: Install Python dependencies
-              run: pip install -r requirements.txt
-
-            - name: Install JS dependencies
-              # cache: 'yarn' in setup-node should handle caching, so we can directly install here
-              run: yarn install --immutable
-
-            - name: Test (reauth)
-              run: sh ./scripts/reauth.sh
-              env:
-                  ACCOUNT: ${{ secrets.ACCOUNT }}
-                  PASSWORD: ${{ secrets.PASSWD }}
-
-            - name: Build electron package
-              run: yarn release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_LINK: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC }}
-                  CSC_KEY_PASSWORD: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD }}
-                  DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-                  DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
-
-    # GENERAL electron packaging
-    electron-package-win:
-        needs: [warm-up-cache-win]
-        runs-on: windows-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4 # v4 is the latest version as of June 2024
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-
-            - name: Enable Corepack
-              run: corepack enable
-
-            - name: Setup Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: '3.10'
-                  cache: 'pip'
-            - name: Install Python dependencies
-              run: pip install -r requirements.txt
-
-            - name: Install JS dependencies
-
-              # cache: 'yarn' in setup-node should handle caching, so we can directly install here
-              run: yarn install --immutable
-
-            - name: Test (reauth)
-              # powersell script for windows
-              run: powershell.exe ./scripts/reauth.ps1
-              env:
-                  ACCOUNT: ${{ secrets.ACCOUNT }}
-                  PASSWORD: ${{ secrets.PASSWD }}
-
-            - name: Build electron package
-              run: yarn release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_LINK: ${{ secrets.SELF_SIGNED_CERT }}
-                  CSC_KEY_PASSWORD: ""
-                  DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-                  DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+          - os: windows-latest
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Install Widevine signing client
+        run: python -m pip install castlabs-evs==1.1.1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - name: Authenticate Widevine signing
+        run: pnpm widevine:auth
+        env:
+          KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
+          KAWAIKARA_EVS_PASSWORD: ${{ secrets.PASSWD }}
+      - name: Publish tagged channel
+        if: startsWith(github.ref, 'refs/tags/')
+        run: pnpm release:auto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          KAWAIKARA_EVS_NONINTERACTIVE: '1'
+      - name: Publish selected channel
+        if: github.event_name == 'workflow_dispatch'
+        run: pnpm run release:${{ inputs.channel }}
+        env:
+          KAWAIKARA_RELEASE_VERSION: ${{ inputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          KAWAIKARA_EVS_NONINTERACTIVE: '1'
