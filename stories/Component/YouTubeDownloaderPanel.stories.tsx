@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { YouTubeDownloaderPanel } from '../../src/Renderer/Component/YouTubeDownloaderPanel';
+import { YouTubeDownloaderPanel } from '../../src/Renderer/View/Video/YouTubeDownloaderPanel';
 
 const meta = {
   title: 'Component/YouTube Downloader Panel',

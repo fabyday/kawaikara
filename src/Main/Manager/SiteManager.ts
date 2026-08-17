@@ -9,6 +9,7 @@ import {
   type SitePluginDefinition,
   type SiteRequestDetails,
   type SiteRequestHeaders,
+  type SiteRequestRedirect,
 } from '@kawaikara/site-api';
 import type {
   BrowserProfileInfo,
@@ -35,6 +36,11 @@ export interface SiteRuntimeProfile {
   readonly partition: string;
   readonly persistent: boolean;
   readonly siteId: string;
+}
+
+export interface ResolvedSiteAddress {
+  readonly siteId: string;
+  readonly url: string;
 }
 
 type SiteContextFactory = (
@@ -100,6 +106,7 @@ export class SiteManager {
         title: metadata.title,
         category: metadata.menu.category,
         icon: metadata.menu.icon,
+        panelId: metadata.menu.panel,
         order: metadata.menu.order ?? 0,
         defaultShortcut: metadata.shortcut?.defaultKey ?? '',
         supportedLocales: metadata.locale?.supportedLocales ?? [],
@@ -134,6 +141,10 @@ export class SiteManager {
         browserProfiles,
       }))
       .sort((left, right) => left.name.localeCompare(right.name));
+  }
+
+  isCurrentSite(id: string): boolean {
+    return this.currentSiteId === id;
   }
 
   async load(id: string): Promise<void> {
@@ -214,6 +225,60 @@ export class SiteManager {
 
   allowNavigation(url: string): boolean {
     return this.currentDescriptor?.allowNavigation(url) ?? false;
+  }
+
+  resolveAddress(value: string): ResolvedSiteAddress | undefined {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.length > 16_384) return undefined;
+
+    let target: URL;
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'kawaikara:') {
+        if (
+          parsed.hostname !== 'open' ||
+          (parsed.pathname !== '' && parsed.pathname !== '/') ||
+          parsed.searchParams.getAll('url').length !== 1
+        ) {
+          return undefined;
+        }
+        const nested = parsed.searchParams.get('url');
+        if (!nested) return undefined;
+        target = new URL(nested);
+      } else {
+        target = parsed;
+      }
+    } catch {
+      return undefined;
+    }
+
+    if (
+      target.protocol !== 'https:' ||
+      target.username ||
+      target.password ||
+      target.port
+    ) {
+      return undefined;
+    }
+    const hostname = target.hostname.toLowerCase();
+    const match = [...this.sites.values()]
+      .flatMap((registration) =>
+        (registration.metadata.address?.hosts ?? []).map((host) => ({
+          registration,
+          host: host.toLowerCase(),
+        })),
+      )
+      .filter(({ host }) =>
+        hostname === host || hostname.endsWith(`.${host}`),
+      )
+      .sort((left, right) => right.host.length - left.host.length)[0];
+    return match
+      ? { siteId: match.registration.metadata.id, url: target.href }
+      : undefined;
+  }
+
+  transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined {
+    return this.currentDescriptor?.onBeforeRequest(details);
   }
 
   allowPictureInPicture(url: string): boolean {

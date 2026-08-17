@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.youtube',
+  address: { hosts: ['youtube.com', 'youtu.be'] },
   title: 'YouTube',
   shortcut: { defaultKey: 'Control+Alt+5' },
   locale: BUILTIN_SITE_LOCALE,

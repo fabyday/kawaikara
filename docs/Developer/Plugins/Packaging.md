@@ -58,6 +58,14 @@ To install this package today, add it to the app's workspace dependencies, build
 
 The official `packages/builtin-sites` package follows the same contract. Each site has its own file under `src/Sites`, while `src/Index.ts` combines those classes into one plugin definition.
 
+Sites may declare `address: { hosts: [...] }` in their `@site` metadata. These
+hosts opt the descriptor into the shared Menu address bar; exact and subdomain
+matches are accepted over HTTPS, and the most specific host wins. A site may
+also declare `menu.panel` to select an application-approved renderer panel.
+The shared panel parent is transparent, so the contributed renderer surface
+must provide its own legible background. Arbitrary plugin renderer code is not
+loaded by the current in-process development model.
+
 ## Planned external package shape
 
 The following shape is a design target, not a supported public contract:
@@ -105,7 +113,7 @@ flowchart TD
 Potential source locations are:
 
 - Bundled: a package compiled into the app.
-- User-installed: `app.getPath('userData')/plugins`.
+- User-installed: `UserRoot/KawaiData/plugins`.
 - Development-only: one explicitly configured repository path.
 
 The development path must never be silently treated as a trusted user-install path in a production build.

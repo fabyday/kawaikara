@@ -14,6 +14,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.coupang-play',
+  address: { hosts: ['coupangplay.com'] },
   title: 'Coupang Play',
   shortcut: { defaultKey: 'Control+Alt+9' },
   locale: BUILTIN_SITE_LOCALE,
@@ -30,6 +31,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 export class CoupangPlaySite extends UrlSiteDescriptor {
   protected readonly url = 'https://www.coupangplay.com/';
   private loginPending = false;
+  private loginInjectionReady = false;
   private browserUserAgent?: string;
   private chromeMajorVersion = '134';
 
@@ -44,29 +46,48 @@ export class CoupangPlaySite extends UrlSiteDescriptor {
   }
 
   protected async afterLoad(): Promise<void> {
-    await this.context.viewer.executeJavaScript(
+    const result = await this.context.viewer.executeJavaScript<{
+      readonly installed?: boolean;
+      readonly ready?: boolean;
+    }>(
       createLoginInterceptionScript(
         '__kawaikaraCoupangLogin',
-        '[data-cy="loginBtn"], a[href*="/login"]',
+        '[data-cy*="login" i], [data-testid*="login" i], a[href*="/login" i], button[aria-label*="login" i]',
         this.context.actions.createUrl('login'),
+        ['sign in', 'log in', 'login', '로그인', 'ログイン'],
       ),
     );
+    this.loginInjectionReady = result.installed === true && result.ready === true;
   }
 
   async onAction(action: string): Promise<boolean> {
     if (action !== 'login') return false;
     if (this.loginPending) return true;
+    if (!this.loginInjectionReady) {
+      await this.afterLoad();
+      if (!this.loginInjectionReady) {
+        this.context.logger.warn(
+          'Coupang Play login was blocked until injection is ready.',
+        );
+        return true;
+      }
+    }
 
     this.loginPending = true;
     try {
       const result = await this.context.externalBrowser.login({
         startUrl: this.url,
         completionUrlPattern: '/(?:home|profile)(?:[/?#]|$)',
-        returnUrl: this.url,
         siteTitle: 'Coupang Play',
         locale: this.context.locale?.app,
       });
       this.context.logger.info(`Coupang Play external login ${result}.`);
+      await this.afterLoad().catch((error: unknown) => {
+        this.context.logger.debug(
+          'Coupang Play login interception refresh was skipped.',
+          error,
+        );
+      });
     } finally {
       this.loginPending = false;
     }
@@ -99,6 +120,7 @@ export class CoupangPlaySite extends UrlSiteDescriptor {
   }
 
   async unload(): Promise<void> {
+    this.loginInjectionReady = false;
     await this.context.externalBrowser.close();
     this.context.viewer.setUserAgent();
     await super.unload();

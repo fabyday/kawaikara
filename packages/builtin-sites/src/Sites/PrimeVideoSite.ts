@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.amazon-prime-video',
+  address: { hosts: ['primevideo.com'] },
   title: 'Prime Video',
   shortcut: { defaultKey: 'Control+Alt+6' },
   locale: BUILTIN_SITE_LOCALE,

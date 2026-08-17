@@ -53,7 +53,7 @@ export class ExternalBrowserManager {
       if (browserContext) {
         await browserContext.close().catch(() => undefined);
       }
-      await rm(profilePath, { recursive: true, force: true });
+      await removeTemporaryProfile(profilePath);
       throw error;
     }
   }
@@ -106,16 +106,29 @@ export class ExternalBrowserManager {
     targetSession: Session,
   ): Promise<ExternalLoginResult> {
     let settled = false;
+    let emptyWindowTimer: ReturnType<typeof setTimeout> | undefined;
+    const trackedPages = new Map<Page, () => void>();
 
     return await new Promise<ExternalLoginResult>((resolve, reject) => {
       const cleanup = async (): Promise<void> => {
-        page.off('framenavigated', onFrameNavigated);
-        page.off('close', onPageClosed);
+        if (emptyWindowTimer !== undefined) clearTimeout(emptyWindowTimer);
+        browserContext.off('page', onPageCreated);
+        browserContext.off('close', onContextClosed);
+        for (const [trackedPage, closeListener] of trackedPages) {
+          trackedPage.off('framenavigated', onFrameNavigated);
+          trackedPage.off('close', closeListener);
+        }
+        trackedPages.clear();
         if (this.activeLogin?.cancel === cancel) {
           this.activeLogin = undefined;
         }
         await browserContext.close().catch(() => undefined);
-        await rm(profilePath, { recursive: true, force: true });
+        void removeTemporaryProfile(profilePath).catch((error: unknown) => {
+          console.warn(
+            `Temporary external-login profile cleanup failed: ${profilePath}`,
+            error,
+          );
+        });
       };
 
       const finish = async (
@@ -134,7 +147,12 @@ export class ExternalBrowserManager {
         } catch (syncError) {
           error = syncError;
         } finally {
-          await cleanup();
+          await cleanup().catch((cleanupError: unknown) => {
+            console.warn(
+              `External login cleanup did not finish for ${profilePath}.`,
+              cleanupError,
+            );
+          });
         }
 
         if (error) {
@@ -149,7 +167,7 @@ export class ExternalBrowserManager {
       };
 
       const onFrameNavigated = (frame: Frame): void => {
-        if (frame !== page.mainFrame()) {
+        if (frame !== frame.page().mainFrame()) {
           return;
         }
         completionPattern.lastIndex = 0;
@@ -158,13 +176,42 @@ export class ExternalBrowserManager {
         }
       };
 
-      const onPageClosed = (): void => {
+      const onPageCreated = (nextPage: Page): void => {
+        if (emptyWindowTimer !== undefined) {
+          clearTimeout(emptyWindowTimer);
+          emptyWindowTimer = undefined;
+        }
+        if (trackedPages.has(nextPage)) return;
+        const onPageClosed = () => {
+          trackedPages.delete(nextPage);
+          if (settled || trackedPages.size > 0) return;
+          // Some Windows login flows replace the app-mode page with a new
+          // page. Allow a brief hand-off before treating the browser as closed.
+          emptyWindowTimer = setTimeout(() => {
+            emptyWindowTimer = undefined;
+            if (
+              !settled &&
+              browserContext.pages().every((candidate) => candidate.isClosed())
+            ) {
+              void finish('cancelled');
+            }
+          }, 750);
+        };
+        trackedPages.set(nextPage, onPageClosed);
+        nextPage.on('framenavigated', onFrameNavigated);
+        nextPage.once('close', onPageClosed);
+      };
+
+      const onContextClosed = (): void => {
         void finish('cancelled');
       };
 
       this.activeLogin = { cancel };
-      page.on('framenavigated', onFrameNavigated);
-      page.once('close', onPageClosed);
+      browserContext.on('page', onPageCreated);
+      browserContext.once('close', onContextClosed);
+      for (const existingPage of browserContext.pages()) {
+        onPageCreated(existingPage);
+      }
 
       void page.goto(startUrl).catch((error: unknown) => {
         // Login SPAs can replace the first document while goto is waiting.
@@ -219,4 +266,32 @@ export class ExternalBrowserManager {
 function isExpectedNavigationInterruption(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /(?:net::)?ERR_ABORTED|navigation.*(?:interrupted|aborted)/i.test(message);
+}
+
+async function removeTemporaryProfile(profilePath: string): Promise<void> {
+  const retryDelays = [0, 80, 220, 500, 1_000] as const;
+  let lastError: unknown;
+  for (const delay of retryDelays) {
+    if (delay > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+    }
+    try {
+      await rm(profilePath, { recursive: true, force: true, maxRetries: 2 });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableProfileCleanupError(error)) throw error;
+    }
+  }
+  console.warn(
+    `Temporary external-login profile is still locked and will be left for the operating system to clean: ${profilePath}`,
+    lastError,
+  );
+}
+
+function isRetryableProfileCleanupError(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error
+    ? String(error.code)
+    : '';
+  return code === 'EBUSY' || code === 'EPERM' || code === 'ENOTEMPTY';
 }

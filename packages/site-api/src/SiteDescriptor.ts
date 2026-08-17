@@ -13,6 +13,8 @@ export interface SiteMenuContribution {
   readonly category: string;
   readonly order?: number;
   readonly icon?: string;
+  /** Optional renderer-owned panel displayed beside the shared site rail. */
+  readonly panel?: string;
 }
 
 export interface SiteShortcutContribution {
@@ -37,6 +39,11 @@ export interface SiteIsolationContribution {
   readonly drm?: boolean;
 }
 
+export interface SiteAddressContribution {
+  /** Host names accepted by the shared Kawaikara address bar. Subdomains match too. */
+  readonly hosts: readonly string[];
+}
+
 export interface SiteMetadata {
   readonly id: string;
   readonly title: string;
@@ -45,6 +52,7 @@ export interface SiteMetadata {
   readonly shortcut?: SiteShortcutContribution;
   readonly locale?: SiteLocaleContribution;
   readonly isolation?: SiteIsolationContribution;
+  readonly address?: SiteAddressContribution;
   readonly permissions?: readonly SitePermission[];
 }
 
@@ -52,6 +60,11 @@ export interface SiteRequestDetails {
   readonly url: string;
   readonly method: string;
   readonly requestHeaders: Readonly<Record<string, string>>;
+}
+
+export interface SiteRequestRedirect {
+  readonly cancel?: boolean;
+  readonly redirectURL?: string;
 }
 
 export type SiteRequestHeaders = Record<string, string>;
@@ -76,6 +89,11 @@ export abstract class AbstractSiteDescriptor {
   /** Block a main-frame navigation before Electron commits it. */
   allowNavigation(_url: string): boolean {
     return true;
+  }
+
+  /** Optionally cancel or redirect a network request before it is sent. */
+  onBeforeRequest(_details: SiteRequestDetails): SiteRequestRedirect | undefined {
+    return undefined;
   }
 
   /** Decide whether PiP may start for the current page URL. */

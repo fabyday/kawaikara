@@ -5,6 +5,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.apple-tv',
+  address: { hosts: ['tv.apple.com'] },
   title: 'Apple TV+',
   shortcut: { defaultKey: 'Control+Alt+A' },
   locale: BUILTIN_SITE_LOCALE,

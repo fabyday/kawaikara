@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Center } from '@kawaikara/kawai-ui';
-import { ExternalLoginStatusPanel } from '../../src/Renderer/Component/ExternalLoginStatusPanel';
+import { ExternalLoginStatusPanel } from '../../src/Renderer/View/ExternalLogin/ExternalLoginStatusPanel';
 
 const meta = {
   title: 'Component/External Login Status Panel',

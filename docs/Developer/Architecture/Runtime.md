@@ -6,8 +6,8 @@ Kawaikara uses separate surfaces for remote content and application-owned UI.
 
 ```mermaid
 flowchart TB
-  Host["Viewer host BrowserWindow\ngeometry and app identity"]
-  SiteView["Site WebContentsView\nremote site or internal Video view"]
+  Host["Viewer BrowserWindow\napp host and internal Video renderer"]
+  SiteView["Site WebContentsView\nremote streaming site"]
   Overlay["Overlay BrowserWindow\nMenu or full Preferences"]
   PiP["Frameless PiP BrowserWindow\nsame SiteView, video-only layout"]
   Popup["Site popup\nOAuth with opener semantics"]
@@ -20,9 +20,13 @@ flowchart TB
   Browser -. copies cookies on completion .-> SiteView
 ```
 
-### Viewer host and SiteView
+### Viewer and remote SiteView
 
-The main `BrowserWindow` owns application geometry, Dock/task-switcher identity, and native fullscreen. Actual site content fills a child `WebContentsView`.
+The main `BrowserWindow` owns application geometry, Dock/task-switcher identity,
+native fullscreen, and the app-owned Video renderer. Remote streaming sites fill
+a sandboxed child `WebContentsView`; entering Video removes that remote view and
+loads the internal document in the main window so the libmpv preload can remain
+isolated from remote pages.
 
 When a site changes, Kawaikara:
 
@@ -34,6 +38,19 @@ When a site changes, Kawaikara:
 6. Constructs and loads the next descriptor.
 
 The view uses `sandbox: true`, `contextIsolation: true`, and `nodeIntegration: false`. `disableHtmlFullscreenWindowResize` prevents a web player's fullscreen control from resizing the entire application window. App-level fullscreen remains an explicit Kawaikara shortcut.
+
+Remote SiteViews receive a Chrome-style user agent without Electron product
+tokens before their first navigation. A user-origin scrollbar theme gives every
+site the same compact, rounded, activity-only scrollbar; the restricted preload
+toggles its visibility marker from captured scroll events.
+
+On Windows, GPU compositing remains enabled while accelerated video decoding
+and DirectComposition video overlays are disabled for DRM compatibility. The
+`KAWAIKARA_FORCE_SOFTWARE_RENDERING=1` fallback disables all hardware
+acceleration only when explicitly requested. libmpv video decoding is independent
+of Chromium's DRM decoder and uses `MPV_HWDEC=auto-safe` by default. macOS also
+keeps GPU compositing enabled; Apple Silicon uses libmpv when its native runtime
+is present, while Intel macOS uses the Chromium Video fallback.
 
 ### Overlay
 
@@ -157,7 +174,8 @@ Application and site shortcuts are matched from `before-input-event` in the focu
 
 - Plain `Tab` does not toggle the menu while the focused web content reports that the user is editing.
 - Menu-category shortcuts, defaulting to `1`, `2`, `3`, and so on, exist only while the menu route is visible.
-- Preferences owns its keyboard navigation, including `Tab`.
+- Menu uses `Tab` as its close toggle without moving focus; Preferences consumes
+  it while the fixed Menu underlay remains visible.
 - The PiP shortcut is application-local in normal mode.
 - Only while PiP is active is its accelerator registered with Electron's `globalShortcut`, allowing restoration even when another application has focus. It is unregistered immediately on exit or shutdown.
 - A short in-flight/debounce guard prevents one physical key event from triggering both the local and global PiP paths.

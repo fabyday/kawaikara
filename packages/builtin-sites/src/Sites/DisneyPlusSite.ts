@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.disneyplus',
+  address: { hosts: ['disneyplus.com'] },
   title: 'Disney+',
   shortcut: { defaultKey: 'Control+Alt+3' },
   locale: BUILTIN_SITE_LOCALE,

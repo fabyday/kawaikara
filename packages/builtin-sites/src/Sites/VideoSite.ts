@@ -11,7 +11,7 @@ import { BUILTIN_SITE_LOCALE } from '../SiteDefaults';
   shortcut: { defaultKey: 'Control+Alt+4' },
   locale: BUILTIN_SITE_LOCALE,
   description: 'Play a local video file or an HLS stream.',
-  menu: { category: 'Video', order: 0 },
+  menu: { category: 'Video', order: 0, panel: 'video-library' },
   permissions: ['internal-view'],
 })
 export class VideoSite extends AbstractSiteDescriptor {

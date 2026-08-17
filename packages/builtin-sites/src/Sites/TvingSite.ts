@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.tving',
+  address: { hosts: ['tving.com'] },
   title: 'TVING',
   shortcut: { defaultKey: 'Control+Alt+T' },
   locale: BUILTIN_SITE_LOCALE,

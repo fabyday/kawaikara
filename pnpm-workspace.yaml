@@ -2,3 +2,4 @@ packages:
   - 'packages/*'
 allowBuilds:
   electron: true
+  electron-mpv-video: false

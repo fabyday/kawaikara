@@ -1,5 +1,6 @@
 import { globalShortcut, type Input } from 'electron';
 import { APP_SHORTCUTS } from '../../Common/AppShortcuts';
+import { VIDEO_SHORTCUTS } from '../../Common/VideoControls';
 import type { PreferenceManager } from './PreferenceManager';
 import type { SiteManager } from './SiteManager';
 import type { WindowManager } from './WindowManager';
@@ -11,12 +12,15 @@ interface ShortcutBinding {
 }
 
 const PICTURE_IN_PICTURE_SHORTCUT_ID = 'app.toggle-picture-in-picture';
+const ALWAYS_ON_TOP_SHORTCUT_ID = 'app.toggle-always-on-top';
 
 export class ShortcutManager {
+  private lastAlwaysOnTopToggleAt = 0;
   private lastPictureInPictureToggleAt = 0;
   private pictureInPictureActive = false;
   private pictureInPictureTogglePromise?: Promise<void>;
   private registeredPictureInPictureAccelerator?: string;
+  private registeredAlwaysOnTopAccelerator?: string;
 
   constructor(
     private readonly sites: SiteManager,
@@ -33,7 +37,22 @@ export class ShortcutManager {
       return false;
     }
 
+    if (
+      this.pictureInPictureActive &&
+      input.key.toLowerCase() === 'tab'
+    ) {
+      return true;
+    }
+
     const overrides = this.preferences.get().shortcuts;
+    if (
+      this.sites.isCurrentSite('kawaikara.video') &&
+      matchesVideoShortcutInput(input, overrides)
+    ) {
+      // The internal Video renderer owns these keys, including its optional
+      // Control/Alt precision modifiers. Let the DOM key event reach it.
+      return false;
+    }
     const binding = this.getBindings().find(({ id, defaultKey }) => {
       const accelerator = overrides[id] ?? defaultKey;
       return accelerator.trim() && matchesAccelerator(input, accelerator);
@@ -59,6 +78,7 @@ export class ShortcutManager {
   }
 
   refreshGlobalShortcut(): void {
+    this.refreshAlwaysOnTopGlobalShortcut();
     if (!this.pictureInPictureActive) {
       this.unregisterPictureInPictureGlobalShortcut();
       return;
@@ -99,6 +119,7 @@ export class ShortcutManager {
 
   dispose(): void {
     this.pictureInPictureActive = false;
+    this.unregisterAlwaysOnTopGlobalShortcut();
     this.unregisterPictureInPictureGlobalShortcut();
   }
 
@@ -108,11 +129,7 @@ export class ShortcutManager {
       'app.toggle-fullscreen': () => this.windows.toggleAppFullScreen(),
       'app.open-preferences': () => this.windows.showPreferencesOverlay(),
       'app.toggle-always-on-top': async () => {
-        const current = this.preferences.get();
-        const next = await this.preferences.update({
-          alwaysOnTop: !current.alwaysOnTop,
-        });
-        this.windows.setAlwaysOnTop(next.alwaysOnTop);
+        await this.toggleAlwaysOnTop(false);
       },
       'app.toggle-picture-in-picture': async () => {
         await this.togglePictureInPicture();
@@ -150,6 +167,67 @@ export class ShortcutManager {
     ).trim();
   }
 
+  private getAlwaysOnTopAccelerator(): string {
+    const definition = APP_SHORTCUTS.find(
+      ({ id }) => id === ALWAYS_ON_TOP_SHORTCUT_ID,
+    );
+    return (
+      this.preferences.get().shortcuts[ALWAYS_ON_TOP_SHORTCUT_ID] ??
+      definition?.defaultKey ??
+      ''
+    ).trim();
+  }
+
+  private refreshAlwaysOnTopGlobalShortcut(): void {
+    const accelerator = this.getAlwaysOnTopAccelerator();
+    if (
+      accelerator === this.registeredAlwaysOnTopAccelerator &&
+      globalShortcut.isRegistered(accelerator)
+    ) {
+      return;
+    }
+    this.unregisterAlwaysOnTopGlobalShortcut();
+    if (!accelerator) return;
+    try {
+      const registered = globalShortcut.register(accelerator, () => {
+        void this.toggleAlwaysOnTop(true).catch((error: unknown) => {
+          console.error('The global always-on-top shortcut failed.', error);
+        });
+      });
+      if (registered) {
+        this.registeredAlwaysOnTopAccelerator = accelerator;
+      } else {
+        console.warn(
+          `The global always-on-top shortcut could not be registered: ${accelerator}`,
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `The global always-on-top shortcut is invalid or unavailable: ${accelerator}`,
+        error,
+      );
+    }
+  }
+
+  private async toggleAlwaysOnTop(recoverWhenCovered: boolean): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastAlwaysOnTopToggleAt < 250) return;
+    this.lastAlwaysOnTopToggleAt = now;
+
+    if (recoverWhenCovered && this.windows.shouldRecoverAlwaysOnTopShortcut()) {
+      this.windows.recoverAlwaysOnTop();
+      return;
+    }
+    const current = this.preferences.get();
+    const next = await this.preferences.update({
+      alwaysOnTop: !current.alwaysOnTop,
+    });
+    this.windows.setAlwaysOnTop(next.alwaysOnTop);
+    if (recoverWhenCovered && next.alwaysOnTop) {
+      this.windows.recoverAlwaysOnTop();
+    }
+  }
+
   private togglePictureInPicture(): Promise<void> {
     if (this.pictureInPictureTogglePromise) {
       return this.pictureInPictureTogglePromise;
@@ -180,6 +258,35 @@ export class ShortcutManager {
       globalShortcut.unregister(accelerator);
     }
   }
+
+  private unregisterAlwaysOnTopGlobalShortcut(): void {
+    const accelerator = this.registeredAlwaysOnTopAccelerator;
+    this.registeredAlwaysOnTopAccelerator = undefined;
+    if (accelerator && globalShortcut.isRegistered(accelerator)) {
+      globalShortcut.unregister(accelerator);
+    }
+  }
+}
+
+function matchesVideoShortcutInput(
+  input: Input,
+  overrides: Readonly<Record<string, string>>,
+): boolean {
+  return VIDEO_SHORTCUTS.some(({ id, defaultKey }) => {
+    const accelerator = overrides[id] ?? defaultKey;
+    if (!accelerator.trim()) return false;
+    if (matchesAccelerator(input, accelerator)) return true;
+
+    // Control and Alt can be layered on top of a configured Video shortcut
+    // to request a smaller seek distance.
+    const variants: Input[] = [];
+    if (input.control) variants.push({ ...input, control: false });
+    if (input.alt) variants.push({ ...input, alt: false });
+    if (input.control && input.alt) {
+      variants.push({ ...input, control: false, alt: false });
+    }
+    return variants.some((variant) => matchesAccelerator(variant, accelerator));
+  });
 }
 
 export function matchesAccelerator(input: Input, accelerator: string): boolean {
@@ -237,6 +344,8 @@ function normalizeInputKey(input: Input): string {
   if (/^Key[A-Z]$/i.test(input.code)) return input.code.slice(3).toLowerCase();
   if (/^Digit[0-9]$/.test(input.code)) return input.code.slice(5);
   if (/^Numpad[0-9]$/.test(input.code)) return input.code.slice(6);
+  if (input.code === 'Comma') return ',';
+  if (input.code === 'Period') return '.';
   return normalizeAcceleratorKey(input.key);
 }
 

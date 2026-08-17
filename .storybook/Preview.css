@@ -20,8 +20,9 @@ body {
 }
 
 .storybook-menu-frame {
-  width: min(380px, 100vw);
+  width: 100vw;
   height: min(800px, 100vh);
+  min-width: 720px;
 }
 
 .storybook-preference-frame {

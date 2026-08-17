@@ -26,10 +26,13 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 
 ### Netflix
 
-- Intercepts login controls with an idempotent injected hook.
+- Intercepts login controls with an idempotent injected hook and localized
+  accessible-text fallback matching.
 - Blocks embedded `/login` navigation.
 - Launches external browser login and waits for `/browse`.
 - Copies cookies into the isolated Netflix Session and restores the viewer.
+- Refreshes interception explicitly after external-login completion or
+  cancellation so a replacement document always receives the hook.
 
 ### Coupang Play
 
@@ -67,7 +70,11 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 
 ### Internal Video
 
-- Loads the application-owned Video renderer for local files, file-drop redirection, HLS playback, and downloader UI.
+- Loads the application-owned Video renderer for local library browsing,
+  remembered folders and videos, file-drop redirection, HLS playback, and
+  downloader UI.
+- Declares the `video-library` Menu panel contribution for recent-folder and
+  recent-video shortcuts.
 
 ## Common URL descriptor behavior
 

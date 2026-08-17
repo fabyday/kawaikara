@@ -1,9 +1,12 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import {
   app,
   BrowserWindow,
+  dialog,
+  nativeTheme,
   screen,
   session,
   shell,
@@ -13,12 +16,14 @@ import {
   type WebContents,
   WebContentsView,
 } from 'electron';
+import { createMpvMain, type MpvMain } from 'electron-mpv-video';
 import type {
   Disposable,
   NewWindowPolicy,
   SiteContext,
   SiteRequestDetails,
   SiteRequestHeaders,
+  SiteRequestRedirect,
   SiteExternalBrowser,
   SiteViewer,
 } from '@kawaikara/site-api';
@@ -28,18 +33,32 @@ import type { SiteRuntimeProfile } from './SiteManager';
 import {
   IPC_CHANNELS,
   type AppLocale,
+  type AppTheme,
   type DisplayInfo,
+  type DevToolsMode,
   type OverlayView,
+  type VideoPlaybackCapabilities,
   type VideoOpenRequest,
+  type VideoPresentationState,
 } from '../../Common/IPC';
-import type {
-  PictureInPictureLastPlacement,
-  PictureInPicturePlacementPreference,
-  PictureInPictureSizePreference,
+import {
+  DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
+  DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
+  DEFAULT_PICTURE_IN_PICTURE_SIZE,
+  PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM,
+  resolvePictureInPictureSize,
+  type PictureInPictureLastPlacement,
+  type PictureInPicturePlacementPreference,
+  type PictureInPictureSizePreference,
 } from '../../Common/PictureInPicture';
+import {
+  getExternalLoginViewData,
+  resolveAppLocale,
+} from '../Functional/Locale';
+import { attachRendererLogging } from '../Logging';
 
-const OVERLAY_WIDTH = 380;
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
+const INTERNAL_VIDEO_PIP_MARGIN = 20;
 const VIDEO_FILE_EXTENSIONS = new Set([
   '.3gp',
   '.avi',
@@ -57,37 +76,91 @@ const VIDEO_FILE_EXTENSIONS = new Set([
   '.webm',
   '.wmv',
 ]);
+const REMOTE_SCROLLBAR_CSS = `
+  :root {
+    scrollbar-color: transparent transparent !important;
+    scrollbar-width: auto !important;
+  }
+  *::-webkit-scrollbar {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  *::-webkit-scrollbar-button,
+  *::-webkit-scrollbar-button:single-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    -webkit-appearance: none !important;
+    background: transparent !important;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent !important;
+  }
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    background-clip: padding-box !important;
+    transition: background-color 180ms ease !important;
+  }
+  html[data-kawaikara-scrolling="true"] {
+    scrollbar-color: rgb(161 161 170 / 58%) transparent !important;
+  }
+  html[data-kawaikara-scrolling="true"]::-webkit-scrollbar-thumb,
+  html[data-kawaikara-scrolling="true"] *::-webkit-scrollbar-thumb {
+    background-color: rgb(161 161 170 / 58%) !important;
+  }
+`;
+
+export type PictureInPictureManagerFactory = (
+  ...args: ConstructorParameters<typeof UnifiedPictureInPictureManager>
+) => UnifiedPictureInPictureManager;
+
+interface InternalVideoPictureInPictureState {
+  readonly minimumSize: readonly [number, number];
+  readonly movable: boolean;
+  readonly resizable: boolean;
+  readonly visibleOnAllWorkspaces: boolean;
+}
 
 export class WindowManager {
-  private readonly externalBrowser = new ExternalBrowserManager();
+  private readonly externalBrowser: ExternalBrowserManager;
+  private readonly mpv: MpvMain = createMpvMain({
+    addonPath: resolveMpvAddonPath(),
+  });
   // The previous native/Game PiP implementation remains in
   // PictureInPictureManager.ts as a legacy fallback while the unified,
   // dedicated-window PiP is evaluated.
-  private readonly pictureInPicture = new UnifiedPictureInPictureManager(
-    () => this.requireViewerWindow(),
-    () => this.requireSiteView(),
-    (result) => {
-      const overlayWindow = this.overlayWindow;
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        overlayWindow.webContents.send(
-          IPC_CHANNELS.media.pictureInPictureChanged,
-          result,
-        );
-      }
-      this.pictureInPictureStateHandler?.(result.status === 'entered');
-    },
-    () => {
-      const viewer = this.viewerWindow;
-      if (viewer && !viewer.isDestroyed()) this.focusViewer();
-    },
-    (placement) => this.pictureInPicturePlacementRecorder?.(placement),
-  );
+  private readonly pictureInPicture: UnifiedPictureInPictureManager;
   private readonly editingWebContentsIds = new Set<number>();
   private readonly sitePopupWindows = new Set<BrowserWindow>();
   private appTitle = 'Kawaikara';
+  private appLocale: AppLocale = 'system';
+  private appTheme: AppTheme = 'dark';
+  private systemLocale = 'en-US';
   private viewerWindow?: BrowserWindow;
+  private videoWindow?: BrowserWindow;
+  private videoWindowLoading?: Promise<BrowserWindow>;
+  private videoSoftwareRenderer = false;
+  private videoRendererRecovery?: Promise<boolean>;
   private overlayWindow?: BrowserWindow;
   private siteView?: WebContentsView;
+  private siteViewAttached = false;
+  private internalVideoVisible = false;
+  private internalVideoPresentation: VideoPresentationState = {
+    ready: false,
+    width: 0,
+    height: 0,
+  };
+  private internalVideoPictureInPicture?: InternalVideoPictureInPictureState;
+  private appAlwaysOnTop = false;
+  private pictureInPicturePlacement = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
+  private pictureInPicturePortraitSize =
+    DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE;
+  private pictureInPictureSize = DEFAULT_PICTURE_IN_PICTURE_SIZE;
   private readonly configuredSiteSessions = new WeakSet<Session>();
   private overlayVisible = false;
   private overlayView: OverlayView = 'menu';
@@ -105,10 +178,44 @@ export class WindowManager {
   private requestHeadersTransformer?: (
     details: SiteRequestDetails,
   ) => SiteRequestHeaders | undefined;
+  private requestTransformer?: (
+    details: SiteRequestDetails,
+  ) => SiteRequestRedirect | undefined;
   private pictureInPicturePlacementRecorder?: (
     placement: PictureInPictureLastPlacement,
   ) => Promise<void> | void;
   private restoringPictureInPicture = false;
+  private disposing = false;
+  private viewerClosePrepared = false;
+  private viewerClosePreparation?: Promise<void>;
+  private readonly alwaysOnTopReassertTimers = new Set<ReturnType<typeof setTimeout>>();
+  private overlayRevealTimer?: ReturnType<typeof setTimeout>;
+
+  constructor(
+    externalBrowser: ExternalBrowserManager,
+    createPictureInPicture: PictureInPictureManagerFactory,
+  ) {
+    this.externalBrowser = externalBrowser;
+    this.pictureInPicture = createPictureInPicture(
+      () => this.requireViewerWindow(),
+      () => this.requireSiteView(),
+      (result) => {
+        const overlayWindow = this.overlayWindow;
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send(
+            IPC_CHANNELS.media.pictureInPictureChanged,
+            result,
+          );
+        }
+        this.pictureInPictureStateHandler?.(result.status === 'entered');
+      },
+      () => {
+        const viewer = this.viewerWindow;
+        if (viewer && !viewer.isDestroyed()) this.focusViewer();
+      },
+      (placement) => this.pictureInPicturePlacementRecorder?.(placement),
+    );
+  }
 
   createWindows(): void {
     if (this.viewerWindow) {
@@ -124,15 +231,19 @@ export class WindowManager {
       backgroundColor: '#09090b',
       autoHideMenuBar: true,
       webPreferences: {
+        preload: path.resolve(__dirname, '../preload/viewer.js'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        backgroundThrottling: false,
+        // electron-mpv-video composes its contextBridge from the preload.
+        // Remote sites remain isolated in their sandboxed WebContentsView.
+        sandbox: false,
       },
     });
 
     const overlayWindow = new BrowserWindow({
       parent: viewerWindow,
-      width: OVERLAY_WIDTH,
+      width: 1280,
       height: 800,
       show: false,
       frame: false,
@@ -147,40 +258,84 @@ export class WindowManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        backgroundThrottling: false,
       },
     });
 
     this.viewerWindow = viewerWindow;
     this.overlayWindow = overlayWindow;
+    this.disposing = false;
+    this.viewerClosePrepared = false;
+    attachRendererLogging(viewerWindow.webContents, 'viewer');
+    attachRendererLogging(overlayWindow.webContents, 'overlay');
     viewerWindow.setMenu(null);
     viewerWindow.setMenuBarVisibility(false);
     const overlayWebContentsId = overlayWindow.webContents.id;
+    const viewerWebContentsId = viewerWindow.webContents.id;
     this.syncSiteViewBounds();
+    this.syncVideoWindowBounds();
     this.syncOverlayBounds();
 
     viewerWindow.on('move', () => {
       this.syncSiteViewBounds();
+      this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
+    const notifyFullScreenChanged = () => {
+      const videoWindow = this.videoWindow;
+      if (videoWindow && !videoWindow.isDestroyed()) {
+        videoWindow.webContents.send(
+          IPC_CHANNELS.application.fullScreenChanged,
+          viewerWindow.isFullScreen(),
+        );
+      }
+    };
+    viewerWindow.on('enter-full-screen', notifyFullScreenChanged);
+    viewerWindow.on('leave-full-screen', notifyFullScreenChanged);
     viewerWindow.on('resize', () => {
       this.syncSiteViewBounds();
+      this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
+    viewerWindow.on('blur', () => this.scheduleAlwaysOnTopReassertion());
+    viewerWindow.on('restore', () => this.scheduleAlwaysOnTopReassertion());
+    viewerWindow.on('show', () => this.scheduleAlwaysOnTopReassertion());
     viewerWindow.on('close', (event) => {
-      if (this.pictureInPicture.isActive()) {
+      if (
+        this.pictureInPicture.isActive() ||
+        this.internalVideoPictureInPicture
+      ) {
         event.preventDefault();
         void this.restorePictureInPicture();
+        return;
+      }
+      if (!this.disposing && !this.viewerClosePrepared) {
+        event.preventDefault();
+        if (!this.viewerClosePreparation) {
+          this.viewerClosePreparation = this.prepareViewerWindowClose(viewerWindow);
+        }
       }
     });
     viewerWindow.on('closed', () => {
+      this.clearAlwaysOnTopReassertions();
+      this.clearOverlayRevealTimer();
       this.pictureInPicture.handleViewerClosed();
       const siteWebContentsId = this.siteView?.webContents.id;
       if (siteWebContentsId) this.editingWebContentsIds.delete(siteWebContentsId);
+      const videoWebContentsId = this.videoWindow?.webContents.id;
+      if (videoWebContentsId) this.editingWebContentsIds.delete(videoWebContentsId);
       this.editingWebContentsIds.delete(overlayWebContentsId);
+      this.editingWebContentsIds.delete(viewerWebContentsId);
       this.destroySiteView();
+      if (this.videoWindow && !this.videoWindow.isDestroyed()) {
+        this.videoWindow.destroy();
+      }
       this.viewerWindow = undefined;
+      this.videoWindow = undefined;
       this.overlayWindow = undefined;
       this.overlayVisible = false;
+      this.viewerClosePrepared = false;
+      this.viewerClosePreparation = undefined;
     });
 
     overlayWindow.webContents.on('before-input-event', (event, input) => {
@@ -193,6 +348,12 @@ export class WindowManager {
         !input.isComposing
       ) {
         const key = input.key.toLowerCase();
+        if (key === 'tab') {
+          // Preferences has pointer-driven navigation; Tab must not move focus
+          // into either Preferences or the fixed Menu underlay.
+          event.preventDefault();
+          return;
+        }
         const plainKey =
           !input.control && !input.meta && !input.alt && !input.shift;
         if (
@@ -203,9 +364,22 @@ export class WindowManager {
           this.showOverlay();
           return;
         }
-
-        // Preference owns its keyboard navigation. In particular, Tab must
-        // move focus instead of reaching the app.toggle-menu shortcut.
+        return;
+      }
+      if (
+        this.overlayVisible &&
+        this.overlayView === 'menu' &&
+        input.type === 'keyDown' &&
+        !input.isAutoRepeat &&
+        !input.isComposing &&
+        !input.control &&
+        !input.meta &&
+        !input.alt &&
+        !input.shift &&
+        input.key.toLowerCase() === 'tab'
+      ) {
+        event.preventDefault();
+        overlayWindow.webContents.send(IPC_CHANNELS.overlay.requestClose);
         return;
       }
       if (
@@ -236,14 +410,16 @@ export class WindowManager {
     overlayWindow.webContents.on('did-start-loading', () => {
       this.editingWebContentsIds.delete(overlayWebContentsId);
     });
-    overlayWindow.on('blur', () => {
-      if (
-        this.overlayVisible &&
-        this.overlayView === 'menu' &&
-        this.closeMenuOnOutsideClick
-      ) {
-        overlayWindow.webContents.send(IPC_CHANNELS.overlay.requestClose);
-      }
+    viewerWindow.webContents.on('before-input-event', (event, input) => {
+      const editing = this.editingWebContentsIds.has(viewerWebContentsId);
+      if (this.shortcutHandler?.(input, editing)) event.preventDefault();
+    });
+    viewerWindow.webContents.on('did-start-loading', () => {
+      this.editingWebContentsIds.delete(viewerWebContentsId);
+    });
+    viewerWindow.webContents.on('page-title-updated', (event) => {
+      event.preventDefault();
+      viewerWindow.setTitle(this.appTitle);
     });
   }
 
@@ -252,6 +428,7 @@ export class WindowManager {
     handleAction(action: string): Promise<boolean>;
     allowNavigation(url: string): boolean;
     allowPictureInPicture(url: string): boolean;
+    transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined;
     transformRequestHeaders(
       details: SiteRequestDetails,
     ): SiteRequestHeaders | undefined;
@@ -260,6 +437,7 @@ export class WindowManager {
     this.siteActionHandler = handlers.handleAction;
     this.navigationGuard = handlers.allowNavigation;
     this.pictureInPictureGuard = handlers.allowPictureInPicture;
+    this.requestTransformer = handlers.transformRequest;
     this.requestHeadersTransformer = handlers.transformRequestHeaders;
   }
 
@@ -269,10 +447,16 @@ export class WindowManager {
 
   setPictureInPictureStateHandler(handler: (active: boolean) => void): void {
     this.pictureInPictureStateHandler = handler;
-    handler(this.pictureInPicture.isActive());
+    handler(
+      this.pictureInPicture.isActive() ||
+        this.internalVideoPictureInPicture !== undefined,
+    );
   }
 
   async dispose(): Promise<void> {
+    this.disposing = true;
+    this.clearAlwaysOnTopReassertions();
+    await this.exitInternalVideoPictureInPicture(false);
     await this.pictureInPicture.exitAllModes();
     await this.cancelExternalLogin();
     this.closeSitePopups();
@@ -281,9 +465,11 @@ export class WindowManager {
     this.navigationGuard = undefined;
     this.pictureInPictureGuard = undefined;
     this.pictureInPictureStateHandler = undefined;
+    this.requestTransformer = undefined;
     this.requestHeadersTransformer = undefined;
     this.shortcutHandler = undefined;
     this.destroySiteView();
+    await this.mpv.dispose();
   }
 
   async queueDroppedVideoFiles(value: unknown): Promise<boolean> {
@@ -308,11 +494,60 @@ export class WindowManager {
       this.pendingVideoOpenRequest = {
         kind: 'local',
         displayName: path.basename(filePath),
+        directory: path.dirname(filePath),
+        path: filePath,
         url: pathToFileURL(filePath).href,
       };
       return true;
     }
     return false;
+  }
+
+  async selectLocalVideo(): Promise<VideoOpenRequest | null> {
+    const viewer = this.requireViewerWindow();
+    const result = await dialog.showOpenDialog(viewer, {
+      title: 'Open video',
+      properties: ['openFile'],
+      filters: [
+        {
+          name: 'Video files',
+          extensions: Array.from(VIDEO_FILE_EXTENSIONS, (extension) =>
+            extension.slice(1),
+          ),
+        },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    const filePath = path.resolve(result.filePaths[0]);
+    try {
+      if (!(await fs.stat(filePath)).isFile()) return null;
+    } catch {
+      return null;
+    }
+    const request: VideoOpenRequest = {
+      kind: 'local',
+      displayName: path.basename(filePath),
+      directory: path.dirname(filePath),
+      path: filePath,
+      url: pathToFileURL(filePath).href,
+    };
+    this.currentVideoOpenRequest = request;
+    return request;
+  }
+
+  getVideoPlaybackCapabilities(): VideoPlaybackCapabilities {
+    const nativePlatform =
+      (process.platform === 'win32' && process.arch === 'x64') ||
+      (process.platform === 'darwin' && process.arch === 'arm64');
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      nativeBackendAvailable: nativePlatform && existsSync(resolveMpvAddonPath()),
+      hardwareAccelerationDisabled:
+        process.env.KAWAIKARA_FORCE_SOFTWARE_RENDERING === '1',
+    };
   }
 
   queueYouTubeDownloader(url: string): void {
@@ -321,6 +556,75 @@ export class WindowManager {
 
   getCurrentVideoOpenRequest(): VideoOpenRequest | null {
     return this.currentVideoOpenRequest;
+  }
+
+  activateVideoOpenRequest(
+    webContentsId: number,
+    request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
+  ): boolean {
+    const video = this.videoWindow;
+    if (
+      !this.internalVideoVisible ||
+      !video ||
+      video.isDestroyed() ||
+      video.webContents.id !== webContentsId
+    ) {
+      return false;
+    }
+    this.currentVideoOpenRequest = request;
+    return true;
+  }
+
+  recoverVideoPlaybackRenderer(webContentsId: number): Promise<boolean> {
+    if (this.videoSoftwareRenderer) return Promise.resolve(false);
+    if (this.videoRendererRecovery) return this.videoRendererRecovery;
+    const video = this.videoWindow;
+    if (
+      !this.internalVideoVisible ||
+      this.internalVideoPictureInPicture ||
+      !video ||
+      video.isDestroyed() ||
+      video.webContents.id !== webContentsId
+    ) {
+      return Promise.resolve(false);
+    }
+
+    const recovery = this.recreateVideoWindowWithSoftwareRenderer(video)
+      .finally(() => {
+        if (this.videoRendererRecovery === recovery) {
+          this.videoRendererRecovery = undefined;
+        }
+      });
+    this.videoRendererRecovery = recovery;
+    return recovery;
+  }
+
+  private async recreateVideoWindowWithSoftwareRenderer(
+    video: BrowserWindow,
+  ): Promise<boolean> {
+    console.warn(
+      'The shared-texture Video renderer did not initialize; retrying with the libmpv WebGL renderer.',
+    );
+    this.videoSoftwareRenderer = true;
+    this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+    video.hide();
+    await this.mpv.detachWindow(video);
+    if (this.videoWindow === video) this.videoWindow = undefined;
+    video.destroy();
+
+    if (!this.internalVideoVisible || this.disposing) return false;
+    const replacement = await this.ensureVideoWindow();
+    this.syncVideoWindowBounds();
+    replacement.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
+    replacement.show();
+    replacement.moveTop();
+    replacement.focus();
+    replacement.webContents.focus();
+    return true;
+  }
+
+  queueVideoOpenRequest(request: VideoOpenRequest): void {
+    this.pendingVideoOpenRequest = request;
   }
 
   private dispatchSiteAction(action: string): void {
@@ -374,7 +678,109 @@ export class WindowManager {
   }
 
   setAlwaysOnTop(enabled: boolean): void {
-    this.viewerWindow?.setAlwaysOnTop(enabled);
+    this.appAlwaysOnTop = enabled;
+    if (!this.internalVideoPictureInPicture) {
+      const viewer = this.viewerWindow;
+      if (viewer && !viewer.isDestroyed()) {
+        this.applyAlwaysOnTop(viewer, enabled);
+        if (enabled) this.scheduleAlwaysOnTopReassertion();
+      }
+    }
+  }
+
+  shouldRecoverAlwaysOnTopShortcut(): boolean {
+    const viewer = this.viewerWindow;
+    return Boolean(
+      this.appAlwaysOnTop &&
+      viewer &&
+      !viewer.isDestroyed() &&
+      (!viewer.isVisible() || viewer.isMinimized() || !viewer.isFocused()),
+    );
+  }
+
+  recoverAlwaysOnTop(): void {
+    const viewer = this.requireViewerWindow();
+    this.appAlwaysOnTop = true;
+    if (viewer.isMinimized()) viewer.restore();
+    this.applyAlwaysOnTop(viewer, true);
+    viewer.show();
+    if (process.platform === 'darwin') app.focus({ steal: true });
+    viewer.moveTop();
+    viewer.focus();
+    this.scheduleAlwaysOnTopReassertion();
+  }
+
+  private async prepareViewerWindowClose(viewer: BrowserWindow): Promise<void> {
+    try {
+      // electron-mpv-video's closed listener reads webContents.id. Detach while
+      // the BrowserWindow is still alive so that listener never observes a
+      // destroyed Electron object during an ordinary title-bar close.
+      const video = this.videoWindow;
+      if (video && !video.isDestroyed()) {
+        await this.mpv.detachWindow(video);
+        video.destroy();
+        this.videoWindow = undefined;
+      }
+    } catch (error) {
+      console.error('Failed to detach MPV before closing the Video window.', error);
+      await this.mpv.dispose().catch((disposeError: unknown) => {
+        console.error('Failed to dispose MPV after detach failed.', disposeError);
+      });
+    } finally {
+      this.viewerClosePrepared = true;
+      this.viewerClosePreparation = undefined;
+      if (!viewer.isDestroyed()) viewer.close();
+    }
+  }
+
+  private applyAlwaysOnTop(viewer: BrowserWindow, enabled: boolean): void {
+    if (!enabled) {
+      viewer.setAlwaysOnTop(false);
+      if (process.platform === 'darwin') {
+        viewer.setVisibleOnAllWorkspaces(false, { visibleOnFullScreen: false });
+      }
+      return;
+    }
+
+    if (process.platform === 'darwin') {
+      viewer.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      viewer.setAlwaysOnTop(true, 'screen-saver', 1);
+    } else {
+      // screen-saver is stronger than the default normal level and survives
+      // another app switching a borderless window into fullscreen.
+      viewer.setAlwaysOnTop(true, 'screen-saver');
+    }
+  }
+
+  private scheduleAlwaysOnTopReassertion(): void {
+    if (!this.appAlwaysOnTop || this.internalVideoPictureInPicture) return;
+    this.clearAlwaysOnTopReassertions();
+    for (const delay of [100, 650, 1_800]) {
+      const timer = setTimeout(() => {
+        this.alwaysOnTopReassertTimers.delete(timer);
+        const viewer = this.viewerWindow;
+        if (
+          !this.appAlwaysOnTop ||
+          this.internalVideoPictureInPicture ||
+          !viewer ||
+          viewer.isDestroyed()
+        ) {
+          return;
+        }
+        viewer.setAlwaysOnTop(false);
+        this.applyAlwaysOnTop(viewer, true);
+        if (!viewer.isMinimized()) {
+          viewer.showInactive();
+          viewer.moveTop();
+        }
+      }, delay);
+      this.alwaysOnTopReassertTimers.add(timer);
+    }
+  }
+
+  private clearAlwaysOnTopReassertions(): void {
+    for (const timer of this.alwaysOnTopReassertTimers) clearTimeout(timer);
+    this.alwaysOnTopReassertTimers.clear();
   }
 
   setMenuDismissBehavior(
@@ -400,19 +806,30 @@ export class WindowManager {
     }));
   }
 
+  openDevTools(mode: DevToolsMode): void {
+    const webContents = this.getActiveViewerWebContents();
+    if (!webContents || webContents.isDestroyed()) {
+      throw new Error('There is no active site view to inspect.');
+    }
+    webContents.openDevTools({ mode, activate: true });
+  }
+
   setPictureInPictureSize(preference: PictureInPictureSizePreference): void {
+    this.pictureInPictureSize = preference;
     this.pictureInPicture.setWindowSize(preference);
   }
 
   setPictureInPicturePortraitSize(
     preference: PictureInPictureSizePreference,
   ): void {
+    this.pictureInPicturePortraitSize = preference;
     this.pictureInPicture.setPortraitWindowSize(preference);
   }
 
   setPictureInPicturePlacement(
     preference: PictureInPicturePlacementPreference,
   ): void {
+    this.pictureInPicturePlacement = preference;
     this.pictureInPicture.setWindowPlacement(preference);
   }
 
@@ -425,6 +842,9 @@ export class WindowManager {
   }
 
   async togglePictureInPicture() {
+    if (this.internalVideoVisible) {
+      return this.toggleInternalVideoPictureInPicture();
+    }
     if (!this.canEnterPictureInPicture()) {
       return { status: 'no-video' as const, mode: 'video' as const };
     }
@@ -434,6 +854,9 @@ export class WindowManager {
   }
 
   async toggleGamePictureInPicture() {
+    if (this.internalVideoVisible) {
+      return this.toggleInternalVideoPictureInPicture();
+    }
     if (!this.canEnterPictureInPicture()) {
       return { status: 'no-video' as const, mode: 'window' as const };
     }
@@ -443,6 +866,7 @@ export class WindowManager {
   }
 
   private canEnterPictureInPicture(): boolean {
+    if (this.internalVideoPictureInPicture) return true;
     if (this.pictureInPicture.isActive()) return true;
     const webContents = this.requireSiteWebContents();
     return this.pictureInPictureGuard?.(webContents.getURL()) ?? true;
@@ -451,14 +875,9 @@ export class WindowManager {
   private async togglePictureInPictureWithOverlay(
     toggle: () => ReturnType<UnifiedPictureInPictureManager['toggle']>,
   ) {
-    const overlayWasVisible = this.overlayVisible;
-    if (overlayWasVisible) this.hideOverlay();
-
     const result = await toggle();
     if (result.status === 'exited') {
       this.focusViewer();
-    } else if (overlayWasVisible && result.status !== 'entered') {
-      this.showOverlay();
     }
     return result;
   }
@@ -467,6 +886,7 @@ export class WindowManager {
     if (this.restoringPictureInPicture) return;
     this.restoringPictureInPicture = true;
     try {
+      await this.exitInternalVideoPictureInPicture();
       await this.pictureInPicture.exitAllModes();
       const viewer = this.viewerWindow;
       if (viewer && !viewer.isDestroyed()) this.focusViewer();
@@ -478,7 +898,9 @@ export class WindowManager {
   }
 
   setAppLocale(locale: AppLocale, systemLocale: string): void {
-    const resolvedLocale = locale === 'system' ? systemLocale : locale;
+    this.appLocale = locale;
+    this.systemLocale = systemLocale;
+    const resolvedLocale = resolveAppLocale(locale, systemLocale);
     this.appTitle = resolveLocalizedAppTitle(resolvedLocale);
     this.viewerWindow?.setTitle(this.appTitle);
   }
@@ -489,23 +911,192 @@ export class WindowManager {
   }
 
   reloadViewer(): void {
-    this.requireSiteWebContents().reload();
+    this.requireActiveViewerWebContents().reload();
+  }
+
+  setAppTheme(theme: AppTheme): void {
+    this.appTheme = theme;
+    // Electron exposes this to BrowserWindows and remote WebContentsViews as
+    // prefers-color-scheme, so sites that support it follow the app theme.
+    nativeTheme.themeSource = theme;
+  }
+
+  setInternalVideoPresentation(webContentsId: number, value: unknown): boolean {
+    const video = this.videoWindow;
+    if (
+      !this.internalVideoVisible ||
+      !video ||
+      video.isDestroyed() ||
+      video.webContents.id !== webContentsId ||
+      !value ||
+      typeof value !== 'object'
+    ) {
+      return false;
+    }
+    const candidate = value as Partial<VideoPresentationState>;
+    const width = normalizeVideoDimension(candidate.width);
+    const height = normalizeVideoDimension(candidate.height);
+    this.internalVideoPresentation = {
+      ready: candidate.ready === true,
+      width,
+      height,
+    };
+    return true;
+  }
+
+  private async toggleInternalVideoPictureInPicture() {
+    if (this.internalVideoPictureInPicture) {
+      await this.exitInternalVideoPictureInPicture();
+      this.focusViewer();
+      return { status: 'exited' as const, mode: 'window' as const };
+    }
+    if (!this.internalVideoPresentation.ready) {
+      return { status: 'no-video' as const, mode: 'window' as const };
+    }
+
+    const viewer = this.requireViewerWindow();
+    const video = this.requireVideoWindow();
+    const minimumSize = video.getMinimumSize();
+    const saved: InternalVideoPictureInPictureState = {
+      minimumSize: [minimumSize[0] ?? 0, minimumSize[1] ?? 0],
+      movable: video.isMovable(),
+      resizable: video.isResizable(),
+      visibleOnAllWorkspaces: video.isVisibleOnAllWorkspaces(),
+    };
+    this.internalVideoPictureInPicture = saved;
+    this.hideOverlay();
+
+    const aspectRatio = this.internalVideoPresentation.width > 0 &&
+        this.internalVideoPresentation.height > 0
+      ? this.internalVideoPresentation.width / this.internalVideoPresentation.height
+      : undefined;
+    const portrait = typeof aspectRatio === 'number' && aspectRatio < 1;
+    const preferred = resolvePictureInPictureSize(
+      portrait ? this.pictureInPicturePortraitSize : this.pictureInPictureSize,
+      aspectRatio,
+      portrait ? 'portrait' : 'landscape',
+    );
+    const bounds = resolveInternalVideoPictureInPictureBounds(
+      viewer.getBounds(),
+      preferred,
+      this.pictureInPicturePlacement,
+    );
+    video.hide();
+    video.setParentWindow(null);
+    viewer.hide();
+    video.setMinimumSize(
+      Math.min(PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM.width, bounds.width),
+      Math.min(PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM.height, bounds.height),
+    );
+    video.setMovable(true);
+    video.setResizable(true);
+    video.setAspectRatio(aspectRatio ?? 0);
+    video.setBounds(bounds, false);
+    if (process.platform === 'darwin') {
+      video.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      video.setAlwaysOnTop(true, 'screen-saver', 1);
+    } else {
+      video.setAlwaysOnTop(true, 'pop-up-menu');
+    }
+    video.webContents.send(
+      IPC_CHANNELS.video.pictureInPictureChanged,
+      true,
+    );
+    video.show();
+    video.moveTop();
+    video.focus();
+    video.webContents.focus();
+    this.notifyPictureInPictureChanged({ status: 'entered', mode: 'window' });
+    return { status: 'entered' as const, mode: 'window' as const };
+  }
+
+  private async exitInternalVideoPictureInPicture(notify = true): Promise<void> {
+    const state = this.internalVideoPictureInPicture;
+    if (!state) return;
+    const viewer = this.viewerWindow;
+    const video = this.videoWindow;
+    if (video && !video.isDestroyed()) {
+      const placement = captureInternalVideoPictureInPicturePlacement(video);
+      if (placement) await this.pictureInPicturePlacementRecorder?.(placement);
+    }
+    this.internalVideoPictureInPicture = undefined;
+    if (
+      viewer &&
+      !viewer.isDestroyed() &&
+      video &&
+      !video.isDestroyed()
+    ) {
+      video.webContents.send(
+        IPC_CHANNELS.video.pictureInPictureChanged,
+        false,
+      );
+      video.hide();
+      video.setAspectRatio(0);
+      video.setAlwaysOnTop(false);
+      if (process.platform === 'darwin') {
+        video.setVisibleOnAllWorkspaces(state.visibleOnAllWorkspaces, {
+          visibleOnFullScreen: state.visibleOnAllWorkspaces,
+        });
+      }
+      video.setMinimumSize(...state.minimumSize);
+      video.setMovable(state.movable);
+      video.setResizable(state.resizable);
+      video.setParentWindow(viewer);
+      viewer.show();
+      this.syncVideoWindowBounds();
+      if (this.internalVideoVisible) {
+        video.show();
+        video.moveTop();
+      }
+    }
+    if (notify) {
+      this.notifyPictureInPictureChanged({ status: 'exited', mode: 'window' });
+    }
+  }
+
+  private notifyPictureInPictureChanged(result: {
+    readonly status: 'entered' | 'exited';
+    readonly mode: 'window';
+  }): void {
+    const overlay = this.overlayWindow;
+    if (overlay && !overlay.isDestroyed()) {
+      overlay.webContents.send(
+        IPC_CHANNELS.media.pictureInPictureChanged,
+        result,
+      );
+    }
+    this.pictureInPictureStateHandler?.(result.status === 'entered');
+  }
+
+  isAppFullScreen(): boolean {
+    return !this.internalVideoPictureInPicture &&
+      this.requireViewerWindow().isFullScreen();
+  }
+
+  exitAppFullScreen(): void {
+    const viewer = this.requireViewerWindow();
+    if (viewer.isFullScreen()) viewer.setFullScreen(false);
   }
 
   goBack(): void {
-    const navigation = this.requireSiteWebContents().navigationHistory;
+    const navigation = this.requireActiveViewerWebContents().navigationHistory;
     if (navigation.canGoBack()) navigation.goBack();
   }
 
   goForward(): void {
-    const navigation = this.requireSiteWebContents().navigationHistory;
+    const navigation = this.requireActiveViewerWebContents().navigationHistory;
     if (navigation.canGoForward()) navigation.goForward();
   }
 
   setEditingState(webContentsId: number, editing: boolean): boolean {
     const viewerId = this.siteView?.webContents.id;
+    const internalViewerId = this.videoWindow?.webContents.id;
     const overlayId = this.overlayWindow?.webContents.id;
-    if (webContentsId !== viewerId && webContentsId !== overlayId) {
+    if (
+      webContentsId !== viewerId &&
+      webContentsId !== internalViewerId &&
+      webContentsId !== overlayId
+    ) {
       return false;
     }
     if (editing) {
@@ -521,9 +1112,8 @@ export class WindowManager {
     this.overlayView = 'menu';
     this.syncOverlayBounds();
     this.overlayVisible = true;
-    overlay.show();
-    overlay.focus();
     overlay.webContents.send(IPC_CHANNELS.overlay.showMenu);
+    this.revealOverlay(overlay);
   }
 
   showPreferencesOverlay(): void {
@@ -531,20 +1121,28 @@ export class WindowManager {
     this.overlayView = 'preference';
     this.syncOverlayBounds();
     this.overlayVisible = true;
-    overlay.show();
-    overlay.focus();
     overlay.webContents.send(IPC_CHANNELS.overlay.showPreferences);
+    this.revealOverlay(overlay);
   }
 
   hideOverlay(): void {
     this.overlayVisible = false;
     const overlay = this.overlayWindow;
     if (overlay && !overlay.isDestroyed()) {
+      this.clearOverlayRevealTimer();
+      overlay.setOpacity(1);
       overlay.webContents.send(IPC_CHANNELS.overlay.hidden);
       overlay.hide();
     }
     this.viewerWindow?.focus();
-    if (this.siteView && !this.siteView.webContents.isDestroyed()) {
+    if (this.internalVideoVisible) {
+      const video = this.videoWindow;
+      if (video && !video.isDestroyed()) {
+        video.show();
+        video.focus();
+        video.webContents.focus();
+      }
+    } else if (this.siteView && !this.siteView.webContents.isDestroyed()) {
       this.siteView.webContents.focus();
     }
   }
@@ -569,15 +1167,36 @@ export class WindowManager {
       viewer.restore();
     }
     viewer.show();
+    this.syncSiteViewBounds();
+    this.syncVideoWindowBounds();
     if (process.platform === 'darwin') app.focus({ steal: true });
     viewer.moveTop();
     viewer.focus();
-    this.siteView?.webContents.focus();
+    if (this.internalVideoVisible) {
+      const video = this.videoWindow;
+      if (video && !video.isDestroyed()) {
+        video.show();
+        video.moveTop();
+        video.focus();
+        video.webContents.focus();
+      }
+    } else this.siteView?.webContents.focus();
   }
 
   private async activateSiteView(
     runtime: SiteRuntimeProfile,
   ): Promise<{ readonly siteSession: Session; readonly webContents: WebContents }> {
+    const viewerWindow = this.requireViewerWindow();
+    if (this.internalVideoVisible) {
+      await this.exitInternalVideoPictureInPicture();
+      this.internalVideoVisible = false;
+      this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+      const video = this.videoWindow;
+      if (video && !video.isDestroyed()) {
+        video.webContents.send(IPC_CHANNELS.video.visibilityChanged, false);
+        video.hide();
+      }
+    }
     if (this.siteView && !this.siteView.webContents.isDestroyed()) {
       await this.pictureInPicture.exitAllModes();
       await prepareCurrentDocumentForNavigation(this.siteView.webContents);
@@ -586,7 +1205,6 @@ export class WindowManager {
     this.closeSitePopups();
     this.destroySiteView();
 
-    const viewerWindow = this.requireViewerWindow();
     const siteSession = session.fromPartition(runtime.partition);
     const siteView = new WebContentsView({
       webPreferences: {
@@ -602,9 +1220,13 @@ export class WindowManager {
     });
 
     this.siteView = siteView;
+    siteView.webContents.setUserAgent(
+      createBrowserUserAgent(siteView.webContents.getUserAgent()),
+    );
     this.configureSiteSession(siteSession);
     this.attachSiteWebContents(siteView.webContents, siteSession);
     viewerWindow.contentView.addChildView(siteView);
+    this.siteViewAttached = true;
     this.syncSiteViewBounds();
     siteView.webContents.focus();
     console.info(
@@ -618,6 +1240,13 @@ export class WindowManager {
     siteSession: Session,
   ): void {
     const webContentsId = webContents.id;
+    webContents.on('dom-ready', () => {
+      void webContents
+        .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user' })
+        .catch((error: unknown) => {
+          console.debug('The site scrollbar theme could not be applied.', error);
+        });
+    });
     webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(webContentsId);
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
@@ -702,6 +1331,9 @@ export class WindowManager {
 
     webContents.on('did-create-window', (popupWindow) => {
       this.sitePopupWindows.add(popupWindow);
+      // A site-specific browser UA must also be visible to popup JavaScript.
+      // Session request interception covers the initial navigation headers.
+      popupWindow.webContents.setUserAgent(webContents.getUserAgent());
       popupWindow.setMenuBarVisibility(false);
       popupWindow.on('closed', () => this.sitePopupWindows.delete(popupWindow));
     });
@@ -710,6 +1342,14 @@ export class WindowManager {
   private configureSiteSession(siteSession: Session): void {
     if (this.configuredSiteSessions.has(siteSession)) return;
     this.configuredSiteSessions.add(siteSession);
+    siteSession.webRequest.onBeforeRequest((details, callback) => {
+      const transformed = this.requestTransformer?.({
+        url: details.url,
+        method: details.method,
+        requestHeaders: {},
+      });
+      callback(transformed ?? {});
+    });
     siteSession.webRequest.onBeforeSendHeaders((details, callback) => {
       const requestHeaders = this.requestHeadersTransformer?.({
         url: details.url,
@@ -727,9 +1367,10 @@ export class WindowManager {
     const webContentsId = siteView.webContents.id;
     this.editingWebContentsIds.delete(webContentsId);
     const viewerWindow = this.viewerWindow;
-    if (viewerWindow && !viewerWindow.isDestroyed()) {
+    if (viewerWindow && !viewerWindow.isDestroyed() && this.siteViewAttached) {
       viewerWindow.contentView.removeChildView(siteView);
     }
+    this.siteViewAttached = false;
     if (!siteView.webContents.isDestroyed()) siteView.webContents.close();
   }
 
@@ -755,18 +1396,30 @@ export class WindowManager {
         }
         const contents = getWebContents();
         await this.prepareViewerTransition(contents);
+        const viewer = this.requireViewerWindow();
+        const siteView = this.requireSiteView();
+        if (this.siteViewAttached) {
+          viewer.contentView.removeChildView(siteView);
+          this.siteViewAttached = false;
+        }
+        this.internalVideoVisible = true;
+        this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
         const request = this.pendingVideoOpenRequest;
         this.pendingVideoOpenRequest = undefined;
         this.currentVideoOpenRequest = request ?? null;
-        await contents.loadFile(
-          path.resolve(__dirname, '../renderer/video.html'),
-        );
+        const video = await this.ensureVideoWindow();
+        this.syncVideoWindowBounds();
+        video.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
         if (request) {
-          contents.send(
+          video.webContents.send(
             IPC_CHANNELS.video.openRequestChanged,
             request,
           );
         }
+        video.show();
+        video.moveTop();
+        video.focus();
+        video.webContents.focus();
       },
       getUserAgent: () => getWebContents().getUserAgent(),
       setUserAgent: (userAgent) => {
@@ -812,6 +1465,7 @@ export class WindowManager {
   }
 
   private async prepareViewerTransition(webContents: WebContents): Promise<void> {
+    await this.exitInternalVideoPictureInPicture();
     await this.pictureInPicture.exitAllModes();
     this.closeSitePopups();
     await prepareCurrentDocumentForNavigation(webContents);
@@ -831,8 +1485,14 @@ export class WindowManager {
       path.resolve(__dirname, '../renderer/external-login.html'),
       {
         query: {
-          site: options.siteTitle ?? '',
-          locale: options.locale ?? '',
+          data: JSON.stringify(
+            getExternalLoginViewData(
+              this.appLocale,
+              this.systemLocale,
+              options.siteTitle,
+              this.appTheme,
+            ),
+          ),
         },
       },
     );
@@ -861,12 +1521,130 @@ export class WindowManager {
     if (
       !this.viewerWindow ||
       !this.siteView ||
+      !this.siteViewAttached ||
       this.pictureInPicture.isActive()
     ) {
       return;
     }
     const [width, height] = this.viewerWindow.getContentSize();
     this.siteView.setBounds({ x: 0, y: 0, width, height });
+  }
+
+  private syncVideoWindowBounds(): void {
+    const viewer = this.viewerWindow;
+    const video = this.videoWindow;
+    if (
+      !this.internalVideoVisible ||
+      this.internalVideoPictureInPicture ||
+      !viewer ||
+      viewer.isDestroyed() ||
+      !video ||
+      video.isDestroyed()
+    ) {
+      return;
+    }
+    video.setBounds(viewer.getContentBounds(), false);
+  }
+
+  private ensureVideoWindow(): Promise<BrowserWindow> {
+    const existing = this.videoWindow;
+    if (existing && !existing.isDestroyed()) return Promise.resolve(existing);
+    if (this.videoWindowLoading) return this.videoWindowLoading;
+
+    const viewer = this.requireViewerWindow();
+    const bounds = viewer.getContentBounds();
+    const video = new BrowserWindow({
+      parent: viewer,
+      ...bounds,
+      show: false,
+      frame: false,
+      title: 'Kawaikara Video',
+      backgroundColor: '#050506',
+      resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      webPreferences: {
+        preload: path.resolve(__dirname, '../preload/viewer.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        backgroundThrottling: false,
+        ...(this.videoSoftwareRenderer
+          ? { disableBlinkFeatures: 'WebGPU' }
+          : {}),
+        // electron-mpv-video exposes its renderer bridge from this preload.
+        sandbox: false,
+      },
+    });
+    this.videoWindow = video;
+    attachRendererLogging(video.webContents, 'video');
+    this.mpv.attachWindow(video);
+    video.setMenu(null);
+    video.setMenuBarVisibility(false);
+    const webContentsId = video.webContents.id;
+    video.webContents.on('before-input-event', (event, input) => {
+      const plainTab =
+        input.type === 'keyDown' &&
+        !input.isAutoRepeat &&
+        !input.isComposing &&
+        !input.control &&
+        !input.meta &&
+        !input.alt &&
+        !input.shift &&
+        input.key.toLowerCase() === 'tab';
+      if (plainTab) {
+        event.preventDefault();
+        // Video owns several text and range inputs whose focus can outlive the
+        // panel that contained them. Keep the app-level Menu toggle reliable
+        // without allowing Tab to move focus through the Video controls.
+        if (!this.internalVideoPictureInPicture) this.toggleOverlay();
+        return;
+      }
+      const editing = this.editingWebContentsIds.has(webContentsId);
+      if (this.shortcutHandler?.(input, editing)) event.preventDefault();
+    });
+    video.webContents.on('did-start-loading', () => {
+      this.editingWebContentsIds.delete(webContentsId);
+    });
+    video.webContents.on('page-title-updated', (event) => event.preventDefault());
+    video.on('close', (event) => {
+      if (this.disposing) return;
+      event.preventDefault();
+      if (this.internalVideoPictureInPicture) {
+        void this.restorePictureInPicture();
+      } else {
+        this.viewerWindow?.close();
+      }
+    });
+    video.on('closed', () => {
+      this.editingWebContentsIds.delete(webContentsId);
+      if (this.videoWindow === video) {
+        this.videoWindow = undefined;
+        this.internalVideoVisible = false;
+        this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+      }
+    });
+
+    const loading = video
+      .loadFile(path.resolve(__dirname, '../renderer/video.html'))
+      .then(() => video)
+      .catch(async (error: unknown) => {
+        if (!video.isDestroyed()) {
+          await this.mpv.detachWindow(video).catch(() => undefined);
+          video.destroy();
+        }
+        if (this.videoWindow === video) this.videoWindow = undefined;
+        throw error;
+      })
+      .finally(() => {
+        if (this.videoWindowLoading === loading) {
+          this.videoWindowLoading = undefined;
+        }
+      });
+    this.videoWindowLoading = loading;
+    return loading;
   }
 
   private syncOverlayBounds(): void {
@@ -878,13 +1656,39 @@ export class WindowManager {
     const bounds: Rectangle = {
       x: contentBounds.x,
       y: contentBounds.y,
-      width:
-        this.overlayView === 'preference'
-          ? contentBounds.width
-          : Math.min(OVERLAY_WIDTH, contentBounds.width),
+      width: contentBounds.width,
       height: contentBounds.height,
     };
     this.overlayWindow.setBounds(bounds, false);
+  }
+
+  private revealOverlay(overlay: BrowserWindow): void {
+    this.clearOverlayRevealTimer();
+    if (overlay.isVisible()) {
+      overlay.setOpacity(1);
+      overlay.moveTop();
+      overlay.focus();
+      return;
+    }
+
+    // The renderer stays alive while hidden. Give React/Motion two frames to
+    // commit the off-screen entry pose before exposing the child window, so a
+    // completed menu frame cannot flash during a site navigation.
+    overlay.setOpacity(0);
+    overlay.showInactive();
+    overlay.moveTop();
+    this.overlayRevealTimer = setTimeout(() => {
+      this.overlayRevealTimer = undefined;
+      if (!this.overlayVisible || overlay.isDestroyed()) return;
+      overlay.setOpacity(1);
+      overlay.focus();
+    }, 34);
+  }
+
+  private clearOverlayRevealTimer(): void {
+    if (this.overlayRevealTimer === undefined) return;
+    clearTimeout(this.overlayRevealTimer);
+    this.overlayRevealTimer = undefined;
   }
 
   private closeSitePopups(): void {
@@ -916,8 +1720,29 @@ export class WindowManager {
     return this.viewerWindow;
   }
 
+  private getActiveViewerWebContents(): WebContents | undefined {
+    if (this.internalVideoVisible) return this.videoWindow?.webContents;
+    return this.siteView?.webContents;
+  }
+
+  private requireActiveViewerWebContents(): WebContents {
+    const webContents = this.getActiveViewerWebContents();
+    if (!webContents || webContents.isDestroyed()) {
+      throw new Error('The active viewer WebContents has not been created.');
+    }
+    return webContents;
+  }
+
   private requireSiteWebContents(): WebContents {
     return this.requireSiteView().webContents;
+  }
+
+  private requireVideoWindow(): BrowserWindow {
+    const video = this.videoWindow;
+    if (!video || video.isDestroyed()) {
+      throw new Error('The Video window has not been created.');
+    }
+    return video;
   }
 
   private requireSiteView(): WebContentsView {
@@ -935,6 +1760,16 @@ export class WindowManager {
     }
     return this.overlayWindow;
   }
+}
+
+function resolveMpvAddonPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'mpv', 'mpv_addon.node');
+  }
+  return path.resolve(
+    __dirname,
+    '../../node_modules/electron-mpv-video/native/mpv-addon/build/Release/mpv_addon.node',
+  );
 }
 
 function isExpectedSpaNavigationHandoff(
@@ -1099,9 +1934,82 @@ function normalizeNavigationHost(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\./, '');
 }
 
+function createBrowserUserAgent(userAgent: string): string {
+  return userAgent
+    .replace(/\s(?:Electron|kawaikara)\/[^\s]+/gi, '')
+    .trim();
+}
+
 function resolveLocalizedAppTitle(locale: string): string {
   const language = locale.toLowerCase();
   if (language.startsWith('ko')) return '카와이카라';
   if (language.startsWith('ja')) return 'カワイカラ';
   return 'Kawaikara';
+}
+
+function normalizeVideoDimension(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.round(value)
+    : 0;
+}
+
+function resolveInternalVideoPictureInPictureBounds(
+  previousBounds: Rectangle,
+  preferred: { readonly width: number; readonly height: number },
+  preference: PictureInPicturePlacementPreference,
+): Rectangle {
+  const displays = screen.getAllDisplays();
+  const byId = (id: string | undefined) =>
+    id ? displays.find((display) => String(display.id) === id) : undefined;
+  const current = screen.getDisplayMatching(previousBounds);
+  const display = preference.monitor.mode === 'display'
+    ? byId(preference.monitor.displayId) ?? current
+    : preference.monitor.mode === 'last'
+      ? byId(preference.lastPlacement?.displayId) ?? current
+      : current;
+  const workArea = display.workArea;
+  const width = Math.min(preferred.width, workArea.width);
+  const height = Math.min(preferred.height, workArea.height);
+  const availableWidth = Math.max(0, workArea.width - width);
+  const availableHeight = Math.max(0, workArea.height - height);
+  if (preference.position === 'last' && preference.lastPlacement) {
+    return {
+      x: Math.round(workArea.x + availableWidth * preference.lastPlacement.xRatio),
+      y: Math.round(workArea.y + availableHeight * preference.lastPlacement.yRatio),
+      width,
+      height,
+    };
+  }
+  const right = preference.position.endsWith('right');
+  const bottom = preference.position.startsWith('bottom');
+  return {
+    x: right
+      ? workArea.x + workArea.width - width - INTERNAL_VIDEO_PIP_MARGIN
+      : workArea.x + INTERNAL_VIDEO_PIP_MARGIN,
+    y: bottom
+      ? workArea.y + workArea.height - height - INTERNAL_VIDEO_PIP_MARGIN
+      : workArea.y + INTERNAL_VIDEO_PIP_MARGIN,
+    width,
+    height,
+  };
+}
+
+function captureInternalVideoPictureInPicturePlacement(
+  viewer: BrowserWindow,
+): PictureInPictureLastPlacement | undefined {
+  const bounds = viewer.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const availableWidth = Math.max(1, display.workArea.width - bounds.width);
+  const availableHeight = Math.max(1, display.workArea.height - bounds.height);
+  return {
+    displayId: String(display.id),
+    xRatio: Math.min(
+      1,
+      Math.max(0, (bounds.x - display.workArea.x) / availableWidth),
+    ),
+    yRatio: Math.min(
+      1,
+      Math.max(0, (bounds.y - display.workArea.y) / availableHeight),
+    ),
+  };
 }

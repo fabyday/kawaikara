@@ -19,11 +19,20 @@ import {
   type PictureInPicturePlacementPreference,
   type PictureInPictureSizePreference,
 } from '../../Common/PictureInPicture';
+import { attachRendererLogging } from '../Logging';
+import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
 
 const PIP_MARGIN = 20;
 const PIP_HOVER_POLL_INTERVAL_MS = 80;
+const PIP_VIDEO_DISCOVERY_RETRY_MS = 100;
+const PIP_VIDEO_DISCOVERY_ATTEMPTS = 2;
 const PIP_RETURN_BUTTON_BOUNDS = { x: 12, y: 12, width: 40, height: 40 };
 const PIP_RESTORE_MESSAGE = `__kawaikara_pip_restore_${randomUUID()}`;
+const PIP_PLAYBACK_BUTTON_SIZE = 54;
+const PIP_NATIVE_DRAG_STYLE =
+  process.platform === 'win32' ? '-webkit-app-region:drag;' : '';
+const PIP_NATIVE_NO_DRAG_STYLE =
+  process.platform === 'win32' ? '-webkit-app-region:no-drag;' : '';
 
 const FIND_VIDEO_SCRIPT = `
   (() => {
@@ -200,22 +209,34 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
     overlayStyle.textContent =
       ':host{all:initial}' +
       '.drag-surface{' +
-        'position:absolute;inset:0;cursor:move' +
+        'position:absolute;inset:0;cursor:move;' +
+        ${JSON.stringify(PIP_NATIVE_DRAG_STYLE)} +
       '}' +
       'button{' +
-        'position:absolute;top:12px;left:12px;' +
+        'position:absolute;' +
         'width:40px;height:40px;padding:0;border:1px solid rgba(255,255,255,.2);' +
         'border-radius:12px;background:rgba(12,12,14,.82);color:#fff;' +
         'z-index:1;display:grid;place-items:center;cursor:pointer;' +
         'opacity:0;transform:scale(.92);pointer-events:none;' +
         'transition:opacity 140ms ease,transform 140ms ease,background 140ms ease;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(12px)' +
+        'box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(12px);' +
+        ${JSON.stringify(PIP_NATIVE_NO_DRAG_STYLE)} +
+      '}' +
+      '.restore-button{top:12px;left:12px}' +
+      '.playback-button{' +
+        'top:50%;left:50%;width:${String(PIP_PLAYBACK_BUTTON_SIZE)}px;' +
+        'height:${String(PIP_PLAYBACK_BUTTON_SIZE)}px;border-radius:50%;' +
+        'transform:translate(-50%,-50%) scale(.92);background:rgba(12,12,14,.72)' +
       '}' +
       ':host([data-controls-visible="true"]) button,' +
-      ':host(:hover) button,' +
       'button:hover,' +
       'button:focus-visible{' +
         'opacity:1;transform:scale(1);pointer-events:auto' +
+      '}' +
+      ':host([data-controls-visible="true"]) .playback-button,' +
+      '.playback-button:hover,' +
+      '.playback-button:focus-visible{' +
+        'transform:translate(-50%,-50%) scale(1)' +
       '}' +
       'button:hover{background:rgba(38,38,43,.96)}' +
       'svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;' +
@@ -224,6 +245,7 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
     dragSurface.className = 'drag-surface';
     dragSurface.setAttribute('aria-hidden', 'true');
     const restoreButton = document.createElement('button');
+    restoreButton.className = 'restore-button';
     restoreButton.type = 'button';
     restoreButton.title = 'Return to Kawaikara';
     restoreButton.setAttribute('aria-label', 'Return to Kawaikara');
@@ -241,7 +263,38 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       restoreIcon.append(path);
     }
     restoreButton.append(restoreIcon);
-    shadow.append(overlayStyle, dragSurface, restoreButton);
+    const playbackButton = document.createElement('button');
+    playbackButton.className = 'playback-button';
+    playbackButton.type = 'button';
+    const renderPlaybackButton = () => {
+      const paused = video.paused || video.ended;
+      playbackButton.title = paused ? 'Play' : 'Pause';
+      playbackButton.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+      const icon = document.createElementNS(svgNamespace, 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(svgNamespace, 'path');
+      path.setAttribute('d', paused ? 'M8 5v14l11-7z' : 'M9 5v14M15 5v14');
+      icon.append(path);
+      playbackButton.replaceChildren(icon);
+    };
+    const togglePlayback = (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (video.paused || video.ended) {
+        if (video.ended) video.currentTime = 0;
+        void video.play().catch(() => undefined);
+      } else {
+        video.pause();
+      }
+      renderPlaybackButton();
+    };
+    playbackButton.addEventListener('click', togglePlayback);
+    video.addEventListener('play', renderPlaybackButton);
+    video.addEventListener('pause', renderPlaybackButton);
+    video.addEventListener('ended', renderPlaybackButton);
+    renderPlaybackButton();
+    shadow.append(overlayStyle, dragSurface, restoreButton, playbackButton);
     restoreButton.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -255,6 +308,8 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       controlsStyle,
       elements,
       overlay,
+      playbackButton,
+      renderPlaybackButton,
       video,
       videoMarker,
     };
@@ -275,6 +330,9 @@ const EXIT_UNIFIED_PIP_SCRIPT = `
       new Event('kawaikara:picture-in-picture-transition'),
     );
     state.video.controls = state.controls;
+    state.video.removeEventListener('play', state.renderPlaybackButton);
+    state.video.removeEventListener('pause', state.renderPlaybackButton);
+    state.video.removeEventListener('ended', state.renderPlaybackButton);
     for (const { element, style } of state.elements) {
       if (style === null) element.removeAttribute('style');
       else element.setAttribute('style', style);
@@ -422,6 +480,13 @@ export class UnifiedPictureInPictureManager {
       const inputListener = (event: Electron.Event, input: Input): void => {
         if (
           input.type === 'keyDown' &&
+          input.key.toLowerCase() === 'tab'
+        ) {
+          event.preventDefault();
+          return;
+        }
+        if (
+          input.type === 'keyDown' &&
           !input.isAutoRepeat &&
           !input.isComposing &&
           !input.control &&
@@ -465,9 +530,11 @@ export class UnifiedPictureInPictureManager {
       siteView.webContents.on('before-input-event', inputListener);
       siteView.webContents.on('input-event', pointerInputListener);
 
-      viewerWindow.contentView.removeChildView(siteView);
-      pipWindow.contentView.addChildView(siteView);
-      this.syncSiteViewBounds(state);
+      await transferWebContentsView({
+        sourceWindow: viewerWindow,
+        targetWindow: pipWindow,
+        view: siteView,
+      });
       viewerWindow.hide();
       pipWindow.show();
       pipWindow.focus();
@@ -498,10 +565,7 @@ export class UnifiedPictureInPictureManager {
         );
       }
       await this.restoreInjectedVideo(candidate.frame);
-      if (pipWindow && !pipWindow.isDestroyed()) {
-        pipWindow.contentView.removeChildView(siteView);
-      }
-      this.restoreSiteView(viewerWindow, siteView);
+      await this.restoreSiteView(viewerWindow, siteView, pipWindow);
       if (pipWindow && !pipWindow.isDestroyed()) pipWindow.destroy();
       viewerWindow.show();
       return withWindowMode('failed');
@@ -530,13 +594,15 @@ export class UnifiedPictureInPictureManager {
 
     await this.rememberCurrentPlacement(state.pipWindow);
     await this.restoreInjectedVideo(state.frame);
-    if (!state.pipWindow.isDestroyed()) {
-      state.pipWindow.contentView.removeChildView(state.siteView);
-    }
-    this.restoreSiteView(state.viewerWindow, state.siteView);
+    await this.restoreSiteView(
+      state.viewerWindow,
+      state.siteView,
+      state.pipWindow,
+    );
+    this.state = undefined;
+    if (!state.pipWindow.isDestroyed()) state.pipWindow.hide();
     if (!state.viewerWindow.isDestroyed()) state.viewerWindow.show();
     if (!state.pipWindow.isDestroyed()) state.pipWindow.destroy();
-    this.state = undefined;
 
     const exited = withWindowMode('exited');
     this.onStateChanged(exited);
@@ -567,6 +633,7 @@ export class UnifiedPictureInPictureManager {
         sandbox: true,
       },
     });
+    attachRendererLogging(pipWindow.webContents, 'picture-in-picture');
     pipWindow.setMenu(null);
     pipWindow.setMenuBarVisibility(false);
     pipWindow.setMinimumSize(
@@ -628,9 +695,28 @@ export class UnifiedPictureInPictureManager {
     }
 
     const mouseInput = input as Electron.MouseInputEvent;
+    if (process.platform === 'win32') {
+      // Crossing between a native draggable region and a no-drag button can
+      // emit a transient mouseLeave on Windows. The screen-coordinate poll is
+      // authoritative for hiding; input events only reveal controls eagerly.
+      if (input.type !== 'mouseLeave') this.setControlsVisible(state, true);
+      return;
+    }
+
     if (input.type === 'mouseDown') {
       if (mouseInput.button && mouseInput.button !== 'left') return;
       if (isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)) return;
+      const [contentWidth, contentHeight] = state.pipWindow.getContentSize();
+      if (
+        isPointInside(mouseInput, {
+          x: (contentWidth - PIP_PLAYBACK_BUTTON_SIZE) / 2,
+          y: (contentHeight - PIP_PLAYBACK_BUTTON_SIZE) / 2,
+          width: PIP_PLAYBACK_BUTTON_SIZE,
+          height: PIP_PLAYBACK_BUTTON_SIZE,
+        })
+      ) {
+        return;
+      }
       const cursor = resolveGlobalMousePoint(mouseInput);
       const [windowX, windowY] = state.pipWindow.getPosition();
       state.dragState = {
@@ -658,6 +744,9 @@ export class UnifiedPictureInPictureManager {
   }
 
   private startHoverTracking(state: UnifiedPictureInPictureState): void {
+    // Native draggable regions do not reliably emit WebContents mouse-move
+    // events on Windows. Screen coordinates make the whole PiP surface a
+    // dependable hover target on every platform.
     const sync = () => {
       if (this.state !== state || state.pipWindow.isDestroyed()) return;
       const point = screen.getCursorScreenPoint();
@@ -705,28 +794,55 @@ export class UnifiedPictureInPictureManager {
   private restoreSiteView(
     viewerWindow: BrowserWindow,
     siteView: WebContentsView,
-  ): void {
-    if (viewerWindow.isDestroyed() || siteView.webContents.isDestroyed()) return;
-    viewerWindow.contentView.addChildView(siteView);
-    const [width, height] = viewerWindow.getContentSize();
-    siteView.setBounds({ x: 0, y: 0, width, height });
+    sourceWindow?: BrowserWindow,
+  ): Promise<void> {
+    if (viewerWindow.isDestroyed() || siteView.webContents.isDestroyed()) {
+      return Promise.resolve();
+    }
+    return transferWebContentsView({
+      sourceWindow,
+      targetWindow: viewerWindow,
+      view: siteView,
+    });
   }
 
   private async findVideoCandidate(
     siteView: WebContentsView,
   ): Promise<VideoCandidate | undefined> {
-    let best: VideoCandidate | undefined;
-    for (const frame of siteView.webContents.mainFrame.framesInSubtree) {
-      if (frame.isDestroyed()) continue;
-      try {
-        const result = parseVideoCandidate(
-          await frame.executeJavaScript(FIND_VIDEO_SCRIPT),
-        );
-        if (!result || (best && result.score <= best.score)) continue;
-        best = { frame, ...result };
-      } catch (error) {
-        console.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
+    let candidate: VideoCandidate | undefined;
+    for (let attempt = 0; attempt < PIP_VIDEO_DISCOVERY_ATTEMPTS; attempt += 1) {
+      candidate = await this.inspectVideoFrames(siteView);
+      if (candidate?.status === 'ready') return candidate;
+      if (attempt + 1 < PIP_VIDEO_DISCOVERY_ATTEMPTS) {
+        await delay(PIP_VIDEO_DISCOVERY_RETRY_MS);
       }
+    }
+    return candidate;
+  }
+
+  private async inspectVideoFrames(
+    siteView: WebContentsView,
+  ): Promise<VideoCandidate | undefined> {
+    let best: VideoCandidate | undefined;
+    const frames = siteView.webContents.mainFrame.framesInSubtree.filter(
+      (frame) => !frame.isDestroyed() && isInspectableFrameUrl(frame.url),
+    );
+    const candidates = await Promise.all(
+      frames.map(async (frame): Promise<VideoCandidate | undefined> => {
+        try {
+          const result = parseVideoCandidate(
+            await frame.executeJavaScript(FIND_VIDEO_SCRIPT),
+          );
+          return result ? { frame, ...result } : undefined;
+        } catch (error) {
+          console.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
+          return undefined;
+        }
+      }),
+    );
+    for (const candidate of candidates) {
+      if (!candidate || (best && candidate.score <= best.score)) continue;
+      best = candidate;
     }
     return best;
   }
@@ -914,6 +1030,14 @@ function parseVideoCandidate(
     status: candidate.status,
     ...readAspectRatio(candidate),
   };
+}
+
+function isInspectableFrameUrl(url: string): boolean {
+  return url !== '' && url !== 'about:blank';
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function parseEnterResult(value: unknown): {

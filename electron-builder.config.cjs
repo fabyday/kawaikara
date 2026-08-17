@@ -1,4 +1,17 @@
 const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
+const { existsSync } = require('node:fs');
+
+const mpvResourceDirectory =
+  'node_modules/electron-mpv-video/native/mpv-addon/build/Release';
+const mpvExtraResources = existsSync(mpvResourceDirectory)
+  ? [
+      {
+        from: mpvResourceDirectory,
+        to: 'mpv',
+        filter: ['*.node', '*.dll', '*.dylib'],
+      },
+    ]
+  : [];
 
 const channel = process.env.KAWAIKARA_BUILD_CHANNEL || 'nightly';
 if (!RELEASE_CHANNELS.includes(channel)) {
@@ -12,6 +25,7 @@ module.exports = {
   productName: 'Kawaikara',
   asar: true,
   files: ['dist/**/*'],
+  extraResources: mpvExtraResources,
   electronDownload: {
     mirror: 'https://github.com/castlabs/electron-releases/releases/download/',
   },

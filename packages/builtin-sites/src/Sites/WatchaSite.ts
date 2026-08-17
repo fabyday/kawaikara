@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.watcha',
+  address: { hosts: ['watcha.com'] },
   title: 'Watcha',
   shortcut: { defaultKey: 'Control+Alt+8' },
   locale: BUILTIN_SITE_LOCALE,

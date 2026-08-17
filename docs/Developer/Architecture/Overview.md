@@ -1,8 +1,8 @@
 # Architecture Overview
 
-## Goals
+## Main Goals
 
-`dev3` separates ownership of the Kawaikara application from ownership of individual site integrations.
+`dev3` aka version 3.0 separates ownership of the Kawaikara application from ownership of individual site integrations.
 
 - `src` is the application: Electron startup, windows, IPC, preferences, updates, download integration, and UI.
 - `packages/site-api` is the stable contract consumed by site plugins.

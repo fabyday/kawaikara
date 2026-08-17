@@ -64,7 +64,7 @@ export function PictureInPicturePlacementControl({
   }
 
   return (
-    <Flex direction="column" gap="sm">
+    <Flex className="pip-placement-control" direction="column" gap="sm">
       <Select
         disabled={disabled}
         label={messages.position}

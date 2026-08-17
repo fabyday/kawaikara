@@ -77,6 +77,8 @@ function run(arguments_) {
     cwd: root,
     env: environment,
     stdio: 'inherit',
+    // Windows package-manager shims are .cmd files and need cmd.exe.
+    shell: process.platform === 'win32',
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {

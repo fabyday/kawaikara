@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react';
 import {
   closestCenter,
@@ -28,7 +29,8 @@ import {
   Flex,
   Head,
   Input,
-  ScrollArea,
+  RadioButton,
+  RadioGroup,
   Select,
   Stack,
   Switch,
@@ -39,13 +41,21 @@ import {
   Text,
 } from '@kawaikara/kawai-ui';
 import { APP_SHORTCUTS } from '../../../Common/AppShortcuts';
+import {
+  MAX_VIDEO_SEEK_SECONDS,
+  MIN_VIDEO_SEEK_SECONDS,
+  VIDEO_SHORTCUTS,
+} from '../../../Common/VideoControls';
 import type {
   ApplicationLinkId,
   ApplicationInfo,
   ApplicationUpdateCheckResult,
+  AppMessages,
   AppLocale,
+  AppTheme,
   BrowserProfileInfo,
   DeveloperYouTubeStatus,
+  DevToolsMode,
   DisplayInfo,
   PluginInfo,
   PreferencePatch,
@@ -58,8 +68,9 @@ import {
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS,
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_PRESETS,
 } from '../../../Common/PictureInPicture';
-import { getAppMessages, type AppMessages } from '../../Locale';
 import { DeveloperLinks } from '../../Component/DeveloperLinks';
+import { AutoHideScrollArea } from '../../Component/AutoHideScrollArea';
+import { DescriptiveSelect } from '../../Component/DescriptiveSelect';
 import { PictureInPictureSizeControl } from '../../Component/PictureInPictureSizeControl';
 import { PictureInPicturePlacementControl } from '../../Component/PictureInPicturePlacementControl';
 import { SiteIcon } from '../../Component/SiteIcon';
@@ -68,18 +79,22 @@ import {
   getDefaultMenuCategoryShortcut,
   getMenuCategoryShortcutId,
   moveOrderedItem,
-} from '../../MenuOrder';
+} from '../../Domain/MenuOrder';
 import kawaikaraIcon from '../../../../resources/icons/app-kawaikara.png';
 
 export interface PreferenceViewProps {
+  readonly initialMessages: AppMessages;
   readonly sites: readonly SiteMenuItem[];
   readonly onBack: () => void;
+  readonly onMessagesChange?: (messages: AppMessages) => void;
   readonly onPreferencesChange?: (preferences: PreferenceState) => void;
+  readonly onThemePreview?: (theme: AppTheme) => void;
 }
 
 interface ShortcutItem {
   readonly id: string;
   readonly title: string;
+  readonly description?: string;
   readonly defaultKey: string;
 }
 
@@ -90,9 +105,12 @@ interface ShortcutConflict {
 }
 
 export function PreferenceView({
+  initialMessages,
   sites,
   onBack,
+  onMessagesChange,
   onPreferencesChange,
+  onThemePreview,
 }: PreferenceViewProps) {
   const [savedPreferences, setSavedPreferences] = useState<PreferenceState>();
   const [draftPreferences, setDraftPreferences] = useState<PreferenceState>();
@@ -109,7 +127,7 @@ export function PreferenceView({
   const [shortcutConflict, setShortcutConflict] =
     useState<ShortcutConflict>();
   const [menuOrderEditorOpen, setMenuOrderEditorOpen] = useState(false);
-  const messages = getAppMessages(draftPreferences?.appLocale ?? 'system');
+  const [messages, setMessages] = useState(initialMessages);
 
   useEffect(() => {
     void Promise.all([
@@ -129,6 +147,27 @@ export function PreferenceView({
         setError(reason instanceof Error ? reason.message : String(reason));
       });
   }, []);
+
+  useEffect(() => {
+    const locale = draftPreferences?.appLocale;
+    if (!locale) return;
+    let active = true;
+    void window.kawaikara.application
+      .getMessages(locale)
+      .then((next) => {
+        if (!active) return;
+        setMessages(next.app);
+        onMessagesChange?.(next.app);
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(reason instanceof Error ? reason.message : String(reason));
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [draftPreferences?.appLocale, onMessagesChange]);
 
   useEffect(() => {
     if (!menuOrderEditorOpen) return;
@@ -178,6 +217,14 @@ export function PreferenceView({
       })),
     [messages],
   );
+  const videoShortcutItems = useMemo<ShortcutItem[]>(
+    () =>
+      VIDEO_SHORTCUTS.map((shortcut) => ({
+        ...shortcut,
+        title: messages.shortcutNames[shortcut.id] ?? shortcut.title,
+      })),
+    [messages],
+  );
   const siteShortcutItems = useMemo<ShortcutItem[]>(
     () =>
       sites.map((site) => ({
@@ -192,15 +239,29 @@ export function PreferenceView({
       createOrderedSiteGroups(sites, draftPreferences).map(
         ([category], index) => ({
           id: getMenuCategoryShortcutId(category),
-          title: messages.categoryLabels[category] ?? category,
+          title: messages.categoryPosition.replace(
+            '{number}',
+            String(index + 1),
+          ),
+          description: `${messages.currentCategory}: ${messages.categoryLabels[category] ?? category}`,
           defaultKey: getDefaultMenuCategoryShortcut(index),
         }),
       ),
     [draftPreferences, messages, sites],
   );
   const allShortcutItems = useMemo(
-    () => [...appShortcutItems, ...categoryShortcutItems, ...siteShortcutItems],
-    [appShortcutItems, categoryShortcutItems, siteShortcutItems],
+    () => [
+      ...appShortcutItems,
+      ...videoShortcutItems,
+      ...categoryShortcutItems,
+      ...siteShortcutItems,
+    ],
+    [
+      appShortcutItems,
+      categoryShortcutItems,
+      siteShortcutItems,
+      videoShortcutItems,
+    ],
   );
   const shortcutItemsById = useMemo(
     () => new Map(allShortcutItems.map((item) => [item.id, item])),
@@ -220,6 +281,7 @@ export function PreferenceView({
   );
 
   const updateDraft = (patch: PreferencePatch) => {
+    if (patch.appTheme) onThemePreview?.(patch.appTheme);
     setDraftPreferences((current) =>
       current ? { ...current, ...patch } : current,
     );
@@ -250,8 +312,9 @@ export function PreferenceView({
     }
   };
 
-  const save = async () => {
-    if (!draftPreferences || !hasChanges) return;
+  const save = async (): Promise<PreferenceState | undefined> => {
+    if (!draftPreferences) return undefined;
+    if (!hasChanges) return draftPreferences;
     setSaving(true);
     setError(undefined);
     try {
@@ -265,10 +328,33 @@ export function PreferenceView({
       setSavedPreferences(next);
       setDraftPreferences(next);
       onPreferencesChange?.(next);
+      return next;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return undefined;
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openLogDirectory = async () => {
+    setError(undefined);
+    try {
+      await window.kawaikara.application.openLogDirectory();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const openDevTools = async (mode: DevToolsMode) => {
+    const saved = await save();
+    if (!saved) return;
+    setError(undefined);
+    try {
+      await window.kawaikara.application.openDevTools(mode);
+      await window.kawaikara.overlay.close();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
@@ -320,7 +406,16 @@ export function PreferenceView({
     .join(', ');
 
   return (
-    <main className="kawai-theme-dark preference-shell">
+    <main
+      className={`kawai-theme preference-shell ${
+        (draftPreferences?.appTheme ?? 'dark') === 'dark'
+          ? 'kawai-theme-dark'
+          : 'kawai-theme-light'
+      }`}
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onBack();
+      }}
+    >
       <div className="preference-surface">
         <Flex className="preference-header" align="center" justify="between" gap="md">
           <div>
@@ -342,89 +437,134 @@ export function PreferenceView({
           </Button>
         </Flex>
 
-        <ScrollArea
-          className="preference-view"
-          label="Kawaikara preferences"
-          scrollbar="thin"
-        >
+        <div className="preference-view">
           {draftPreferences ? (
-            <Tabs defaultValue="general" variant="pill">
+            <Tabs
+              className="preference-tabs"
+              defaultValue="general"
+              orientation="vertical"
+              variant="pill"
+            >
               <TabList className="preference-tab-list">
                 <Tab value="general">{messages.general}</Tab>
+                <Tab value="video">{messages.video}</Tab>
                 <Tab value="profiles">{messages.browserProfiles}</Tab>
                 <Tab value="shortcuts">{messages.shortcuts}</Tab>
+                <Tab value="developer">{messages.developer}</Tab>
                 <Tab value="app-info">{messages.appInfo}</Tab>
               </TabList>
 
-              <TabPanel value="general">
-                <GeneralTab
-                  displays={displays}
-                  messages={messages}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  siteOptions={siteOptions}
-                  sites={sites}
-                  onEditMenuOrder={() => setMenuOrderEditorOpen(true)}
-                  onUpdate={updateDraft}
-                />
+              <TabPanel className="preference-tab-panel" value="general">
+                <PreferenceTabScroll label={messages.general}>
+                  <GeneralTab
+                    displays={displays}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    siteOptions={siteOptions}
+                    sites={sites}
+                    onEditMenuOrder={() => setMenuOrderEditorOpen(true)}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
               </TabPanel>
 
-              <TabPanel value="profiles">
-                <BrowserProfilesTab
-                  messages={messages}
-                  plugins={plugins}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  sites={sites}
-                  onUpdate={updateDraft}
-                />
+              <TabPanel className="preference-tab-panel" value="video">
+                <PreferenceTabScroll label={messages.video}>
+                  <VideoTab
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
               </TabPanel>
 
-              <TabPanel value="shortcuts">
-                <ShortcutSection
-                  description={messages.menuCategoryShortcutsDescription}
-                  duplicateIds={duplicateShortcutIds}
-                  items={categoryShortcutItems}
-                  messages={messages}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  title={messages.menuCategoryShortcuts}
-                  onChange={updateShortcut}
-                />
-                <ShortcutSection
-                  duplicateIds={duplicateShortcutIds}
-                  items={appShortcutItems}
-                  messages={messages}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  title={messages.appShortcuts}
-                  onChange={updateShortcut}
-                />
-                <ShortcutSection
-                  duplicateIds={duplicateShortcutIds}
-                  items={siteShortcutItems}
-                  messages={messages}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  title={messages.siteShortcuts}
-                  onChange={updateShortcut}
-                />
+              <TabPanel className="preference-tab-panel" value="profiles">
+                <PreferenceTabScroll label={messages.browserProfiles}>
+                  <BrowserProfilesTab
+                    messages={messages}
+                    plugins={plugins}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    sites={sites}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
               </TabPanel>
 
-              <TabPanel value="app-info">
-                <AppInfoTab
-                  appInfo={appInfo}
-                  checkingUpdates={checkingUpdates}
-                  developerYouTubeStatus={developerYouTubeStatus}
-                  messages={messages}
-                  plugins={plugins}
-                  preferences={draftPreferences}
-                  saving={saving}
-                  updateCheckResult={updateCheckResult}
-                  onCheckForUpdates={checkForUpdates}
-                  onOpenLink={openApplicationLink}
-                  onUpdate={updateDraft}
-                />
+              <TabPanel className="preference-tab-panel" value="shortcuts">
+                <PreferenceTabScroll label={messages.shortcuts}>
+                  <ShortcutSection
+                    description={messages.menuCategoryShortcutsDescription}
+                    duplicateIds={duplicateShortcutIds}
+                    items={categoryShortcutItems}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    title={messages.menuCategoryShortcuts}
+                    onChange={updateShortcut}
+                  />
+                  <ShortcutSection
+                    description={messages.videoShortcutsDescription}
+                    duplicateIds={duplicateShortcutIds}
+                    items={videoShortcutItems}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    title={messages.videoShortcuts}
+                    onChange={updateShortcut}
+                  />
+                  <ShortcutSection
+                    duplicateIds={duplicateShortcutIds}
+                    items={appShortcutItems}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    title={messages.appShortcuts}
+                    onChange={updateShortcut}
+                  />
+                  <ShortcutSection
+                    duplicateIds={duplicateShortcutIds}
+                    items={siteShortcutItems}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    title={messages.siteShortcuts}
+                    onChange={updateShortcut}
+                  />
+                </PreferenceTabScroll>
+              </TabPanel>
+
+              <TabPanel className="preference-tab-panel" value="developer">
+                <PreferenceTabScroll label={messages.developer}>
+                  <DeveloperTab
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    onOpenDevTools={openDevTools}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
+              </TabPanel>
+
+              <TabPanel className="preference-tab-panel" value="app-info">
+                <PreferenceTabScroll label={messages.appInfo}>
+                  <AppInfoTab
+                    appInfo={appInfo}
+                    checkingUpdates={checkingUpdates}
+                    developerYouTubeStatus={developerYouTubeStatus}
+                    messages={messages}
+                    plugins={plugins}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    updateCheckResult={updateCheckResult}
+                    onCheckForUpdates={checkForUpdates}
+                    onOpenLogDirectory={openLogDirectory}
+                    onOpenLink={openApplicationLink}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
               </TabPanel>
             </Tabs>
           ) : (
@@ -432,7 +572,7 @@ export function PreferenceView({
               {error ?? messages.loading}
             </Text>
           )}
-        </ScrollArea>
+        </div>
 
         {draftPreferences && error ? (
           <Text className="menu-error preference-error" size="xs" tone="danger">
@@ -518,6 +658,244 @@ export function PreferenceView({
   );
 }
 
+function PreferenceTabScroll({
+  children,
+  label,
+}: {
+  readonly children: ReactNode;
+  readonly label: string;
+}) {
+  return (
+    <AutoHideScrollArea className="preference-tab-scroll" label={label}>
+      <div className="preference-tab-content">{children}</div>
+    </AutoHideScrollArea>
+  );
+}
+
+function DeveloperTab({
+  messages,
+  preferences,
+  saving,
+  onOpenDevTools,
+  onUpdate,
+}: {
+  readonly messages: AppMessages;
+  readonly preferences: PreferenceState;
+  readonly saving: boolean;
+  readonly onOpenDevTools: (mode: DevToolsMode) => Promise<void>;
+  readonly onUpdate: (patch: PreferencePatch) => void;
+}) {
+  const [opening, setOpening] = useState(false);
+
+  const open = async () => {
+    setOpening(true);
+    try {
+      await onOpenDevTools(preferences.devToolsMode);
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <Stack gap="lg">
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.developerTools}
+        </Text>
+        <div className="developer-tools-card">
+          <Stack gap="md">
+            <Text size="xs" tone="muted">
+              {messages.developerToolsDescription}
+            </Text>
+            <Select
+              disabled={saving || opening}
+              label={messages.devToolsPlacement}
+              options={devToolsModeOptions(messages)}
+              value={preferences.devToolsMode}
+              onValueChange={(devToolsMode) =>
+                onUpdate({ devToolsMode: devToolsMode as DevToolsMode })
+              }
+            />
+            <Flex justify="end">
+              <Button
+                disabled={saving}
+                isLoading={opening}
+                onClick={() => void open()}
+              >
+                {messages.openDevTools}
+              </Button>
+            </Flex>
+          </Stack>
+        </div>
+      </section>
+    </Stack>
+  );
+}
+
+function VideoTab({
+  messages,
+  preferences,
+  saving,
+  onUpdate,
+}: {
+  readonly messages: AppMessages;
+  readonly preferences: PreferenceState;
+  readonly saving: boolean;
+  readonly onUpdate: (patch: PreferencePatch) => void;
+}) {
+  return (
+    <Stack gap="lg">
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.video}
+        </Text>
+        <Stack gap="sm">
+          <Text size="xs" tone="muted">
+            {messages.videoSettingsDescription}
+          </Text>
+          <RadioGroup
+            className="video-control-layout-options"
+            disabled={saving}
+            label={messages.videoControlsLayout}
+            value={preferences.videoControlsLayout}
+            onValueChange={(videoControlsLayout) =>
+              onUpdate({
+                videoControlsLayout:
+                  videoControlsLayout === 'overlay' ? 'overlay' : 'inline',
+              })
+            }
+          >
+            <RadioButton
+              description={messages.videoControlsInlineDescription}
+              label={messages.videoControlsInline}
+              value="inline"
+            />
+            <RadioButton
+              description={messages.videoControlsOverlayDescription}
+              label={messages.videoControlsOverlay}
+              value="overlay"
+            />
+          </RadioGroup>
+          <NumberPreferenceControl
+            disabled={saving}
+            label={messages.videoSeekSeconds}
+            max={MAX_VIDEO_SEEK_SECONDS}
+            min={MIN_VIDEO_SEEK_SECONDS}
+            step={1}
+            unit={messages.seconds}
+            value={preferences.videoSeekSeconds}
+            description={messages.videoSeekSecondsDescription}
+            onChange={(videoSeekSeconds) => onUpdate({ videoSeekSeconds })}
+          />
+          <NumberPreferenceControl
+            disabled={saving || preferences.videoControlsLayout !== 'overlay'}
+            label={messages.videoOverlayHideSeconds}
+            max={30}
+            min={0.5}
+            step={0.1}
+            unit={messages.seconds}
+            value={preferences.videoOverlayHideSeconds}
+            description={messages.videoOverlayHideSecondsDescription}
+            onChange={(videoOverlayHideSeconds) =>
+              onUpdate({ videoOverlayHideSeconds })
+            }
+          />
+        </Stack>
+      </section>
+    </Stack>
+  );
+}
+
+function NumberPreferenceControl({
+  description,
+  disabled,
+  label,
+  max,
+  min,
+  step,
+  unit,
+  value,
+  onChange,
+}: {
+  readonly description: string;
+  readonly disabled: boolean;
+  readonly label: string;
+  readonly max: number;
+  readonly min: number;
+  readonly step: number;
+  readonly unit: string;
+  readonly value: number;
+  readonly onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const commit = (candidate: number) => {
+    const precision = Math.max(0, (String(step).split('.')[1] ?? '').length);
+    const rounded = Math.round(candidate / step) * step;
+    const next = Number.isFinite(candidate)
+      ? Number(Math.min(max, Math.max(min, rounded)).toFixed(precision))
+      : value;
+    setDraft(String(next));
+    onChange(next);
+  };
+
+  return (
+    <label
+      aria-disabled={disabled}
+      className={`number-preference-control${disabled ? ' is-disabled' : ''}`}
+    >
+      <span className="number-preference-copy">
+        <strong>{label}</strong>
+        <small>{description}</small>
+      </span>
+      <span className="number-preference-field">
+        <span className="number-preference-input-group">
+          <input
+            disabled={disabled}
+            inputMode="decimal"
+            pattern="[0-9]*[.]?[0-9]*"
+            type="text"
+            value={draft}
+            onBlur={() => commit(Number(draft))}
+            onChange={(event) => {
+              const next = event.currentTarget.value;
+              if (/^(?:\d+(?:\.\d*)?|\.\d*)?$/.test(next)) setDraft(next);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+          />
+          <span className="number-preference-steppers">
+            <button
+              aria-label={`${label} +`}
+              disabled={disabled || value >= max}
+              tabIndex={-1}
+              type="button"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => commit(value + step)}
+            >
+              +
+            </button>
+            <button
+              aria-label={`${label} −`}
+              disabled={disabled || value <= min}
+              tabIndex={-1}
+              type="button"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => commit(value - step)}
+            >
+              −
+            </button>
+          </span>
+        </span>
+        <span className="number-preference-unit">{unit}</span>
+      </span>
+    </label>
+  );
+}
+
 function GeneralTab({
   displays,
   messages,
@@ -539,6 +917,187 @@ function GeneralTab({
 }) {
   return (
     <Stack gap="lg">
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.language}
+        </Text>
+        <Select
+          disabled={saving}
+          label={messages.appLanguage}
+          options={appLocaleOptions(messages)}
+          value={preferences.appLocale}
+          description={messages.globalLanguageDescription}
+          onValueChange={(appLocale) =>
+            onUpdate({
+              appLocale: appLocale as AppLocale,
+              pluginLocales: {},
+              siteLocales: {},
+            })
+          }
+        />
+      </section>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.appearance}
+        </Text>
+        <Select
+          disabled={saving}
+          label={messages.appTheme}
+          options={appThemeOptions(messages)}
+          value={preferences.appTheme}
+          description={messages.appThemeDescription}
+          onValueChange={(appTheme) =>
+            onUpdate({ appTheme: appTheme as AppTheme })
+          }
+        />
+      </section>
+
+      <section>
+        <Select
+          disabled={saving}
+          label={messages.defaultSite}
+          options={siteOptions}
+          value={preferences.defaultSiteId}
+          description={messages.defaultSiteDescription}
+          onValueChange={(defaultSiteId) => onUpdate({ defaultSiteId })}
+        />
+      </section>
+
+      <section>
+        <div className="menu-order-setting">
+          <div>
+            <Text weight="semibold">{messages.menuOrder}</Text>
+            <Text size="xs" tone="muted">
+              {messages.menuOrderDescription}
+            </Text>
+          </div>
+          <Button disabled={saving || sites.length === 0} onClick={onEditMenuOrder}>
+            {messages.editMenuOrder}
+          </Button>
+        </div>
+      </section>
+
+      <Stack gap="sm">
+        <Text weight="semibold">
+          {messages.pictureInPictureSettings}
+        </Text>
+        <div className="pip-preference-grid">
+          <PictureInPictureSizeControl
+            disabled={saving}
+            messages={{
+              compact: messages.pipSizeCompact,
+              custom: messages.pipSizeCustom,
+              description: messages.pictureInPictureSizeDescription,
+              height: messages.pipHeight,
+              large: messages.pipSizeLarge,
+              medium: messages.pipSizeMedium,
+              pixels: messages.pixels,
+              size: messages.pictureInPictureSize,
+              width: messages.pipWidth,
+            }}
+            value={preferences.pictureInPictureSize}
+            onChange={(pictureInPictureSize) =>
+              onUpdate({ pictureInPictureSize })
+            }
+          />
+          <PictureInPictureSizeControl
+            disabled={saving}
+            limits={PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS}
+            presets={PICTURE_IN_PICTURE_PORTRAIT_SIZE_PRESETS}
+            messages={{
+              compact: messages.pipSizeCompact,
+              custom: messages.pipSizeCustom,
+              description: messages.pictureInPicturePortraitSizeDescription,
+              height: messages.pipHeight,
+              large: messages.pipSizeLarge,
+              medium: messages.pipSizeMedium,
+              pixels: messages.pixels,
+              size: messages.pictureInPicturePortraitSize,
+              width: messages.pipWidth,
+            }}
+            value={preferences.pictureInPicturePortraitSize}
+            onChange={(pictureInPicturePortraitSize) =>
+              onUpdate({ pictureInPicturePortraitSize })
+            }
+          />
+          <div className="pip-preference-placement">
+            <PictureInPicturePlacementControl
+              disabled={saving}
+              displays={displays}
+              messages={{
+                bottomLeft: messages.pipPositionBottomLeft,
+                bottomRight: messages.pipPositionBottomRight,
+                currentDisplay: messages.pipMonitorCurrent,
+                display: messages.pipMonitorDisplay,
+                lastDisplay: messages.pipMonitorLast,
+                lastPosition: messages.pipPositionLast,
+                monitor: messages.pictureInPictureMonitor,
+                monitorDescription: messages.pictureInPictureMonitorDescription,
+                position: messages.pictureInPicturePosition,
+                positionDescription: messages.pictureInPicturePositionDescription,
+                primary: messages.primaryDisplay,
+                topLeft: messages.pipPositionTopLeft,
+                topRight: messages.pipPositionTopRight,
+                unavailableDisplay: messages.unavailableDisplay,
+                videoDisplay: messages.pipMonitorVideo,
+              }}
+              value={preferences.pictureInPicturePlacement}
+              onChange={(pictureInPicturePlacement) =>
+                onUpdate({ pictureInPicturePlacement })
+              }
+            />
+          </div>
+        </div>
+      </Stack>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.logLevel}
+        </Text>
+        <DescriptiveSelect
+          disabled={saving}
+          label={messages.logLevel}
+          options={[
+            {
+              label: messages.logLevelError,
+              description: messages.logLevelErrorDescription,
+              value: 'error',
+            },
+            {
+              label: messages.logLevelWarn,
+              description: messages.logLevelWarnDescription,
+              value: 'warn',
+            },
+            {
+              label: messages.logLevelInfo,
+              description: messages.logLevelInfoDescription,
+              value: 'info',
+            },
+            {
+              label: messages.logLevelVerbose,
+              description: messages.logLevelVerboseDescription,
+              value: 'verbose',
+            },
+            {
+              label: messages.logLevelDebug,
+              description: messages.logLevelDebugDescription,
+              value: 'debug',
+            },
+            {
+              label: messages.logLevelNone,
+              description: messages.logLevelNoneDescription,
+              value: 'none',
+            },
+          ]}
+          value={preferences.logLevel}
+          description={messages.logLevelDescription}
+          onValueChange={(logLevel) =>
+            onUpdate({ logLevel: logLevel as PreferenceState['logLevel'] })
+          }
+        />
+      </section>
+
       <section>
         <Text className="preference-section-title" weight="semibold">
           {messages.viewer}
@@ -578,115 +1137,7 @@ function GeneralTab({
               onUpdate({ closeMenuOnOutsideClick })
             }
           />
-          <Select
-            disabled={saving}
-            label={messages.defaultSite}
-            options={siteOptions}
-            value={preferences.defaultSiteId}
-            description={messages.defaultSiteDescription}
-            onValueChange={(defaultSiteId) => onUpdate({ defaultSiteId })}
-          />
-          <div className="menu-order-setting">
-            <div>
-              <Text weight="semibold">{messages.menuOrder}</Text>
-              <Text size="xs" tone="muted">
-                {messages.menuOrderDescription}
-              </Text>
-            </div>
-            <Button disabled={saving || sites.length === 0} onClick={onEditMenuOrder}>
-              {messages.editMenuOrder}
-            </Button>
-          </div>
         </Stack>
-      </section>
-
-      <Stack gap="sm">
-        <Text weight="semibold">
-          {messages.pictureInPictureSettings}
-        </Text>
-        <PictureInPictureSizeControl
-          disabled={saving}
-          messages={{
-            compact: messages.pipSizeCompact,
-            custom: messages.pipSizeCustom,
-            description: messages.pictureInPictureSizeDescription,
-            height: messages.pipHeight,
-            large: messages.pipSizeLarge,
-            medium: messages.pipSizeMedium,
-            pixels: messages.pixels,
-            size: messages.pictureInPictureSize,
-            width: messages.pipWidth,
-          }}
-          value={preferences.pictureInPictureSize}
-          onChange={(pictureInPictureSize) =>
-            onUpdate({ pictureInPictureSize })
-          }
-        />
-        <PictureInPictureSizeControl
-          disabled={saving}
-          limits={PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS}
-          presets={PICTURE_IN_PICTURE_PORTRAIT_SIZE_PRESETS}
-          messages={{
-            compact: messages.pipSizeCompact,
-            custom: messages.pipSizeCustom,
-            description: messages.pictureInPicturePortraitSizeDescription,
-            height: messages.pipHeight,
-            large: messages.pipSizeLarge,
-            medium: messages.pipSizeMedium,
-            pixels: messages.pixels,
-            size: messages.pictureInPicturePortraitSize,
-            width: messages.pipWidth,
-          }}
-          value={preferences.pictureInPicturePortraitSize}
-          onChange={(pictureInPicturePortraitSize) =>
-            onUpdate({ pictureInPicturePortraitSize })
-          }
-        />
-        <PictureInPicturePlacementControl
-          disabled={saving}
-          displays={displays}
-          messages={{
-            bottomLeft: messages.pipPositionBottomLeft,
-            bottomRight: messages.pipPositionBottomRight,
-            currentDisplay: messages.pipMonitorCurrent,
-            display: messages.pipMonitorDisplay,
-            lastDisplay: messages.pipMonitorLast,
-            lastPosition: messages.pipPositionLast,
-            monitor: messages.pictureInPictureMonitor,
-            monitorDescription: messages.pictureInPictureMonitorDescription,
-            position: messages.pictureInPicturePosition,
-            positionDescription: messages.pictureInPicturePositionDescription,
-            primary: messages.primaryDisplay,
-            topLeft: messages.pipPositionTopLeft,
-            topRight: messages.pipPositionTopRight,
-            unavailableDisplay: messages.unavailableDisplay,
-            videoDisplay: messages.pipMonitorVideo,
-          }}
-          value={preferences.pictureInPicturePlacement}
-          onChange={(pictureInPicturePlacement) =>
-            onUpdate({ pictureInPicturePlacement })
-          }
-        />
-      </Stack>
-
-      <section>
-        <Text className="preference-section-title" weight="semibold">
-          {messages.language}
-        </Text>
-        <Select
-          disabled={saving}
-          label={messages.appLanguage}
-          options={appLocaleOptions(messages)}
-          value={preferences.appLocale}
-          description={messages.globalLanguageDescription}
-          onValueChange={(appLocale) =>
-            onUpdate({
-              appLocale: appLocale as AppLocale,
-              pluginLocales: {},
-              siteLocales: {},
-            })
-          }
-        />
       </section>
     </Stack>
   );
@@ -774,6 +1225,7 @@ function MenuOrderEditor({
         aria-labelledby="menu-order-title"
         aria-modal="true"
         className="menu-order-editor"
+        layout
         role="dialog"
         initial={{ opacity: 0, scale: 0.95, y: 14 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -818,17 +1270,25 @@ function MenuOrderEditor({
           </Button>
         </Flex>
 
-        <DndContext
-          collisionDetection={closestCenter}
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-        >
-          <ScrollArea
-            className="menu-order-editor-list"
-            label={messages.menuOrder}
-            scrollbar="thin"
+        <AnimatePresence initial={false} mode="wait">
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="menu-order-mode-content"
+            exit={{ opacity: 0, y: mode === 'categories' ? -8 : 8 }}
+            initial={{ opacity: 0, y: mode === 'categories' ? 8 : -8 }}
+            key={mode}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
           >
-            {mode === 'categories' ? (
+          <DndContext
+            collisionDetection={closestCenter}
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+          >
+            <AutoHideScrollArea
+              className="menu-order-editor-list"
+              label={messages.menuOrder}
+            >
+              {mode === 'categories' ? (
               <SortableContext
                 items={categories}
                 strategy={verticalListSortingStrategy}
@@ -876,9 +1336,11 @@ function MenuOrderEditor({
                   </section>
                 ))}
               </Stack>
-            )}
-          </ScrollArea>
-        </DndContext>
+              )}
+            </AutoHideScrollArea>
+          </DndContext>
+          </motion.div>
+        </AnimatePresence>
 
         <Flex justify="end">
           <Button onClick={onClose}>{messages.done}</Button>
@@ -1313,6 +1775,11 @@ function ShortcutSection({
             >
               <div className="shortcut-label">
                 <Text weight="semibold">{item.title}</Text>
+                {item.description ? (
+                  <Text className="shortcut-current-category" size="xs" tone="muted">
+                    {item.description}
+                  </Text>
+                ) : null}
                 <Text className="shortcut-default" size="xs" tone="muted">
                   {messages.defaultValue}: {item.defaultKey || messages.empty}
                 </Text>
@@ -1433,6 +1900,7 @@ function AppInfoTab({
   saving,
   updateCheckResult,
   onCheckForUpdates,
+  onOpenLogDirectory,
   onOpenLink,
   onUpdate,
 }: {
@@ -1445,12 +1913,20 @@ function AppInfoTab({
   readonly saving: boolean;
   readonly updateCheckResult?: ApplicationUpdateCheckResult;
   readonly onCheckForUpdates: (channel: ReleaseChannel) => void | Promise<void>;
+  readonly onOpenLogDirectory: () => void | Promise<void>;
   readonly onOpenLink: (id: ApplicationLinkId) => void | Promise<void>;
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   const updateStatus = getUpdateStatusMessage(messages, updateCheckResult);
   return (
     <Stack gap="lg">
+      <div className="app-info-links">
+        <DeveloperLinks
+          messages={messages}
+          youtubeStatus={developerYouTubeStatus}
+          onOpen={onOpenLink}
+        />
+      </div>
       {appInfo ? (
         <div className="app-info-card">
           <Flex className="app-info-title" align="start" justify="between" gap="lg">
@@ -1468,38 +1944,41 @@ function AppInfoTab({
             <Switch
               className="app-info-auto-update"
               checked={preferences.automaticUpdates}
+              controlClassName="app-info-auto-update-control"
               controlSize="sm"
               disabled={saving}
               label={messages.automaticUpdates}
-              description={messages.automaticUpdatesDescription}
+              title={messages.automaticUpdatesDescription}
               onCheckedChange={(automaticUpdates) =>
                 onUpdate({ automaticUpdates })
               }
             />
           </Flex>
-          <div className="app-release-grid">
-            <div className="app-release-cell">
+          <div className="app-release-panel">
+            <div className="app-release-row">
               <Text size="xs" tone="muted">{messages.channel}</Text>
-              {appInfo.updateChannelLocked ? (
-                <Text className="app-channel-fixed" weight="semibold">
-                  {getChannelLabel(messages, 'nightly')}
-                </Text>
-              ) : (
-                <Select
-                  aria-label={messages.channel}
-                  controlSize="sm"
-                  disabled={saving}
-                  options={updateChannelOptions(messages)}
-                  value={preferences.updateChannel}
-                  onValueChange={(updateChannel) =>
-                    onUpdate({ updateChannel: updateChannel as ReleaseChannel })
-                  }
-                />
-              )}
+              <div className="app-release-value">
+                {appInfo.updateChannelLocked ? (
+                  <Text className="app-channel-fixed" weight="semibold">
+                    {getChannelLabel(messages, 'nightly')}
+                  </Text>
+                ) : (
+                  <Select
+                    aria-label={messages.channel}
+                    controlSize="sm"
+                    disabled={saving}
+                    options={updateChannelOptions(messages)}
+                    value={preferences.updateChannel}
+                    onValueChange={(updateChannel) =>
+                      onUpdate({ updateChannel: updateChannel as ReleaseChannel })
+                    }
+                  />
+                )}
+              </div>
             </div>
-            <div className="app-release-cell">
+            <div className="app-release-row">
               <Text size="xs" tone="muted">{messages.version}</Text>
-              <Flex align="center" justify="between" gap="sm">
+              <Flex className="app-release-value" align="center" justify="between" gap="sm">
                 <Text className="app-version-value" weight="semibold">
                   {appInfo.version}
                 </Text>
@@ -1534,18 +2013,23 @@ function AppInfoTab({
             label={messages.platform}
             value={`${appInfo.platform} · ${appInfo.arch}`}
           />
+          <Flex className="app-log-row" align="center" justify="between" gap="md">
+            <Stack gap="xs">
+              <Text size="sm">{messages.diagnosticLogs}</Text>
+              <Text size="xs" tone="muted">
+                {messages.diagnosticLogsDescription}
+              </Text>
+            </Stack>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void onOpenLogDirectory()}
+            >
+              {messages.openLogDirectory}
+            </Button>
+          </Flex>
         </div>
       ) : null}
-      <section>
-        <Text className="preference-section-title" weight="semibold">
-          {messages.developerLinks}
-        </Text>
-        <DeveloperLinks
-          messages={messages}
-          youtubeStatus={developerYouTubeStatus}
-          onOpen={onOpenLink}
-        />
-      </section>
       <section>
         <Text className="preference-section-title" weight="semibold">
           {messages.installedPlugins}
@@ -1614,6 +2098,23 @@ function appLocaleOptions(messages: AppMessages) {
     { label: messages.korean, value: 'ko-KR' },
     { label: messages.english, value: 'en-US' },
     { label: messages.japanese, value: 'ja-JP' },
+  ];
+}
+
+function appThemeOptions(messages: AppMessages) {
+  return [
+    { label: messages.darkTheme, value: 'dark' },
+    { label: messages.lightTheme, value: 'light' },
+  ];
+}
+
+function devToolsModeOptions(messages: AppMessages) {
+  return [
+    { label: messages.devToolsPlacementDetach, value: 'detach' },
+    { label: messages.devToolsPlacementUndocked, value: 'undocked' },
+    { label: messages.devToolsPlacementRight, value: 'right' },
+    { label: messages.devToolsPlacementBottom, value: 'bottom' },
+    { label: messages.devToolsPlacementLeft, value: 'left' },
   ];
 }
 

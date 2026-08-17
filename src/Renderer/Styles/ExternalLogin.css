@@ -1,0 +1,135 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #070709;
+}
+
+.external-login-shell {
+  width: 100%;
+  height: 100%;
+  padding: clamp(24px, 6vw, 72px);
+  background:
+    radial-gradient(circle at 50% 30%, rgb(108 72 174 / 34%), transparent 42%),
+    linear-gradient(145deg, #09090b, #111116);
+  box-sizing: border-box;
+}
+
+.external-login-panel {
+  width: min(620px, 100%);
+  border-color: rgb(255 255 255 / 12%);
+  background: rgb(24 24 27 / 92%);
+  box-shadow: 0 32px 100px rgb(0 0 0 / 48%);
+  backdrop-filter: blur(28px);
+}
+
+.external-login-hero {
+  position: relative;
+  width: min(440px, 100%);
+  padding-top: 34px;
+  text-align: center;
+}
+
+.external-login-character {
+  display: block;
+  width: 100%;
+  max-height: 210px;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 30px rgb(0 0 0 / 36%));
+  transform-origin: 50% 70%;
+  animation: external-login-character-wave 2.8s ease-in-out infinite;
+}
+
+.external-login-wave-title {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  margin: 0;
+  color: white;
+  font-size: clamp(16px, 3.4vw, 24px);
+  text-shadow:
+    0 2px 5px rgb(0 0 0 / 95%),
+    0 8px 22px rgb(0 0 0 / 80%);
+  white-space: nowrap;
+}
+
+.external-login-wave-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.external-login-wave-character {
+  display: inline-block;
+  animation: external-login-text-wave 2.8s ease-in-out infinite;
+  animation-delay: calc(var(--wave-index) * 55ms);
+}
+
+.external-login-copy {
+  max-width: 480px;
+  text-align: center;
+}
+
+.external-login-progress {
+  width: min(360px, 100%);
+  text-align: center;
+}
+
+@keyframes external-login-text-wave {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  18% {
+    transform: translateY(-14px) rotate(-2deg);
+  }
+  36% {
+    transform: translateY(3px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.external-login-shell.kawai-theme-light {
+  background:
+    radial-gradient(circle at 50% 30%, rgb(129 92 194 / 20%), transparent 42%),
+    linear-gradient(145deg, #f4f1f8, #ebe7f1);
+}
+
+.external-login-shell.kawai-theme-light .external-login-panel {
+  border-color: rgb(45 35 65 / 14%);
+  background: #f8f7fb;
+  box-shadow: 0 32px 90px rgb(50 38 74 / 18%);
+  backdrop-filter: none;
+}
+
+@keyframes external-login-character-wave {
+  0%,
+  100% {
+    transform: translateY(0) scale(0.98);
+  }
+  22% {
+    transform: translateY(-5px) scale(1.035);
+  }
+  44% {
+    transform: translateY(2px) scale(0.99);
+  }
+}

@@ -11,8 +11,10 @@ import type {
   AppLocale,
   PreferenceState,
 } from '../../Common/IPC';
+import { createLogger } from '../Logging';
 
 const CHECK_TIMEOUT_MS = 60_000;
+const updateLog = createLogger('updates');
 
 interface UpdateSignal {
   readonly available: boolean;
@@ -25,7 +27,6 @@ export class UpdateManager {
   private installingUpdate = false;
 
   constructor() {
-    log.transports.file.level = 'info';
     autoUpdater.logger = log;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
@@ -102,7 +103,7 @@ export class UpdateManager {
       return result;
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
-      log.error('Update check failed.', error);
+      updateLog.error('Update check failed.', error);
       return {
         status: 'error',
         channel,

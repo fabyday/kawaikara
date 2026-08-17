@@ -9,6 +9,7 @@ export {
 } from './Plugin';
 export {
   AbstractSiteDescriptor,
+  type SiteAddressContribution,
   type SiteDescriptorConstructor,
   type SiteMenuContribution,
   type SiteLocaleContribution,
@@ -17,6 +18,7 @@ export {
   type SitePermission,
   type SiteRequestDetails,
   type SiteRequestHeaders,
+  type SiteRequestRedirect,
   type SiteShortcutContribution,
 } from './SiteDescriptor';
 export {

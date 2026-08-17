@@ -1,12 +1,13 @@
 const {
   existsSync,
   lstatSync,
+  mkdirSync,
   readdirSync,
   renameSync,
   rmSync,
 } = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { loadLocalEnvironment } = require('./lib/env.cjs');
 
 const root = path.resolve(__dirname, '..');
@@ -35,7 +36,11 @@ const outputDirectory = path.join(
   process.arch,
 );
 const previousOutputDirectory = `${outputDirectory}.previous`;
+const stagingOutputDirectory = `${outputDirectory}.next`;
 const legacyOutputDirectory = path.join(root, 'output_dist', 'dev');
+const fileSystemRetryDelays =
+  process.platform === 'win32' ? [250, 500, 1000, 2000, 4000, 8000] : [100, 250];
+const windowsElectronBuilderAttempts = 3;
 
 if (!platformFlag || !architectureFlag) {
   throw new Error(
@@ -55,6 +60,11 @@ if (process.platform === 'darwin') {
   runCommand('/usr/bin/open', [applicationPath]);
   console.log(
     'Kawaikara was opened once so macOS can register the kawaikara:// protocol.',
+  );
+} else if (process.platform === 'win32') {
+  launchDetached(applicationPath);
+  console.log(
+    'Kawaikara was launched so Windows can register the kawaikara:// protocol.',
   );
 } else {
   console.log('Launch the application once to register the kawaikara:// protocol.');
@@ -83,6 +93,46 @@ function authenticateWidevineFromEnvironment() {
 }
 
 function ensureDevelopmentAppIsStopped() {
+  if (process.platform === 'win32') {
+    const executableName = `${developmentAppName}.exe`;
+    const result = spawnSync(
+      'tasklist.exe',
+      ['/FI', `IMAGENAME eq ${executableName}`, '/FO', 'CSV', '/NH'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(
+        `Could not check Kawaikara Dev process state (tasklist ${result.status}).`,
+      );
+    }
+    const isRunning = result.stdout
+      .split(/\r?\n/)
+      .some((line) => line.startsWith(`"${executableName}"`));
+    if (isRunning) {
+      throw new Error(
+        'Kawaikara Dev is running. Quit it completely, then run pnpm package:dev again.',
+      );
+    }
+
+    const matchingProcesses = findWindowsProcessesUsingDirectories([
+      outputDirectory,
+      previousOutputDirectory,
+      stagingOutputDirectory,
+    ]);
+    if (matchingProcesses.length > 0) {
+      throw new Error(
+        [
+          'A process is still using the development package output.',
+          'Close Kawaikara Dev and any terminal or tool opened inside builds/dev, then run pnpm package:dev again.',
+          '',
+          formatWindowsProcesses(matchingProcesses),
+        ].join('\n'),
+      );
+    }
+    return;
+  }
+
   if (process.platform !== 'darwin') return;
 
   const result = spawnSync(
@@ -105,40 +155,31 @@ function ensureDevelopmentAppIsStopped() {
 function replaceDevelopmentBuild() {
   assertManagedOutputDirectory(outputDirectory);
   assertManagedOutputDirectory(previousOutputDirectory);
+  assertManagedOutputDirectory(stagingOutputDirectory);
+
+  if (process.platform === 'win32') {
+    return replaceDevelopmentBuildOnWindows();
+  }
 
   if (existsSync(previousOutputDirectory)) {
     assertRegularDirectory(previousOutputDirectory);
     console.log(`Removing incomplete package backup: ${previousOutputDirectory}`);
-    rmSync(previousOutputDirectory, { recursive: true, force: true });
+    removeManagedDirectory(previousOutputDirectory, 'remove incomplete package backup');
   }
 
   const hadExistingBuild = existsSync(outputDirectory);
   if (hadExistingBuild) {
     assertRegularDirectory(outputDirectory);
     console.log(`Backing up existing development build: ${outputDirectory}`);
-    renameSync(outputDirectory, previousOutputDirectory);
+    renameManagedDirectory(
+      outputDirectory,
+      previousOutputDirectory,
+      'back up existing development build',
+    );
   }
 
   try {
-    run(
-      [
-        'exec',
-        'electron-builder',
-        '--dir',
-        platformFlag,
-        architectureFlag,
-        '--config',
-        'electron-builder.dev.config.cjs',
-        '--publish',
-        'never',
-      ],
-      {
-        ...process.env,
-        CSC_IDENTITY_AUTO_DISCOVERY: 'false',
-        KAWAIKARA_BUILD_CHANNEL: 'nightly',
-        KAWAIKARA_VMP_SIGN: '1',
-      },
-    );
+    runElectronBuilder();
 
     const applicationPath = findApplication(outputDirectory);
     if (!applicationPath) {
@@ -148,17 +189,21 @@ function replaceDevelopmentBuild() {
     if (hadExistingBuild) {
       assertRegularDirectory(previousOutputDirectory);
       console.log(`Replacing previous development build: ${outputDirectory}`);
-      rmSync(previousOutputDirectory, { recursive: true, force: true });
+      removeManagedDirectory(previousOutputDirectory, 'remove previous development build');
     }
     return applicationPath;
   } catch (error) {
     if (existsSync(outputDirectory)) {
       assertRegularDirectory(outputDirectory);
-      rmSync(outputDirectory, { recursive: true, force: true });
+      removeManagedDirectory(outputDirectory, 'remove failed development build');
     }
     if (hadExistingBuild && existsSync(previousOutputDirectory)) {
       assertRegularDirectory(previousOutputDirectory);
-      renameSync(previousOutputDirectory, outputDirectory);
+      renameManagedDirectory(
+        previousOutputDirectory,
+        outputDirectory,
+        'restore previous development build',
+      );
       console.error('Development packaging failed; the previous build was restored.');
     }
     throw error;
@@ -187,13 +232,94 @@ function removeLegacyDevelopmentBuilds() {
   }
 
   console.log(`Removing legacy development output: ${legacyOutputDirectory}`);
-  rmSync(legacyOutputDirectory, { recursive: true, force: true });
+  retryFileSystemOperation(
+    'remove legacy development output',
+    legacyOutputDirectory,
+    () => {
+      rmSync(legacyOutputDirectory, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+        retryDelay: 200,
+      });
+    },
+  );
+}
+
+function replaceDevelopmentBuildOnWindows() {
+  if (existsSync(stagingOutputDirectory)) {
+    assertRegularDirectory(stagingOutputDirectory);
+    console.log(`Removing incomplete package staging directory: ${stagingOutputDirectory}`);
+    removeManagedDirectory(stagingOutputDirectory, 'remove incomplete package staging directory');
+  }
+
+  runElectronBuilderWithRetries(stagingOutputDirectory);
+
+  const applicationPath = findApplication(stagingOutputDirectory);
+  if (!applicationPath) {
+    throw new Error(`Packaged application was not found in ${stagingOutputDirectory}.`);
+  }
+
+  console.log(`Replacing development build contents: ${outputDirectory}`);
+  replaceManagedDirectoryContents(stagingOutputDirectory, outputDirectory);
+  return findApplication(outputDirectory) ?? applicationPath.replace(
+    stagingOutputDirectory,
+    outputDirectory,
+  );
+}
+
+function runElectronBuilder(packageOutputDirectory = outputDirectory) {
+  run(
+    [
+      'exec',
+      'electron-builder',
+      '--dir',
+      platformFlag,
+      architectureFlag,
+      '--config',
+      'electron-builder.dev.config.cjs',
+      '--publish',
+      'never',
+    ],
+    {
+      ...process.env,
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false',
+      KAWAIKARA_BUILD_CHANNEL: 'nightly',
+      KAWAIKARA_DEV_OUTPUT_DIR: path.relative(root, packageOutputDirectory),
+      KAWAIKARA_VMP_SIGN: '1',
+    },
+  );
+}
+
+function runElectronBuilderWithRetries(packageOutputDirectory) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      runElectronBuilder(packageOutputDirectory);
+      return;
+    } catch (error) {
+      if (process.platform !== 'win32' || attempt >= windowsElectronBuilderAttempts) {
+        throw error;
+      }
+
+      console.warn(
+        [
+          `electron-builder failed on Windows (attempt ${attempt}/${windowsElectronBuilderAttempts}).`,
+          'Cleaning the staging output and retrying after Windows releases package files.',
+        ].join(' '),
+      );
+      if (existsSync(packageOutputDirectory)) {
+        removeManagedDirectory(packageOutputDirectory, 'remove failed package staging directory');
+      }
+      sleepSync(fileSystemRetryDelays[Math.min(attempt + 1, fileSystemRetryDelays.length - 1)]);
+    }
+  }
 }
 
 function assertManagedOutputDirectory(directory) {
   const allowedDirectories = new Set([
     path.resolve(outputDirectory),
     path.resolve(previousOutputDirectory),
+    path.resolve(stagingOutputDirectory),
   ]);
   if (!allowedDirectories.has(path.resolve(directory))) {
     throw new Error(`Refusing to modify unmanaged output directory: ${directory}`);
@@ -207,11 +333,196 @@ function assertRegularDirectory(directory) {
   }
 }
 
+function removeManagedDirectory(directory, action) {
+  assertManagedOutputDirectory(directory);
+  assertRegularDirectory(directory);
+  retryFileSystemOperation(action, directory, () => {
+    rmSync(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 200,
+    });
+  });
+}
+
+function renameManagedDirectory(source, destination, action) {
+  assertManagedOutputDirectory(source);
+  assertManagedOutputDirectory(destination);
+  assertRegularDirectory(source);
+  retryFileSystemOperation(action, source, () => {
+    renamePath(source, destination);
+  });
+}
+
+function replaceManagedDirectoryContents(source, destination) {
+  assertManagedOutputDirectory(source);
+  assertManagedOutputDirectory(destination);
+  assertRegularDirectory(source);
+
+  if (!existsSync(destination)) {
+    mkdirSync(destination, { recursive: true });
+  } else {
+    assertRegularDirectory(destination);
+    for (const entry of readdirSync(destination, { withFileTypes: true })) {
+      const entryPath = path.join(destination, entry.name);
+      retryFileSystemOperation(`remove old package entry ${entry.name}`, entryPath, () => {
+        rmSync(entryPath, {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+          retryDelay: 200,
+        });
+      });
+    }
+  }
+
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const sourcePath = path.join(source, entry.name);
+    const destinationPath = path.join(destination, entry.name);
+    retryFileSystemOperation(`move new package entry ${entry.name}`, sourcePath, () => {
+      renamePath(sourcePath, destinationPath);
+    });
+  }
+
+  removeManagedDirectory(source, 'remove package staging directory');
+}
+
+function retryFileSystemOperation(action, directory, operation) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      operation();
+      return;
+    } catch (error) {
+      if (
+        attempt >= fileSystemRetryDelays.length ||
+        !isRetriableFileSystemError(error)
+      ) {
+        throw createPackageOutputAccessError(action, directory, error);
+      }
+      sleepSync(fileSystemRetryDelays[attempt]);
+    }
+  }
+}
+
+function renamePath(source, destination) {
+  try {
+    renameSync(source, destination);
+    return;
+  } catch (error) {
+    if (process.platform !== 'win32' || !isRetriableFileSystemError(error)) {
+      throw error;
+    }
+
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        '& { param($source, $destination) Move-Item -LiteralPath $source -Destination $destination -Force }',
+        source,
+        destination,
+      ],
+      { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      const fallbackError = new Error(
+        [
+          `PowerShell Move-Item fallback failed with exit code ${String(result.status)}.`,
+          result.stderr.trim(),
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        { cause: error },
+      );
+      fallbackError.code = error.code;
+      fallbackError.path = error.path;
+      fallbackError.dest = error.dest;
+      fallbackError.syscall = error.syscall;
+      throw fallbackError;
+    }
+  }
+}
+
+function isRetriableFileSystemError(error) {
+  return ['EACCES', 'EBUSY', 'ENOTEMPTY', 'EPERM'].includes(error?.code);
+}
+
+function createPackageOutputAccessError(action, directory, error) {
+  if (process.platform !== 'win32' || !isRetriableFileSystemError(error)) {
+    return error;
+  }
+
+  const details = [
+    `Could not ${action}: ${directory}`,
+    'Windows denied access while replacing the development package output.',
+    'Close Kawaikara Dev, Explorer windows opened inside builds/dev, terminals with that folder as the current directory, and antivirus scans if they are holding the folder.',
+    `Original error: ${error.code ?? 'UNKNOWN'} ${error.syscall ?? ''} ${
+      error.path ?? directory
+    }${error.dest ? ` -> ${error.dest}` : ''}`.trim(),
+  ];
+  return new Error(details.join('\n'), { cause: error });
+}
+
+function sleepSync(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function findWindowsProcessesUsingDirectories(directories) {
+  const normalizedDirectories = directories.map((directory) =>
+    path.resolve(directory).toLowerCase(),
+  );
+  const command = [
+    '$ErrorActionPreference = "Stop";',
+    'Get-CimInstance Win32_Process |',
+    'Select-Object ProcessId,Name,ExecutablePath,CommandLine |',
+    'ConvertTo-Json -Compress',
+  ].join(' ');
+  const result = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+    { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+  );
+  if (result.error || result.status !== 0 || !result.stdout.trim()) return [];
+
+  let processes;
+  try {
+    const parsed = JSON.parse(result.stdout);
+    processes = Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [];
+  }
+
+  return processes.filter((process_) => {
+    const haystack = [
+      process_.ExecutablePath ?? '',
+      process_.CommandLine ?? '',
+    ]
+      .join('\n')
+      .toLowerCase();
+    return normalizedDirectories.some((directory) => haystack.includes(directory));
+  });
+}
+
+function formatWindowsProcesses(processes) {
+  return processes
+    .map((process_) => {
+      const executablePath = process_.ExecutablePath || process_.CommandLine || process_.Name;
+      return `- ${process_.Name} (${process_.ProcessId}): ${executablePath}`;
+    })
+    .join('\n');
+}
+
 function runCommand(command, arguments_, environment = process.env) {
   const result = spawnSync(command, arguments_, {
     cwd: root,
     env: environment,
     stdio: 'inherit',
+    // Windows package-manager shims are .cmd files and need cmd.exe.
+    shell: process.platform === 'win32',
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -219,6 +530,15 @@ function runCommand(command, arguments_, environment = process.env) {
       `${command} ${arguments_.join(' ')} failed with exit code ${String(result.status)}.`,
     );
   }
+}
+
+function launchDetached(application) {
+  const child = spawn(application, [], {
+    cwd: path.dirname(application),
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
 }
 
 function findApplication(directory) {

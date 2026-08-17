@@ -3,6 +3,15 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "electron-mpv-video/preload": [
+        "node_modules/electron-mpv-video/dist/preload/index.d.cts"
+      ],
+      "electron-mpv-video/renderer": [
+        "node_modules/electron-mpv-video/dist/renderer/index.d.ts"
+      ]
+    },
     "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
     "strict": true,

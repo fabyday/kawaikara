@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.wavve',
+  address: { hosts: ['wavve.com'] },
   title: 'Wavve',
   shortcut: { defaultKey: 'Control+Alt+7' },
   locale: BUILTIN_SITE_LOCALE,

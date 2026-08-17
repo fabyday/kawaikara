@@ -9,19 +9,21 @@ function resolveEvsRunner() {
       prefix: [],
     });
   }
-  candidates.push(
-    { command: 'python3', prefix: [] },
-    { command: 'python', prefix: [] },
-    {
+  if (process.env.KAWAIKARA_EVS_CONDA_ENV) {
+    candidates.push({
       command: 'conda',
       prefix: [
         'run',
         '--no-capture-output',
         '-n',
-        process.env.KAWAIKARA_EVS_CONDA_ENV || 'vmp',
+        process.env.KAWAIKARA_EVS_CONDA_ENV,
         'python',
       ],
-    },
+    });
+  }
+  candidates.push(
+    { command: 'python3', prefix: [] },
+    { command: 'python', prefix: [] },
   );
 
   for (const candidate of candidates) {

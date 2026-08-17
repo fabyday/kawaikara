@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.twitch',
+  address: { hosts: ['twitch.tv'] },
   title: 'Twitch',
   shortcut: { defaultKey: 'Control+Alt+W' },
   locale: BUILTIN_SITE_LOCALE,

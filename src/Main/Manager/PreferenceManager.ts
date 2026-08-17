@@ -2,6 +2,8 @@ import path from 'node:path';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import type {
   AppLocale,
+  AppTheme,
+  LogLevelPreference,
   PreferencePatch,
   PreferenceState,
   ScopedLocale,
@@ -19,6 +21,11 @@ import {
   validatePictureInPicturePortraitSize,
   validatePictureInPictureSize,
 } from '../../Common/PictureInPicture';
+import {
+  DEFAULT_VIDEO_SEEK_SECONDS,
+  MAX_VIDEO_SEEK_SECONDS,
+  MIN_VIDEO_SEEK_SECONDS,
+} from '../../Common/VideoControls';
 
 const DEFAULT_PREFERENCES: PreferenceState = {
   alwaysOnTop: false,
@@ -28,7 +35,9 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   automaticUpdates: false,
   updateChannel: BUILD_CHANNEL,
   defaultSiteId: 'kawaikara.youtube',
+  devToolsMode: 'detach',
   appLocale: 'system',
+  appTheme: 'dark',
   pictureInPicturePlacement: DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
   pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
@@ -38,6 +47,11 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   siteBrowserProfiles: {},
   menuCategoryOrder: [],
   menuSiteOrder: [],
+  videoSeekSeconds: DEFAULT_VIDEO_SEEK_SECONDS,
+  videoOverlayHideSeconds: 1.8,
+  videoControlsLayout: 'inline',
+  videoVolume: 100,
+  logLevel: 'info',
   shortcuts: {},
 };
 
@@ -128,9 +142,15 @@ export class PreferenceManager {
         typeof candidate.defaultSiteId === 'string' && candidate.defaultSiteId.trim()
           ? candidate.defaultSiteId
           : DEFAULT_PREFERENCES.defaultSiteId,
+      devToolsMode: isDevToolsMode(candidate.devToolsMode)
+        ? candidate.devToolsMode
+        : DEFAULT_PREFERENCES.devToolsMode,
       appLocale: isAppLocale(candidate.appLocale)
         ? candidate.appLocale
         : DEFAULT_PREFERENCES.appLocale,
+      appTheme: isAppTheme(candidate.appTheme)
+        ? candidate.appTheme
+        : DEFAULT_PREFERENCES.appTheme,
       pictureInPicturePlacement: validatePictureInPicturePlacement(
         candidate.pictureInPicturePlacement,
       ),
@@ -148,9 +168,54 @@ export class PreferenceManager {
       ),
       menuCategoryOrder: validateOrderedIds(candidate.menuCategoryOrder, 160),
       menuSiteOrder: validateOrderedIds(candidate.menuSiteOrder, 320),
+      videoSeekSeconds: validateVideoSeekSeconds(candidate.videoSeekSeconds),
+      videoOverlayHideSeconds: validateVideoOverlayHideSeconds(
+        candidate.videoOverlayHideSeconds,
+      ),
+      videoControlsLayout:
+        candidate.videoControlsLayout === 'overlay' ? 'overlay' : 'inline',
+      videoVolume: validateVideoVolume(candidate.videoVolume),
+      logLevel: isLogLevel(candidate.logLevel)
+        ? candidate.logLevel
+        : DEFAULT_PREFERENCES.logLevel,
       shortcuts: validateShortcutRecord(candidate.shortcuts),
     };
   }
+}
+
+function validateVideoOverlayHideSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PREFERENCES.videoOverlayHideSeconds;
+  }
+  return Math.min(30, Math.max(0.5, Math.round(value * 10) / 10));
+}
+
+function validateVideoVolume(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PREFERENCES.videoVolume;
+  }
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function isLogLevel(value: unknown): value is LogLevelPreference {
+  return (
+    typeof value === 'string' &&
+    ['error', 'warn', 'info', 'verbose', 'debug', 'none'].includes(value)
+  );
+}
+
+function isAppTheme(value: unknown): value is AppTheme {
+  return value === 'dark' || value === 'light';
+}
+
+function validateVideoSeekSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_VIDEO_SEEK_SECONDS;
+  }
+  return Math.min(
+    MAX_VIDEO_SEEK_SECONDS,
+    Math.max(MIN_VIDEO_SEEK_SECONDS, Math.round(value)),
+  );
 }
 
 function validateOrderedIds(value: unknown, maximumItems: number): string[] {
@@ -222,6 +287,10 @@ function resolveUpdateChannel(value: unknown): ReleaseChannel {
 
 function isAppLocale(value: unknown): value is AppLocale {
   return ['system', 'ko-KR', 'en-US', 'ja-JP'].includes(String(value));
+}
+
+function isDevToolsMode(value: unknown): value is PreferenceState['devToolsMode'] {
+  return ['left', 'right', 'bottom', 'undocked', 'detach'].includes(String(value));
 }
 
 function isScopedLocale(value: unknown): value is ScopedLocale {

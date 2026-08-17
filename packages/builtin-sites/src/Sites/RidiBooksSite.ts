@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.ridibooks',
+  address: { hosts: ['ridibooks.com'] },
   title: 'RIDI',
   shortcut: { defaultKey: 'Control+Alt+R' },
   locale: BUILTIN_SITE_LOCALE,

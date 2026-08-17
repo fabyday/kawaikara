@@ -8,6 +8,14 @@ import type {
   PictureInPicturePlacementPreference,
   PictureInPictureSizePreference,
 } from './PictureInPicture';
+import type { RendererMessages } from '../Main/Functional/RendererMessages';
+export type {
+  AppMessages,
+  RendererMessages,
+  VideoBrowserMessages,
+  VideoLibraryMessages,
+  VideoMessages,
+} from '../Main/Functional/RendererMessages';
 
 type IpcChannelName = `kawaikara:${string}`;
 
@@ -23,13 +31,20 @@ export const IPC_CHANNELS = defineIpcChannels({
   sites: {
     list: 'kawaikara:sites:list',
     open: 'kawaikara:sites:open',
+    openAddress: 'kawaikara:sites:open-address',
   },
   application: {
     info: 'kawaikara:application:info',
     listDisplays: 'kawaikara:application:list-displays',
     openLink: 'kawaikara:application:open-link',
+    openDevTools: 'kawaikara:application:open-dev-tools',
+    openLogDirectory: 'kawaikara:application:open-log-directory',
     developerYouTubeStatus: 'kawaikara:application:developer-youtube-status',
     checkForUpdates: 'kawaikara:application:check-for-updates',
+    messages: 'kawaikara:application:messages',
+    isFullScreen: 'kawaikara:application:is-full-screen',
+    exitFullScreen: 'kawaikara:application:exit-full-screen',
+    fullScreenChanged: 'kawaikara:application:full-screen-changed',
   },
   plugins: {
     list: 'kawaikara:plugins:list',
@@ -50,8 +65,24 @@ export const IPC_CHANNELS = defineIpcChannels({
   },
   video: {
     openDroppedFiles: 'kawaikara:video:open-dropped-files',
+    selectLocalFile: 'kawaikara:video:select-local-file',
+    getPlaybackCapabilities: 'kawaikara:video:get-playback-capabilities',
     getOpenRequest: 'kawaikara:video:get-open-request',
+    activateLocalFile: 'kawaikara:video:activate-local-file',
     openRequestChanged: 'kawaikara:video:open-request-changed',
+    librarySnapshot: 'kawaikara:video:library-snapshot',
+    listDirectory: 'kawaikara:video:list-directory',
+    openPath: 'kawaikara:video:open-path',
+    searchDirectory: 'kawaikara:video:search-directory',
+    pinFolder: 'kawaikara:video:pin-folder',
+    removeFolder: 'kawaikara:video:remove-folder',
+    openLibraryItem: 'kawaikara:video:open-library-item',
+    thumbnail: 'kawaikara:video:thumbnail',
+    presentationChanged: 'kawaikara:video:presentation-changed',
+    pictureInPictureChanged: 'kawaikara:video:picture-in-picture-changed',
+    visibilityChanged: 'kawaikara:video:visibility-changed',
+    recoverPlaybackRenderer: 'kawaikara:video:recover-playback-renderer',
+    setVolumePreference: 'kawaikara:video:set-volume-preference',
   },
   downloads: {
     openYouTube: 'kawaikara:downloads:open-youtube',
@@ -102,6 +133,7 @@ export interface SiteMenuItem {
   readonly title: string;
   readonly category: string;
   readonly icon?: string;
+  readonly panelId?: string;
   readonly order: number;
   readonly defaultShortcut: string;
   readonly supportedLocales: readonly string[];
@@ -191,6 +223,16 @@ export interface ApplicationUpdateCheckResult {
 }
 
 export type AppLocale = 'system' | 'ko-KR' | 'en-US' | 'ja-JP';
+export type AppTheme = 'dark' | 'light';
+export type DevToolsMode = 'left' | 'right' | 'bottom' | 'undocked' | 'detach';
+export type VideoControlsLayout = 'inline' | 'overlay';
+export type LogLevelPreference =
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'verbose'
+  | 'debug'
+  | 'none';
 /** Kept for preference-file compatibility. The global app locale is authoritative. */
 export type ScopedLocale = 'inherit' | AppLocale | (string & {});
 
@@ -202,7 +244,9 @@ export interface PreferenceState {
   readonly automaticUpdates: boolean;
   readonly updateChannel: ReleaseChannel;
   readonly defaultSiteId: string;
+  readonly devToolsMode: DevToolsMode;
   readonly appLocale: AppLocale;
+  readonly appTheme: AppTheme;
   readonly pictureInPicturePlacement: PictureInPicturePlacementPreference;
   readonly pictureInPicturePortraitSize: PictureInPictureSizePreference;
   readonly pictureInPictureSize: PictureInPictureSizePreference;
@@ -217,29 +261,132 @@ export interface PreferenceState {
   readonly menuCategoryOrder: readonly string[];
   /** Site ids in the order selected by the user, applied within each category. */
   readonly menuSiteOrder: readonly string[];
+  /** Base distance used by the Video view's backward/forward seek shortcuts. */
+  readonly videoSeekSeconds: number;
+  /** Delay before overlay Video controls disappear, expressed in seconds. */
+  readonly videoOverlayHideSeconds: number;
+  /** Inline controls reserve space below video; overlay controls float and auto-hide. */
+  readonly videoControlsLayout: VideoControlsLayout;
+  /** Last volume selected in the Video view, from 0 through 100. */
+  readonly videoVolume: number;
+  readonly logLevel: LogLevelPreference;
   readonly shortcuts: Readonly<Record<string, string>>;
 }
 
 export type PreferencePatch = Partial<PreferenceState>;
 
+export type SiteAddressOpenResult =
+  | { readonly status: 'opened'; readonly siteId: string }
+  | { readonly status: 'unsupported' };
+
+export interface VideoPresentationState {
+  readonly ready: boolean;
+  readonly width: number;
+  readonly height: number;
+}
+
 export type VideoOpenRequest =
   | {
       readonly kind: 'local';
       readonly displayName: string;
+      readonly path: string;
+      readonly directory: string;
       readonly url: string;
+    }
+  | {
+      readonly kind: 'folder';
+      readonly displayName: string;
+      readonly path: string;
     }
   | {
       readonly kind: 'youtube';
       readonly url: string;
     };
 
+export interface VideoLibraryLocation {
+  readonly kind: 'drive' | 'system' | 'pinned';
+  readonly name: string;
+  readonly path: string;
+}
+
+export interface VideoLibraryFolder {
+  readonly name: string;
+  readonly path: string;
+  readonly pinned: boolean;
+  readonly lastOpenedAt: string;
+}
+
+export interface VideoLibraryVideo {
+  readonly name: string;
+  readonly path: string;
+  readonly directory: string;
+  readonly lastOpenedAt: string;
+}
+
+export interface VideoLibrarySnapshot {
+  readonly lastDirectory?: string;
+  readonly locations: readonly VideoLibraryLocation[];
+  readonly favoriteFolders: readonly VideoLibraryFolder[];
+  readonly recentFolders: readonly VideoLibraryFolder[];
+  readonly recentVideos: readonly VideoLibraryVideo[];
+}
+
+export interface VideoDirectoryEntry {
+  readonly kind: 'directory' | 'video';
+  readonly name: string;
+  readonly path: string;
+  readonly size?: number;
+  readonly modifiedAt?: string;
+}
+
+export interface VideoDirectoryListing {
+  readonly directory: string;
+  readonly displayName: string;
+  readonly parent?: string;
+  readonly entries: readonly VideoDirectoryEntry[];
+}
+
+export type VideoPathOpenResult =
+  | {
+      readonly kind: 'directory';
+      readonly listing: VideoDirectoryListing;
+    }
+  | {
+      readonly kind: 'video';
+      readonly directory: string;
+      readonly request: Extract<VideoOpenRequest, { readonly kind: 'local' }>;
+    };
+
+export interface VideoLibraryApi {
+  getSnapshot(): Promise<VideoLibrarySnapshot>;
+  listDirectory(path: string): Promise<VideoDirectoryListing>;
+  openPath(path: string): Promise<VideoPathOpenResult>;
+  searchDirectory(path: string, query: string): Promise<VideoDirectoryEntry[]>;
+  setFolderPinned(path: string, pinned: boolean): Promise<VideoLibrarySnapshot>;
+  removeFolder(path: string): Promise<VideoLibrarySnapshot>;
+  openItem(path: string): Promise<void>;
+  getThumbnail(path: string): Promise<string | undefined>;
+}
+
+export interface VideoPlaybackCapabilities {
+  readonly platform: NodeJS.Platform;
+  readonly arch: string;
+  readonly nativeBackendAvailable: boolean;
+  readonly hardwareAccelerationDisabled: boolean;
+}
+
 export interface KawaikaraRendererApi {
   application: {
     getInfo(): Promise<ApplicationInfo>;
+    getMessages(locale?: AppLocale): Promise<RendererMessages>;
     listDisplays(): Promise<DisplayInfo[]>;
     openLink(id: ApplicationLinkId): Promise<void>;
+    openDevTools(mode: DevToolsMode): Promise<void>;
+    openLogDirectory(): Promise<void>;
     getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus>;
     checkForUpdates(channel?: ReleaseChannel): Promise<ApplicationUpdateCheckResult>;
+    isFullScreen(): Promise<boolean>;
+    exitFullScreen(): Promise<void>;
   };
   plugins: {
     list(): Promise<PluginInfo[]>;
@@ -247,7 +394,9 @@ export interface KawaikaraRendererApi {
   sites: {
     list(): Promise<SiteMenuItem[]>;
     open(id: string): Promise<void>;
+    openAddress(value: string): Promise<SiteAddressOpenResult>;
   };
+  videoLibrary: VideoLibraryApi;
   overlay: {
     close(): Promise<void>;
     setView(view: OverlayView): Promise<void>;
@@ -270,8 +419,23 @@ export interface KawaikaraRendererApi {
 }
 
 export interface KawaikaraVideoApi {
+  application: {
+    getMessages(locale?: AppLocale): Promise<RendererMessages>;
+    isFullScreen(): Promise<boolean>;
+    exitFullScreen(): Promise<void>;
+    togglePictureInPicture(): Promise<PictureInPictureResult>;
+    recoverPlaybackRenderer(): Promise<boolean>;
+    onFullScreenChanged(handler: (fullScreen: boolean) => void): () => void;
+    onPictureInPictureChanged(handler: (active: boolean) => void): () => void;
+    onVisibilityChanged(handler: (visible: boolean) => void): () => void;
+  };
   source: {
+    selectLocalFile(): Promise<VideoOpenRequest | null>;
+    getPlaybackCapabilities(): Promise<VideoPlaybackCapabilities>;
     getOpenRequest(): Promise<VideoOpenRequest | null>;
+    activateLocalFile(
+      path: string,
+    ): Promise<Extract<VideoOpenRequest, { readonly kind: 'local' }>>;
     onOpenRequest(handler: (request: VideoOpenRequest) => void): () => void;
   };
   downloads: {
@@ -280,4 +444,12 @@ export interface KawaikaraVideoApi {
     open(url: string): Promise<ExternalDownloaderOpenResult>;
     openReleasePage(): Promise<void>;
   };
+  preferences: {
+    get(): Promise<PreferenceState>;
+    setVideoVolume(value: number): Promise<number>;
+  };
+  presentation: {
+    update(state: VideoPresentationState): void;
+  };
+  videoLibrary: VideoLibraryApi;
 }

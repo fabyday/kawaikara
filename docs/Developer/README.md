@@ -8,6 +8,7 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 
 - [Architecture overview](./Architecture/Overview.md): repository ownership, dependency direction, composition, and IPC contracts
 - [Runtime and lifecycle](./Architecture/Runtime.md): windows, sessions, site loading, shortcuts, navigation, and cleanup
+- [Logging and diagnostics](./Architecture/Logging.md): file rotation, scopes, crash capture, renderer logging, and redaction
 - [Security boundaries](./Architecture/Security.md): renderer isolation, remote pages, cookies, plugins, and permissions
 
 ## Plugin development

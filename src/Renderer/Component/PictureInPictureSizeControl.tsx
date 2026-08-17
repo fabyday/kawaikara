@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Flex, Input, Select } from '@kawaikara/kawai-ui';
+import { Flex, Select } from '@kawaikara/kawai-ui';
 import {
   PICTURE_IN_PICTURE_SIZE_LIMITS,
   PICTURE_IN_PICTURE_SIZE_PRESETS,
@@ -128,46 +128,111 @@ export function PictureInPictureSizeControl({
             exit={{ height: 0, opacity: 0, y: -8 }}
             transition={{ type: 'spring', stiffness: 380, damping: 34 }}
           >
-            <Flex gap="sm">
-              <Input
+            <div className="pip-custom-size-grid">
+              <PictureInPictureDimensionField
                 disabled={disabled}
-                endAdornment={messages.pixels}
-                inputMode="numeric"
                 label={messages.width}
                 max={limits.maxWidth}
                 min={limits.minWidth}
-                step={1}
-                type="number"
+                unit={messages.pixels}
                 value={widthDraft}
-                onBlur={(event) =>
-                  commitDimension('width', event.currentTarget.value)
-                }
-                onChange={(event) =>
-                  updateDimension('width', event.currentTarget.value)
+                onChange={(next) => updateDimension('width', next)}
+                onCommit={(next) => commitDimension('width', next)}
+                onStep={(delta) =>
+                  commitDimension('width', String(value.width + delta))
                 }
               />
-              <Input
+              <PictureInPictureDimensionField
                 disabled={disabled}
-                endAdornment={messages.pixels}
-                inputMode="numeric"
                 label={messages.height}
                 max={limits.maxHeight}
                 min={limits.minHeight}
-                step={1}
-                type="number"
+                unit={messages.pixels}
                 value={heightDraft}
-                onBlur={(event) =>
-                  commitDimension('height', event.currentTarget.value)
-                }
-                onChange={(event) =>
-                  updateDimension('height', event.currentTarget.value)
+                onChange={(next) => updateDimension('height', next)}
+                onCommit={(next) => commitDimension('height', next)}
+                onStep={(delta) =>
+                  commitDimension('height', String(value.height + delta))
                 }
               />
-            </Flex>
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </Flex>
+  );
+}
+
+function PictureInPictureDimensionField({
+  disabled,
+  label,
+  max,
+  min,
+  unit,
+  value,
+  onChange,
+  onCommit,
+  onStep,
+}: {
+  readonly disabled: boolean;
+  readonly label: string;
+  readonly max: number;
+  readonly min: number;
+  readonly unit: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly onCommit: (value: string) => void;
+  readonly onStep: (delta: number) => void;
+}) {
+  const numericValue = Number(value);
+
+  return (
+    <label className="pip-dimension-field">
+      <span className="pip-dimension-label">{label}</span>
+      <span className="pip-dimension-value">
+        <span className="number-preference-input-group">
+          <input
+            aria-label={label}
+            disabled={disabled}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            type="text"
+            value={value}
+            onBlur={(event) => onCommit(event.currentTarget.value)}
+            onChange={(event) => {
+              const next = event.currentTarget.value;
+              if (/^\d*$/.test(next)) onChange(next);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') event.currentTarget.blur();
+            }}
+          />
+          <span className="number-preference-steppers">
+            <button
+              aria-label={`${label} +`}
+              disabled={disabled || numericValue >= max}
+              tabIndex={-1}
+              type="button"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => onStep(1)}
+            >
+              +
+            </button>
+            <button
+              aria-label={`${label} −`}
+              disabled={disabled || numericValue <= min}
+              tabIndex={-1}
+              type="button"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => onStep(-1)}
+            >
+              −
+            </button>
+          </span>
+        </span>
+        <span className="number-preference-unit">{unit}</span>
+      </span>
+    </label>
   );
 }
 

@@ -31,6 +31,7 @@ export function DeveloperLinks({
   return (
     <div className="developer-link-grid">
       <LinkButton
+        displayLabel="Homepage"
         icon={<WebsiteIcon />}
         label={messages.website}
         onClick={() => onOpen('website')}
@@ -61,14 +62,10 @@ export function DeveloperLinks({
             </span>
           ) : null}
         </span>
-        <span className="developer-link-copy">
-          <span className="developer-link-label">{messages.developerYouTube}</span>
-          <span className="developer-youtube-status">
-            <RadioIcon />
-            {youtubeState.label}
-          </span>
+        <span className="developer-link-label">YouTube</span>
+        <span className="developer-youtube-status" title={youtubeState.label}>
+          <RadioIcon />
         </span>
-        <ExternalLinkIcon />
       </Button>
     </div>
   );
@@ -76,11 +73,13 @@ export function DeveloperLinks({
 
 function LinkButton({
   className,
+  displayLabel,
   icon,
   label,
   onClick,
 }: {
   readonly className?: string;
+  readonly displayLabel?: string;
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly onClick: () => void | Promise<void>;
@@ -93,8 +92,7 @@ function LinkButton({
       onClick={() => void onClick()}
     >
       <span className="developer-link-icon">{icon}</span>
-      <span className="developer-link-label">{label}</span>
-      <ExternalLinkIcon />
+      <span className="developer-link-label">{displayLabel ?? label}</span>
     </Button>
   );
 }
@@ -151,14 +149,6 @@ function RadioIcon() {
     <svg aria-hidden="true" viewBox="0 0 16 16">
       <circle cx="8" cy="8" r="2" />
       <path d="M4.8 4.8a4.5 4.5 0 0 0 0 6.4M11.2 4.8a4.5 4.5 0 0 1 0 6.4" />
-    </svg>
-  );
-}
-
-function ExternalLinkIcon() {
-  return (
-    <svg aria-hidden="true" className="developer-external-icon" viewBox="0 0 16 16">
-      <path d="M6.25 3.25H3.5A1.5 1.5 0 0 0 2 4.75v7.75A1.5 1.5 0 0 0 3.5 14h7.75a1.5 1.5 0 0 0 1.5-1.5V9.75M9 2h5v5M14 2 7.25 8.75" />
     </svg>
   );
 }

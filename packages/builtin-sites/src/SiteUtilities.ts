@@ -2,34 +2,56 @@ export function createLoginInterceptionScript(
   marker: string,
   selector: string,
   actionUrl: string,
+  fallbackLabels: readonly string[] = [],
 ): string {
   return `
     (() => {
       const marker = ${JSON.stringify(marker)};
       const selector = ${JSON.stringify(selector)};
       const actionUrl = ${JSON.stringify(actionUrl)};
+      const fallbackLabels = ${JSON.stringify(fallbackLabels.map((label) => label.toLowerCase()))};
+      const releaseGate = () => {
+        document.documentElement?.setAttribute(
+          'data-kawaikara-external-login-ready',
+          'true',
+        );
+        document.getElementById('kawaikara-external-login-gate')?.remove();
+      };
       const existing = window[marker];
       if (existing && typeof existing.refresh === 'function') {
         existing.refresh();
-        return { installed: true, reused: true };
+        releaseGate();
+        return { installed: true, ready: true, reused: true };
       }
 
-      const state = { ready: false };
+      const controlLabel = (control) => [
+        control.getAttribute('aria-label'),
+        control.getAttribute('title'),
+        control.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      const matchesFallbackLabel = (control) =>
+        fallbackLabels.length > 0 &&
+        fallbackLabels.some((fallback) => controlLabel(control).includes(fallback));
       const markControl = (control) => {
         if (!(control instanceof HTMLElement)) return;
         control.dataset.kawaikaraLoginInjected = 'true';
-        control.dataset.kawaikaraLoginReady = String(state.ready);
-        control.style.setProperty('filter', 'invert(1)', 'important');
-        control.style.setProperty('transition', 'filter 140ms ease', 'important');
-        if (state.ready) {
-          control.style.removeProperty('pointer-events');
-          control.style.removeProperty('cursor');
-          control.removeAttribute('aria-disabled');
-        } else {
-          control.style.setProperty('pointer-events', 'none', 'important');
-          control.style.setProperty('cursor', 'wait', 'important');
-          control.setAttribute('aria-disabled', 'true');
-        }
+        control.dataset.kawaikaraLoginReady = 'true';
+        control.style.setProperty('border-color', 'rgb(168 85 247)', 'important');
+        control.style.setProperty(
+          'box-shadow',
+          '0 0 0 2px rgb(168 85 247 / 42%), 0 0 18px rgb(168 85 247 / 24%)',
+          'important',
+        );
+        control.style.setProperty(
+          'transition',
+          'border-color 160ms ease, box-shadow 160ms ease',
+          'important',
+        );
       };
       const refresh = (root = document) => {
         if (root instanceof Element && root.matches(selector)) {
@@ -37,17 +59,26 @@ export function createLoginInterceptionScript(
         }
         if ('querySelectorAll' in root) {
           root.querySelectorAll(selector).forEach(markControl);
+          root.querySelectorAll('a,button,[role="button"]').forEach((control) => {
+            if (matchesFallbackLabel(control)) markControl(control);
+          });
         }
       };
-      const intercept = (event) => {
-        const target = event.target;
-        const loginControl = target instanceof Element
-          ? target.closest(selector)
+      const findLoginControl = (target) => {
+        if (!(target instanceof Element)) return null;
+        const selected = target.closest(selector);
+        if (selected) return selected;
+        const candidate = target.closest('a,button,[role="button"]');
+        if (!candidate || fallbackLabels.length === 0) return null;
+        return matchesFallbackLabel(candidate)
+          ? candidate
           : null;
+      };
+      const intercept = (event) => {
+        const loginControl = findLoginControl(event.target);
         if (!loginControl) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (!state.ready) return;
         window.location.assign(actionUrl);
       };
       document.addEventListener('click', intercept, true);
@@ -65,15 +96,14 @@ export function createLoginInterceptionScript(
       });
       observer.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-uia', 'data-cy', 'href'],
+        attributeFilter: ['aria-label', 'data-cy', 'data-testid', 'data-uia', 'href'],
         childList: true,
         subtree: true,
       });
-      window[marker] = { observer, refresh, state };
+      window[marker] = { observer, ready: true, refresh };
       refresh();
-      state.ready = true;
-      refresh();
-      return { installed: true, reused: false };
+      releaseGate();
+      return { installed: true, ready: true, reused: false };
     })();
   `;
 }

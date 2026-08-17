@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { PreferenceView } from '../../src/Renderer/View/Preference/App';
 import {
   installKawaikaraMock,
+  STORY_MESSAGES,
   STORY_SITES,
 } from '../Mocks/KawaikaraMock';
 
@@ -10,6 +11,7 @@ const meta = {
   component: PreferenceView,
   parameters: { layout: 'fullscreen' },
   args: {
+    initialMessages: STORY_MESSAGES.app,
     sites: STORY_SITES,
     onBack: () => undefined,
   },

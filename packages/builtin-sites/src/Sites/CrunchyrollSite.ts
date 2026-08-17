@@ -5,6 +5,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.crunchyroll',
+  address: { hosts: ['crunchyroll.com'] },
   title: 'Crunchyroll',
   shortcut: { defaultKey: 'Control+Alt+C' },
   locale: BUILTIN_SITE_LOCALE,

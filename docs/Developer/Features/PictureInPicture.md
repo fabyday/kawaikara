@@ -6,6 +6,14 @@ The active PiP implementation is `UnifiedPictureInPictureManager`. The previous 
 
 Unified PiP does not use the browser's native `requestPictureInPicture()` window. It creates a dedicated frameless, always-on-top `BrowserWindow` and temporarily moves the existing Site `WebContentsView` into it.
 
+The internal Video view does not own a transferable `WebContentsView`; it uses
+the viewer `BrowserWindow` itself. For that route, PiP enters a compact
+always-on-top window mode, preserves the libmpv or Chromium playback surface,
+hides non-player Video UI, applies the configured size/aspect/placement, and
+restores the complete previous window state on exit. The renderer reports
+source readiness and dimensions to Main so the Menu PiP action is available
+only after a playable local or HLS video is ready.
+
 ```mermaid
 sequenceDiagram
   participant Viewer as Viewer window
@@ -51,7 +59,15 @@ Entry injection:
 - Removes root overflow and WebKit scrollbars.
 - Adds a black backdrop and an isolated shadow-DOM overlay.
 
-The overlay supplies a full-window drag surface and a Return to Kawaikara button. The button appears while the pointer is over the PiP window. Hover is determined from Electron screen coordinates, avoiding site CSS and hit-testing failures.
+The overlay supplies a full-window drag surface, a Return to Kawaikara button,
+and a centered Play/Pause button synchronized to the selected video. Both
+buttons appear whenever the pointer is anywhere inside the PiP window. Hover is
+determined from Electron screen coordinates on every platform, avoiding site
+CSS, native Windows drag-region gaps, and hit-testing failures. Button regions
+are non-draggable; the rest of the surface moves the PiP window.
+
+`Tab` and `Shift+Tab` are consumed while PiP is active so the hidden site UI
+cannot receive focus and the application menu cannot open behind PiP.
 
 Exit restores video controls, every captured inline style, data markers, scroll behavior, and injected nodes. Restoration waits for two animation frames before the normal page is shown again.
 

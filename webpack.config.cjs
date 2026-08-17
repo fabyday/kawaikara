@@ -1,8 +1,10 @@
 const path = require('node:path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const { loadLocalEnvironment } = require('./scripts/lib/env.cjs');
 
 const root = __dirname;
+loadLocalEnvironment(root);
 const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
 
 function resolveBuildChannel() {
@@ -91,9 +93,12 @@ module.exports = (_environment, arguments_) => {
     name: 'renderer',
     target: 'electron-renderer',
     entry: {
-      overlay: path.join(root, 'src/Renderer/Index.tsx'),
-      video: path.join(root, 'src/Renderer/Video.tsx'),
-      'external-login': path.join(root, 'src/Renderer/ExternalLogin.tsx'),
+      overlay: path.join(root, 'src/Renderer/View/Overlay/Index.tsx'),
+      video: path.join(root, 'src/Renderer/View/Video/Index.tsx'),
+      'external-login': path.join(
+        root,
+        'src/Renderer/View/ExternalLogin/Index.tsx',
+      ),
     },
     resolve: {
       extensions: ['.tsx', '.ts', '.jsx', '.js'],
@@ -126,17 +131,20 @@ module.exports = (_environment, arguments_) => {
     },
     plugins: [
       new HtmlWebpackPlugin({
-        template: path.join(root, 'src/Renderer/Index.html'),
+        template: path.join(root, 'src/Renderer/View/Overlay/Index.html'),
         filename: 'index.html',
         chunks: ['overlay'],
       }),
       new HtmlWebpackPlugin({
-        template: path.join(root, 'src/Renderer/Video.html'),
+        template: path.join(root, 'src/Renderer/View/Video/Index.html'),
         filename: 'video.html',
         chunks: ['video'],
       }),
       new HtmlWebpackPlugin({
-        template: path.join(root, 'src/Renderer/ExternalLogin.html'),
+        template: path.join(
+          root,
+          'src/Renderer/View/ExternalLogin/Index.html',
+        ),
         filename: 'external-login.html',
         chunks: ['external-login'],
       }),

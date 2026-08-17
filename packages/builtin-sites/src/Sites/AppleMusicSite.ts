@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.apple-music',
+  address: { hosts: ['music.apple.com'] },
   title: 'Apple Music',
   shortcut: { defaultKey: 'Control+Alt+M' },
   locale: BUILTIN_SITE_LOCALE,

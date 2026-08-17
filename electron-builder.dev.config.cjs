@@ -9,7 +9,7 @@ module.exports = {
   },
   directories: {
     ...baseConfig.directories,
-    output: 'builds/dev/${os}/${arch}',
+    output: process.env.KAWAIKARA_DEV_OUTPUT_DIR ?? 'builds/dev/${os}/${arch}',
   },
   mac: {
     ...baseConfig.mac,

@@ -4,6 +4,7 @@ import { UrlSiteDescriptor } from '../UrlSiteDescriptor';
 
 @site({
   id: 'kawaikara.spotify',
+  address: { hosts: ['open.spotify.com'] },
   title: 'Spotify',
   shortcut: { defaultKey: 'Control+Alt+S' },
   locale: BUILTIN_SITE_LOCALE,

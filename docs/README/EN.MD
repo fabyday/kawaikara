@@ -45,7 +45,8 @@ Important compatibility work includes external-browser login with cookie transfe
 ### Local video and downloads
 
 - Drop a supported video file anywhere in Kawaikara to open the Video view.
-- Local video picker and HLS playback with native or `hls.js` support.
+- Frame stepping, configurable seek shortcuts, and a hover title/duration overlay.
+- HLS playback support remains available internally while its source controls are hidden.
 - YouTube player context-menu handoff to the external YT Section Downloader app.
 - Helper detection on macOS, Windows, and Linux.
 - Confirmed, integrity-checked helper installation on macOS and Windows.

@@ -3,6 +3,7 @@ import type {
   KawaikaraVideoApi,
   PreferenceState,
   SiteMenuItem,
+  VideoLibraryApi,
 } from '../../src/Common/IPC';
 import type { ReleaseChannel } from '../../src/Common/BuildConfig';
 import {
@@ -10,6 +11,9 @@ import {
   DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   DEFAULT_PICTURE_IN_PICTURE_SIZE,
 } from '../../src/Common/PictureInPicture';
+import { getRendererMessages } from '../../src/Main/Functional/RendererMessages';
+
+export const STORY_MESSAGES = getRendererMessages('system', 'en-US');
 
 const svgIcon = (label: string, color: string) =>
   `data:image/svg+xml,${encodeURIComponent(`
@@ -64,6 +68,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     pluginId: 'kawaikara.builtin-sites',
     title: 'Video',
     category: 'Video',
+    panelId: 'video-library',
     order: 0,
     defaultShortcut: 'Control+Alt+4',
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
@@ -108,7 +113,9 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   automaticUpdates: false,
   updateChannel: 'staging',
   defaultSiteId: 'kawaikara.youtube',
+  devToolsMode: 'detach',
   appLocale: 'system',
+  appTheme: 'dark',
   pictureInPicturePlacement: DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
   pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
@@ -118,11 +125,17 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   siteBrowserProfiles: {},
   menuCategoryOrder: [],
   menuSiteOrder: [],
+  videoSeekSeconds: 10,
+  videoOverlayHideSeconds: 1.8,
+  videoControlsLayout: 'inline',
+  videoVolume: 100,
+  logLevel: 'info',
   shortcuts: {},
 };
 
 export interface KawaikaraMockOptions {
   readonly buildChannel?: ReleaseChannel;
+  readonly currentSiteId?: string;
   readonly updateAvailable?: boolean;
 }
 
@@ -145,6 +158,7 @@ export function installKawaikaraMock(
     updateChannel: buildChannel,
   };
   let overlayVisible = false;
+  let currentSiteId = options.currentSiteId ?? 'kawaikara.youtube';
   const hiddenHandlers = new Set<() => void>();
   const menuHandlers = new Set<() => void>();
   const preferenceHandlers = new Set<() => void>();
@@ -160,6 +174,84 @@ export function installKawaikaraMock(
     menuHandlers.forEach((handler) => handler());
   };
 
+  const videoLibrary: VideoLibraryApi = {
+    getSnapshot: async () => ({
+      lastDirectory: '/Users/kawaikara/Movies',
+      locations: [
+        { kind: 'system', name: 'Movies', path: '/Users/kawaikara/Movies' },
+      ],
+      favoriteFolders: [
+        {
+          name: 'Movies',
+          path: '/Users/kawaikara/Movies',
+          pinned: true,
+          lastOpenedAt: new Date().toISOString(),
+        },
+      ],
+      recentFolders: [
+        {
+          name: 'Movies',
+          path: '/Users/kawaikara/Movies',
+          pinned: true,
+          lastOpenedAt: new Date().toISOString(),
+        },
+      ],
+      recentVideos: [
+        {
+          name: 'sample.mkv',
+          path: '/Users/kawaikara/Movies/sample.mkv',
+          directory: '/Users/kawaikara/Movies',
+          lastOpenedAt: new Date().toISOString(),
+        },
+      ],
+    }),
+    listDirectory: async (directory) => ({
+      directory,
+      displayName: 'Movies',
+      parent: '/Users/kawaikara',
+      entries: [
+        {
+          kind: 'video',
+          name: 'sample.mkv',
+          path: `${directory}/sample.mkv`,
+          size: 1_048_576,
+        },
+      ],
+    }),
+    openPath: async (target) => {
+      if (/\.[a-z0-9]{2,5}$/i.test(target)) {
+        const directory = target.replace(/\/[^/]+$/, '') || '/';
+        return {
+          kind: 'video',
+          directory,
+          request: {
+            kind: 'local',
+            displayName: target.split('/').at(-1) ?? target,
+            directory,
+            path: target,
+            url: `file://${target}`,
+          },
+        };
+      }
+      return {
+        kind: 'directory',
+        listing: await videoLibrary.listDirectory(target),
+      };
+    },
+    searchDirectory: async (directory, query) => [
+      {
+        kind: 'video',
+        name: `${query || 'sample'}.mkv`,
+        path: `${directory}/${query || 'sample'}.mkv`,
+        size: 1_048_576,
+      },
+    ],
+    setFolderPinned: async () => videoLibrary.getSnapshot(),
+    removeFolder: async () => videoLibrary.getSnapshot(),
+    openItem: async () => undefined,
+    getThumbnail: async () => undefined,
+  };
+
   const api: KawaikaraRendererApi = {
     application: {
       getInfo: async () => ({
@@ -173,6 +265,8 @@ export function installKawaikaraMock(
         buildChannel,
         updateChannelLocked: buildChannel === 'nightly',
       }),
+      getMessages: async (locale) =>
+        getRendererMessages(locale ?? preferences.appLocale, 'en-US'),
       listDisplays: async () => [
         {
           id: '1',
@@ -194,6 +288,8 @@ export function installKawaikaraMock(
         },
       ],
       openLink: async () => undefined,
+      openDevTools: async () => undefined,
+      openLogDirectory: async () => undefined,
       getDeveloperYouTubeStatus: async () => ({
         isLive: true,
         checkedAt: new Date().toISOString(),
@@ -206,6 +302,8 @@ export function installKawaikaraMock(
           ? nextVersion
           : appVersion,
       }),
+      isFullScreen: async () => false,
+      exitFullScreen: async () => undefined,
     },
     plugins: {
       list: async () => [
@@ -232,9 +330,21 @@ export function installKawaikaraMock(
       ],
     },
     sites: {
-      list: async () => STORY_SITES.map((site) => ({ ...site })),
-      open: async () => emitHidden(),
+      list: async () =>
+        STORY_SITES.map((site) => ({
+          ...site,
+          isCurrent: site.id === currentSiteId,
+        })),
+      open: async (id) => {
+        currentSiteId = id;
+        emitHidden();
+      },
+      openAddress: async (value) =>
+        /(?:youtube\.com|kawaikara:)/i.test(value)
+          ? { status: 'opened', siteId: 'kawaikara.youtube' }
+          : { status: 'unsupported' },
     },
+    videoLibrary,
     overlay: {
       close: async () => emitHidden(),
       setView: async (view) => {
@@ -300,8 +410,36 @@ export function installKawaikaraMock(
     value: api,
   });
   const videoApi: KawaikaraVideoApi = {
+    application: {
+      getMessages: async (locale) =>
+        getRendererMessages(locale ?? preferences.appLocale, 'en-US'),
+      isFullScreen: async () => false,
+      exitFullScreen: async () => undefined,
+      togglePictureInPicture: async () => ({
+        status: 'exited',
+        mode: 'window',
+      }),
+      recoverPlaybackRenderer: async () => false,
+      onFullScreenChanged: () => () => undefined,
+      onPictureInPictureChanged: () => () => undefined,
+      onVisibilityChanged: () => () => undefined,
+    },
     source: {
+      selectLocalFile: async () => null,
+      getPlaybackCapabilities: async () => ({
+        platform: 'darwin',
+        arch: 'arm64',
+        nativeBackendAvailable: false,
+        hardwareAccelerationDisabled: false,
+      }),
       getOpenRequest: async () => null,
+      activateLocalFile: async (targetPath) => ({
+        kind: 'local',
+        displayName: targetPath.split(/[\\/]/).pop() ?? targetPath,
+        path: targetPath,
+        directory: targetPath.replace(/[\\/][^\\/]+$/, ''),
+        url: `file://${targetPath.replace(/\\/g, '/')}`,
+      }),
       onOpenRequest: () => () => undefined,
     },
     downloads: {
@@ -333,6 +471,20 @@ export function installKawaikaraMock(
         },
       }),
       openReleasePage: async () => undefined,
+    },
+    videoLibrary,
+    preferences: {
+      get: async () => ({ ...preferences }),
+      setVideoVolume: async (value) => {
+        preferences = {
+          ...preferences,
+          videoVolume: Math.min(100, Math.max(0, Math.round(value))),
+        };
+        return preferences.videoVolume;
+      },
+    },
+    presentation: {
+      update: () => undefined,
     },
   };
   Object.defineProperty(window, 'kawaikaraVideo', {
