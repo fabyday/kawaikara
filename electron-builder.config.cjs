@@ -35,6 +35,7 @@ const channelIdentity = {
   staging: { appId: 'day.faby.kawaikara.staging', productName: 'Kawaikara Staging' },
   nightly: { appId: 'day.faby.kawaikara.nightly', productName: 'Kawaikara Nightly' },
 }[channel];
+const artifactProductName = channelIdentity.productName.replace(/\s+/g, '-');
 const defaultPublishRepositories = {
   stable: 'fabyday/kawaikara',
   staging: 'Kawaikara/kawaikara-staging',
@@ -77,7 +78,10 @@ module.exports = {
       schemes: ['kawaikara'],
     },
   ],
-  artifactName: '${productName}-${version}-' + channel + '-${os}-${arch}.${ext}',
+  // GitHub already groups assets under a versioned Release, so repeating the
+  // long prerelease version in every filename makes the platform difficult to
+  // scan. Keep the exact version in the Release/tag and make downloads concise.
+  artifactName: `${artifactProductName}-\${os}-\${arch}.\${ext}`,
   generateUpdatesFilesForAllChannels: true,
   electronUpdaterCompatibility: '>=2.16',
   publish: [
