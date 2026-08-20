@@ -43,7 +43,7 @@ import {
 } from '../../Domain/MenuOrder';
 import { PreferenceView } from '../Preference/App';
 import { UpdatePanel } from '../Update/UpdatePanel';
-import { VideoLibraryMenuPanel } from './VideoLibraryMenuPanel';
+import { PluginViewHost } from './PluginViewHost';
 
 export function App() {
   const [sites, setSites] = useState<SiteMenuItem[]>([]);
@@ -75,6 +75,7 @@ export function App() {
   const categoryElements = useRef(new Map<string, HTMLElement>());
   const viewRef = useRef<OverlayView>('menu');
   const preferenceReturnPending = useRef(false);
+  const preferenceBackHandler = useRef<(() => void) | undefined>(undefined);
   const updateStateRef = useRef<ApplicationUpdatePanelState | undefined>(undefined);
   const updatePanelViewRef = useRef<'status' | 'release-notes'>('status');
   const reduceMotion = useReducedMotion();
@@ -192,6 +193,10 @@ export function App() {
         return;
       }
       if (viewRef.current !== 'menu') {
+        if (viewRef.current === 'preference' && preferenceBackHandler.current) {
+          preferenceBackHandler.current();
+          return;
+        }
         void window.kawaikara.overlay.setView('menu');
         return;
       }
@@ -620,7 +625,7 @@ export function App() {
         <motion.div
           animate={{ opacity: 1 }}
           className={`menu-context-area${
-            selectedSite?.panelId ? ' has-site-panel' : ''
+            selectedSite?.panels.length ? ' has-site-panel' : ''
           }`}
           exit={{ opacity: 0 }}
           initial={
@@ -628,7 +633,7 @@ export function App() {
               ? false
               : { opacity: 0 }
           }
-          key={selectedSite?.panelId ?? 'empty-site-panel'}
+          key={selectedSite?.id ?? 'empty-site-panel'}
           onPointerDown={(event) => {
             if (event.target === event.currentTarget) beginMenuClose();
           }}
@@ -676,10 +681,12 @@ export function App() {
               if (event.target === event.currentTarget) beginMenuClose();
             }}
           >
-            {selectedSite?.panelId === 'video-library' && preferences ? (
-              <VideoLibraryMenuPanel
-                labels={localization.videoLibrary}
+            {selectedSite?.panels.length && preferences ? (
+              <PluginViewHost
+                locale={localization.locale}
+                panels={selectedSite.panels}
                 refreshKey={sitePanelRefreshKey}
+                videoLibraryLabels={localization.videoLibrary}
                 onError={handleSitePanelError}
               />
             ) : null}
@@ -713,6 +720,9 @@ export function App() {
             <PreferenceView
               initialMessages={messages}
               sites={sites}
+              onBackHandlerChange={(handler) => {
+                preferenceBackHandler.current = handler;
+              }}
               onBack={() => {
                 setPreviewTheme(undefined);
                 setOverlayView('menu');

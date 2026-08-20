@@ -32,6 +32,8 @@ export {
   type ProviderBooleanSettingContribution,
   type ProviderItemListSettingContribution,
   type ProviderLocalizedText,
+  type PluginViewPanelContent,
+  type PluginViewPanelContribution,
   type ProviderMetadata,
   type ProviderSettingCategoryContribution,
   type ProviderSettingContribution,

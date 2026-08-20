@@ -4,8 +4,7 @@
   "private": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fabyday/kawaikara.git",
-    "directory": "packages/site-api"
+    "url": "git+https://github.com/Kawaikara/kawai-site-api.git"
   },
   "main": "dist/Index.js",
   "types": "dist/Index.d.ts",

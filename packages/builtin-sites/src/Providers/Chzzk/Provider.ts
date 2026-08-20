@@ -64,10 +64,10 @@ const CHZZK_PIP_CONTROL_SELECTORS = [
   },
   locale: BUILTIN_SITE_LOCALE,
   pictureInPicture: {
-    // CHZZK briefly enters native PiP while leaving a live page and performs
-    // player cleanup from the matching leave event. Let that internal cycle
-    // complete, while keeping its page PiP button hidden from the user.
-    pageRequestPolicy: 'transient',
+    // CHZZK moves the stream into its own native PiP when leaving a live page.
+    // Keep that automatic lifecycle visible so the detached player owns the
+    // audio; only CHZZK's user-facing PiP controls remain hidden.
+    pageRequestPolicy: 'allow',
     pageControlSelectors: CHZZK_PIP_CONTROL_SELECTORS,
   },
   menu: { category: 'Streaming', order: 10, icon: 'https://chzzk.naver.com/favicon.ico' },

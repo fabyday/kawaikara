@@ -28,7 +28,7 @@ export function shouldSuppressPagePictureInPicture(
 }
 
 interface PagePictureInPicturePolicyOptions {
-  readonly pageRequestPolicy?: 'block' | 'transient';
+  readonly pageRequestPolicy?: 'block' | 'transient' | 'allow';
   readonly providerSelectors?: readonly string[];
 }
 
@@ -41,7 +41,7 @@ export function createPagePictureInPicturePolicyScript(
   options: PagePictureInPicturePolicyOptions = {},
 ): string {
   const providerSelectors = options.providerSelectors ?? [];
-  const allowTransientPageRequests = options.pageRequestPolicy === 'transient';
+  const pageRequestPolicy = options.pageRequestPolicy ?? 'block';
   const selectors = [
     ...new Set([
       ...DEFAULT_PAGE_PIP_CONTROL_SELECTORS,
@@ -53,7 +53,8 @@ export function createPagePictureInPicturePolicyScript(
     (() => {
       const stateKey = '__kawaikaraPagePictureInPicturePolicy';
       const selectors = ${JSON.stringify(selectors)};
-      const allowTransientPageRequests = ${JSON.stringify(allowTransientPageRequests)};
+      const pageRequestPolicy = ${JSON.stringify(pageRequestPolicy)};
+      const allowPageRequests = pageRequestPolicy !== 'block';
       const transientExitDelayMs = 250;
       const existing = globalThis[stateKey];
       if (existing && typeof existing.refresh === 'function') {
@@ -115,7 +116,7 @@ export function createPagePictureInPicturePolicyScript(
       };
       const suppressVideo = (video) => {
         if (!(video instanceof HTMLVideoElement)) return;
-        if (allowTransientPageRequests) {
+        if (allowPageRequests) {
           if (video.disablePictureInPicture) {
             video.disablePictureInPicture = false;
           }
@@ -223,7 +224,7 @@ export function createPagePictureInPicturePolicyScript(
           'NotAllowedError',
         ),
       );
-      if (!allowTransientPageRequests) {
+      if (!allowPageRequests) {
         try {
           Object.defineProperty(document, 'pictureInPictureEnabled', {
             configurable: true,
@@ -242,27 +243,33 @@ export function createPagePictureInPicturePolicyScript(
           );
         } catch {}
       }
-      try {
-        const documentPictureInPicture = globalThis.documentPictureInPicture;
-        if (
-          documentPictureInPicture &&
-          typeof documentPictureInPicture.requestWindow === 'function'
-        ) {
-          Object.defineProperty(documentPictureInPicture, 'requestWindow', {
-            configurable: true,
-            writable: false,
-            value: blockedRequest,
-          });
-        }
-      } catch {}
+      if (!allowPageRequests) {
+        try {
+          const documentPictureInPicture = globalThis.documentPictureInPicture;
+          if (
+            documentPictureInPicture &&
+            typeof documentPictureInPicture.requestWindow === 'function'
+          ) {
+            Object.defineProperty(documentPictureInPicture, 'requestWindow', {
+              configurable: true,
+              writable: false,
+              value: blockedRequest,
+            });
+          }
+        } catch {}
+      }
       let transientExitTimer;
       const exitPagePictureInPicture = () => {
         if (!document.pictureInPictureElement) return;
         void document.exitPictureInPicture().catch(() => undefined);
       };
       const handlePagePictureInPictureEntry = () => {
-        if (!allowTransientPageRequests) {
+        if (pageRequestPolicy === 'block') {
           exitPagePictureInPicture();
+          return;
+        }
+        if (pageRequestPolicy === 'allow') {
+          console.info('[Kawaikara/PiP] Allowing Provider page PiP lifecycle.');
           return;
         }
         console.info(

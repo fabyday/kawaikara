@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -96,6 +97,7 @@ export interface PreferenceViewProps {
   readonly initialMessages: AppMessages;
   readonly sites: readonly SiteMenuItem[];
   readonly onBack: () => void;
+  readonly onBackHandlerChange?: (handler: (() => void) | undefined) => void;
   readonly onMessagesChange?: (messages: AppMessages) => void;
   readonly onPreferencesChange?: (preferences: PreferenceState) => void;
   readonly onThemePreview?: (theme: AppTheme) => void;
@@ -118,6 +120,7 @@ export function PreferenceView({
   initialMessages,
   sites,
   onBack,
+  onBackHandlerChange,
   onMessagesChange,
   onPreferencesChange,
   onThemePreview,
@@ -142,6 +145,8 @@ export function PreferenceView({
   const [graphicsRestartRequest, setGraphicsRestartRequest] =
     useState<GraphicsMode>();
   const [menuOrderEditorOpen, setMenuOrderEditorOpen] = useState(false);
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
+  const [bundleTabActivation, setBundleTabActivation] = useState(0);
   const [messages, setMessages] = useState(initialMessages);
 
   useEffect(() => {
@@ -327,12 +332,43 @@ export function PreferenceView({
   );
 
   const updateDraft = (patch: PreferencePatch) => {
-    if (patch.appTheme) onThemePreview?.(patch.appTheme);
+    if (patch.appTheme) {
+      onThemePreview?.(patch.appTheme);
+      void window.kawaikara.preferences.previewTheme(patch.appTheme).catch(
+        (reason: unknown) => {
+          setError(reason instanceof Error ? reason.message : String(reason));
+        },
+      );
+    }
     setDraftPreferences((current) =>
       current ? { ...current, ...patch } : current,
     );
     setError(undefined);
   };
+
+  const completeBack = useCallback(() => {
+    if (savedPreferences) {
+      onThemePreview?.(savedPreferences.appTheme);
+      void window.kawaikara.preferences
+        .previewTheme(savedPreferences.appTheme)
+        .catch(() => undefined);
+    }
+    setDiscardConfirmationOpen(false);
+    onBack();
+  }, [onBack, onThemePreview, savedPreferences]);
+
+  const requestBack = useCallback(() => {
+    if (hasChanges) {
+      setDiscardConfirmationOpen(true);
+      return;
+    }
+    completeBack();
+  }, [completeBack, hasChanges]);
+
+  useEffect(() => {
+    onBackHandlerChange?.(requestBack);
+    return () => onBackHandlerChange?.(undefined);
+  }, [onBackHandlerChange, requestBack]);
 
   const openApplicationLink = async (id: ApplicationLinkId) => {
     setError(undefined);
@@ -513,7 +549,7 @@ export function PreferenceView({
           : 'kawai-theme-light'
       }`}
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onBack();
+        if (event.target === event.currentTarget) requestBack();
       }}
     >
       <div className="preference-surface">
@@ -531,7 +567,7 @@ export function PreferenceView({
             aria-label={messages.backToSites}
             size="icon"
             variant="ghost"
-            onClick={onBack}
+            onClick={requestBack}
           >
             <span aria-hidden="true" className="overlay-button-glyph">←</span>
           </Button>
@@ -550,7 +586,12 @@ export function PreferenceView({
                 <Tab value="video">{messages.video}</Tab>
                 <Tab value="profiles">{messages.browserProfiles}</Tab>
                 <Tab value="shortcuts">{messages.shortcuts}</Tab>
-                <Tab value="bundles">{messages.bundles}</Tab>
+                <Tab
+                  value="bundles"
+                  onClick={() => setBundleTabActivation((value) => value + 1)}
+                >
+                  {messages.bundles}
+                </Tab>
                 <Tab value="developer">{messages.developer}</Tab>
                 <Tab value="app-info">{messages.appInfo}</Tab>
               </TabList>
@@ -666,6 +707,7 @@ export function PreferenceView({
                 <PreferenceTabScroll label={messages.bundles}>
                   <BundlesTab
                     bundles={bundles}
+                    activationToken={bundleTabActivation}
                     installing={installingBundle}
                     messages={messages}
                     notice={bundleNotice}
@@ -833,6 +875,52 @@ export function PreferenceView({
                 </Button>
                 <Button variant="danger" onClick={confirmShortcutOverwrite}>
                   {messages.overwrite}
+                </Button>
+              </Flex>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {discardConfirmationOpen ? (
+          <motion.div
+            className="preference-dialog-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setDiscardConfirmationOpen(false);
+              }
+            }}
+          >
+            <motion.div
+              aria-describedby="discard-changes-description"
+              aria-labelledby="discard-changes-title"
+              aria-modal="true"
+              className="preference-dialog"
+              role="dialog"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Head id="discard-changes-title" level={2} size="sm">
+                {messages.discardChangesTitle}
+              </Head>
+              <Text id="discard-changes-description" size="sm" tone="muted">
+                {messages.discardChangesDescription}
+              </Text>
+              <Flex justify="end" gap="sm">
+                <Button
+                  variant="ghost"
+                  onClick={() => setDiscardConfirmationOpen(false)}
+                >
+                  {messages.keepEditing}
+                </Button>
+                <Button variant="danger" onClick={completeBack}>
+                  {messages.discardAndLeave}
                 </Button>
               </Flex>
             </motion.div>
@@ -2163,6 +2251,7 @@ function ShortcutRecorder({
 }
 
 function BundlesTab({
+  activationToken,
   bundles,
   installing,
   messages,
@@ -2173,6 +2262,7 @@ function BundlesTab({
   onInstall,
   onUpdate,
 }: {
+  readonly activationToken: number;
   readonly bundles: readonly BundleInfo[];
   readonly installing: boolean;
   readonly messages: AppMessages;
@@ -2186,6 +2276,10 @@ function BundlesTab({
   const [selectedBundleId, setSelectedBundleId] = useState<string>();
   const selectedBundle = bundles.find(({ id }) => id === selectedBundleId);
   const selectedRuntime = runtimeBundles.find(({ id }) => id === selectedBundleId);
+
+  useEffect(() => {
+    setSelectedBundleId(undefined);
+  }, [activationToken]);
 
   if (selectedBundle) {
     return (
@@ -2285,6 +2379,7 @@ function BundlesTab({
                         items={items}
                         key={setting.key}
                         messages={messages}
+                        theme={preferences.appTheme}
                         title={title}
                         onChange={(nextItems) =>
                           onUpdateProviderSetting(
@@ -2414,6 +2509,7 @@ function ProviderItemListSetting({
   emptyText,
   items,
   messages,
+  theme,
   title,
   onChange,
 }: {
@@ -2422,6 +2518,7 @@ function ProviderItemListSetting({
   readonly emptyText: string;
   readonly items: readonly ProviderSettingListItem[];
   readonly messages: AppMessages;
+  readonly theme: AppTheme;
   readonly title: string;
   readonly onChange: (items: readonly ProviderSettingListItem[]) => void;
 }) {
@@ -2436,12 +2533,22 @@ function ProviderItemListSetting({
   };
 
   const dialog = dialogOpen ? createPortal(
-    <div className="preference-dialog-backdrop bundle-list-dialog-backdrop">
+    <div
+      className={`kawai-theme preference-dialog-backdrop bundle-list-dialog-backdrop ${
+        theme === 'dark' ? 'kawai-theme-dark' : 'kawai-theme-light'
+      }`}
+      onPointerDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        setSelectedIds([]);
+        setDialogOpen(false);
+      }}
+    >
       <div
         aria-label={title}
         aria-modal="true"
         className="preference-dialog bundle-list-dialog"
         role="dialog"
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <Flex align="center" justify="between" gap="md">
           <Stack gap="xs">

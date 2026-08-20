@@ -30,6 +30,18 @@
 
 <!-- Badge End -->
 
+## Release channels
+
+Each channel is installed and updated independently. Its application identity,
+updater feed, Chromium session data, Bundles, preferences, and video-library
+history are isolated, so Stable, Staging, and Nightly can be installed together.
+
+| Channel | Purpose | Releases |
+| --- | --- | --- |
+| **Stable** | Recommended production builds with the most conservative update cadence. | [Download Stable](https://github.com/fabyday/kawaikara/releases/latest) |
+| **Staging (Beta)** | Manually promoted beta builds for validating changes before Stable. | [Download Staging](https://github.com/Kawaikara/kawaikara-staging/releases/latest) |
+| **Nightly** | Automated development snapshots from `dev`; newest features and highest change risk. | [Download Nightly](https://github.com/Kawaikara/kawaikara-nightly/releases/latest) |
+
 
 
 
@@ -77,7 +89,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 
 

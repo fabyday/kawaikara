@@ -33,7 +33,7 @@ Editable-focus reporting understands normal inputs, textareas, selects, `content
 
 ## Menu behavior
 
-The menu groups Providers by category and displays the current Provider, icon, localized category label, and configured shortcut target. User order is applied on top of Provider defaults. The opaque shared rail stays on the left. The transparent right-side parent contains a shared address bar and an optional panel declared by `metadata.menu.panel`; an app-approved panel is responsible for its own background. The built-in Video panel uses an opaque surface.
+The menu groups Providers by category and displays the current Provider, icon, localized category label, and configured shortcut target. User order is applied on top of Provider defaults. The opaque shared rail stays on the left. The transparent right-side parent contains a shared address bar and the selected Provider's PluginView contributions. One panel fills the area without a selector; multiple panels use a browser-like title strip. Stable owner id plus panel id controls selection, so duplicate visible titles are safe. The built-in Video panel is an app-owned internal view; Bundle HTML panels run in sandboxed frames.
 
 `Control+L`/`Command+L` focuses the address bar. Each Provider declares the
 HTTPS hosts it accepts through `metadata.address.hosts`. Resolution prefers the

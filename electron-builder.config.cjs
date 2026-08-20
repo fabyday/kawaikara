@@ -30,6 +30,11 @@ if (!RELEASE_CHANNELS.includes(channel)) {
 }
 
 const updateChannel = channel === 'stable' ? 'latest' : channel;
+const channelIdentity = {
+  stable: { appId: 'day.faby.kawaikara', productName: 'Kawaikara' },
+  staging: { appId: 'day.faby.kawaikara.staging', productName: 'Kawaikara Staging' },
+  nightly: { appId: 'day.faby.kawaikara.nightly', productName: 'Kawaikara Nightly' },
+}[channel];
 const defaultPublishRepositories = {
   stable: 'fabyday/kawaikara',
   staging: 'Kawaikara/kawaikara-staging',
@@ -47,8 +52,8 @@ if (!publishOwner || !publishRepo || unexpectedRepositoryParts.length > 0) {
 }
 
 module.exports = {
-  appId: 'day.faby.kawaikara',
-  productName: 'Kawaikara',
+  appId: channelIdentity.appId,
+  productName: channelIdentity.productName,
   asar: true,
   files: ['dist/**/*'],
   extraResources: [

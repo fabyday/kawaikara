@@ -47,6 +47,7 @@ Providers can declare:
 
 - `navigation`
 - `internal-view`
+- `plugin-view`
 - `script-injection`
 - `cookies`
 - `network-interception`

@@ -1,6 +1,7 @@
 import { DisposableStore } from './Disposable';
 import type { SiteContext } from './SiteContext';
 import type {
+  PluginViewPanelContribution,
   ProviderConstructor,
   ProviderMetadata,
   SitePermission,
@@ -31,6 +32,8 @@ export interface PluginMetadata {
   readonly description?: string;
   /** Omit to activate a Bundle-level Plugin for every Provider. */
   readonly providerIds?: readonly string[];
+  /** Sandboxed panels added to the selected Provider's shared PluginView area. */
+  readonly panels?: readonly PluginViewPanelContribution[];
 }
 
 export interface PluginContext {

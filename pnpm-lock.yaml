@@ -7,11 +7,6 @@ settings:
 overrides:
   electron-mpv-video>node-gyp: 12.4.0
 
-patchedDependencies:
-  electron-mpv-video@0.1.1:
-    hash: cbeee42a00dd0b03942ddf2557aadec0ac3d10836818befc5dafe4197b0a23f2
-    path: patches/electron-mpv-video@0.1.1.patch
-
 importers:
 
   .:
@@ -42,7 +37,7 @@ importers:
         version: 5.4.4
       electron-mpv-video:
         specifier: 0.1.1
-        version: 0.1.1(patch_hash=cbeee42a00dd0b03942ddf2557aadec0ac3d10836818befc5dafe4197b0a23f2)
+        version: 0.1.1
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -4680,7 +4675,7 @@ snapshots:
 
   electron-log@5.4.4: {}
 
-  electron-mpv-video@0.1.1(patch_hash=cbeee42a00dd0b03942ddf2557aadec0ac3d10836818befc5dafe4197b0a23f2):
+  electron-mpv-video@0.1.1:
     dependencies:
       node-addon-api: 8.9.2
       node-gyp: 12.4.0

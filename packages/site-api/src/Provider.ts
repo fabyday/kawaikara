@@ -8,6 +8,7 @@ import type {
 export type SitePermission =
   | 'navigation'
   | 'internal-view'
+  | 'plugin-view'
   | 'script-injection'
   | 'cookies'
   | 'network-interception'
@@ -17,8 +18,31 @@ export interface SiteMenuContribution {
   readonly category: string;
   readonly order?: number;
   readonly icon?: string;
-  /** Optional renderer-owned panel displayed beside the shared site rail. */
+  /** @deprecated Use panels with an internal PluginView contribution. */
   readonly panel?: string;
+  /** Panels displayed in the shared PluginView area while this Provider is selected. */
+  readonly panels?: readonly PluginViewPanelContribution[];
+}
+
+export type PluginViewPanelContent =
+  | {
+      /** An application-owned Renderer panel. Third-party Bundles cannot add view ids. */
+      readonly kind: 'internal';
+      readonly viewId: string;
+    }
+  | {
+      /** A sandboxed document with no Kawaikara IPC or parent-origin access. */
+      readonly kind: 'html';
+      readonly html: string;
+    };
+
+export interface PluginViewPanelContribution {
+  /** Stable id scoped to the contributing Provider or Plugin. */
+  readonly id: string;
+  /** Display title. Duplicate titles are allowed because selection uses the scoped id. */
+  readonly title: ProviderLocalizedText;
+  readonly order?: number;
+  readonly content: PluginViewPanelContent;
 }
 
 export interface SiteShortcutContribution {
@@ -119,7 +143,7 @@ export interface SitePictureInPictureContribution {
    * request enter briefly and then closes it, preserving SPA enter/leave
    * cleanup hooks without exposing a second user-controlled PiP lifecycle.
    */
-  readonly pageRequestPolicy?: 'block' | 'transient';
+  readonly pageRequestPolicy?: 'block' | 'transient' | 'allow';
   /** Provider-specific selectors added to Kawaikara's generic PiP controls. */
   readonly pageControlSelectors?: readonly string[];
 }

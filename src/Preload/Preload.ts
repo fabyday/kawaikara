@@ -6,6 +6,7 @@ import {
   type ApplicationUpdateCheckResult,
   type ApplicationUpdatePanelState,
   type AppLocale,
+  type AppTheme,
   type BundleInfo,
   type BundleInstallResult,
   type DeveloperYouTubeStatus,
@@ -197,6 +198,8 @@ const api: KawaikaraRendererApi = {
   preferences: {
     get: () =>
       ipcRenderer.invoke(IPC_CHANNELS.preferences.get) as Promise<PreferenceState>,
+    previewTheme: (theme: AppTheme) =>
+      ipcRenderer.invoke(IPC_CHANNELS.preferences.previewTheme, theme),
     update: (patch: PreferencePatch, options?: PreferenceUpdateOptions) =>
       ipcRenderer.invoke(
         IPC_CHANNELS.preferences.update,

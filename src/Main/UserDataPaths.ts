@@ -2,9 +2,15 @@ import path from 'node:path';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { constants, mkdirSync } from 'node:fs';
 import { app } from 'electron';
+import { BUILD_CHANNEL } from '../Common/BuildConfig';
 
 const legacyUserDataPath = app.getPath('userData');
-const userRootPath = legacyUserDataPath;
+const userRootPath = BUILD_CHANNEL === 'stable'
+  ? legacyUserDataPath
+  : path.join(
+      path.dirname(legacyUserDataPath),
+      `${path.basename(legacyUserDataPath)} ${capitalize(BUILD_CHANNEL)}`,
+    );
 const electronDataPath = path.join(userRootPath, 'Electron');
 const kawaiDataPath = path.join(userRootPath, 'KawaiData');
 let configured = false;
@@ -39,14 +45,20 @@ export async function initializeUserDataLayout(): Promise<void> {
     mkdir(electronDataPath, { recursive: true }),
     mkdir(kawaiDataPath, { recursive: true }),
   ]);
-  await Promise.all(
-    ['preferences.json', 'video-library.json'].map((fileName) =>
-      copyLegacyFileIfNeeded(
-        path.join(legacyUserDataPath, fileName),
-        path.join(kawaiDataPath, fileName),
+  if (BUILD_CHANNEL === 'stable') {
+    await Promise.all(
+      ['preferences.json', 'video-library.json'].map((fileName) =>
+        copyLegacyFileIfNeeded(
+          path.join(legacyUserDataPath, fileName),
+          path.join(kawaiDataPath, fileName),
+        ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+function capitalize(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }
 
 async function copyLegacyFileIfNeeded(

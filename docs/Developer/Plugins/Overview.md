@@ -29,7 +29,7 @@ Bundle
 | Permission display and manifest consistency checks | Implemented |
 | Runtime capability sandbox | Planned |
 | Publisher signatures, updates, uninstall, and rollback | Planned |
-| Plugin-provided Renderer code | Planned |
+| Provider/Plugin PluginView panels | Implemented with sandboxed HTML or app-owned internal views |
 
 The application installs its built-in Bundle through the same runtime contract:
 
@@ -85,6 +85,7 @@ stores only overrides; an empty override disables the shortcut.
 | --- | --- |
 | `navigation` | Load a remote URL |
 | `internal-view` | Load an app-owned internal view |
+| `plugin-view` | Add sandboxed panels to the shared Menu PluginView area |
 | `script-injection` | Execute code in a remote document |
 | `cookies` | Transfer authentication cookies |
 | `network-interception` | Transform requests or headers |
@@ -103,3 +104,16 @@ module initialization.
 - Treat Provider and Plugin instances as single-use.
 - Dispose listeners, timers, and injected state during unload/deactivation.
 - Make injection idempotent and keep secrets out of logs.
+
+## PluginView panels
+
+Providers declare panels in `menu.panels`; Plugins declare them in
+`@plugin({ panels })`. Each panel has a stable id scoped to its owner, a
+localized title, an order, and either an app-owned `internal` view or sandboxed
+`html`. If one panel is available it fills the PluginView area. Two or more
+panels get a browser-like tab strip.
+
+Visible titles are allowed to repeat. Runtime identity is composed as
+`provider:<provider-id>:<panel-id>` or `plugin:<plugin-id>:<panel-id>`, so a
+rename or duplicate label does not break selection. Sandboxed documents have
+no Kawaikara IPC and no same-origin access to the overlay Renderer.

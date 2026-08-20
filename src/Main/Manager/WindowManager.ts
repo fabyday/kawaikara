@@ -143,6 +143,8 @@ export class WindowManager {
   private readonly pictureInPicture: UnifiedPictureInPictureManager;
   private readonly editingWebContentsIds = new Set<number>();
   private readonly sitePopupWindows = new Set<BrowserWindow>();
+  private readonly remoteThemeTasks = new Map<number, Promise<void>>();
+  private readonly remoteThemeCssKeys = new Map<number, string>();
   private appTitle = 'Kawaikara';
   private appLocale: AppLocale = 'system';
   private appTheme: AppTheme = 'dark';
@@ -1424,6 +1426,8 @@ export class WindowManager {
     });
     webContents.on('destroyed', () => {
       this.editingWebContentsIds.delete(webContentsId);
+      this.remoteThemeTasks.delete(webContentsId);
+      this.remoteThemeCssKeys.delete(webContentsId);
     });
 
     webContents.setWindowOpenHandler(({ url }) => {
@@ -1478,14 +1482,21 @@ export class WindowManager {
       popupWindow.webContents.setUserAgent(webContents.getUserAgent());
       this.applyThemeToRemoteWebContents(popupWindow.webContents);
       popupWindow.setMenuBarVisibility(false);
-      popupWindow.on('closed', () => this.sitePopupWindows.delete(popupWindow));
+      popupWindow.on('closed', () => {
+        this.sitePopupWindows.delete(popupWindow);
+        this.remoteThemeTasks.delete(popupWindow.webContents.id);
+        this.remoteThemeCssKeys.delete(popupWindow.webContents.id);
+      });
     });
   }
 
   private applyThemeToRemoteWebContents(webContents: WebContents): void {
     if (webContents.isDestroyed()) return;
+    const webContentsId = webContents.id;
     const theme = this.appTheme;
-    void (async () => {
+    const previous = this.remoteThemeTasks.get(webContentsId) ?? Promise.resolve();
+    const task = previous.catch(() => undefined).then(async () => {
+      if (webContents.isDestroyed()) return;
       try {
         if (!webContents.debugger.isAttached()) {
           webContents.debugger.attach('1.3');
@@ -1506,14 +1517,25 @@ export class WindowManager {
       }
 
       try {
-        await webContents.insertCSS(
+        const previousCssKey = this.remoteThemeCssKeys.get(webContentsId);
+        if (previousCssKey) {
+          await webContents.removeInsertedCSS(previousCssKey).catch(() => undefined);
+        }
+        const cssKey = await webContents.insertCSS(
           `:root { color-scheme: ${theme} !important; }`,
           { cssOrigin: 'user' },
         );
+        this.remoteThemeCssKeys.set(webContentsId, cssKey);
       } catch (error) {
         console.debug('The site color-scheme hint could not be applied.', error);
       }
-    })();
+    });
+    this.remoteThemeTasks.set(webContentsId, task);
+    void task.finally(() => {
+      if (this.remoteThemeTasks.get(webContentsId) === task) {
+        this.remoteThemeTasks.delete(webContentsId);
+      }
+    });
   }
 
   private configureSiteSession(siteSession: Session): void {

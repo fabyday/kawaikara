@@ -213,6 +213,10 @@ export interface AppMessages {
   readonly unsavedChanges: string;
   readonly saveDescription: string;
   readonly saveChanges: string;
+  readonly discardChangesTitle: string;
+  readonly discardChangesDescription: string;
+  readonly keepEditing: string;
+  readonly discardAndLeave: string;
   readonly shortcutConflict: string;
   readonly shortcutConflictDescription: string;
   readonly cancel: string;

@@ -106,6 +106,7 @@ export const IPC_CHANNELS = defineIpcChannels({
   },
   preferences: {
     get: 'kawaikara:preferences:get',
+    previewTheme: 'kawaikara:preferences:preview-theme',
     update: 'kawaikara:preferences:update',
   },
 } as const);
@@ -146,7 +147,7 @@ export interface SiteMenuItem {
   readonly title: string;
   readonly category: string;
   readonly icon?: string;
-  readonly panelId?: string;
+  readonly panels: readonly PluginViewPanelInfo[];
   readonly order: number;
   readonly defaultShortcut: string;
   readonly actionShortcuts: readonly ProviderActionShortcutInfo[];
@@ -156,6 +157,16 @@ export interface SiteMenuItem {
   readonly drm: boolean;
   readonly pictureInPictureEnabled: boolean;
   readonly isCurrent: boolean;
+}
+
+export interface PluginViewPanelInfo {
+  /** Runtime identity composed from owner id and its locally scoped panel id. */
+  readonly id: string;
+  readonly title: ProviderLocalizedText;
+  readonly order: number;
+  readonly content:
+    | { readonly kind: 'internal'; readonly viewId: string }
+    | { readonly kind: 'html'; readonly html: string };
 }
 
 export interface ProviderActionShortcutInfo {
@@ -524,6 +535,7 @@ export interface KawaikaraRendererApi {
   };
   preferences: {
     get(): Promise<PreferenceState>;
+    previewTheme(theme: AppTheme): Promise<void>;
     update(
       patch: PreferencePatch,
       options?: PreferenceUpdateOptions,

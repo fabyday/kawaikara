@@ -4,6 +4,7 @@ import {
   IPC_CHANNELS,
   type ApplicationLinkId,
   type AppLocale,
+  type AppTheme,
   type DevToolsMode,
   type IpcChannel,
 } from '../../Common/IPC';
@@ -314,6 +315,9 @@ export class IpcManager {
       this.downloads.openReleasePage(),
     );
     ipcMain.handle(IPC_CHANNELS.preferences.get, () => this.preferences.get());
+    ipcMain.handle(IPC_CHANNELS.preferences.previewTheme, (_event, theme: unknown) => {
+      this.windows.setAppTheme(requireAppTheme(theme));
+    });
     ipcMain.handle(IPC_CHANNELS.preferences.update, async (
       _event,
       patch: unknown,
@@ -432,6 +436,7 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.downloads.open,
   IPC_CHANNELS.downloads.openReleasePage,
   IPC_CHANNELS.preferences.get,
+  IPC_CHANNELS.preferences.previewTheme,
   IPC_CHANNELS.preferences.update,
 ] as const satisfies readonly IpcChannel[];
 
@@ -486,6 +491,13 @@ function requireAppLocale(value: unknown): AppLocale {
     value !== 'ja-JP'
   ) {
     throw new TypeError('A supported app locale is required.');
+  }
+  return value;
+}
+
+function requireAppTheme(value: unknown): AppTheme {
+  if (value !== 'dark' && value !== 'light') {
+    throw new TypeError('A supported app theme is required.');
   }
   return value;
 }

@@ -8,6 +8,7 @@ import {
   type NewWindowPolicy,
   type PluginConstructor,
   type PluginDefinition,
+  type PluginViewPanelContribution,
   type ProviderConstructor,
   type ProviderDefinition,
   type ProviderLocalizedText,
@@ -24,6 +25,7 @@ import {
 import type {
   BrowserProfileInfo,
   BundleRuntimeInfo,
+  PluginViewPanelInfo,
   PreferenceState,
   SiteMenuItem,
 } from '../../Common/IPC';
@@ -118,6 +120,12 @@ export class SiteManager {
         ),
       ),
     ];
+    if (
+      stagedPlugins.some(({ metadata }) => metadata.panels?.length) &&
+      !grantedPermissions.has('plugin-view')
+    ) {
+      throw new Error(`Bundle ${bundle.id} requires Bundle permission plugin-view.`);
+    }
 
     const stagedIds = new Set<string>();
     for (const registration of stagedProviders) {
@@ -195,7 +203,7 @@ export class SiteManager {
         title: metadata.title,
         category: metadata.menu.category,
         icon: metadata.menu.icon,
-        panelId: metadata.menu.panel,
+        panels: this.listPluginViewPanels(metadata),
         order: metadata.menu.order ?? 0,
         defaultShortcut: metadata.shortcut?.defaultKey ?? '',
         actionShortcuts: (metadata.shortcut?.actions ?? []).map((shortcut) => ({
@@ -577,7 +585,53 @@ export class SiteManager {
     const effectiveMetadata = scopedProviderId
       ? metadata
       : { ...metadata, providerIds: manifest.providerIds };
+    validatePanelContributions(
+      effectiveMetadata.panels ?? [],
+      `Plugin ${manifest.id}`,
+    );
     return { bundleId, constructor, metadata: effectiveMetadata, scopedProviderId };
+  }
+
+  private listPluginViewPanels(
+    provider: ProviderMetadata,
+  ): PluginViewPanelInfo[] {
+    const panels: PluginViewPanelInfo[] = [];
+    const append = (
+      ownerId: string,
+      contributions: readonly PluginViewPanelContribution[],
+    ) => {
+      for (const contribution of contributions) {
+        panels.push({
+          id: `${ownerId}:${contribution.id}`,
+          title: cloneLocalizedText(contribution.title),
+          order: contribution.order ?? 0,
+          content: contribution.content.kind === 'internal'
+            ? { kind: 'internal', viewId: contribution.content.viewId }
+            : { kind: 'html', html: contribution.content.html },
+        });
+      }
+    };
+
+    append(`provider:${provider.id}`, provider.menu.panels ?? []);
+    if (provider.menu.panel && !provider.menu.panels?.length) {
+      append(`provider:${provider.id}`, [{
+        id: provider.menu.panel,
+        title: provider.title,
+        content: { kind: 'internal', viewId: provider.menu.panel },
+      }]);
+    }
+    for (const plugin of this.runtimePlugins.values()) {
+      if (plugin.scopedProviderId && plugin.scopedProviderId !== provider.id) continue;
+      if (
+        plugin.metadata.providerIds?.length &&
+        !plugin.metadata.providerIds.includes(provider.id)
+      ) {
+        continue;
+      }
+      append(`plugin:${plugin.metadata.id}`, plugin.metadata.panels ?? []);
+    }
+    return panels.sort((left, right) =>
+      left.order - right.order || left.id.localeCompare(right.id));
   }
 
   private createBundleBrowserProfiles(
@@ -787,6 +841,13 @@ function resolveGlobalLocale(
 const CONTRIBUTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 
 function validateProviderContributions(metadata: ProviderMetadata): void {
+  validatePanelContributions(metadata.menu.panels ?? [], `Provider ${metadata.id}`);
+  if (
+    metadata.menu.panels?.length &&
+    !metadata.permissions?.includes('plugin-view')
+  ) {
+    throw new Error(`Provider ${metadata.id} must declare plugin-view permission.`);
+  }
   const settingTypes = new Map<string, 'boolean' | 'item-list'>();
   const categories = metadata.settings?.categories ?? [];
   if (categories.length > 32) {
@@ -859,6 +920,29 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
     }
     if (!shortcut.defaultKey.trim() || !shortcut.action.trim()) {
       throw new Error(`Provider ${metadata.id} has an incomplete action shortcut.`);
+    }
+  }
+}
+
+function validatePanelContributions(
+  panels: readonly PluginViewPanelContribution[],
+  owner: string,
+): void {
+  if (panels.length > 16) throw new Error(`${owner} declares too many PluginView panels.`);
+  const ids = new Set<string>();
+  for (const panel of panels) {
+    requireContributionId(panel.id, `${owner} PluginView panel`);
+    if (ids.has(panel.id)) throw new Error(`${owner} repeats PluginView panel ${panel.id}.`);
+    ids.add(panel.id);
+    validateLocalizedText(panel.title, `${owner} PluginView panel title`);
+    if (panel.content.kind === 'internal') {
+      requireContributionId(panel.content.viewId, `${owner} internal view`);
+    } else if (
+      panel.content.kind !== 'html' ||
+      !panel.content.html.trim() ||
+      panel.content.html.length > 262_144
+    ) {
+      throw new Error(`${owner} has an invalid sandboxed PluginView document.`);
     }
   }
 }

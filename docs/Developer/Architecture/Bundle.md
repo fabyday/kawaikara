@@ -163,9 +163,9 @@ attach directly to the App: App attachment would expose a different privileged
 context and therefore needs a separate permission model and API version.
 
 `kawaikara.video` is a Provider that selects the app-owned `video-library`
-internal panel. The renderer and playback backend remain App code; the Provider
-does not ship an arbitrary renderer. A future PluginView API should be a
-separate sandboxed contribution rather than overloading Provider Plugins.
+internal panel. The renderer and playback backend remain App code. Other
+Providers and Plugins may contribute sandboxed HTML PluginView panels. Their
+owner id plus local panel id is canonical; titles are allowed to repeat.
 
 ## External installation
 

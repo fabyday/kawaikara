@@ -48,6 +48,7 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?
 const ALLOWED_PERMISSIONS = new Set<SitePermission>([
   'navigation',
   'internal-view',
+  'plugin-view',
   'script-injection',
   'cookies',
   'network-interception',

@@ -126,6 +126,54 @@ function installChzzkClips(options: ChzzkClipsInjectionOptions): void {
   const findActiveClipVideo = (): HTMLVideoElement | undefined =>
     [...document.querySelectorAll('video')].find(isActiveClipVideo);
 
+  const resumeActivePlayback = (
+    previousVideo: HTMLVideoElement,
+    previousSource: string,
+    previousTime: number,
+  ): void => {
+    let attempts = 0;
+    const retry = (): void => {
+      attempts += 1;
+      const candidates = [...document.querySelectorAll('video')]
+        .filter((video): video is HTMLVideoElement =>
+          video instanceof HTMLVideoElement &&
+          video.isConnected &&
+          visibleRatio(video) >= 0.35,
+        )
+        .sort((left, right) => visibleRatio(right) - visibleRatio(left));
+      const activeVideo = candidates.find((video) =>
+        video !== previousVideo ||
+        video.currentSrc !== previousSource ||
+        video.currentTime + 1 < previousTime,
+      ) ?? candidates[0];
+      const navigationCommitted = Boolean(activeVideo && (
+        activeVideo !== previousVideo ||
+        activeVideo.currentSrc !== previousSource ||
+        activeVideo.currentTime + 1 < previousTime
+      ));
+      if (activeVideo && navigationCommitted) {
+        for (const video of document.querySelectorAll('video')) {
+          if (video !== activeVideo && !video.paused) video.pause();
+        }
+        if (
+          activeVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+          activeVideo.paused
+        ) {
+          void activeVideo.play().catch(() => undefined);
+        }
+        if (!activeVideo.paused && activeVideo.readyState >= 2) return;
+      }
+      if (attempts < 30) {
+        window.setTimeout(retry, 120);
+      } else if (activeVideo?.paused) {
+        // Last-resort recovery for CHZZK builds that reuse the same media URL
+        // and reset the timeline before our first post-navigation sample.
+        void activeVideo.play().catch(() => undefined);
+      }
+    };
+    window.setTimeout(retry, 40);
+  };
+
   const findNativeNavigationButton = (
     direction: 'next' | 'previous',
   ): HTMLButtonElement | undefined => {
@@ -172,6 +220,8 @@ function installChzzkClips(options: ChzzkClipsInjectionOptions): void {
       // shell and its m.naver.com player iframe. Only the frame that actually
       // owns the visible video may operate the native Flicking carousel.
       if (!previousVideo) return false;
+      const previousSource = previousVideo.currentSrc;
+      const previousTime = previousVideo.currentTime;
       const nativeButton = findNativeNavigationButton(direction);
       state.advancing = true;
       if (nativeButton) {
@@ -186,6 +236,7 @@ function installChzzkClips(options: ChzzkClipsInjectionOptions): void {
         );
         nativeButton.click();
         nativeButton.blur();
+        resumeActivePlayback(previousVideo, previousSource, previousTime);
         const stopDetachedPlayback = (): void => {
           const activeVideo = findActiveClipVideo();
           for (const video of document.querySelectorAll('video')) {

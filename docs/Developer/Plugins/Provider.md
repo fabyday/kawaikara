@@ -164,6 +164,32 @@ large video elements and support site-specific player structures.
 views are not arbitrary Bundle Renderer code. Declare `internal-view` and omit
 `navigation` when a Provider does not load remote content.
 
+## PluginView panels
+
+Use `menu.panels` for Provider-owned panels. Plugins can contribute the same
+shape through `@plugin({ panels })`. Declare `plugin-view` at the Provider and
+Bundle permission boundary. One panel occupies the whole PluginView surface;
+multiple panels automatically receive a browser-style selector.
+
+```ts
+@provider({
+  menu: {
+    category: 'Examples',
+    panels: [{
+      id: 'help',
+      title: { 'en-US': 'Help', 'ko-KR': '도움말' },
+      content: { kind: 'html', html: '<main>...</main>' },
+    }],
+  },
+  permissions: ['navigation', 'plugin-view'],
+})
+```
+
+Panel ids must be unique only inside the contributing Provider or Plugin.
+Titles are display copy and may be duplicated. HTML runs in a sandboxed frame
+without application IPC; `internal` ids select only Renderer views shipped by
+Kawaikara.
+
 ## Browser profiles
 
 A Provider is isolated in its own persistent Session by default. It may declare

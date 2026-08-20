@@ -46,6 +46,9 @@ export function plugin(metadata: PluginMetadata) {
         providerIds: metadata.providerIds
           ? Object.freeze([...metadata.providerIds])
           : undefined,
+        panels: metadata.panels
+          ? Object.freeze([...metadata.panels])
+          : undefined,
       }),
     });
 

@@ -31,6 +31,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     title: 'Netflix',
     category: 'OTT',
     icon: svgIcon('N', '#e50914'),
+    panels: [],
     order: 10,
     defaultShortcut: 'Control+Alt+1',
     actionShortcuts: [],
@@ -46,6 +47,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     title: 'Laftel',
     category: 'OTT',
     icon: svgIcon('L', '#6d5dfc'),
+    panels: [],
     order: 20,
     defaultShortcut: 'Control+Alt+2',
     actionShortcuts: [],
@@ -61,6 +63,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     title: 'Coupang Play',
     category: 'OTT',
     icon: svgIcon('C', '#00a8ff'),
+    panels: [],
     order: 30,
     defaultShortcut: 'Control+Alt+9',
     actionShortcuts: [],
@@ -75,7 +78,12 @@ export const STORY_SITES: SiteMenuItem[] = [
     bundleId: 'kawaikara.builtin-sites',
     title: 'Video',
     category: 'Video',
-    panelId: 'video-library',
+    panels: [{
+      id: 'provider:kawaikara.video:library',
+      title: 'Library',
+      order: 0,
+      content: { kind: 'internal', viewId: 'video-library' },
+    }],
     order: 0,
     defaultShortcut: 'Control+Alt+4',
     actionShortcuts: [],
@@ -91,6 +99,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     title: 'YouTube',
     category: 'Video',
     icon: svgIcon('▶', '#ff0033'),
+    panels: [],
     order: 10,
     defaultShortcut: 'Control+Alt+5',
     actionShortcuts: [],
@@ -107,6 +116,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     title: 'Spotify',
     category: 'Music',
     icon: svgIcon('S', '#1db954'),
+    panels: [],
     order: 10,
     defaultShortcut: 'Control+Alt+S',
     actionShortcuts: [],
@@ -525,6 +535,7 @@ export function installKawaikaraMock(
     },
     preferences: {
       get: async () => ({ ...preferences }),
+      previewTheme: async () => undefined,
       update: async (patch) => {
         preferences = { ...preferences, ...patch };
         return { ...preferences };
