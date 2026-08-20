@@ -1,191 +1,105 @@
-# Plugin System Overview
+# Bundle System Overview
 
 ## Terminology
 
-A **SiteDescriptor** loads one remote site or one app-owned internal view and defines its site-specific behavior.
-
-A **Site plugin** is a versioned unit containing one or more descriptors plus plugin-level metadata and optional browser profiles.
+- **Bundle**: the only installable unit. It contains at least one Provider.
+- **Provider**: a Menu destination that loads a service or an app-owned view.
+- **Plugin**: optional behavior attached globally, to selected Providers, or to
+  the Provider directory that owns it.
 
 ```text
-Site plugin
-├── metadata and API version
-├── optional browserProfiles[]
-└── sites[]
-    ├── SiteDescriptor A
-    └── SiteDescriptor B
+Bundle
+├── Provider[]                 one or more
+│   └── Provider Plugin[]      zero or more; owner-scoped
+└── Bundle Plugin[]            zero or more; global or providerIds-scoped
 ```
 
 ## Implementation status
 
 | Capability | Status |
 | --- | --- |
-| `@site` metadata decorator | Implemented |
-| Explicit plugin definitions through `definePlugin()` | Implemented |
-| Plugin and site ID validation | Implemented |
-| Site API version validation | Implemented |
-| Multiple descriptors in one plugin | Implemented |
-| Descriptor default shortcuts and user overrides | Implemented |
-| Plugin browser-profile declarations | Implemented |
-| Site-specific Session isolation and user profile assignment | Implemented |
-| Global app locale resolved against plugin/site supported locales | Implemented |
-| Plugins compiled into the application build | Implemented |
-| External directory discovery and manifest loading | Planned |
-| Third-party installation without rebuilding Kawaikara | Planned |
-| Permission consent and runtime enforcement | Planned |
-| Plugin sandbox or separate process | Planned |
-| Plugin-provided Renderer UI bundles | Planned |
+| `@provider` and `@plugin` metadata | Implemented |
+| `defineBundle`, `defineProvider`, and `definePlugin` | Implemented |
+| One directory and manifest per Provider and Plugin | Implemented |
+| Provider-scoped and Bundle-level Plugin activation | Implemented |
+| Atomic registration and API/version validation | Implemented |
+| `.kawai` installation without rebuilding Kawaikara | Implemented |
+| Per-Provider Session isolation and shared profiles | Implemented |
+| Locale and shortcut contributions | Implemented |
+| Permission display and manifest consistency checks | Implemented |
+| Runtime capability sandbox | Planned |
+| Publisher signatures, updates, uninstall, and rollback | Planned |
+| Plugin-provided Renderer code | Planned |
 
-The current application explicitly imports and installs its bundled plugin:
+The application installs its built-in Bundle through the same runtime contract:
 
 ```ts
-const plugins = new PluginHost(sites);
-plugins.install(builtinSitesPlugin);
+const host = new PluginHost(siteManager);
+host.install(builtinBundle);
 ```
-
-`PluginHost` is therefore an implemented runtime registry, but not yet a filesystem loader or package manager.
 
 ## Registration model
 
-The decorator attaches immutable metadata to a class. The plugin export explicitly lists the classes it owns.
+Decorators store immutable class metadata under shared symbols. A class becomes
+discoverable only when its directory manifest is loaded and a `BundleDefinition`
+explicitly includes it. Registration never depends on import order or a global
+reflection scan.
 
-```ts
-import {
-  AbstractSiteDescriptor,
-  definePlugin,
-  site,
-  type SiteContext,
-} from '@kawaikara/site-api';
+`SiteManager.registerBundle()` stages Providers, Plugins, and browser profiles.
+It commits them only after every ID, manifest, permission, and profile reference
+passes validation.
 
-@site({
-  id: 'example.video-service',
-  title: 'Example Video',
-  menu: { category: 'OTT', order: 10 },
-  shortcut: { defaultKey: 'Control+Alt+E' },
-  isolation: { defaultBrowserProfile: 'account', drm: true },
-  permissions: ['navigation'],
-})
-export class ExampleSite extends AbstractSiteDescriptor {
-  constructor(context: SiteContext) {
-    super(context);
-  }
+## Plugin activation
 
-  async load(): Promise<void> {
-    await this.context.viewer.loadURL('https://example.com/');
-  }
-}
+Plugins are instantiated for the active Provider, never once for the whole app:
 
-export const examplePlugin = definePlugin({
-  id: 'example.video-services',
-  name: 'Example Video Services',
-  version: '1.0.0',
-  apiVersion: 1,
-  locale: {
-    supportedLocales: ['en-US', 'ko-KR'],
-    defaultLocale: 'en-US',
-  },
-  browserProfiles: [
-    {
-      id: 'account',
-      name: 'Example account',
-      description: 'Shares sign-in among this plugin\'s assigned sites.',
-      persistent: true,
-    },
-  ],
-  sites: [ExampleSite],
-});
-```
-
-The decorator does not write to a process-wide reflection registry. Metadata is attached to the constructor under a shared symbol, and `SiteManager` reads it only while installing the explicit plugin definition.
-
-## Installation validation
-
-Installation checks that:
-
-1. `plugin.apiVersion` equals the app's `KAWAIKARA_SITE_API_VERSION`.
-2. The plugin ID has not already been installed.
-3. Every exported site constructor carries `@site` metadata.
-4. Site IDs do not conflict with an installed site or another site in the same plugin.
-5. Plugin profile IDs are valid and unique.
-6. A descriptor's `defaultBrowserProfile` refers to a profile declared by the same plugin.
-
-Site registrations are staged before being committed. A validation failure does not leave half of a plugin registered.
+1. Bundle-level Plugins with no `providerIds` activate for every Provider.
+2. Bundle-level Plugins with `providerIds` activate only for matching IDs.
+3. Plugins listed by a Provider manifest activate only for their owner.
+4. Matching Plugins activate before `Provider.load()` so they can subscribe to
+   events before the initial navigation.
+5. On transition, Plugins deactivate in reverse order, then the Provider unloads.
 
 ## Browser profiles
 
-Each site uses its own persistent Electron Session unless it is assigned to a shared profile.
+Each Provider uses its own persistent Electron Session by default. A Bundle may
+declare shared browser profiles, and a Provider may choose one as its default.
+Users can override assignments in Preferences or create their own profiles.
 
-A plugin-local profile is converted to the runtime ID:
+Multiple Providers assigned to the same profile share cookies and storage but
+retain separate live `WebContents`. DRM Providers warn when the user assigns
+shared state.
 
-```text
-plugin:<plugin-id>:<profile-id>
-```
+## Locale and shortcuts
 
-User-created profiles use:
+The app locale is resolved against Bundle and Provider locale declarations. The
+result is exposed through `context.locale.app`, `.plugin`, and `.site`, and the
+Provider locale supplies `Accept-Language` after Provider header hooks run.
 
-```text
-user:<profile-id>
-```
-
-The preference UI lets the user choose site-specific isolation, any plugin-provided profile, or a user-created profile. Current UI-created user profiles are persistent. A plugin may contribute a non-persistent profile that exists only for the current run.
-
-Multiple sites assigned to the same profile share cookies and storage, but they do not share one live `WebContents`. DRM-marked sites produce a warning when assigned to shared state.
-
-## Locale model
-
-The app has one authoritative locale preference: `system`, `ko-KR`, `en-US`, or `ja-JP`. Legacy per-plugin and per-site override records remain in the preference type only for file compatibility and are cleared when settings are saved.
-
-At load time, `SiteManager` resolves that app locale against each plugin and descriptor's supported locales:
-
-1. Exact locale match.
-2. Language-only match.
-3. Declared default locale, unless it is `inherit`.
-4. The app locale as the final fallback.
-
-The result is exposed as `context.locale.app`, `.plugin`, and `.site`. A concrete site locale also supplies the session request's `Accept-Language` value after the descriptor header hook runs.
-
-## Shortcut model
-
-A site declares its default Electron accelerator in `shortcut.defaultKey`. The preference UI lists all site shortcuts and stores only user overrides. The runtime loads the selected descriptor when the shortcut is matched.
-
-App-owned shortcut defaults remain in `src/Common/AppShortcuts.ts`; site-owned defaults stay beside their descriptor metadata. Empty overrides disable a shortcut. Conflict detection and overwrite confirmation are handled in Preferences.
-
-## ID rules
-
-Plugin and site IDs should use a stable publisher namespace:
-
-```text
-plugin: acme.korean-ott
-site:   acme.example-play
-```
-
-The built-in plugin uses `kawaikara.*`. Third parties should not use that namespace. IDs are stored in preferences and profile assignments, so changing a published ID requires migration logic.
-
-Plugin profile IDs are local to the plugin and may contain letters, numbers, `.`, `_`, and `-`, with a maximum length enforced at registration.
-
-## API version
-
-The current `KAWAIKARA_SITE_API_VERSION` is `1`.
-
-Increase it for a removed or renamed method, a changed lifecycle guarantee, a newly required metadata field, or another semantic break. A backward-compatible optional capability may remain in the same API version only when older plugins can safely detect or ignore it.
+Providers declare default accelerators in `shortcut.defaultKey`. Preferences
+stores only overrides; an empty override disables the shortcut.
 
 ## Permission declarations
 
 | Permission | Declared use |
 | --- | --- |
-| `navigation` | Load a remote URL in the viewer |
+| `navigation` | Load a remote URL |
 | `internal-view` | Load an app-owned internal view |
-| `script-injection` | Execute JavaScript in a remote document |
+| `script-injection` | Execute code in a remote document |
 | `cookies` | Transfer authentication cookies |
-| `network-interception` | Transform request headers |
+| `network-interception` | Transform requests or headers |
 | `external-browser` | Start a separate login browser |
 
-Permissions are currently documentation metadata and are not enforced. Plugin authors should still declare every capability they use so the future consent model has accurate data.
+The top-level Bundle manifest must include all permissions declared by every
+`@provider` in that Bundle. Provider manifests do not repeat permissions.
+Permissions are displayed during inspection but do not yet sandbox arbitrary
+module initialization.
 
 ## Authoring principles
 
-- Depend on `@kawaikara/site-api`, not `src/Main` or Electron internals.
-- Keep site selectors, OAuth domains, and compatibility user agents in the descriptor that owns them.
-- Treat every descriptor instance as single-use, even though hooks may fire more than once.
-- Dispose every resource started during `load()`.
-- Expect remote DOM, redirects, and player structure to change.
-- Make injection idempotent and keep sensitive values out of logs.
+- Depend on `@kawaikara/site-api`, not app Main or Electron internals.
+- Keep selectors, OAuth domains, user-agent workarounds, and PiP route guards in
+  the Provider that owns them.
+- Treat Provider and Plugin instances as single-use.
+- Dispose listeners, timers, and injected state during unload/deactivation.
+- Make injection idempotent and keep secrets out of logs.

@@ -17,6 +17,7 @@ import {
   Text,
 } from '@kawaikara/kawai-ui';
 import type {
+  ApplicationUpdatePanelState,
   AppMessages,
   AppTheme,
   OverlayView,
@@ -41,6 +42,7 @@ import {
   matchesKeyboardAccelerator,
 } from '../../Domain/MenuOrder';
 import { PreferenceView } from '../Preference/App';
+import { UpdatePanel } from '../Update/UpdatePanel';
 import { VideoLibraryMenuPanel } from './VideoLibraryMenuPanel';
 
 export function App() {
@@ -62,6 +64,10 @@ export function App() {
   const [addressFailureKey, setAddressFailureKey] = useState(0);
   const [addressLoading, setAddressLoading] = useState(false);
   const [previewTheme, setPreviewTheme] = useState<AppTheme>();
+  const [updateState, setUpdateState] = useState<ApplicationUpdatePanelState>();
+  const [updatePanelView, setUpdatePanelView] = useState<
+    'status' | 'release-notes'
+  >('status');
   const addressInputRef = useRef<HTMLInputElement>(null);
   const closeTimer = useRef<number | undefined>(undefined);
   const pipFailureTimer = useRef<number | undefined>(undefined);
@@ -69,11 +75,17 @@ export function App() {
   const categoryElements = useRef(new Map<string, HTMLElement>());
   const viewRef = useRef<OverlayView>('menu');
   const preferenceReturnPending = useRef(false);
+  const updateStateRef = useRef<ApplicationUpdatePanelState | undefined>(undefined);
+  const updatePanelViewRef = useRef<'status' | 'release-notes'>('status');
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+
+  useEffect(() => {
+    updateStateRef.current = updateState;
+  }, [updateState]);
 
   useEffect(() => {
     if (localization) document.documentElement.lang = localization.locale;
@@ -147,7 +159,38 @@ export function App() {
         setView('preference');
         viewRef.current = 'preference';
       });
+    const removeUpdateListener = window.kawaikara.overlay.onShowUpdate((state) => {
+      if (closeTimer.current !== undefined) {
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = undefined;
+      }
+      setMenuVisible(true);
+      setUpdateState(state);
+      updateStateRef.current = state;
+      setUpdatePanelView('status');
+      updatePanelViewRef.current = 'status';
+      setView('update');
+      viewRef.current = 'update';
+    });
+    const removeUpdateStateListener =
+      window.kawaikara.application.onUpdateStateChanged((state) => {
+        setUpdateState(state);
+        updateStateRef.current = state;
+      });
     const removeCloseListener = window.kawaikara.overlay.onRequestClose(() => {
+      if (viewRef.current === 'update') {
+        if (updatePanelViewRef.current === 'release-notes') {
+          setUpdatePanelView('status');
+          updatePanelViewRef.current = 'status';
+          return;
+        }
+        if (updateStateRef.current?.origin === 'manual') {
+          void window.kawaikara.overlay.setView('preference');
+        } else {
+          void window.kawaikara.overlay.close();
+        }
+        return;
+      }
       if (viewRef.current !== 'menu') {
         void window.kawaikara.overlay.setView('menu');
         return;
@@ -174,6 +217,8 @@ export function App() {
     return () => {
       removeMenuListener();
       removePreferenceListener();
+      removeUpdateListener();
+      removeUpdateStateListener();
       removeCloseListener();
       removeHiddenListener();
       removePictureInPictureListener();
@@ -371,12 +416,29 @@ export function App() {
     });
   };
 
+  const dismissUpdate = () => {
+    if (updateStateRef.current?.origin === 'manual') {
+      setOverlayView('preference');
+    } else {
+      void window.kawaikara.overlay.close();
+    }
+  };
+
+  const retryUpdate = async () => {
+    await window.kawaikara.application.checkForUpdates();
+  };
+
   if (!localization) return null;
+
+  const manualUpdateVisible =
+    view === 'update' && updateState?.origin === 'manual';
 
   return (
     <KawaiProvider>
       <AnimatePresence initial={false}>
-        {menuVisible || view === 'preference' ? (
+        {(menuVisible && view === 'menu') ||
+        view === 'preference' ||
+        manualUpdateVisible ? (
           <motion.main
             animate={{ opacity: 1 }}
             className={`kawai-theme ${
@@ -384,9 +446,11 @@ export function App() {
                 ? 'kawai-theme-dark'
                 : 'kawai-theme-light'
             } menu-shell${
-              view === 'preference' ? ' is-preference-underlay' : ''
+              view === 'preference' || manualUpdateVisible
+                ? ' is-preference-underlay'
+                : ''
             }`}
-            inert={view === 'preference' ? true : undefined}
+            inert={view === 'preference' || manualUpdateVisible ? true : undefined}
             key="menu-shell"
             exit={{
               opacity: 0,
@@ -444,14 +508,16 @@ export function App() {
               </Text>
             </div>
             <Flex align="center" gap="xs">
-              <PictureInPictureButton
-                active={pipMode !== undefined}
-                failureKey={pipFailureKey}
-                isLoading={pipLoading}
-                label={messages.pictureInPicture}
-                shortLabel="PiP"
-                onPress={() => void togglePictureInPicture()}
-              />
+              {(selectedSite?.pictureInPictureEnabled ?? true) ? (
+                <PictureInPictureButton
+                  active={pipMode !== undefined}
+                  failureKey={pipFailureKey}
+                  isLoading={pipLoading}
+                  label={messages.pictureInPicture}
+                  shortLabel="PiP"
+                  onPress={() => void togglePictureInPicture()}
+                />
+              ) : null}
               <Button
                 aria-label={messages.alwaysOnTop}
                 aria-pressed={preferences?.alwaysOnTop ?? false}
@@ -625,10 +691,11 @@ export function App() {
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
-        {view === 'preference' ? (
+        {view === 'preference' || manualUpdateVisible ? (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
             className="preference-motion-shell"
+            inert={manualUpdateVisible ? true : undefined}
             exit={{ opacity: 1, y: reduceMotion ? 0 : '-100%' }}
             initial={{
               opacity: 1,
@@ -653,6 +720,38 @@ export function App() {
               onMessagesChange={handlePreferenceMessagesChange}
               onPreferencesChange={setPreferences}
               onThemePreview={setPreviewTheme}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {view === 'update' && updateState ? (
+          <motion.div
+            animate={{ opacity: 1 }}
+            className={`kawai-theme ${
+              (previewTheme ?? preferences?.appTheme ?? 'dark') === 'dark'
+                ? 'kawai-theme-dark'
+                : 'kawai-theme-light'
+            } update-motion-shell`}
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+          >
+            <UpdatePanel
+              locale={localization.locale}
+              state={updateState}
+              view={updatePanelView}
+              onDismiss={dismissUpdate}
+              onDownload={async () => {
+                await window.kawaikara.application.downloadUpdate();
+              }}
+              onInstall={() => window.kawaikara.application.installUpdate()}
+              onRetry={retryUpdate}
+              onViewChange={(nextView) => {
+                setUpdatePanelView(nextView);
+                updatePanelViewRef.current = nextView;
+              }}
             />
           </motion.div>
         ) : null}

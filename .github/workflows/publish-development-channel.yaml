@@ -1,0 +1,362 @@
+name: Publish development channel
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        required: true
+        type: string
+      source_branch:
+        required: true
+        type: string
+      source_sha:
+        required: false
+        default: ''
+        type: string
+      base_version:
+        required: false
+        default: ''
+        type: string
+      use_kst_cutoff:
+        required: false
+        default: false
+        type: boolean
+      force:
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      KAWAIKARA_RELEASE_APP_PRIVATE_KEY:
+        required: true
+
+concurrency:
+  group: publish-${{ inputs.channel }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Resolve ${{ inputs.channel }} source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_build: ${{ steps.duplicate.outputs.should_build }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      source_short_sha: ${{ steps.release.outputs.source_short_sha }}
+      source_branch: ${{ steps.release.outputs.source_branch }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      created_at: ${{ steps.release.outputs.created_at }}
+      target_repository: ${{ steps.target.outputs.repository }}
+    steps:
+      - name: Validate channel
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANNEL" != "nightly" && "$CHANNEL" != "staging" ]]; then
+            echo "::error::Development publishing only supports nightly and staging."
+            exit 1
+          fi
+
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_branch }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Resolve immutable source commit
+        id: source
+        env:
+          REQUESTED_SHA: ${{ inputs.source_sha }}
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          USE_KST_CUTOFF: ${{ inputs.use_kst_cutoff }}
+        run: |
+          set -euo pipefail
+          git fetch origin "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}" --force
+
+          if [[ -n "$REQUESTED_SHA" ]]; then
+            source_sha="$(git rev-parse "${REQUESTED_SHA}^{commit}")"
+          elif [[ "$USE_KST_CUTOFF" == "true" ]]; then
+            cutoff_kst="$(TZ=Asia/Seoul date +%Y-%m-%dT00:00:00%z)"
+            source_sha="$(git rev-list -1 --before="$cutoff_kst" "origin/${SOURCE_BRANCH}")"
+          else
+            source_sha="$(git rev-parse "origin/${SOURCE_BRANCH}")"
+          fi
+
+          if [[ -z "$source_sha" ]]; then
+            echo "::error::No source commit could be resolved from ${SOURCE_BRANCH}."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$source_sha" "origin/${SOURCE_BRANCH}"; then
+            echo "::error::Source commit $source_sha is not part of ${SOURCE_BRANCH}."
+            exit 1
+          fi
+
+          git checkout --detach "$source_sha"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve target repository
+        id: target
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANNEL" == "nightly" ]]; then
+            repository="Kawaikara/kawaikara-nightly"
+          else
+            repository="Kawaikara/kawaikara-staging"
+          fi
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+      - name: Create read-only release App token
+        id: release-app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kawaikara
+          repositories: ${{ inputs.channel == 'nightly' && 'kawaikara-nightly' || 'kawaikara-staging' }}
+          permission-contents: read
+
+      - name: Validate target repository
+        env:
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
+        run: |
+          set -euo pipefail
+          visibility="$(gh api "repos/$TARGET_REPOSITORY" --jq '.visibility')"
+          if [[ "$visibility" != "public" ]]; then
+            echo "::error::$TARGET_REPOSITORY must be public for token-free application updates."
+            exit 1
+          fi
+
+      - name: Resolve channel version
+        id: release
+        env:
+          KAWAIKARA_BASE_VERSION: ${{ inputs.base_version }}
+          KAWAIKARA_SOURCE_BRANCH: ${{ inputs.source_branch }}
+          KAWAIKARA_SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: node scripts/channel-release.cjs resolve "${{ inputs.channel }}"
+
+      - name: Skip an already-published source commit
+        id: duplicate
+        env:
+          FORCE_BUILD: ${{ inputs.force }}
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+          TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$FORCE_BUILD" == "true" ]]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          releases_file="$RUNNER_TEMP/channel-releases.json"
+          gh api --paginate --slurp "repos/$TARGET_REPOSITORY/releases?per_page=100" > "$releases_file"
+          SOURCE_SHA="$SOURCE_SHA" RELEASES_FILE="$releases_file" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync(process.env.RELEASES_FILE, 'utf8')).flat();
+          const marker = `Source commit: ${process.env.SOURCE_SHA}`;
+          const duplicate = pages.find((release) =>
+            !release.draft && String(release.body || '').includes(marker));
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `should_build=${duplicate ? 'false' : 'true'}\n`,
+          );
+          if (duplicate) console.log(`Source already published as ${duplicate.tag_name}.`);
+          NODE
+
+  package:
+    name: Package ${{ inputs.channel }} (${{ matrix.platform }})
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+            output_os: mac
+          - os: windows-latest
+            platform: windows
+            output_os: win
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Install Widevine signing client
+        run: python -m pip install castlabs-evs==1.1.1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - name: Authenticate Widevine signing
+        run: pnpm widevine:auth
+        env:
+          KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
+          KAWAIKARA_EVS_PASSWORD: ${{ secrets.PASSWD }}
+      - name: Build channel package
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          KAWAIKARA_EVS_NONINTERACTIVE: '1'
+          KAWAIKARA_PUBLISH_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: pnpm run "dist:${CHANNEL}"
+      - name: Collect release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.channel }}-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.dmg
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.exe
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.zip
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.yml
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.blockmap
+
+  publish:
+    name: Publish ${{ inputs.channel }} release
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.channel }}-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create release App token
+        id: release-app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kawaikara
+          repositories: ${{ inputs.channel == 'nightly' && 'kawaikara-nightly' || 'kawaikara-staging' }}
+          permission-contents: write
+      - name: Resolve release App bot identity
+        id: release-app-user
+        env:
+          APP_SLUG: ${{ steps.release-app.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+        run: |
+          set -euo pipefail
+          app_user="${APP_SLUG}[bot]"
+          app_user_id="$(gh api "/users/${app_user}" --jq .id)"
+          echo "name=$app_user" >> "$GITHUB_OUTPUT"
+          echo "email=${app_user_id}+${app_user}@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+      - name: Write source metadata
+        env:
+          KAWAIKARA_CREATED_AT: ${{ needs.prepare.outputs.created_at }}
+          KAWAIKARA_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: ${{ needs.prepare.outputs.source_branch }}
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs metadata "${{ inputs.channel }}" "$RUNNER_TEMP/channel-source.json"
+      - name: Update release anchor branch
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          APP_BOT_EMAIL: ${{ steps.release-app-user.outputs.email }}
+          APP_BOT_NAME: ${{ steps.release-app-user.outputs.name }}
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_METADATA: ${{ runner.temp }}/channel-source.json
+          TARGET_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
+        run: |
+          set -euo pipefail
+          anchor_dir="$(mktemp -d)"
+          trap 'find "$anchor_dir" -type f -delete; find "$anchor_dir" -depth -type d -empty -delete' EXIT
+          cd "$anchor_dir"
+          git init
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPOSITORY}.git"
+          if git fetch --depth=1 origin "$CHANNEL"; then
+            git checkout -b "$CHANNEL" FETCH_HEAD
+          else
+            git checkout --orphan "$CHANNEL"
+          fi
+          git config user.name "$APP_BOT_NAME"
+          git config user.email "$APP_BOT_EMAIL"
+          cp "$SOURCE_METADATA" channel-source.json
+          if [[ ! -f README.md ]]; then
+            printf '# Kawaikara %s releases\n\nThis branch anchors generated GitHub Releases. Source code remains in the main Kawaikara repository.\n' "$CHANNEL" > README.md
+          fi
+          git add README.md channel-source.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish $RELEASE_TAG"
+            git push origin "HEAD:refs/heads/${CHANNEL}"
+          fi
+      - name: Build release notes from CHANGELOG
+        env:
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: ${{ needs.prepare.outputs.source_branch }}
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs notes "${{ inputs.channel }}" "$RUNNER_TEMP/release-notes.md"
+      - name: Publish GitHub Release
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_BRANCH: ${{ needs.prepare.outputs.source_branch }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          TARGET_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/channel-source.json" release-assets/channel-source.json
+          notes="$RUNNER_TEMP/release-notes.md"
+          mapfile -d '' assets < <(find release-assets -maxdepth 1 -type f -print0 | sort -z)
+          if (( ${#assets[@]} == 0 )); then
+            echo "::error::No release assets were downloaded."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$TARGET_REPOSITORY" \
+            --target "$CHANNEL" \
+            --title "Kawaikara ${CHANNEL^} ${RELEASE_VERSION}" \
+            --notes-file "$notes" \
+            --prerelease
+      - name: Retain the newest ten Nightly releases
+        if: inputs.channel == 'nightly'
+        env:
+          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          TARGET_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
+        run: |
+          set -euo pipefail
+          mapfile -t old_tags < <(gh release list \
+            --repo "$TARGET_REPOSITORY" \
+            --limit 100 \
+            --json tagName,publishedAt \
+            --jq 'sort_by(.publishedAt) | reverse | .[10:] | .[].tagName')
+          for tag in "${old_tags[@]}"; do
+            gh release delete "$tag" --repo "$TARGET_REPOSITORY" --cleanup-tag --yes
+          done

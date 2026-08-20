@@ -6,9 +6,9 @@
 
 - `src` is the application: Electron startup, windows, IPC, preferences, updates, download integration, and UI.
 - `packages/site-api` is the stable contract consumed by site plugins.
-- `packages/builtin-sites` is the official plugin bundled with the app.
-- Site-specific selectors, login workarounds, user-agent changes, and injected scripts belong to their descriptor rather than to a central manager.
-- A descriptor receives narrow capabilities through `SiteContext` instead of direct access to Electron window objects.
+- `packages/builtin-sites` is the official Bundle shipped with the app.
+- Site-specific selectors, login workarounds, user-agent changes, and injected scripts belong to their Provider rather than to a central manager.
+- A Provider receives narrow capabilities through `SiteContext` instead of direct access to Electron window objects.
 
 ## Repository layout
 
@@ -26,7 +26,7 @@ dev3/
 │       └── View/               # Menu, Preference, and Video views
 ├── packages/
 │   ├── site-api/               # Electron-independent plugin contract
-│   └── builtin-sites/          # One descriptor file per bundled site
+│   └── builtin-sites/          # One directory and manifest per Provider
 ├── stories/                    # Component and view stories with Electron API mocks
 └── docs/Developer/             # Developer documentation
 ```
@@ -72,15 +72,15 @@ sequenceDiagram
   Electron->>Preferences: load()
   Electron->>Windows: createWindows()
   Electron->>Sites: create with SiteContext factory
-  Electron->>Windows: attach descriptor policies
-  Electron->>Plugins: install(builtinSitesPlugin)
+  Electron->>Windows: attach Provider policies
+  Electron->>Plugins: install(builtinBundle)
   Electron->>IPC: initialize()
   Electron->>Windows: loadOverlay()
   Electron->>Sites: load startup or default site
   Electron->>Electron: start presence and optional update check
 ```
 
-The app also creates managers for shortcuts, the external downloader, developer links, updates, and Discord Rich Presence. Shutdown runs in the reverse direction: IPC handlers are removed, the global PiP shortcut is unregistered, the active descriptor is unloaded, external resources are closed, and only then does Electron quit.
+The app also creates managers for shortcuts, the external downloader, developer links, updates, and Discord Rich Presence. Shutdown runs in the reverse direction: IPC handlers are removed, the global PiP shortcut is unregistered, the active Provider is unloaded, external resources are closed, and only then does Electron quit.
 
 ## Main responsibilities
 
@@ -88,26 +88,27 @@ The app also creates managers for shortcuts, the external downloader, developer 
 
 - Owns the viewer host, overlay, site `WebContentsView`, popups, and unified PiP window.
 - Creates the concrete `SiteContext` capabilities.
-- Applies navigation, new-window, PiP, action-URL, and request-header policies from the active descriptor.
+- Applies navigation, new-window, PiP, action-URL, and request-header policies from the active Provider.
 - Runs external browser login and restores the viewer afterward.
 - Redirects supported dropped video files to the internal Video site.
+- Emulates the selected app color scheme in active remote site and popup WebContents.
 - Keeps HTML media fullscreen inside the configured app window; application fullscreen is a separate explicit action.
 
 ### SiteManager
 
-- Registers plugin definitions and validates site/profile references.
-- Maintains exactly one active descriptor.
+- Registers Bundles and validates Provider, Plugin, and profile references.
+- Maintains exactly one active Provider and its matching Plugin instances.
 - Resolves the site locale and Electron Session profile.
-- Forwards policy hooks to the active descriptor.
+- Forwards policy hooks to the active Provider.
 - Reloads the current site when its browser-profile assignment changes.
 
 ### PluginHost
 
 - Checks `KAWAIKARA_SITE_API_VERSION`.
-- Prevents duplicate plugin installation.
-- Passes a validated definition to `SiteManager`.
+- Prevents duplicate Bundle installation.
+- Installs Bundles through `SiteManager`.
 
-It is currently a runtime registry, not a filesystem plugin loader.
+User-installed Bundle discovery and compiled JavaScript loading are handled by `BundleManager`.
 
 ### Renderer
 
@@ -137,17 +138,17 @@ This gives Main and Preload autocomplete for both channel paths and channel lite
 
 ## Registration decision
 
-Decorators attach metadata to a descriptor class, but they do not register it globally. Registration is explicit through `definePlugin({ sites: [...] })`.
+Decorators attach metadata to Provider and Plugin classes, but they do not register them globally. Registration is explicit through `defineProvider()`, `definePlugin()`, and `defineBundle()`.
 
 This avoids import-order behavior, shared reflection registries between tests, partial discovery, and ambiguous plugin ownership. It also gives a future external loader one export to validate before installation.
 
 ## Current boundary versus future work
 
-The application/plugin package split, explicit plugin definitions, profile isolation, typed IPC, and built-in plugin are implemented. Loading an arbitrary third-party plugin directory without rebuilding the app is not implemented. External plugin discovery, installation, sandboxing, signature checks, and permission enforcement remain planned work.
+The application/package split, explicit Bundle definitions, Provider-scoped Plugin activation, profile isolation, typed IPC, built-in Bundle, and validated third-party `.kawai` installation are implemented. `.kawai` is a ZIP container with an application-specific extension. External Bundles use an explicit trusted-code model and load on restart. Sandboxing, signature checks, permission enforcement, updates, and rollback remain planned work.
 
 ## Change rules
 
-- Add the smallest possible capability to `site-api` before exposing a new application function to descriptors.
+- Add the smallest possible capability to `site-api` before exposing a new application function to Providers.
 - Do not add site-ID conditionals to `WindowManager` for behavior that belongs to one integration.
 - Every listener or external resource started by `load()` must be disposed by `unload()`.
 - A breaking contract change requires a `KAWAIKARA_SITE_API_VERSION` increment and migration notes.

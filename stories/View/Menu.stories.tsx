@@ -25,3 +25,12 @@ export const VideoLibrary = {
     installKawaikaraMock({ currentSiteId: 'kawaikara.video' });
   },
 } satisfies Story;
+
+export const ManualUpdateAvailable = {
+  beforeEach: () => {
+    installKawaikaraMock({
+      buildChannel: 'staging',
+      updateAvailable: true,
+    });
+  },
+} satisfies Story;

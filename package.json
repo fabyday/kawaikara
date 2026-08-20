@@ -1,6 +1,6 @@
 {
   "name": "kawaikara",
-  "version": "3.0.0-nightly.0",
+  "version": "3.0.0",
   "productName": "Kawaikara",
   "description": "Kawaikara streaming site viewer",
   "main": "dist/main/main.js",
@@ -13,16 +13,23 @@
     "node": ">=22",
     "pnpm": ">=10"
   },
+  "pnpm": {
+    "patchedDependencies": {
+      "electron-mpv-video@0.1.1": "patches/electron-mpv-video@0.1.1.patch"
+    }
+  },
   "scripts": {
     "build:packages": "pnpm --filter @kawaikara/site-api build && pnpm --filter @kawaikara/builtin-sites build",
-    "build:app": "webpack --config webpack.config.cjs --mode production",
+    "build:native": "node scripts/build-macos-window-spaces.cjs",
+    "build:app": "pnpm build:native && webpack --config webpack.config.cjs --mode production",
     "build": "pnpm build:packages && pnpm build:app",
-    "build:dev": "pnpm build:packages && webpack --config webpack.config.cjs --mode development",
+    "build:dev": "pnpm build:packages && pnpm build:native && webpack --config webpack.config.cjs --mode development",
     "dev": "pnpm build:dev && cross-env KAWAI_DEV=true electron .",
     "package:dev": "node scripts/package-dev.cjs",
     "postinstall": "node scripts/install-electron-mpv.cjs",
     "widevine:auth": "node scripts/widevine.cjs auth",
     "widevine:verify": "node scripts/widevine.cjs verify",
+    "capture:probe": "electron scripts/capture-probe/main.cjs",
     "start": "pnpm build && electron .",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
@@ -55,6 +62,7 @@
     "electron-log": "5.4.4",
     "electron-mpv-video": "0.1.1",
     "electron-updater": "6.8.9",
+    "extract-zip": "2.0.1",
     "hls.js": "^1.7.0",
     "motion": "^13.0.0",
     "patchright": "^1.61.1",

@@ -33,9 +33,9 @@ Editable-focus reporting understands normal inputs, textareas, selects, `content
 
 ## Menu behavior
 
-The menu groups sites by descriptor category and displays the current descriptor, icon, localized category label, and configured shortcut target. User order is applied on top of descriptor defaults. The opaque shared rail stays on the left. The transparent right-side parent contains a shared address bar and an optional panel declared by `metadata.menu.panel`; a plugin-provided panel is responsible for its own background. The bundled Video panel uses an opaque surface.
+The menu groups Providers by category and displays the current Provider, icon, localized category label, and configured shortcut target. User order is applied on top of Provider defaults. The opaque shared rail stays on the left. The transparent right-side parent contains a shared address bar and an optional panel declared by `metadata.menu.panel`; an app-approved panel is responsible for its own background. The built-in Video panel uses an opaque surface.
 
-`Control+L`/`Command+L` focuses the address bar. Each descriptor declares the
+`Control+L`/`Command+L` focuses the address bar. Each Provider declares the
 HTTPS hosts it accepts through `metadata.address.hosts`. Resolution prefers the
 most specific matching host, and the same path accepts validated
 `kawaikara://open?url=...` deep links. Unsupported input stays in place and
@@ -45,7 +45,7 @@ The rail header and footer remain fixed. Only the bounded site list scrolls, and
 its rounded scrollbar appears briefly on Menu entry and during scrolling before
 auto-hiding.
 
-The bundled Video descriptor contributes `video-library`. Its panel separates
+The built-in Video Provider contributes `video-library`. Its panel separates
 recent folders from recent videos. Folder cards expose pin/unpin and remove
 actions through a renderer-owned context menu; video cards open directly.
 
@@ -70,9 +70,20 @@ Category shortcuts default to `1`, `2`, `3`, and so on in current category order
 - File logging level: Error, Warn, Info, Verbose, Debug, or disabled.
 - Viewer behavior at the bottom: always on top, startup Menu, `Escape`, and
   outside-click dismissal.
+- A process-wide GPU acceleration switch below Viewer behavior. It is off by
+  default for capture compatibility and maps to
+  `app.disableHardwareAcceleration()`. Changing it opens a restart warning;
+  applying saves all pending settings and relaunches the application. Native
+  libmpv hardware decoding remains enabled independently.
 
 The separate Video tab contains keyboard seek distance, control layout, and a
 validated floating-point overlay hide delay in seconds.
+
+The Bundles tab lists built-in and user-installed Bundles with their versions,
+Provider and Plugin counts, declared permissions,
+and activation status. `Add .kawai Bundle` opens a native file picker, validates
+and installs the archive, and marks it as restart-required. A failed Bundle is
+reported without blocking the rest of the application.
 
 The global app locale is authoritative. Saving preferences clears legacy per-plugin and per-site locale overrides. Site and plugin locale metadata remains useful for resolving the closest supported locale.
 
@@ -94,7 +105,7 @@ The page separates:
 2. Application shortcuts.
 3. Site navigation shortcuts.
 
-The recorder converts physical input to Electron accelerators, displays platform-specific modifier labels, permits Delete/Backspace to disable a shortcut, and can reset a value to its descriptor or app default. Duplicate accelerators are highlighted and an overwrite dialog can clear the conflicting assignments.
+The recorder converts physical input to Electron accelerators, displays platform-specific modifier labels, permits Delete/Backspace to disable a shortcut, and can reset a value to its Provider or app default. Duplicate accelerators are highlighted and an overwrite dialog can clear the conflicting assignments.
 
 Preferences leaves the opaque Menu rail visible, uses an opaque settings panel,
 a fixed vertical section list, and an independently scrolling
@@ -115,7 +126,7 @@ Current application defaults are:
 | Reload current site | `CommandOrControl+R` |
 | Back / Forward | `Alt+Left` / `Alt+Right` |
 
-Site defaults live in each descriptor's `@site` metadata.
+Provider defaults live in each class's `@provider` metadata.
 
 ### App Info
 
@@ -127,10 +138,23 @@ It also provides:
 - Developer YouTube live/offline state, refreshed once per minute with shorter offline caching.
 - Manual update check beside the version.
 - Automatic updates, disabled by default.
-- Release-channel selection for builds that allow it.
+- A fixed release-channel label matching the installed build.
 - A Diagnostic logs action that opens the local rotating log directory.
 
-Nightly builds lock the update channel to Nightly. Stable and Staging builds may select Stable, Staging, or Nightly through the preference value.
+Stable, Staging, and Nightly builds are each locked to their own release repository and updater metadata channel. Staging is the beta-equivalent distribution, so no separate Beta channel is exposed.
+
+Manual update checks add a modal layer above the existing Menu and Preferences
+surfaces, keeping the selected Preferences tab mounted and visible through the
+translucent backdrop. Dismissing the panel therefore returns to the exact App
+Info state that launched it. The status panel links to a separate, larger Update
+Notes view so a long version changelog has its own scrollable surface.
+
+Automatic startup checks are silent while checking, when current, and when the
+check itself fails. After an update is found, the same status panel appears as a
+standalone overlay, starts the download, and relaunches the application when the
+package is ready. On sufficiently tall windows the wide Kawaikara banner is
+shown at its full aspect ratio; compact-height layouts crop to the character's
+face rather than leaving partially visible title text.
 
 ## Persistence and validation
 

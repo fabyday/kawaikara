@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type FocusEvent,
   type FormEvent,
+  type SetStateAction,
 } from 'react';
 import Hls from 'hls.js';
 import {
@@ -25,6 +26,7 @@ import {
   VIDEO_SHORTCUTS,
   type VideoShortcutId,
 } from '../../../Common/VideoControls';
+import { installMpvSoftwareRenderSizeLimit } from '../../Domain/MpvVideoPerformance';
 import { YouTubeDownloaderPanel } from './YouTubeDownloaderPanel';
 import { VideoBrowser } from './VideoBrowser';
 
@@ -33,6 +35,7 @@ const VIDEO_VOLUME_STEP = 5;
 const VIDEO_SCRUB_PREVIEW_INTERVAL_MS = 100;
 const VIDEO_LONG_SCRUB_PREVIEW_INTERVAL_MS = 180;
 const VIDEO_LONG_DURATION_SECONDS = 2 * 60 * 60;
+const PLAYER_UI_UPDATE_INTERVAL_MS = 100;
 
 interface PlayerSource {
   readonly nativeValue: string;
@@ -78,6 +81,7 @@ const INITIAL_PLAYER_STATE: MpvVideoState = {
   fps: 0,
 };
 
+installMpvSoftwareRenderSizeLimit();
 defineMpvVideoElement();
 
 export function VideoView() {
@@ -88,6 +92,8 @@ export function VideoView() {
   const fallbackFrameSamplesRef = useRef<number[]>([]);
   const rendererLogSignatureRef = useRef('');
   const playerStateRef = useRef<MpvVideoState>(INITIAL_PLAYER_STATE);
+  const pendingMpvStateRef = useRef<MpvVideoState | undefined>(undefined);
+  const mpvStateUiTimerRef = useRef<number | undefined>(undefined);
   const backendRef = useRef<PlaybackBackend>('detecting');
   const sourceRef = useRef<PlayerSource | undefined>(undefined);
   const viewVisibleRef = useRef(true);
@@ -110,6 +116,10 @@ export function VideoView() {
   const [fallbackReason, setFallbackReason] = useState<FallbackReason>();
   const [hardwareAccelerationDisabled, setHardwareAccelerationDisabled] =
     useState(false);
+  const [electronGpuAccelerationEnabled, setElectronGpuAccelerationEnabled] =
+    useState(true);
+  const [mpvRenderMode, setMpvRenderMode] =
+    useState<'shared-texture' | 'canvas2d'>('shared-texture');
   const [playerState, setPlayerState] = useState(INITIAL_PLAYER_STATE);
   const [source, setSource] = useState<PlayerSource>();
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -139,6 +149,25 @@ export function VideoView() {
     videoVolume: 100,
   });
 
+  const updatePlayerState = useCallback(
+    (update: SetStateAction<MpvVideoState>) => {
+      setPlayerState((current) => {
+        const next = typeof update === 'function' ? update(current) : update;
+        playerStateRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  const clearMpvStateUiTimer = useCallback(() => {
+    if (mpvStateUiTimerRef.current !== undefined) {
+      window.clearTimeout(mpvStateUiTimerRef.current);
+    }
+    mpvStateUiTimerRef.current = undefined;
+    pendingMpvStateRef.current = undefined;
+  }, []);
+
   const labels = localization?.video as VideoMessages;
   if (labels) labelsRef.current = labels;
   const isPlaying = playerState.status === 'Playing';
@@ -148,9 +177,7 @@ export function VideoView() {
     ? Math.min(100, Math.max(0, (displayedTime / playerState.duration) * 100))
     : 0;
 
-  useEffect(() => {
-    playerStateRef.current = playerState;
-  }, [playerState]);
+  useEffect(() => clearMpvStateUiTimer, [clearMpvStateUiTimer]);
 
   useEffect(() => {
     if (localization) document.documentElement.lang = localization.locale;
@@ -269,9 +296,19 @@ export function VideoView() {
         if (!active) return;
         console.info(
           `[video] Backend selection: ${capabilities.nativeBackendAvailable ? 'libmpv' : 'chromium'} ` +
-            `(${capabilities.platform}-${capabilities.arch}); forcedSoftware=${String(capabilities.hardwareAccelerationDisabled)}.`,
+            `(${capabilities.platform}-${capabilities.arch}); ` +
+            `electronGpu=${String(capabilities.electronGpuAccelerationEnabled)}; ` +
+            `libmpvSoftwareDecode=${String(capabilities.hardwareAccelerationDisabled)}.`,
         );
         setHardwareAccelerationDisabled(capabilities.hardwareAccelerationDisabled);
+        setElectronGpuAccelerationEnabled(
+          capabilities.electronGpuAccelerationEnabled,
+        );
+        setMpvRenderMode(
+          capabilities.electronGpuAccelerationEnabled
+            ? 'shared-texture'
+            : 'canvas2d',
+        );
         if (capabilities.nativeBackendAvailable) {
           setBackend('libmpv');
           setFallbackReason(undefined);
@@ -328,15 +365,36 @@ export function VideoView() {
     }, MPV_INITIALIZATION_TIMEOUT_MS);
     const player = document.createElement('mpv-video');
     player.className = 'video-player';
-    player.setAttribute('render-mode', 'shared-texture');
+    player.setAttribute('render-mode', mpvRenderMode);
     player.setAttribute('volume', String(volume));
     const handleState = (event: Event) => {
       const next = (event as CustomEvent<MpvVideoState>).detail;
-      const statusChanged = next.status !== playerStateRef.current.status;
+      const previous = playerStateRef.current;
+      const statusChanged = next.status !== previous.status;
+      const presentationChanged =
+        next.width !== previous.width ||
+        next.height !== previous.height ||
+        next.duration !== previous.duration ||
+        next.codec !== previous.codec ||
+        next.renderMode !== previous.renderMode ||
+        next.rendererName !== previous.rendererName;
       const rendererSignature = `${next.renderMode}:${next.rendererName}`;
       if (next.status === 'Ready') {
         window.clearTimeout(initializationTimer);
         setError(undefined);
+      }
+      if (
+        next.status === 'Ready' &&
+        next.renderMode === 'canvas2d' &&
+        mpvRenderMode !== 'canvas2d'
+      ) {
+        console.warn(
+          '[video] Canvas 2D is too slow for libmpv playback; using Chromium instead.',
+        );
+        setLoading(false);
+        setFallbackReason('native-error');
+        setBackend('chromium');
+        return;
       }
       if (
         next.status === 'Ready' &&
@@ -348,7 +406,18 @@ export function VideoView() {
         );
       }
       playerStateRef.current = next;
-      setPlayerState(next);
+      pendingMpvStateRef.current = next;
+      if (statusChanged || presentationChanged) {
+        clearMpvStateUiTimer();
+        updatePlayerState(next);
+      } else if (mpvStateUiTimerRef.current === undefined) {
+        mpvStateUiTimerRef.current = window.setTimeout(() => {
+          mpvStateUiTimerRef.current = undefined;
+          const pending = pendingMpvStateRef.current;
+          pendingMpvStateRef.current = undefined;
+          if (pending) updatePlayerState(pending);
+        }, PLAYER_UI_UPDATE_INTERVAL_MS);
+      }
       if (statusChanged && next.status === 'Playing') revealControlsRef.current();
       else if (
         statusChanged &&
@@ -360,8 +429,12 @@ export function VideoView() {
     const handleError = (event: Event) => {
       setLoading(false);
       const reason = (event as CustomEvent<unknown>).detail;
-      if (/WebGPU is not available/i.test(String(reason))) {
-        console.warn('[video] WebGPU is unavailable; libmpv is using WebGL.', reason);
+      if (
+        /WebGL2 is not available|WebGPU is not available|No WebGPU adapter available|Failed to create WebGPU Context Provider/i.test(
+          String(reason),
+        )
+      ) {
+        console.warn('[video] libmpv renderer candidate is unavailable.', reason);
         return;
       }
       if (isMpvRuntimeError(reason)) {
@@ -387,6 +460,7 @@ export function VideoView() {
     return () => {
       active = false;
       window.clearTimeout(initializationTimer);
+      clearMpvStateUiTimer();
       ++openGenerationRef.current;
       player.removeEventListener('mpv-state', handleState);
       player.removeEventListener('mpv-error', handleError);
@@ -394,7 +468,7 @@ export function VideoView() {
       host.replaceChildren();
       void player.destroy().catch(() => undefined);
     };
-  }, [backend]);
+  }, [backend, clearMpvStateUiTimer, mpvRenderMode, updatePlayerState]);
 
   useEffect(() => {
     if (backend === 'detecting' || !source) return;
@@ -405,7 +479,8 @@ export function VideoView() {
     setScrubTime(undefined);
     setError(undefined);
     setLoading(true);
-    setPlayerState((current) => ({
+    clearMpvStateUiTimer();
+    updatePlayerState((current) => ({
       ...current,
       status: 'Opening',
       time: 0,
@@ -492,7 +567,7 @@ export function VideoView() {
         hlsRef.current = null;
       }
     };
-  }, [backend, source, sourceRevision]);
+  }, [backend, clearMpvStateUiTimer, source, sourceRevision, updatePlayerState]);
 
   useEffect(() => {
     const video = fallbackVideoRef.current;
@@ -500,7 +575,7 @@ export function VideoView() {
 
     const updateMetadata = () => {
       const duration = Number.isFinite(video.duration) ? video.duration : 0;
-      setPlayerState((current) => ({
+      updatePlayerState((current) => ({
         ...current,
         playerId: 'chromium-fallback',
         status: video.paused ? 'Paused' : 'Playing',
@@ -512,20 +587,23 @@ export function VideoView() {
       }));
     };
     const updateTime = () => {
-      setPlayerState((current) => ({ ...current, time: video.currentTime || 0 }));
+      updatePlayerState((current) => ({
+        ...current,
+        time: video.currentTime || 0,
+      }));
     };
     const handlePlay = () => {
       setLoading(false);
-      setPlayerState((current) => ({ ...current, status: 'Playing' }));
+      updatePlayerState((current) => ({ ...current, status: 'Playing' }));
       revealControlsRef.current();
     };
     const handlePause = () => {
       if (video.ended) return;
-      setPlayerState((current) => ({ ...current, status: 'Paused' }));
+      updatePlayerState((current) => ({ ...current, status: 'Paused' }));
       revealControlsRef.current();
     };
     const handleEnded = () => {
-      setPlayerState((current) => ({
+      updatePlayerState((current) => ({
         ...current,
         status: 'Ended',
         time: Number.isFinite(video.duration) ? video.duration : current.time,
@@ -565,7 +643,7 @@ export function VideoView() {
       video.removeAttribute('src');
       video.load();
     };
-  }, [backend]);
+  }, [backend, updatePlayerState]);
 
   useEffect(() => {
     const video = fallbackVideoRef.current;
@@ -591,7 +669,7 @@ export function VideoView() {
           if (samples.length >= 12) {
             const fps = samples.reduce((sum, value) => sum + value, 0) / samples.length;
             samples.length = 0;
-            setPlayerState((current) => ({ ...current, fps }));
+            updatePlayerState((current) => ({ ...current, fps }));
           }
         }
       }
@@ -604,7 +682,7 @@ export function VideoView() {
       video.cancelVideoFrameCallback(callbackId);
       fallbackFrameSamplesRef.current = [];
     };
-  }, [backend, source]);
+  }, [backend, source, updatePlayerState]);
 
   const applyOpenRequest = useCallback((
     request: VideoOpenRequest,
@@ -835,7 +913,7 @@ export function VideoView() {
     }
     const target = clampSeekableVideoTime(seconds, state.duration);
     playerStateRef.current = { ...state, time: target };
-    setPlayerState((current) => ({ ...current, time: target }));
+    updatePlayerState((current) => ({ ...current, time: target }));
     if (backendRef.current === 'chromium') {
       const video = fallbackVideoRef.current;
       if (video) video.currentTime = target;
@@ -844,7 +922,7 @@ export function VideoView() {
     const player = playerRef.current;
     if (!player) return;
     queueMpvSeek({ reportError, seconds: target });
-  }, [queueMpvSeek]);
+  }, [queueMpvSeek, updatePlayerState]);
 
   const previewTimelineScrub = useCallback((seconds: number) => {
     const now = performance.now();
@@ -1142,6 +1220,7 @@ export function VideoView() {
         data-title-visible={showTitle ? 'true' : 'false'}
         data-has-source={source ? 'true' : 'false'}
         data-backend={backend}
+        data-electron-gpu={electronGpuAccelerationEnabled ? 'true' : 'false'}
         data-picture-in-picture={pictureInPicture ? 'true' : 'false'}
       >
         <div ref={playerHostRef} className="video-player-host" />
@@ -1255,8 +1334,10 @@ export function VideoView() {
                   : labels.detectingBackend
             }
             backendWarning={
-              hardwareAccelerationDisabled
-                ? labels.softwareRenderingWarning
+              !electronGpuAccelerationEnabled
+                ? labels.captureCompatibleRenderingWarning
+                : hardwareAccelerationDisabled
+                  ? labels.softwareRenderingWarning
                 : backend === 'chromium'
                   ? fallbackReason === 'intel-mac'
                     ? labels.intelMacFallback

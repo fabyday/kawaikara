@@ -1,4 +1,5 @@
 import {
+  app,
   BrowserWindow,
   screen,
   type Display,
@@ -21,6 +22,10 @@ import {
 } from '../../Common/PictureInPicture';
 import { attachRendererLogging } from '../Logging';
 import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
+import {
+  disableMacOSFullScreenAuxiliary,
+  enableMacOSFullScreenAuxiliary,
+} from '../MacOSWindowSpaces';
 
 const PIP_MARGIN = 20;
 const PIP_HOVER_POLL_INTERVAL_MS = 80;
@@ -147,13 +152,9 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       element.style.setProperty('perspective', 'none', 'important');
       element.style.setProperty('contain', 'none', 'important');
       element.style.setProperty('clip-path', 'none', 'important');
-      element.style.setProperty(
-        'overflow',
-        element === document.body || element === document.documentElement
-          ? 'hidden'
-          : 'visible',
-        'important',
-      );
+      if (element === document.body || element === document.documentElement) {
+        element.style.setProperty('overflow', 'hidden', 'important');
+      }
       element.style.setProperty('opacity', '1', 'important');
       element.style.setProperty('z-index', '2147483647', 'important');
     }
@@ -170,7 +171,7 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
 
     const controlsStyle = document.createElement('style');
     controlsStyle.dataset.kawaikaraUnifiedPipControls = 'true';
-    controlsStyle.textContent =
+    const controlsStyleText =
       'html,body{width:100%!important;height:100%!important;' +
         'overflow:hidden!important;overscroll-behavior:none!important}' +
       'html::-webkit-scrollbar,body::-webkit-scrollbar{' +
@@ -192,7 +193,110 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-current-time-display,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-time-remaining-display' +
       '{display:none!important;opacity:0!important;visibility:hidden!important}';
+    const navigationControlsStyleText =
+      'body [data-kawaikara-unified-pip-backdrop="true"]{' +
+        'visibility:visible!important;pointer-events:none!important}' +
+      'body video[data-kawaikara-unified-pip-video="true"]{' +
+        'position:fixed!important;inset:0!important;' +
+        'width:100vw!important;height:100vh!important;' +
+        'max-width:none!important;max-height:none!important;' +
+        'object-fit:contain!important;background:#000!important;' +
+        'visibility:visible!important;pointer-events:none!important;' +
+        'z-index:2147483647!important}' +
+      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls{' +
+        'display:none!important;opacity:0!important;visibility:hidden!important}';
+    controlsStyle.textContent = controlsStyleText;
     document.head.append(controlsStyle);
+
+    const maintainNavigationVideoPosition = () => {
+      const activeState = window.__kawaikaraUnifiedPictureInPicture;
+      if (!activeState?.layoutReleased) return;
+      const currentX = activeState.navigationOffsetX ?? 0;
+      const currentY = activeState.navigationOffsetY ?? 0;
+      const rect = activeState.video.getBoundingClientRect();
+      const nextX = currentX - rect.left;
+      const nextY = currentY - rect.top;
+      activeState.navigationOffsetX = nextX;
+      activeState.navigationOffsetY = nextY;
+      activeState.video.style.setProperty(
+        'transform',
+        'translate(' + String(nextX) + 'px,' + String(nextY) + 'px)',
+        'important',
+      );
+      requestAnimationFrame(maintainNavigationVideoPosition);
+    };
+
+    const restoreLayoutAfterNavigation = () => {
+      const activeState = window.__kawaikaraUnifiedPictureInPicture;
+      if (!activeState?.layoutReleased) return;
+      const activeContainer = activeState.video.closest(
+        '[is-active], [aria-current="true"], [class*="is_current"]',
+      );
+      if (
+        !activeContainer &&
+        (activeState.video.paused || activeState.video.ended)
+      ) {
+        return;
+      }
+      for (const { element, style } of activeState.elements) {
+        if (style === null) element.removeAttribute('style');
+        else element.setAttribute('style', style);
+      }
+      const elements = [];
+      for (
+        let element = activeState.video;
+        element;
+        element = element.parentElement
+      ) {
+        elements.push({ element, style: element.getAttribute('style') });
+      }
+      activeState.elements = elements;
+      for (const { element } of elements) {
+        element.style.setProperty('transform', 'none', 'important');
+        element.style.setProperty('filter', 'none', 'important');
+        element.style.setProperty('perspective', 'none', 'important');
+        element.style.setProperty('contain', 'none', 'important');
+        element.style.setProperty('clip-path', 'none', 'important');
+        if (element === document.body || element === document.documentElement) {
+          element.style.setProperty('overflow', 'hidden', 'important');
+        }
+        element.style.setProperty('opacity', '1', 'important');
+        element.style.setProperty('z-index', '2147483647', 'important');
+      }
+      activeState.video.style.setProperty('position', 'fixed', 'important');
+      activeState.video.style.setProperty('inset', '0', 'important');
+      activeState.video.style.setProperty('width', '100vw', 'important');
+      activeState.video.style.setProperty('height', '100vh', 'important');
+      activeState.video.style.setProperty('max-width', 'none', 'important');
+      activeState.video.style.setProperty('max-height', 'none', 'important');
+      activeState.video.style.setProperty('object-fit', 'contain', 'important');
+      activeState.video.style.setProperty('background', '#000', 'important');
+      activeState.video.style.setProperty('visibility', 'visible', 'important');
+      activeState.video.style.setProperty('z-index', '2147483647', 'important');
+      activeState.controlsStyle.textContent = activeState.controlsStyleText;
+      activeState.layoutReleased = false;
+      activeState.navigationOffsetX = 0;
+      activeState.navigationOffsetY = 0;
+    };
+
+    const releaseLayoutForNavigation = () => {
+      const activeState = window.__kawaikaraUnifiedPictureInPicture;
+      if (!activeState) return;
+      // YouTube Shorts and CHZZK Clips both use an internal carousel. PiP must
+      // temporarily restore that carousel's transforms/overflow before its
+      // native next/previous command can select the new video element. The
+      // black backdrop and the currently marked video remain above the page.
+      for (const { element, style } of activeState.elements) {
+        if (style === null) element.removeAttribute('style');
+        else element.setAttribute('style', style);
+      }
+      activeState.controlsStyle.textContent =
+        activeState.navigationControlsStyleText;
+      activeState.layoutReleased = true;
+      activeState.navigationOffsetX = 0;
+      activeState.navigationOffsetY = 0;
+      requestAnimationFrame(maintainNavigationVideoPosition);
+    };
 
     const overlay = document.createElement('div');
     overlay.dataset.kawaikaraUnifiedPipOverlay = 'true';
@@ -266,8 +370,11 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
     const playbackButton = document.createElement('button');
     playbackButton.className = 'playback-button';
     playbackButton.type = 'button';
+    const activePlaybackVideo = () =>
+      window.__kawaikaraUnifiedPictureInPicture?.video ?? video;
     const renderPlaybackButton = () => {
-      const paused = video.paused || video.ended;
+      const activeVideo = activePlaybackVideo();
+      const paused = activeVideo.paused || activeVideo.ended;
       playbackButton.title = paused ? 'Play' : 'Pause';
       playbackButton.setAttribute('aria-label', paused ? 'Play' : 'Pause');
       const icon = document.createElementNS(svgNamespace, 'svg');
@@ -281,11 +388,12 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
     const togglePlayback = (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      if (video.paused || video.ended) {
-        if (video.ended) video.currentTime = 0;
-        void video.play().catch(() => undefined);
+      const activeVideo = activePlaybackVideo();
+      if (activeVideo.paused || activeVideo.ended) {
+        if (activeVideo.ended) activeVideo.currentTime = 0;
+        void activeVideo.play().catch(() => undefined);
       } else {
-        video.pause();
+        activeVideo.pause();
       }
       renderPlaybackButton();
     };
@@ -306,10 +414,17 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       backdrop,
       controls: video.controls,
       controlsStyle,
+      controlsStyleText,
       elements,
+      layoutReleased: false,
+      navigationControlsStyleText,
+      navigationOffsetX: 0,
+      navigationOffsetY: 0,
       overlay,
       playbackButton,
+      releaseLayoutForNavigation,
       renderPlaybackButton,
+      restoreLayoutAfterNavigation,
       video,
       videoMarker,
     };
@@ -356,6 +471,213 @@ const EXIT_UNIFIED_PIP_SCRIPT = `
   })();
 `;
 
+const REFRESH_UNIFIED_PIP_VIDEO_SCRIPT = `
+  (() => {
+    const state = window.__kawaikaraUnifiedPictureInPicture;
+    if (!state) return { status: 'missing' };
+
+    const videos = [];
+    const visit = (root) => {
+      root.querySelectorAll('video').forEach((video) => videos.push(video));
+      root.querySelectorAll('*').forEach((element) => {
+        if (element.shadowRoot) visit(element.shadowRoot);
+      });
+    };
+    visit(document);
+    const score = (video) => {
+      const rect = video.getBoundingClientRect();
+      const visibleWidth = Math.max(
+        0,
+        Math.min(rect.right, innerWidth) - Math.max(rect.left, 0),
+      );
+      const visibleHeight = Math.max(
+        0,
+        Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0),
+      );
+      const activeContainer = video.closest(
+        '[is-active], [aria-current="true"], [class*="is_current"]',
+      );
+      return (
+        (activeContainer ? 1e18 : 0) +
+        (!video.paused && !video.ended ? 1e15 : 0) +
+        (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ? 1e12 : 0) +
+        visibleWidth * visibleHeight
+      );
+    };
+    videos.sort((left, right) => score(right) - score(left));
+    const video = videos[0];
+    if (
+      !video ||
+      video.readyState === HTMLMediaElement.HAVE_NOTHING ||
+      !video.videoWidth
+    ) {
+      return { status: 'not-ready' };
+    }
+    if (video === state.video && !state.layoutReleased) {
+      return { status: 'unchanged' };
+    }
+
+    state.video.controls = state.controls;
+    state.video.removeEventListener('play', state.renderPlaybackButton);
+    state.video.removeEventListener('pause', state.renderPlaybackButton);
+    state.video.removeEventListener('ended', state.renderPlaybackButton);
+    for (const { element, style } of state.elements) {
+      if (style === null) element.removeAttribute('style');
+      else element.setAttribute('style', style);
+    }
+    if (state.videoMarker === null) {
+      state.video.removeAttribute('data-kawaikara-unified-pip-video');
+    } else {
+      state.video.setAttribute(
+        'data-kawaikara-unified-pip-video',
+        state.videoMarker,
+      );
+    }
+
+    const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
+    video.setAttribute('data-kawaikara-unified-pip-video', 'true');
+    const elements = [];
+    for (let element = video; element; element = element.parentElement) {
+      elements.push({ element, style: element.getAttribute('style') });
+    }
+    for (const { element } of elements) {
+      element.style.setProperty('transform', 'none', 'important');
+      element.style.setProperty('filter', 'none', 'important');
+      element.style.setProperty('perspective', 'none', 'important');
+      element.style.setProperty('contain', 'none', 'important');
+      element.style.setProperty('clip-path', 'none', 'important');
+      if (element === document.body || element === document.documentElement) {
+        element.style.setProperty('overflow', 'hidden', 'important');
+      }
+      element.style.setProperty('opacity', '1', 'important');
+      element.style.setProperty('z-index', '2147483647', 'important');
+    }
+    video.style.setProperty('position', 'fixed', 'important');
+    video.style.setProperty('inset', '0', 'important');
+    video.style.setProperty('width', '100vw', 'important');
+    video.style.setProperty('height', '100vh', 'important');
+    video.style.setProperty('max-width', 'none', 'important');
+    video.style.setProperty('max-height', 'none', 'important');
+    video.style.setProperty('object-fit', 'contain', 'important');
+    video.style.setProperty('background', '#000', 'important');
+    video.style.setProperty('visibility', 'visible', 'important');
+    video.style.setProperty('z-index', '2147483647', 'important');
+
+    state.video = video;
+    state.controls = video.controls;
+    state.controlsStyle.textContent = state.controlsStyleText;
+    state.elements = elements;
+    state.layoutReleased = false;
+    state.navigationOffsetX = 0;
+    state.navigationOffsetY = 0;
+    state.videoMarker = videoMarker;
+    video.controls = false;
+    video.addEventListener('play', state.renderPlaybackButton);
+    video.addEventListener('pause', state.renderPlaybackButton);
+    video.addEventListener('ended', state.renderPlaybackButton);
+    state.renderPlaybackButton();
+    return {
+      status: 'refreshed',
+      videoHeight: video.videoHeight,
+      videoWidth: video.videoWidth,
+    };
+  })();
+`;
+
+const EXIT_UNIFIED_PIP_HOST_SCRIPT = `
+  (() => {
+    const state = window.__kawaikaraUnifiedPictureInPictureHost;
+    if (!state) return { status: 'exited' };
+    for (const { element, marker, style } of state.elements) {
+      if (style === null) element.removeAttribute('style');
+      else element.setAttribute('style', style);
+      if (marker === null) {
+        element.removeAttribute('data-kawaikara-unified-pip-host-path');
+      } else {
+        element.setAttribute('data-kawaikara-unified-pip-host-path', marker);
+      }
+    }
+    state.style.remove();
+    delete window.__kawaikaraUnifiedPictureInPictureHost;
+    return { status: 'exited' };
+  })();
+`;
+
+function createEnterUnifiedPipHostScript(childFrameUrl: string): string {
+  return `
+    (() => {
+      if (window.__kawaikaraUnifiedPictureInPictureHost) {
+        return { status: 'entered' };
+      }
+      const childFrameUrl = ${JSON.stringify(childFrameUrl)};
+      const desiredUrl = new URL(childFrameUrl);
+      const candidates = [...document.querySelectorAll('iframe')].filter((frame) => {
+        try {
+          const frameUrl = new URL(frame.src, location.href);
+          return (
+            frameUrl.origin === desiredUrl.origin &&
+            frameUrl.pathname === desiredUrl.pathname
+          );
+        } catch {
+          return false;
+        }
+      });
+      const target = candidates.find((frame) => {
+        try {
+          const frameUrl = new URL(frame.src, location.href);
+          return [...desiredUrl.searchParams].some(
+            ([key, value]) => frameUrl.searchParams.get(key) === value,
+          );
+        } catch {
+          return false;
+        }
+      }) ?? candidates[0];
+      if (!target) return { status: 'no-frame' };
+
+      const elements = [];
+      for (let element = target; element; element = element.parentElement) {
+        elements.push({
+          element,
+          marker: element.getAttribute('data-kawaikara-unified-pip-host-path'),
+          style: element.getAttribute('style'),
+        });
+        element.setAttribute('data-kawaikara-unified-pip-host-path', 'true');
+        element.style.setProperty('transform', 'none', 'important');
+        element.style.setProperty('filter', 'none', 'important');
+        element.style.setProperty('perspective', 'none', 'important');
+        element.style.setProperty('contain', 'none', 'important');
+        element.style.setProperty('clip-path', 'none', 'important');
+        element.style.setProperty('overflow', 'visible', 'important');
+        element.style.setProperty('opacity', '1', 'important');
+        element.style.setProperty('visibility', 'visible', 'important');
+        element.style.setProperty('z-index', '2147483647', 'important');
+      }
+      target.style.setProperty('position', 'fixed', 'important');
+      target.style.setProperty('inset', '0', 'important');
+      target.style.setProperty('width', '100vw', 'important');
+      target.style.setProperty('height', '100vh', 'important');
+      target.style.setProperty('max-width', 'none', 'important');
+      target.style.setProperty('max-height', 'none', 'important');
+      target.style.setProperty('border', '0', 'important');
+      target.style.setProperty('background', '#000', 'important');
+
+      const style = document.createElement('style');
+      style.dataset.kawaikaraUnifiedPipHost = 'true';
+      style.textContent =
+        'html,body{width:100%!important;height:100%!important;' +
+          'overflow:hidden!important;background:#000!important}' +
+        'body *{visibility:hidden!important;pointer-events:none!important}' +
+        'body [data-kawaikara-unified-pip-host-path="true"]{' +
+          'visibility:visible!important}' +
+        'body iframe[data-kawaikara-unified-pip-host-path="true"]{' +
+          'pointer-events:auto!important}';
+      document.head.append(style);
+      window.__kawaikaraUnifiedPictureInPictureHost = { elements, style };
+      return { status: 'entered' };
+    })();
+  `;
+}
+
 interface VideoCandidate {
   readonly aspectRatio?: number;
   readonly frame: WebFrameMain;
@@ -375,8 +697,10 @@ interface UnifiedPictureInPictureState {
   readonly consoleListener: (
     details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
   ) => void;
-  readonly frame: WebFrameMain;
+  frame: WebFrameMain;
   readonly inputListener: (event: Electron.Event, input: Input) => void;
+  hostFrames: readonly WebFrameMain[];
+  readonly mediaStartedListener: () => void;
   readonly pointerInputListener: (
     event: Electron.Event,
     input: Electron.InputEvent,
@@ -384,6 +708,9 @@ interface UnifiedPictureInPictureState {
   readonly pipWindow: BrowserWindow;
   readonly siteView: WebContentsView;
   readonly viewerWindow: BrowserWindow;
+  readonly fullscreenReassertTimers: Set<ReturnType<typeof setTimeout>>;
+  readonly videoRefreshTimers: Set<ReturnType<typeof setTimeout>>;
+  refreshingVideo: boolean;
   hoverTimer?: ReturnType<typeof setInterval>;
 }
 
@@ -448,9 +775,17 @@ export class UnifiedPictureInPictureManager {
     if (!state) return;
     state.closing = true;
     this.stopHoverTracking(state);
+    this.clearFullscreenReassertions(state);
+    this.clearVideoRefreshes(state);
     state.siteView.webContents.off('console-message', state.consoleListener);
     state.siteView.webContents.off('before-input-event', state.inputListener);
     state.siteView.webContents.off('input-event', state.pointerInputListener);
+    state.siteView.webContents.off(
+      'media-started-playing',
+      state.mediaStartedListener,
+    );
+    void this.restoreHostFrames(state.hostFrames);
+    void this.restoreMacApplicationPresentation(state.pipWindow);
     if (!state.pipWindow.isDestroyed()) state.pipWindow.destroy();
   }
 
@@ -462,7 +797,9 @@ export class UnifiedPictureInPictureManager {
     if (candidate.status === 'not-ready') return withWindowMode('not-ready');
 
     let pipWindow: BrowserWindow | undefined;
+    let hostFrames: readonly WebFrameMain[] = [];
     try {
+      hostFrames = await this.enterHostFrames(candidate.frame);
       const result = parseEnterResult(
         await candidate.frame.executeJavaScript(
           ENTER_UNIFIED_PIP_SCRIPT,
@@ -513,15 +850,25 @@ export class UnifiedPictureInPictureManager {
         if (!activeState || activeState.pipWindow !== pipWindow) return;
         this.handlePointerInput(activeState, input);
       };
+      const mediaStartedListener = (): void => {
+        const activeState = this.state;
+        if (!activeState || activeState.pipWindow !== pipWindow) return;
+        this.scheduleVideoRefresh(activeState);
+      };
       const state: UnifiedPictureInPictureState = {
         closing: false,
         consoleListener,
         controlsVisible: false,
         frame: candidate.frame,
+        fullscreenReassertTimers: new Set(),
+        hostFrames,
         inputListener,
+        mediaStartedListener,
         pipWindow,
         pointerInputListener,
         siteView,
+        videoRefreshTimers: new Set(),
+        refreshingVideo: false,
         viewerWindow,
       };
       this.state = state;
@@ -529,6 +876,7 @@ export class UnifiedPictureInPictureManager {
       siteView.webContents.on('console-message', consoleListener);
       siteView.webContents.on('before-input-event', inputListener);
       siteView.webContents.on('input-event', pointerInputListener);
+      siteView.webContents.on('media-started-playing', mediaStartedListener);
 
       await transferWebContentsView({
         sourceWindow: viewerWindow,
@@ -536,10 +884,18 @@ export class UnifiedPictureInPictureManager {
         view: siteView,
       });
       viewerWindow.hide();
-      pipWindow.show();
-      pipWindow.focus();
-      siteView.webContents.focus();
+      if (process.platform === 'darwin') {
+        // Match Chatty's overlay presentation: do not activate Kawaikara or
+        // steal focus from the fullscreen game. The screen-saver window level
+        // is reapplied after the view transfer, immediately before ordering.
+        this.presentMacPictureInPicture(pipWindow);
+      } else {
+        pipWindow.show();
+        pipWindow.focus();
+        siteView.webContents.focus();
+      }
       this.startHoverTracking(state);
+      this.scheduleFullscreenReassertion(state);
 
       const entered = withWindowMode('entered');
       this.onStateChanged(entered);
@@ -551,6 +907,8 @@ export class UnifiedPictureInPictureManager {
       if (state) {
         state.closing = true;
         this.stopHoverTracking(state);
+        this.clearFullscreenReassertions(state);
+        this.clearVideoRefreshes(state);
         state.siteView.webContents.off(
           'console-message',
           state.consoleListener,
@@ -563,9 +921,15 @@ export class UnifiedPictureInPictureManager {
           'input-event',
           state.pointerInputListener,
         );
+        state.siteView.webContents.off(
+          'media-started-playing',
+          state.mediaStartedListener,
+        );
       }
       await this.restoreInjectedVideo(candidate.frame);
+      await this.restoreHostFrames(hostFrames);
       await this.restoreSiteView(viewerWindow, siteView, pipWindow);
+      await this.restoreMacApplicationPresentation(pipWindow);
       if (pipWindow && !pipWindow.isDestroyed()) pipWindow.destroy();
       viewerWindow.show();
       return withWindowMode('failed');
@@ -588,12 +952,19 @@ export class UnifiedPictureInPictureManager {
     if (!state) return withWindowMode('exited');
     state.closing = true;
     this.stopHoverTracking(state);
+    this.clearFullscreenReassertions(state);
+    this.clearVideoRefreshes(state);
     state.siteView.webContents.off('console-message', state.consoleListener);
     state.siteView.webContents.off('before-input-event', state.inputListener);
     state.siteView.webContents.off('input-event', state.pointerInputListener);
+    state.siteView.webContents.off(
+      'media-started-playing',
+      state.mediaStartedListener,
+    );
 
     await this.rememberCurrentPlacement(state.pipWindow);
     await this.restoreInjectedVideo(state.frame);
+    await this.restoreHostFrames(state.hostFrames);
     await this.restoreSiteView(
       state.viewerWindow,
       state.siteView,
@@ -601,6 +972,7 @@ export class UnifiedPictureInPictureManager {
     );
     this.state = undefined;
     if (!state.pipWindow.isDestroyed()) state.pipWindow.hide();
+    await this.restoreMacApplicationPresentation(state.pipWindow);
     if (!state.viewerWindow.isDestroyed()) state.viewerWindow.show();
     if (!state.pipWindow.isDestroyed()) state.pipWindow.destroy();
 
@@ -614,6 +986,9 @@ export class UnifiedPictureInPictureManager {
     bounds: Rectangle,
     aspectRatio?: number,
   ): BrowserWindow {
+    if (process.platform === 'darwin') {
+      this.prepareMacApplicationForPictureInPicture();
+    }
     const pipWindow = new BrowserWindow({
       ...bounds,
       show: false,
@@ -644,19 +1019,44 @@ export class UnifiedPictureInPictureManager {
       pipWindow.setAspectRatio(aspectRatio);
     }
     if (process.platform === 'darwin') {
-      pipWindow.setVisibleOnAllWorkspaces(true, {
-        visibleOnFullScreen: true,
-        skipTransformProcessType: true,
-      });
-      pipWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+      this.applyMacPictureInPictureLevel(pipWindow);
     } else {
-      pipWindow.setAlwaysOnTop(true, 'pop-up-menu');
+      pipWindow.setAlwaysOnTop(true, 'screen-saver');
     }
     return pipWindow;
   }
 
+  private applyMacPictureInPictureLevel(pipWindow: BrowserWindow): void {
+    // Electron's public call sets the all-workspaces behavior, but an app that
+    // started as a regular Dock app can still omit an already-existing true
+    // fullscreen Space. Apply AppKit's FullScreenAuxiliary bit directly after
+    // Electron has finished changing the window collection behavior.
+    pipWindow.setAlwaysOnTop(true, 'screen-saver');
+    pipWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+    });
+    enableMacOSFullScreenAuxiliary(pipWindow);
+  }
+
+  private prepareMacApplicationForPictureInPicture(): void {
+    // FullScreenAuxiliary windows must belong to an accessory/UI-element app.
+    // Kawaikara returns to a regular Dock app as soon as PiP exits.
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
+
+  private presentMacPictureInPicture(pipWindow: BrowserWindow): void {
+    this.prepareMacApplicationForPictureInPicture();
+    this.applyMacPictureInPictureLevel(pipWindow);
+    pipWindow.showInactive();
+    pipWindow.moveTop();
+  }
+
   private attachWindowEvents(state: UnifiedPictureInPictureState): void {
     state.pipWindow.on('resize', () => this.syncSiteViewBounds(state));
+    state.pipWindow.on('blur', () => {
+      this.scheduleFullscreenReassertion(state);
+    });
     state.pipWindow.on('close', (event) => {
       if (state.closing || this.state !== state) return;
       event.preventDefault();
@@ -767,6 +1167,132 @@ export class UnifiedPictureInPictureManager {
     if (state.hoverTimer === undefined) return;
     clearInterval(state.hoverTimer);
     state.hoverTimer = undefined;
+  }
+
+  private scheduleFullscreenReassertion(
+    state: UnifiedPictureInPictureState,
+  ): void {
+    if (process.platform !== 'darwin') return;
+    this.clearFullscreenReassertions(state);
+    for (const delayMilliseconds of [0, 250, 1_000]) {
+      const timer = setTimeout(() => {
+        state.fullscreenReassertTimers.delete(timer);
+        if (
+          this.state !== state ||
+          state.closing ||
+          state.pipWindow.isDestroyed()
+        ) {
+          return;
+        }
+        // Reapply the full Chatty sequence after macOS moves focus/Spaces.
+        this.presentMacPictureInPicture(state.pipWindow);
+      }, delayMilliseconds);
+      state.fullscreenReassertTimers.add(timer);
+    }
+  }
+
+  private clearFullscreenReassertions(
+    state: UnifiedPictureInPictureState,
+  ): void {
+    for (const timer of state.fullscreenReassertTimers) clearTimeout(timer);
+    state.fullscreenReassertTimers.clear();
+  }
+
+  private scheduleVideoRefresh(state: UnifiedPictureInPictureState): void {
+    // Short-form players begin playback before their vertical carousel has
+    // settled. Refreshing immediately freezes that intermediate offset into
+    // the PiP layout, so wait until the native transition is complete.
+    for (const delayMilliseconds of [620, 980]) {
+      const timer = setTimeout(() => {
+        state.videoRefreshTimers.delete(timer);
+        if (this.state !== state || state.closing) {
+          return;
+        }
+        void this.refreshActiveVideo(state);
+      }, delayMilliseconds);
+      state.videoRefreshTimers.add(timer);
+    }
+  }
+
+  private async refreshActiveVideo(
+    state: UnifiedPictureInPictureState,
+  ): Promise<void> {
+    if (state.refreshingVideo || this.state !== state || state.closing) return;
+    state.refreshingVideo = true;
+    try {
+      const candidate = await this.inspectVideoFrames(state.siteView);
+      if (
+        !candidate ||
+        candidate.status !== 'ready' ||
+        this.state !== state ||
+        state.closing
+      ) {
+        return;
+      }
+
+      if (candidate.frame === state.frame && !state.frame.isDestroyed()) {
+        await state.frame.executeJavaScript(REFRESH_UNIFIED_PIP_VIDEO_SCRIPT, true);
+        return;
+      }
+
+      // CHZZK Clips can replace its m.naver.com player iframe while moving
+      // between clips. Rebuild both the host-frame path and the in-page PiP
+      // controls in the newly active frame; keeping the original WebFrameMain
+      // here leaves old audio alive and loses the restore overlay.
+      const previousFrame = state.frame;
+      const previousHostFrames = state.hostFrames;
+      await this.restoreHostFrames(previousHostFrames);
+      const nextHostFrames = await this.enterHostFrames(candidate.frame);
+      const result = parseEnterResult(
+        await candidate.frame.executeJavaScript(ENTER_UNIFIED_PIP_SCRIPT, true),
+      );
+      if (result.status !== 'entered') {
+        await this.restoreHostFrames(nextHostFrames);
+        if (!previousFrame.isDestroyed()) {
+          state.hostFrames = await this.enterHostFrames(previousFrame);
+        }
+        return;
+      }
+      state.frame = candidate.frame;
+      state.hostFrames = nextHostFrames;
+      if (!previousFrame.isDestroyed()) {
+        await previousFrame.executeJavaScript(
+          "document.querySelectorAll('video').forEach((video) => video.pause())",
+          true,
+        ).catch(() => undefined);
+      }
+      await this.restoreInjectedVideo(previousFrame);
+    } catch (error) {
+      if (this.state === state && !state.closing) {
+        console.debug('Unified PiP could not refresh its active video.', error);
+      }
+    } finally {
+      state.refreshingVideo = false;
+    }
+  }
+
+  private clearVideoRefreshes(state: UnifiedPictureInPictureState): void {
+    for (const timer of state.videoRefreshTimers) clearTimeout(timer);
+    state.videoRefreshTimers.clear();
+  }
+
+  private async restoreMacApplicationPresentation(
+    pipWindow?: BrowserWindow,
+  ): Promise<void> {
+    if (process.platform !== 'darwin') return;
+    try {
+      if (pipWindow && !pipWindow.isDestroyed()) {
+        disableMacOSFullScreenAuxiliary(pipWindow);
+        // This reverses Electron's fullscreen-space process transformation.
+        pipWindow.setVisibleOnAllWorkspaces(false, {
+          visibleOnFullScreen: false,
+        });
+      }
+      app.setActivationPolicy('regular');
+      await app.dock?.show();
+    } catch (error) {
+      console.warn('Kawaikara could not restore its macOS Dock state.', error);
+    }
   }
 
   private setControlsVisible(
@@ -893,6 +1419,49 @@ export class UnifiedPictureInPictureManager {
     await frame.executeJavaScript(EXIT_UNIFIED_PIP_SCRIPT).catch((error: unknown) => {
       console.debug('Unified PiP video styles were already unavailable.', error);
     });
+  }
+
+  private async enterHostFrames(
+    videoFrame: WebFrameMain,
+  ): Promise<readonly WebFrameMain[]> {
+    const entered: WebFrameMain[] = [];
+    let child = videoFrame;
+    let parent = child.parent;
+    try {
+      while (parent) {
+        if (parent.isDestroyed() || child.isDestroyed()) {
+          throw new Error('A PiP frame was destroyed during host preparation.');
+        }
+        const result = await parent.executeJavaScript(
+          createEnterUnifiedPipHostScript(child.url),
+          true,
+        ) as { status?: unknown };
+        if (result?.status !== 'entered') {
+          throw new Error(
+            `Could not expose embedded PiP frame (${String(result?.status)}).`,
+          );
+        }
+        entered.push(parent);
+        child = parent;
+        parent = child.parent;
+      }
+      return entered;
+    } catch (error) {
+      await this.restoreHostFrames(entered);
+      throw error;
+    }
+  }
+
+  private async restoreHostFrames(
+    frames: readonly WebFrameMain[],
+  ): Promise<void> {
+    await Promise.allSettled(
+      [...frames].reverse().map((frame) =>
+        frame.isDestroyed()
+          ? Promise.resolve()
+          : frame.executeJavaScript(EXIT_UNIFIED_PIP_HOST_SCRIPT),
+      ),
+    );
   }
 }
 

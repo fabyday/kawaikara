@@ -1,8 +1,8 @@
 import { app, components, Menu } from 'electron';
-import { builtinSitesPlugin } from '@kawaikara/builtin-sites';
-import { PluginHost } from './Plugin/PluginHost';
+import { builtinBundle } from '@kawaikara/builtin-sites';
 import path from 'node:path';
 import type { UpdateManager } from './Manager/UpdateManager';
+import { readStartupGraphicsMode } from './Manager/PreferenceManager';
 import {
     createApplicationManagerContainer,
     MANAGER_TOKENS,
@@ -29,29 +29,59 @@ import {
 configureUserDataPaths();
 initializeLogging();
 const applicationLog = createLogger('application');
+const startupPreferenceFilePath = getKawaiDataPath('preferences.json');
 
-// Keep Chromium composition and libmpv rendering on the GPU. The narrower
-// Windows switches avoid the DRM black-surface issue without forcing the
-// complete UI through CPU rasterization. A manual all-software escape hatch is
-// retained for problematic drivers on every platform.
 const forceSoftwareRendering =
     process.env.KAWAIKARA_FORCE_SOFTWARE_RENDERING === '1';
-process.env.MPV_HWDEC ??= forceSoftwareRendering ? 'no' : 'auto-safe';
+const graphicsMode = forceSoftwareRendering
+    ? 'software'
+    : readStartupGraphicsMode(startupPreferenceFilePath);
+// Electron GPU policy is process-wide and must be selected before ready. Keep
+// libmpv decoding independent: native Video decoding may still use VideoToolbox
+// or D3D11 while Electron presents copied frames through Canvas2D in GPU-off
+// mode.
+process.env.MPV_HWDEC ??= 'auto-safe';
 
-if (forceSoftwareRendering) {
+if (graphicsMode === 'software') {
     app.disableHardwareAcceleration();
-    applicationLog.info('Rendering mode: forced all-software fallback.');
-} else if (process.platform === 'win32') {
-    app.commandLine.appendSwitch('disable-accelerated-video-decode');
-    app.commandLine.appendSwitch(
-        'disable-features',
-        'DirectCompositionVideoOverlays',
-    );
     applicationLog.info(
-        'Windows rendering mode: GPU compositing, libmpv hardware decoding, Chromium software video decoding.',
+        forceSoftwareRendering
+            ? 'Electron GPU acceleration: forced off.'
+            : 'Electron graphics mode: software.',
     );
 } else {
-    applicationLog.info('Rendering mode: GPU compositing and libmpv hardware decoding.');
+    app.commandLine.appendSwitch('ignore-gpu-blocklist');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('enable-zero-copy');
+    if (graphicsMode === 'capture') {
+        if (process.platform === 'darwin') {
+            appendDisabledChromiumFeature('avfoundation-overlays');
+        } else if (process.platform === 'win32') {
+            app.commandLine.appendSwitch(
+                'disable_direct_composition_video_overlays',
+                '1',
+            );
+        }
+    }
+    applicationLog.info(`Electron graphics mode: ${graphicsMode}.`);
+}
+
+applicationLog.info(`libmpv hardware decoding mode: ${process.env.MPV_HWDEC}.`);
+
+function appendDisabledChromiumFeature(feature: string): void {
+    const disabledFeatures = new Set(
+        app.commandLine
+            .getSwitchValue('disable-features')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+    );
+    disabledFeatures.add(feature);
+    app.commandLine.removeSwitch('disable-features');
+    app.commandLine.appendSwitch(
+        'disable-features',
+        [...disabledFeatures].join(','),
+    );
 }
 
 let disposeApplication: (() => Promise<void>) | undefined;
@@ -105,7 +135,8 @@ async function startApplication(): Promise<void> {
     await components.whenReady([components.WIDEVINE_CDM_ID]);
 
     const managers = createApplicationManagerContainer({
-        preferenceFilePath: getKawaiDataPath('preferences.json'),
+        bundleDirectoryPath: getKawaiDataPath('Bundles'),
+        preferenceFilePath: startupPreferenceFilePath,
         videoLibraryFilePath: getKawaiDataPath('video-library.json'),
         standardVideoLocations: [
             { name: 'Home', path: app.getPath('home') },
@@ -154,8 +185,9 @@ async function startApplication(): Promise<void> {
         transformRequestHeaders: (details) =>
             sites.transformRequestHeaders(details),
     });
-    const plugins = new PluginHost(sites);
-    plugins.install(builtinSitesPlugin);
+    const bundles = managers.resolve(MANAGER_TOKENS.bundles);
+    bundles.installBundled(builtinBundle);
+    await bundles.loadInstalled();
 
     const shortcuts = managers.resolve(MANAGER_TOKENS.shortcuts);
     windows.setShortcutHandler((input, editing) =>

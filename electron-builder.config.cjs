@@ -12,6 +12,17 @@ const mpvExtraResources = existsSync(mpvResourceDirectory)
       },
     ]
   : [];
+const macOSWindowSpacesAddon =
+  'dist/native/kawaikara_macos_window_spaces.node';
+const macOSWindowSpacesExtraResources =
+  process.platform === 'darwin' && existsSync(macOSWindowSpacesAddon)
+    ? [
+        {
+          from: macOSWindowSpacesAddon,
+          to: `native/${macOSWindowSpacesAddon.split('/').at(-1)}`,
+        },
+      ]
+    : [];
 
 const channel = process.env.KAWAIKARA_BUILD_CHANNEL || 'nightly';
 if (!RELEASE_CHANNELS.includes(channel)) {
@@ -19,13 +30,31 @@ if (!RELEASE_CHANNELS.includes(channel)) {
 }
 
 const updateChannel = channel === 'stable' ? 'latest' : channel;
+const defaultPublishRepositories = {
+  stable: 'fabyday/kawaikara',
+  staging: 'Kawaikara/kawaikara-staging',
+  nightly: 'Kawaikara/kawaikara-nightly',
+};
+const publishRepository =
+  process.env.KAWAIKARA_PUBLISH_REPOSITORY ||
+  defaultPublishRepositories[channel];
+const [publishOwner, publishRepo, ...unexpectedRepositoryParts] =
+  publishRepository.split('/');
+if (!publishOwner || !publishRepo || unexpectedRepositoryParts.length > 0) {
+  throw new Error(
+    `KAWAIKARA_PUBLISH_REPOSITORY must use owner/repo format: ${publishRepository}`,
+  );
+}
 
 module.exports = {
   appId: 'day.faby.kawaikara',
   productName: 'Kawaikara',
   asar: true,
   files: ['dist/**/*'],
-  extraResources: mpvExtraResources,
+  extraResources: [
+    ...mpvExtraResources,
+    ...macOSWindowSpacesExtraResources,
+  ],
   electronDownload: {
     mirror: 'https://github.com/castlabs/electron-releases/releases/download/',
   },
@@ -49,8 +78,8 @@ module.exports = {
   publish: [
     {
       provider: 'github',
-      owner: 'fabyday',
-      repo: 'kawaikara',
+      owner: publishOwner,
+      repo: publishRepo,
       channel: updateChannel,
       releaseType: channel === 'stable' ? 'release' : 'prerelease',
     },

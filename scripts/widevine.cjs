@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { existsSync, readdirSync } = require('node:fs');
 const {
+  describeEvsRunner,
   resolveEvsRunner,
   runEvs,
   verifyPackage,
@@ -21,6 +22,7 @@ if (command === 'auth') {
 
 function authenticate() {
   const runner = resolveEvsRunner();
+  console.log(`Using Castlabs EVS from ${describeEvsRunner(runner)}.`);
   const account =
     process.env.KAWAIKARA_EVS_ACCOUNT || process.env.ACCOUNT;
   const password =

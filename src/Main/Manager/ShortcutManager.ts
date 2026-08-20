@@ -1,5 +1,13 @@
 import { globalShortcut, type Input } from 'electron';
+import {
+  SHORT_FORM_VIDEO_ACTIONS,
+  type ProviderSettingListItem,
+  type ShortFormVideoContribution,
+} from '@kawaikara/site-api';
 import { APP_SHORTCUTS } from '../../Common/AppShortcuts';
+import {
+  SHORT_FORM_VIDEO_SHORTCUTS,
+} from '../../Common/ShortFormVideo';
 import { VIDEO_SHORTCUTS } from '../../Common/VideoControls';
 import type { PreferenceManager } from './PreferenceManager';
 import type { SiteManager } from './SiteManager';
@@ -21,6 +29,7 @@ export class ShortcutManager {
   private pictureInPictureTogglePromise?: Promise<void>;
   private registeredPictureInPictureAccelerator?: string;
   private registeredAlwaysOnTopAccelerator?: string;
+  private readonly registeredShortFormAccelerators = new Map<string, string>();
 
   constructor(
     private readonly sites: SiteManager,
@@ -38,7 +47,7 @@ export class ShortcutManager {
     }
 
     if (
-      this.pictureInPictureActive &&
+      this.windows.isPictureInPictureActive() &&
       input.key.toLowerCase() === 'tab'
     ) {
       return true;
@@ -81,6 +90,7 @@ export class ShortcutManager {
     this.refreshAlwaysOnTopGlobalShortcut();
     if (!this.pictureInPictureActive) {
       this.unregisterPictureInPictureGlobalShortcut();
+      this.unregisterShortFormGlobalShortcuts();
       return;
     }
 
@@ -89,11 +99,15 @@ export class ShortcutManager {
       accelerator === this.registeredPictureInPictureAccelerator &&
       globalShortcut.isRegistered(accelerator)
     ) {
+      this.refreshShortFormGlobalShortcuts();
       return;
     }
 
     this.unregisterPictureInPictureGlobalShortcut();
-    if (!accelerator) return;
+    if (!accelerator) {
+      this.refreshShortFormGlobalShortcuts();
+      return;
+    }
 
     try {
       const registered = globalShortcut.register(accelerator, () => {
@@ -115,12 +129,14 @@ export class ShortcutManager {
         error,
       );
     }
+    this.refreshShortFormGlobalShortcuts();
   }
 
   dispose(): void {
     this.pictureInPictureActive = false;
     this.unregisterAlwaysOnTopGlobalShortcut();
     this.unregisterPictureInPictureGlobalShortcut();
+    this.unregisterShortFormGlobalShortcuts();
   }
 
   private getBindings(): ShortcutBinding[] {
@@ -129,7 +145,7 @@ export class ShortcutManager {
       'app.toggle-fullscreen': () => this.windows.toggleAppFullScreen(),
       'app.open-preferences': () => this.windows.showPreferencesOverlay(),
       'app.toggle-always-on-top': async () => {
-        await this.toggleAlwaysOnTop(false);
+        await this.toggleAlwaysOnTop();
       },
       'app.toggle-picture-in-picture': async () => {
         await this.togglePictureInPicture();
@@ -153,7 +169,34 @@ export class ShortcutManager {
         await this.sites.load(site.id);
       },
     }));
-    return [...appBindings, ...siteBindings];
+    const shortFormContribution = this.sites.getCurrentShortFormVideoContribution();
+    const shortFormBindings = shortFormContribution
+      ? SHORT_FORM_VIDEO_SHORTCUTS
+        .filter((definition) =>
+          supportsShortFormShortcut(definition.id, shortFormContribution),
+        )
+        .map((definition) => ({
+          ...definition,
+          run: () => this.runShortFormAction(definition.id),
+        }))
+      : [];
+    const providerActionBindings = this.sites.listMenuItems()
+      .filter((site) => site.isCurrent)
+      .flatMap((site) =>
+      site.actionShortcuts.map((shortcut) => ({
+        ...shortcut,
+        run: async () => {
+          if (!this.sites.isCurrentSite(site.id)) return;
+          await this.sites.handleAction(shortcut.action);
+        },
+      })),
+      );
+    return [
+      ...appBindings,
+      ...shortFormBindings,
+      ...providerActionBindings,
+      ...siteBindings,
+    ];
   }
 
   private getPictureInPictureAccelerator(): string {
@@ -190,7 +233,7 @@ export class ShortcutManager {
     if (!accelerator) return;
     try {
       const registered = globalShortcut.register(accelerator, () => {
-        void this.toggleAlwaysOnTop(true).catch((error: unknown) => {
+        void this.toggleAlwaysOnTop().catch((error: unknown) => {
           console.error('The global always-on-top shortcut failed.', error);
         });
       });
@@ -209,22 +252,132 @@ export class ShortcutManager {
     }
   }
 
-  private async toggleAlwaysOnTop(recoverWhenCovered: boolean): Promise<void> {
+  private async toggleAlwaysOnTop(): Promise<void> {
     const now = Date.now();
     if (now - this.lastAlwaysOnTopToggleAt < 250) return;
     this.lastAlwaysOnTopToggleAt = now;
 
-    if (recoverWhenCovered && this.windows.shouldRecoverAlwaysOnTopShortcut()) {
-      this.windows.recoverAlwaysOnTop();
-      return;
-    }
     const current = this.preferences.get();
     const next = await this.preferences.update({
       alwaysOnTop: !current.alwaysOnTop,
     });
     this.windows.setAlwaysOnTop(next.alwaysOnTop);
-    if (recoverWhenCovered && next.alwaysOnTop) {
-      this.windows.recoverAlwaysOnTop();
+  }
+
+  private async runShortFormAction(shortcutId: string): Promise<void> {
+    const siteId = this.sites.getCurrentSiteId();
+    const contribution = this.sites.getCurrentShortFormVideoContribution();
+    if (!siteId || !contribution) return;
+
+    if (shortcutId === 'short-form-video.previous' && contribution.previous) {
+      await this.sites.handleAction(SHORT_FORM_VIDEO_ACTIONS.previous);
+      return;
+    }
+    if (shortcutId === 'short-form-video.next' && contribution.next) {
+      await this.sites.handleAction(SHORT_FORM_VIDEO_ACTIONS.next);
+      return;
+    }
+
+    if (shortcutId === 'short-form-video.ban-current-publisher') {
+      await this.banCurrentShortFormPublisher(siteId, contribution);
+      return;
+    }
+
+    if (
+      shortcutId !== 'short-form-video.toggle-auto-advance' ||
+      !contribution.autoAdvance
+    ) {
+      return;
+    }
+
+    const current = this.preferences.get();
+    const providerSettings = { ...current.providerSettings };
+    const settings = { ...(providerSettings[siteId] ?? {}) };
+    const { defaultValue, settingKey } = contribution.autoAdvance;
+    const currentValue = settings[settingKey];
+    settings[settingKey] =
+      typeof currentValue === 'boolean' ? !currentValue : !defaultValue;
+    providerSettings[siteId] = settings;
+    await this.preferences.update({ providerSettings });
+    await this.sites.applyCurrentProviderSettings();
+    await this.sites.handleAction(
+      SHORT_FORM_VIDEO_ACTIONS.announceAutoAdvance,
+    );
+  }
+
+  private refreshShortFormGlobalShortcuts(): void {
+    this.unregisterShortFormGlobalShortcuts();
+    const contribution = this.sites.getCurrentShortFormVideoContribution();
+    if (
+      !this.pictureInPictureActive ||
+      !contribution
+    ) {
+      return;
+    }
+
+    for (const definition of SHORT_FORM_VIDEO_SHORTCUTS) {
+      if (!supportsShortFormShortcut(definition.id, contribution)) continue;
+      const accelerator = (
+        this.preferences.get().shortcuts[definition.id] ?? definition.defaultKey
+      ).trim();
+      if (!accelerator || globalShortcut.isRegistered(accelerator)) continue;
+      try {
+        const registered = globalShortcut.register(accelerator, () => {
+          if (!this.pictureInPictureActive) return;
+          void this.runShortFormAction(definition.id).catch((error: unknown) => {
+            console.error(`The global ${definition.id} shortcut failed.`, error);
+          });
+        });
+        if (registered) {
+          this.registeredShortFormAccelerators.set(definition.id, accelerator);
+        } else {
+          console.warn(
+            `The global short-form shortcut could not be registered: ${accelerator}`,
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `The global short-form shortcut is invalid or unavailable: ${accelerator}`,
+          error,
+        );
+      }
+    }
+  }
+
+  private async banCurrentShortFormPublisher(
+    siteId: string,
+    contribution: ShortFormVideoContribution,
+  ): Promise<void> {
+    const settingKey = contribution.publisherBan?.settingKey;
+    if (!settingKey) return;
+    const publisher = await this.sites.getCurrentShortFormVideoPublisher();
+    if (!publisher?.id.trim()) return;
+
+    const current = this.preferences.get();
+    const providerSettings = { ...current.providerSettings };
+    const settings = { ...(providerSettings[siteId] ?? {}) };
+    const existing = Array.isArray(settings[settingKey])
+      ? settings[settingKey] as readonly ProviderSettingListItem[]
+      : [];
+    if (!existing.some((item) => item.id === publisher.id)) {
+      settings[settingKey] = [
+        ...existing,
+        {
+          id: publisher.id,
+          label: publisher.label || publisher.id,
+          description: publisher.handle,
+          imageUrl: publisher.imageUrl,
+        },
+      ];
+      providerSettings[siteId] = settings;
+      await this.preferences.update({ providerSettings });
+      await this.sites.applyCurrentProviderSettings();
+      await this.sites.handleAction(
+        SHORT_FORM_VIDEO_ACTIONS.announcePublisherBan,
+      );
+    }
+    if (contribution.next) {
+      await this.sites.handleAction(SHORT_FORM_VIDEO_ACTIONS.next);
     }
   }
 
@@ -266,6 +419,30 @@ export class ShortcutManager {
       globalShortcut.unregister(accelerator);
     }
   }
+
+  private unregisterShortFormGlobalShortcuts(): void {
+    for (const accelerator of this.registeredShortFormAccelerators.values()) {
+      if (globalShortcut.isRegistered(accelerator)) {
+        globalShortcut.unregister(accelerator);
+      }
+    }
+    this.registeredShortFormAccelerators.clear();
+  }
+}
+
+function supportsShortFormShortcut(
+  shortcutId: string,
+  contribution: ShortFormVideoContribution,
+): boolean {
+  if (shortcutId === 'short-form-video.previous') return contribution.previous === true;
+  if (shortcutId === 'short-form-video.next') return contribution.next === true;
+  if (shortcutId === 'short-form-video.toggle-auto-advance') {
+    return Boolean(contribution.autoAdvance);
+  }
+  if (shortcutId === 'short-form-video.ban-current-publisher') {
+    return Boolean(contribution.publisherBan);
+  }
+  return false;
 }
 
 function matchesVideoShortcutInput(

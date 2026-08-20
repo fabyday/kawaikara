@@ -9,6 +9,12 @@ import type {
   PictureInPictureSizePreference,
 } from './PictureInPicture';
 import type { RendererMessages } from '../Main/Functional/RendererMessages';
+import type {
+  ProviderSettingCategoryContribution,
+  ProviderLocalizedText,
+  ProviderSettingValue as SiteProviderSettingValue,
+  ShortFormVideoContribution,
+} from '@kawaikara/site-api';
 export type {
   AppMessages,
   RendererMessages,
@@ -41,13 +47,19 @@ export const IPC_CHANNELS = defineIpcChannels({
     openLogDirectory: 'kawaikara:application:open-log-directory',
     developerYouTubeStatus: 'kawaikara:application:developer-youtube-status',
     checkForUpdates: 'kawaikara:application:check-for-updates',
+    getUpdateState: 'kawaikara:application:get-update-state',
+    downloadUpdate: 'kawaikara:application:download-update',
+    installUpdate: 'kawaikara:application:install-update',
+    updateStateChanged: 'kawaikara:application:update-state-changed',
     messages: 'kawaikara:application:messages',
     isFullScreen: 'kawaikara:application:is-full-screen',
     exitFullScreen: 'kawaikara:application:exit-full-screen',
     fullScreenChanged: 'kawaikara:application:full-screen-changed',
   },
-  plugins: {
-    list: 'kawaikara:plugins:list',
+  bundles: {
+    runtime: 'kawaikara:bundles:runtime',
+    list: 'kawaikara:bundles:list',
+    install: 'kawaikara:bundles:install',
   },
   overlay: {
     close: 'kawaikara:overlay:close',
@@ -55,6 +67,7 @@ export const IPC_CHANNELS = defineIpcChannels({
     editingChanged: 'kawaikara:overlay:editing-changed',
     showMenu: 'kawaikara:overlay:show-menu',
     showPreferences: 'kawaikara:overlay:show-preferences',
+    showUpdate: 'kawaikara:overlay:show-update',
     requestClose: 'kawaikara:overlay:request-close',
     hidden: 'kawaikara:overlay:hidden',
   },
@@ -109,7 +122,7 @@ export type IpcChannel = LeafValues<typeof IPC_CHANNELS>;
 /** Namespace-shaped type when consumers need the complete channel tree. */
 export type IpcChannels = typeof IPC_CHANNELS;
 
-export type OverlayView = 'menu' | 'preference';
+export type OverlayView = 'menu' | 'preference' | 'update';
 
 export type PictureInPictureStatus =
   | 'entered'
@@ -129,18 +142,36 @@ export interface PictureInPictureResult {
 
 export interface SiteMenuItem {
   readonly id: string;
-  readonly pluginId: string;
+  readonly bundleId: string;
   readonly title: string;
   readonly category: string;
   readonly icon?: string;
   readonly panelId?: string;
   readonly order: number;
   readonly defaultShortcut: string;
+  readonly actionShortcuts: readonly ProviderActionShortcutInfo[];
   readonly supportedLocales: readonly string[];
   readonly defaultLocale: string;
   readonly defaultBrowserProfileId?: string;
   readonly drm: boolean;
+  readonly pictureInPictureEnabled: boolean;
   readonly isCurrent: boolean;
+}
+
+export interface ProviderActionShortcutInfo {
+  readonly id: string;
+  readonly title: ProviderLocalizedText;
+  readonly description?: ProviderLocalizedText;
+  readonly defaultKey: string;
+  readonly action: string;
+}
+
+export interface ProviderRuntimeInfo {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly settings: readonly ProviderSettingCategoryContribution[];
+  readonly shortFormVideo?: ShortFormVideoContribution;
 }
 
 export type BrowserProfileSource = 'user' | 'plugin';
@@ -163,16 +194,40 @@ export interface UserBrowserProfile {
   readonly persistent: boolean;
 }
 
-export interface PluginInfo {
+export interface BundleRuntimeInfo {
+  readonly kind: 'bundle';
   readonly id: string;
   readonly name: string;
   readonly description?: string;
   readonly version: string;
-  readonly siteCount: number;
+  readonly providerCount: number;
+  readonly pluginCount: number;
   readonly supportedLocales: readonly string[];
   readonly defaultLocale: string;
   readonly browserProfiles: readonly BrowserProfileInfo[];
+  readonly providers: readonly ProviderRuntimeInfo[];
 }
+
+export type BundleStatus = 'active' | 'restart-required' | 'failed';
+export type BundleSource = 'built-in' | 'user';
+
+export interface BundleInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly version: string;
+  readonly kind: 'bundle' | 'unknown';
+  readonly source: BundleSource;
+  readonly status: BundleStatus;
+  readonly providerCount: number;
+  readonly pluginCount: number;
+  readonly permissions: readonly string[];
+  readonly error?: string;
+}
+
+export type BundleInstallResult =
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'installed'; readonly bundle: BundleInfo };
 
 export interface ApplicationInfo {
   readonly name: string;
@@ -222,8 +277,36 @@ export interface ApplicationUpdateCheckResult {
   readonly error?: string;
 }
 
+export type ApplicationUpdatePhase =
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'downloaded'
+  | 'up-to-date'
+  | 'unsupported'
+  | 'error';
+
+export interface ApplicationUpdateProgress {
+  readonly percent: number;
+  readonly bytesPerSecond: number;
+  readonly transferred: number;
+  readonly total: number;
+}
+
+export interface ApplicationUpdatePanelState {
+  readonly phase: ApplicationUpdatePhase;
+  readonly origin: 'manual' | 'automatic';
+  readonly channel: ReleaseChannel;
+  readonly currentVersion: string;
+  readonly latestVersion?: string;
+  readonly releaseNotes?: string;
+  readonly progress?: ApplicationUpdateProgress;
+  readonly error?: string;
+}
+
 export type AppLocale = 'system' | 'ko-KR' | 'en-US' | 'ja-JP';
 export type AppTheme = 'dark' | 'light';
+export type GraphicsMode = 'native' | 'capture' | 'software';
 export type DevToolsMode = 'left' | 'right' | 'bottom' | 'undocked' | 'detach';
 export type VideoControlsLayout = 'inline' | 'overlay';
 export type LogLevelPreference =
@@ -235,9 +318,15 @@ export type LogLevelPreference =
   | 'none';
 /** Kept for preference-file compatibility. The global app locale is authoritative. */
 export type ScopedLocale = 'inherit' | AppLocale | (string & {});
+export type ProviderSettingValue = SiteProviderSettingValue;
+export type ProviderSettingRecord = Readonly<
+  Record<string, ProviderSettingValue>
+>;
 
 export interface PreferenceState {
   readonly alwaysOnTop: boolean;
+  /** Selects native GPU, capture-compatible GPU, or process-wide software rendering. */
+  readonly graphicsMode: GraphicsMode;
   readonly openMenuOnStartup: boolean;
   readonly closeMenuOnEscape: boolean;
   readonly closeMenuOnOutsideClick: boolean;
@@ -257,6 +346,8 @@ export interface PreferenceState {
   readonly browserProfiles: readonly UserBrowserProfile[];
   /** Values are "isolated", user:<id>, or plugin:<plugin-id>:<profile-id>. */
   readonly siteBrowserProfiles: Readonly<Record<string, string>>;
+  /** App-persisted values, namespaced by Provider id for Bundle extensibility. */
+  readonly providerSettings: Readonly<Record<string, ProviderSettingRecord>>;
   /** Category ids in the order selected by the user. Unknown ids are ignored. */
   readonly menuCategoryOrder: readonly string[];
   /** Site ids in the order selected by the user, applied within each category. */
@@ -274,6 +365,11 @@ export interface PreferenceState {
 }
 
 export type PreferencePatch = Partial<PreferenceState>;
+
+export interface PreferenceUpdateOptions {
+  /** Required when the patch changes the startup-only Electron graphics mode. */
+  readonly restartForGraphicsChange?: boolean;
+}
 
 export type SiteAddressOpenResult =
   | { readonly status: 'opened'; readonly siteId: string }
@@ -372,6 +468,9 @@ export interface VideoPlaybackCapabilities {
   readonly platform: NodeJS.Platform;
   readonly arch: string;
   readonly nativeBackendAvailable: boolean;
+  /** False when app.disableHardwareAcceleration() selected software presentation. */
+  readonly electronGpuAccelerationEnabled: boolean;
+  /** True only when MPV_HWDEC explicitly disables native hardware decoding. */
   readonly hardwareAccelerationDisabled: boolean;
 }
 
@@ -384,12 +483,20 @@ export interface KawaikaraRendererApi {
     openDevTools(mode: DevToolsMode): Promise<void>;
     openLogDirectory(): Promise<void>;
     getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus>;
-    checkForUpdates(channel?: ReleaseChannel): Promise<ApplicationUpdateCheckResult>;
+    checkForUpdates(): Promise<ApplicationUpdateCheckResult>;
+    getUpdateState(): Promise<ApplicationUpdatePanelState | undefined>;
+    downloadUpdate(): Promise<ApplicationUpdatePanelState>;
+    installUpdate(): Promise<void>;
+    onUpdateStateChanged(
+      handler: (state: ApplicationUpdatePanelState) => void,
+    ): () => void;
     isFullScreen(): Promise<boolean>;
     exitFullScreen(): Promise<void>;
   };
-  plugins: {
-    list(): Promise<PluginInfo[]>;
+  bundles: {
+    runtime(): Promise<BundleRuntimeInfo[]>;
+    list(): Promise<BundleInfo[]>;
+    install(locale: AppLocale): Promise<BundleInstallResult>;
   };
   sites: {
     list(): Promise<SiteMenuItem[]>;
@@ -402,6 +509,9 @@ export interface KawaikaraRendererApi {
     setView(view: OverlayView): Promise<void>;
     onShowMenu(handler: () => void): () => void;
     onShowPreferences(handler: () => void): () => void;
+    onShowUpdate(
+      handler: (state: ApplicationUpdatePanelState) => void,
+    ): () => void;
     onRequestClose(handler: () => void): () => void;
     onHidden(handler: () => void): () => void;
   };
@@ -414,7 +524,10 @@ export interface KawaikaraRendererApi {
   };
   preferences: {
     get(): Promise<PreferenceState>;
-    update(patch: PreferencePatch): Promise<PreferenceState>;
+    update(
+      patch: PreferencePatch,
+      options?: PreferenceUpdateOptions,
+    ): Promise<PreferenceState>;
   };
 }
 

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kawaikara Capture Probe</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        color: #fff;
+        font: 14px system-ui, sans-serif;
+      }
+
+      #status {
+        box-sizing: border-box;
+        height: 52px;
+        padding: 16px;
+        background: #17171c;
+      }
+
+      mpv-video {
+        display: block;
+        width: 100%;
+        height: calc(100% - 52px);
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">Initializing…</div>
+    <mpv-video id="player" volume="0"></mpv-video>
+    <script type="module" src="./renderer.mjs"></script>
+  </body>
+</html>
+

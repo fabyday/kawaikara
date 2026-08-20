@@ -2,7 +2,7 @@
 
 ## Internal Video site
 
-`kawaikara.video` is a normal descriptor in the bundled plugin, but it loads the app-owned `video` internal view instead of a remote URL.
+`kawaikara.video` is a normal Provider in the built-in Bundle, but it loads the app-owned `video` internal view instead of a remote URL.
 
 The Video renderer supports:
 
@@ -46,10 +46,17 @@ The Video renderer supports:
 ## Playback backends
 
 Windows x64 and Apple Silicon macOS use `electron-mpv-video` with libmpv when
-the native add-on is available. The renderer requests Electron's shared-texture
-path and Main sets `MPV_HWDEC=auto-safe` unless all hardware acceleration was
-explicitly disabled. This supplies VLC/mpv-style container and codec coverage
-without copying every decoded frame through JavaScript.
+the native add-on is available. Main keeps `MPV_HWDEC=auto-safe` regardless of
+the Electron GPU preference, so local video decoding remains hardware assisted.
+When Electron GPU acceleration is enabled, presentation uses the
+shared-texture/WebGPU path and avoids a JavaScript copy for every decoded frame.
+When disabled for capture compatibility, the same native decoder presents RGBA
+frames through Canvas 2D because Electron WebGL and WebGPU are unavailable.
+This retains VLC/mpv-style container and codec coverage. To keep the synchronous
+RGBA readback from starving Electron's main loop, the software presentation
+surface uses CSS resolution, is capped at 720p, and transfers a full-size native
+buffer without creating a second ArrayBuffer copy. The source is still decoded
+at its native resolution by libmpv.
 
 Intel macOS, unsupported architectures, a missing native add-on, or a native
 initialization failure automatically selects the Chromium compatibility backend.
@@ -59,11 +66,19 @@ to improve Comma/Period stepping. Chromium fallback does not provide libmpv's
 full codec/container coverage, but it keeps common browser media and HLS usable
 instead of preventing the Video view from opening.
 
-The backend selection and forced-software warning are shown in the local library.
-HLS instances are destroyed when the source changes or the view unmounts.
-When the user activates another site, Main also destroys every native Video
-session before navigating the internal renderer, which guarantees that audio
-cannot continue behind the newly selected site.
+The backend selection, native-decoder override, and capture-compatible Canvas 2D
+warning are shown in the local library.
+The displayed FPS is the media's source/container frame rate, not the monitor
+refresh rate; a 23.976 or 30 FPS source is therefore expected to report that
+value. libmpv state events are coalesced to 10 UI updates per second so timeline
+and metadata rendering do not compete with the independent video-frame surface.
+HLS instances are destroyed when the source changes or the view unmounts. The
+internal Video window stays alive across Provider changes, but a visibility
+event pauses its active backend before it is hidden. Main retains the last
+validated local-file request and sends it again when Video becomes active. That
+forced reopen recreates libmpv's Windows shared texture after a remote
+`WebContentsView` has been shown, while preserving the same successful behavior
+on macOS.
 
 ## Drag-and-drop redirection
 
@@ -137,4 +152,3 @@ The external downloader owns its download UI and worker. Kawaikara does not embe
 ## User and legal boundary
 
 The Video view reminds users to download only content they own or are authorized to save. Integration with an external helper does not bypass a service's terms, copyright restrictions, or DRM.
-

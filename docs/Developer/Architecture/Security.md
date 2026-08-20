@@ -7,7 +7,7 @@ Kawaikara renders untrusted third-party websites inside Electron. The runtime th
 - Node.js is never exposed to a remote site.
 - The full Kawaikara IPC API is never exposed to a remote site.
 - Main-process operations are presented as narrow capabilities.
-- Navigation, new windows, external URLs, and PiP entry pass through descriptor policy.
+- Navigation, new windows, external URLs, and PiP entry pass through Provider policy.
 - Cookies, login, script injection, header interception, and external helper installation are sensitive operations.
 
 ## Renderer isolation
@@ -37,13 +37,13 @@ The viewer preload must remain small. A helper needed by a remote page is not au
 
 `SiteContext` is deliberately narrower than Electron, but the current plugin module is imported into the Main process. It is therefore trusted application code.
 
-> A third-party JavaScript bundle cannot be treated as untrusted merely because its descriptor receives `SiteContext`. If the bundle is imported by Main, it can potentially access Node.js through its own module code.
+> A third-party JavaScript Bundle cannot be treated as untrusted merely because its Provider receives `SiteContext`. If the Bundle is imported by Main, it can potentially access Node.js through its own module code.
 
 Before arbitrary user-installed plugins are supported, the project needs a defensible execution model such as a utility process, a proven sandbox, or a declarative integration format. Publisher identity, signature validation, updates, rollback, and user consent also remain unresolved.
 
 ## Permission metadata
 
-Descriptors can declare:
+Providers can declare:
 
 - `navigation`
 - `internal-view`
@@ -77,7 +77,7 @@ flowchart LR
 `kawaikara-action://invoke/<action>` is input from a remote document.
 
 - `WindowManager` always prevents the navigation itself.
-- Only the active descriptor receives the action.
+- Only the active Provider receives the action.
 - `createUrl()` rejects malformed action names.
 - Unknown actions must return `false`.
 - Any future payload needs a schema, size limit, and explicit encoding rules before it is accepted.

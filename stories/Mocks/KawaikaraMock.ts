@@ -1,4 +1,5 @@
 import type {
+  ApplicationUpdatePanelState,
   KawaikaraRendererApi,
   KawaikaraVideoApi,
   PreferenceState,
@@ -26,87 +27,100 @@ const svgIcon = (label: string, color: string) =>
 export const STORY_SITES: SiteMenuItem[] = [
   {
     id: 'kawaikara.netflix',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'Netflix',
     category: 'OTT',
     icon: svgIcon('N', '#e50914'),
     order: 10,
     defaultShortcut: 'Control+Alt+1',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     drm: true,
+    pictureInPictureEnabled: true,
     isCurrent: false,
   },
   {
     id: 'kawaikara.laftel',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'Laftel',
     category: 'OTT',
     icon: svgIcon('L', '#6d5dfc'),
     order: 20,
     defaultShortcut: 'Control+Alt+2',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     drm: false,
+    pictureInPictureEnabled: true,
     isCurrent: false,
   },
   {
     id: 'kawaikara.coupang-play',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'Coupang Play',
     category: 'OTT',
     icon: svgIcon('C', '#00a8ff'),
     order: 30,
     defaultShortcut: 'Control+Alt+9',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     drm: true,
+    pictureInPictureEnabled: true,
     isCurrent: false,
   },
   {
     id: 'kawaikara.video',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'Video',
     category: 'Video',
     panelId: 'video-library',
     order: 0,
     defaultShortcut: 'Control+Alt+4',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     drm: false,
+    pictureInPictureEnabled: true,
     isCurrent: false,
   },
   {
     id: 'kawaikara.youtube',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'YouTube',
     category: 'Video',
     icon: svgIcon('▶', '#ff0033'),
     order: 10,
     defaultShortcut: 'Control+Alt+5',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     defaultBrowserProfileId: 'plugin:kawaikara.builtin-sites:google',
     drm: false,
+    pictureInPictureEnabled: true,
     isCurrent: true,
   },
   {
     id: 'kawaikara.spotify',
-    pluginId: 'kawaikara.builtin-sites',
+    bundleId: 'kawaikara.builtin-sites',
     title: 'Spotify',
     category: 'Music',
     icon: svgIcon('S', '#1db954'),
     order: 10,
     defaultShortcut: 'Control+Alt+S',
+    actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
     drm: false,
+    pictureInPictureEnabled: false,
     isCurrent: false,
   },
 ];
 
 const DEFAULT_PREFERENCES: PreferenceState = {
   alwaysOnTop: false,
+  graphicsMode: 'capture',
   openMenuOnStartup: true,
   closeMenuOnEscape: true,
   closeMenuOnOutsideClick: true,
@@ -123,6 +137,19 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   siteLocales: {},
   browserProfiles: [],
   siteBrowserProfiles: {},
+  providerSettings: {
+    'kawaikara.youtube': {
+      'short-form-video.auto-advance': true,
+      'short-form-video.banned-publishers': [
+        { id: 'UC-demo-publisher-1', label: 'Demo Publisher', description: '@demo-publisher' },
+        { id: 'UC-demo-publisher-2', label: 'Animation Archive', description: '@animation-archive' },
+        { id: 'UC-demo-publisher-3', label: 'Night Radio', description: '@night-radio' },
+        { id: 'UC-demo-publisher-4', label: 'Cooking Shorts', description: '@cooking-shorts' },
+        { id: 'UC-demo-publisher-5', label: 'Indie Studio', description: '@indie-studio' },
+        { id: 'UC-demo-publisher-6', label: 'Travel Log', description: '@travel-log' },
+      ],
+    },
+  },
   menuCategoryOrder: [],
   menuSiteOrder: [],
   videoSeekSeconds: 10,
@@ -163,6 +190,11 @@ export function installKawaikaraMock(
   const menuHandlers = new Set<() => void>();
   const preferenceHandlers = new Set<() => void>();
   const requestCloseHandlers = new Set<() => void>();
+  const updateHandlers = new Set<(state: ApplicationUpdatePanelState) => void>();
+  const updateStateHandlers = new Set<
+    (state: ApplicationUpdatePanelState) => void
+  >();
+  let updateState: ApplicationUpdatePanelState | undefined;
 
   const emitHidden = () => {
     overlayVisible = false;
@@ -263,7 +295,7 @@ export function installKawaikaraMock(
         platform: 'darwin',
         arch: 'arm64',
         buildChannel,
-        updateChannelLocked: buildChannel === 'nightly',
+        updateChannelLocked: true,
       }),
       getMessages: async (locale) =>
         getRendererMessages(locale ?? preferences.appLocale, 'en-US'),
@@ -294,25 +326,60 @@ export function installKawaikaraMock(
         isLive: true,
         checkedAt: new Date().toISOString(),
       }),
-      checkForUpdates: async () => ({
-        status: options.updateAvailable ? 'update-available' : 'up-to-date',
-        channel: preferences.updateChannel,
-        currentVersion: appVersion,
-        latestVersion: options.updateAvailable
-          ? nextVersion
-          : appVersion,
-      }),
+      checkForUpdates: async () => {
+        updateState = {
+          phase: options.updateAvailable ? 'available' : 'up-to-date',
+          origin: 'manual',
+          channel: buildChannel,
+          currentVersion: appVersion,
+          latestVersion: options.updateAvailable ? nextVersion : appVersion,
+          releaseNotes: options.updateAvailable
+            ? 'Improved provider isolation.\nSmoother Video playback.'
+            : undefined,
+        };
+        updateHandlers.forEach((handler) => handler(updateState!));
+        updateStateHandlers.forEach((handler) => handler(updateState!));
+        return {
+          status: options.updateAvailable ? 'update-available' as const : 'up-to-date' as const,
+          channel: buildChannel,
+          currentVersion: appVersion,
+          latestVersion: options.updateAvailable ? nextVersion : appVersion,
+        };
+      },
+      getUpdateState: async () => updateState,
+      downloadUpdate: async () => {
+        if (!updateState) throw new Error('No update is available.');
+        updateState = {
+          ...updateState,
+          phase: 'downloaded',
+          progress: {
+            percent: 100,
+            bytesPerSecond: 0,
+            transferred: 84_000_000,
+            total: 84_000_000,
+          },
+        };
+        updateStateHandlers.forEach((handler) => handler(updateState!));
+        return updateState;
+      },
+      installUpdate: async () => undefined,
+      onUpdateStateChanged: (handler) => {
+        updateStateHandlers.add(handler);
+        return () => updateStateHandlers.delete(handler);
+      },
       isFullScreen: async () => false,
       exitFullScreen: async () => undefined,
     },
-    plugins: {
-      list: async () => [
+    bundles: {
+      runtime: async () => [
         {
+          kind: 'bundle',
           id: 'kawaikara.builtin-sites',
           name: 'Kawaikara Built-in Sites',
-          description: 'Official site descriptors bundled with Kawaikara.',
+          description: 'Official Providers bundled with Kawaikara.',
           version: '3.0.0-dev.0',
-          siteCount: STORY_SITES.length,
+          providerCount: STORY_SITES.length,
+          pluginCount: 0,
           supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
           defaultLocale: 'inherit',
           browserProfiles: [
@@ -326,8 +393,60 @@ export function installKawaikaraMock(
               pluginName: 'Kawaikara Built-in Sites',
             },
           ],
+          providers: [
+            {
+              id: 'kawaikara.youtube',
+              title: 'YouTube',
+              settings: [
+                {
+                  id: 'shorts',
+                  title: { 'en-US': 'Shorts', 'ko-KR': '쇼츠' },
+                  settings: [
+                    {
+                      type: 'boolean',
+                      key: 'short-form-video.auto-advance',
+                      title: 'Play the next Short automatically',
+                      defaultValue: true,
+                    },
+                    {
+                      type: 'item-list',
+                      key: 'short-form-video.banned-publishers',
+                      title: 'Banned publishers',
+                      emptyText: 'No publishers are banned.',
+                    },
+                  ],
+                },
+              ],
+              shortFormVideo: {
+                previous: true,
+                next: true,
+                autoAdvance: {
+                  settingKey: 'short-form-video.auto-advance',
+                  defaultValue: true,
+                },
+                publisherBan: {
+                  settingKey: 'short-form-video.banned-publishers',
+                },
+              },
+            },
+          ],
         },
       ],
+      list: async () => [
+        {
+          id: 'kawaikara.builtin-sites',
+          name: 'Kawaikara Built-in Sites',
+          description: 'Official Providers bundled with Kawaikara.',
+          version: '3.0.0-dev.0',
+          kind: 'bundle',
+          source: 'built-in',
+          status: 'active',
+          providerCount: STORY_SITES.length,
+          pluginCount: 1,
+          permissions: ['navigation', 'script-injection'],
+        },
+      ],
+      install: async () => ({ status: 'cancelled' }),
     },
     sites: {
       list: async () =>
@@ -351,7 +470,11 @@ export function installKawaikaraMock(
         overlayVisible = true;
         queueMicrotask(() => {
           if (view === 'menu') emitMenu();
-          else preferenceHandlers.forEach((handler) => handler());
+          else if (view === 'preference') {
+            preferenceHandlers.forEach((handler) => handler());
+          } else if (updateState) {
+            updateHandlers.forEach((handler) => handler(updateState!));
+          }
         });
       },
       onShowMenu: (handler) => {
@@ -375,6 +498,10 @@ export function installKawaikaraMock(
       onShowPreferences: (handler) => {
         preferenceHandlers.add(handler);
         return () => preferenceHandlers.delete(handler);
+      },
+      onShowUpdate: (handler) => {
+        updateHandlers.add(handler);
+        return () => updateHandlers.delete(handler);
       },
       onRequestClose: (handler) => {
         requestCloseHandlers.add(handler);
@@ -430,6 +557,7 @@ export function installKawaikaraMock(
         platform: 'darwin',
         arch: 'arm64',
         nativeBackendAvailable: false,
+        electronGpuAccelerationEnabled: true,
         hardwareAccelerationDisabled: false,
       }),
       getOpenRequest: async () => null,

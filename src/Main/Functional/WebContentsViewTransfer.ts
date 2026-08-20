@@ -1,10 +1,5 @@
 import type { BrowserWindow, Rectangle, WebContentsView } from 'electron';
-
-const WAIT_FOR_VISIBLE_RENDERER_FRAMES_SCRIPT = `
-  new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-`;
+import { WAIT_FOR_VISIBLE_RENDERER_FRAMES_SCRIPT } from '../Inject/RendererFrames';
 const RENDERER_FRAME_WAIT_TIMEOUT_MS = 250;
 
 export interface WebContentsViewTransferOptions {

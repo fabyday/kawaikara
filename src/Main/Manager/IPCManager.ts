@@ -7,7 +7,7 @@ import {
   type DevToolsMode,
   type IpcChannel,
 } from '../../Common/IPC';
-import { BUILD_CHANNEL, isReleaseChannel } from '../../Common/BuildConfig';
+import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import type { SiteManager } from './SiteManager';
 import type { WindowManager } from './WindowManager';
 import type { PreferenceManager } from './PreferenceManager';
@@ -16,10 +16,12 @@ import type { DeveloperLinkManager } from './DeveloperLinkManager';
 import type { UpdateManager } from './UpdateManager';
 import type { ShortcutManager } from './ShortcutManager';
 import type { VideoLibraryManager } from './VideoLibraryManager';
+import type { BundleManager } from './BundleManager';
 import { configureLogLevel, openLogDirectory } from '../Logging';
 import { getRendererMessages } from '../Functional/RendererMessages';
 
 export class IpcManager {
+  private relaunchScheduled = false;
   private readonly handleEditingChanged = (
     event: IpcMainEvent,
     editing: unknown,
@@ -35,6 +37,7 @@ export class IpcManager {
   };
 
   constructor(
+    private readonly bundles: BundleManager,
     private readonly sites: SiteManager,
     private readonly windows: WindowManager,
     private readonly preferences: PreferenceManager,
@@ -59,7 +62,7 @@ export class IpcManager {
       platform: process.platform,
       arch: process.arch,
       buildChannel: BUILD_CHANNEL,
-      updateChannelLocked: BUILD_CHANNEL === 'nightly',
+      updateChannelLocked: true,
     }));
     ipcMain.handle(
       IPC_CHANNELS.application.messages,
@@ -100,14 +103,27 @@ export class IpcManager {
     );
     ipcMain.handle(
       IPC_CHANNELS.application.checkForUpdates,
-      (_event, channel: unknown) => {
-        if (channel !== undefined && !isReleaseChannel(channel)) {
-          throw new TypeError('Unknown update channel.');
-        }
-        return this.updates.checkForUpdates(true, channel);
-      },
+      () => this.updates.checkForUpdates(),
     );
-    ipcMain.handle(IPC_CHANNELS.plugins.list, () => this.sites.listPlugins());
+    ipcMain.handle(
+      IPC_CHANNELS.application.getUpdateState,
+      () => this.updates.getState(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.downloadUpdate,
+      () => this.updates.downloadUpdate(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.installUpdate,
+      () => this.updates.installUpdate(),
+    );
+    ipcMain.handle(IPC_CHANNELS.bundles.runtime, () => this.sites.listBundles());
+    ipcMain.handle(IPC_CHANNELS.bundles.list, () => this.bundles.list());
+    ipcMain.handle(
+      IPC_CHANNELS.bundles.install,
+      (_event, locale: unknown) =>
+        this.bundles.installFromDialog(requireAppLocale(locale)),
+    );
     ipcMain.handle(IPC_CHANNELS.media.togglePictureInPicture, () =>
       this.windows.togglePictureInPicture(),
     );
@@ -134,7 +150,13 @@ export class IpcManager {
         this.windows.showPreferencesOverlay();
         return;
       }
-      throw new TypeError('Overlay view must be menu or preference.');
+      if (view === 'update') {
+        const state = this.updates.getState();
+        if (!state) throw new Error('No update panel state is available.');
+        this.windows.showUpdateOverlay(state);
+        return;
+      }
+      throw new TypeError('Overlay view must be menu, preference, or update.');
     });
     ipcMain.handle(
       IPC_CHANNELS.video.openDroppedFiles,
@@ -292,8 +314,28 @@ export class IpcManager {
       this.downloads.openReleasePage(),
     );
     ipcMain.handle(IPC_CHANNELS.preferences.get, () => this.preferences.get());
-    ipcMain.handle(IPC_CHANNELS.preferences.update, async (_event, patch: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.preferences.update, async (
+      _event,
+      patch: unknown,
+      options: unknown,
+    ) => {
+      const currentGraphicsMode = this.preferences.get().graphicsMode;
+      const requestedGraphicsMode = readRequestedGraphicsMode(patch);
+      const graphicsModeChanged =
+        requestedGraphicsMode !== undefined &&
+        requestedGraphicsMode !== currentGraphicsMode;
+      if (graphicsModeChanged && !isGraphicsRestartConfirmed(options)) {
+        throw new Error(
+          'Changing the Electron graphics mode requires an application restart confirmation.',
+        );
+      }
+
       const preferences = await this.preferences.update(patch);
+      if (graphicsModeChanged) {
+        this.scheduleApplicationRelaunch();
+        return preferences;
+      }
+
       this.windows.setAppLocale(preferences.appLocale, app.getLocale());
       this.windows.setAppTheme(preferences.appTheme);
       this.windows.setAlwaysOnTop(preferences.alwaysOnTop);
@@ -310,10 +352,26 @@ export class IpcManager {
       );
       configureLogLevel(preferences.logLevel);
       this.shortcuts.refreshGlobalShortcut();
+      await this.sites.applyCurrentProviderSettings().catch((error: unknown) => {
+        // The preference is already durable. A simultaneous site navigation
+        // may destroy the old document before its live update is delivered;
+        // the Provider receives the stored value before its next load.
+        console.debug('Live Provider settings refresh was skipped.', error);
+      });
       this.updates.configure(preferences);
       await this.sites.refreshCurrentBrowserProfile();
       return preferences;
     });
+  }
+
+  private scheduleApplicationRelaunch(): void {
+    if (this.relaunchScheduled) return;
+    this.relaunchScheduled = true;
+    // Let ipcRenderer receive the persisted PreferenceState before shutdown.
+    setTimeout(() => {
+      app.relaunch();
+      app.quit();
+    }, 200);
   }
 
   dispose(): void {
@@ -340,9 +398,14 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.application.openLogDirectory,
   IPC_CHANNELS.application.developerYouTubeStatus,
   IPC_CHANNELS.application.checkForUpdates,
+  IPC_CHANNELS.application.getUpdateState,
+  IPC_CHANNELS.application.downloadUpdate,
+  IPC_CHANNELS.application.installUpdate,
   IPC_CHANNELS.application.isFullScreen,
   IPC_CHANNELS.application.exitFullScreen,
-  IPC_CHANNELS.plugins.list,
+  IPC_CHANNELS.bundles.runtime,
+  IPC_CHANNELS.bundles.list,
+  IPC_CHANNELS.bundles.install,
   IPC_CHANNELS.media.togglePictureInPicture,
   IPC_CHANNELS.media.toggleGamePictureInPicture,
   IPC_CHANNELS.sites.open,
@@ -425,4 +488,26 @@ function requireAppLocale(value: unknown): AppLocale {
     throw new TypeError('A supported app locale is required.');
   }
   return value;
+}
+
+function readRequestedGraphicsMode(
+  patch: unknown,
+): 'native' | 'capture' | 'software' | undefined {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    return undefined;
+  }
+  const value = (patch as { readonly graphicsMode?: unknown }).graphicsMode;
+  return value === 'native' || value === 'capture' || value === 'software'
+    ? value
+    : undefined;
+}
+
+function isGraphicsRestartConfirmed(options: unknown): boolean {
+  return Boolean(
+    options &&
+      typeof options === 'object' &&
+      !Array.isArray(options) &&
+      (options as { readonly restartForGraphicsChange?: unknown })
+        .restartForGraphicsChange === true,
+  );
 }

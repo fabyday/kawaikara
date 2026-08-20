@@ -1,3 +1,43 @@
+import type { NewWindowPolicy } from '@kawaikara/site-api';
+
+/**
+ * Preserve the browser's window.open/target=_blank contract inside a
+ * session-sharing Electron popup. The legacy main branch allowed these
+ * windows by default; Provider v1 otherwise redirects them into the viewer.
+ */
+export function webPopupPolicy(url: string): NewWindowPolicy {
+  if (/^about:blank(?:[?#]|$)/i.test(url)) return 'popup';
+  return /^https?:\/\//i.test(url) ? 'popup' : 'deny';
+}
+
+export function matchesUrlHost(
+  value: string,
+  hosts: readonly string[],
+): boolean {
+  const hostname = /^https?:\/\/([^/?#:]+)/i.exec(value)?.[1]?.toLowerCase();
+  if (!hostname) return false;
+  return hosts.some(
+    (host) => hostname === host || hostname.endsWith(`.${host}`),
+  );
+}
+
+export function applyBrowserIdentityHeaders(
+  requestHeaders: Readonly<Record<string, string>>,
+  userAgent: string,
+): Record<string, string> {
+  const headers = { ...requestHeaders };
+  const chromeMajorVersion = /Chrome\/(\d+)/.exec(userAgent)?.[1];
+  setHeader(headers, 'User-Agent', userAgent);
+  if (chromeMajorVersion) {
+    setHeader(
+      headers,
+      'Sec-Ch-Ua',
+      `"Google Chrome";v="${chromeMajorVersion}", "Chromium";v="${chromeMajorVersion}", "Not_A Brand";v="24"`,
+    );
+  }
+  return headers;
+}
+
 export function createLoginInterceptionScript(
   marker: string,
   selector: string,

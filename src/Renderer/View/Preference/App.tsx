@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   closestCenter,
   DndContext,
@@ -42,6 +43,13 @@ import {
 } from '@kawaikara/kawai-ui';
 import { APP_SHORTCUTS } from '../../../Common/AppShortcuts';
 import {
+  SHORT_FORM_VIDEO_SHORTCUTS,
+} from '../../../Common/ShortFormVideo';
+import type {
+  ProviderLocalizedText,
+  ProviderSettingListItem,
+} from '@kawaikara/site-api';
+import {
   MAX_VIDEO_SEEK_SECONDS,
   MIN_VIDEO_SEEK_SECONDS,
   VIDEO_SHORTCUTS,
@@ -54,10 +62,12 @@ import type {
   AppLocale,
   AppTheme,
   BrowserProfileInfo,
+  BundleInfo,
   DeveloperYouTubeStatus,
   DevToolsMode,
   DisplayInfo,
-  PluginInfo,
+  BundleRuntimeInfo,
+  GraphicsMode,
   PreferencePatch,
   PreferenceState,
   SiteMenuItem,
@@ -114,7 +124,8 @@ export function PreferenceView({
 }: PreferenceViewProps) {
   const [savedPreferences, setSavedPreferences] = useState<PreferenceState>();
   const [draftPreferences, setDraftPreferences] = useState<PreferenceState>();
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [runtimeBundles, setRuntimeBundles] = useState<BundleRuntimeInfo[]>([]);
+  const [bundles, setBundles] = useState<BundleInfo[]>([]);
   const [appInfo, setAppInfo] = useState<ApplicationInfo>();
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [developerYouTubeStatus, setDeveloperYouTubeStatus] =
@@ -122,24 +133,36 @@ export function PreferenceView({
   const [updateCheckResult, setUpdateCheckResult] =
     useState<ApplicationUpdateCheckResult>();
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [installingBundle, setInstallingBundle] = useState(false);
+  const [bundleNotice, setBundleNotice] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [shortcutConflict, setShortcutConflict] =
     useState<ShortcutConflict>();
+  const [graphicsRestartRequest, setGraphicsRestartRequest] =
+    useState<GraphicsMode>();
   const [menuOrderEditorOpen, setMenuOrderEditorOpen] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
 
   useEffect(() => {
     void Promise.all([
       window.kawaikara.preferences.get(),
-      window.kawaikara.plugins.list(),
+      window.kawaikara.bundles.runtime(),
+      window.kawaikara.bundles.list(),
       window.kawaikara.application.getInfo(),
       window.kawaikara.application.listDisplays(),
     ])
-      .then(([nextPreferences, nextPlugins, nextAppInfo, nextDisplays]) => {
+      .then(([
+        nextPreferences,
+        nextRuntimeBundles,
+        nextBundles,
+        nextAppInfo,
+        nextDisplays,
+      ]) => {
         setSavedPreferences(nextPreferences);
         setDraftPreferences(nextPreferences);
-        setPlugins(nextPlugins);
+        setRuntimeBundles(nextRuntimeBundles);
+        setBundles(nextBundles);
         setAppInfo(nextAppInfo);
         setDisplays(nextDisplays);
       })
@@ -225,6 +248,14 @@ export function PreferenceView({
       })),
     [messages],
   );
+  const shortFormVideoShortcutItems = useMemo<ShortcutItem[]>(
+    () =>
+      SHORT_FORM_VIDEO_SHORTCUTS.map((shortcut) => ({
+        ...shortcut,
+        title: messages.shortcutNames[shortcut.id] ?? shortcut.title,
+      })),
+    [messages],
+  );
   const siteShortcutItems = useMemo<ShortcutItem[]>(
     () =>
       sites.map((site) => ({
@@ -233,6 +264,17 @@ export function PreferenceView({
         defaultKey: site.defaultShortcut,
       })),
     [sites],
+  );
+  const providerShortcutItems = useMemo<ShortcutItem[]>(
+    () => sites.flatMap((site) => site.actionShortcuts.map((shortcut) => ({
+      id: shortcut.id,
+      title: resolveProviderText(shortcut.title, draftPreferences?.appLocale ?? 'system'),
+      description: shortcut.description
+        ? resolveProviderText(shortcut.description, draftPreferences?.appLocale ?? 'system')
+        : undefined,
+      defaultKey: shortcut.defaultKey,
+    }))),
+    [draftPreferences?.appLocale, sites],
   );
   const categoryShortcutItems = useMemo<ShortcutItem[]>(
     () =>
@@ -253,13 +295,17 @@ export function PreferenceView({
     () => [
       ...appShortcutItems,
       ...videoShortcutItems,
+      ...shortFormVideoShortcutItems,
+      ...providerShortcutItems,
       ...categoryShortcutItems,
       ...siteShortcutItems,
     ],
     [
       appShortcutItems,
       categoryShortcutItems,
+      providerShortcutItems,
       siteShortcutItems,
+      shortFormVideoShortcutItems,
       videoShortcutItems,
     ],
   );
@@ -297,13 +343,13 @@ export function PreferenceView({
     }
   };
 
-  const checkForUpdates = async (channel: ReleaseChannel) => {
+  const checkForUpdates = async () => {
     setCheckingUpdates(true);
     setUpdateCheckResult(undefined);
     setError(undefined);
     try {
       setUpdateCheckResult(
-        await window.kawaikara.application.checkForUpdates(channel),
+        await window.kawaikara.application.checkForUpdates(),
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -337,6 +383,39 @@ export function PreferenceView({
     }
   };
 
+  const requestGraphicsModeChange = (graphicsMode: GraphicsMode) => {
+    if (!draftPreferences || graphicsMode === draftPreferences.graphicsMode) {
+      return;
+    }
+    setGraphicsRestartRequest(graphicsMode);
+    setError(undefined);
+  };
+
+  const applyGraphicsModeChange = async () => {
+    if (graphicsRestartRequest === undefined || !draftPreferences) return;
+    const nextDraft = {
+      ...draftPreferences,
+      graphicsMode: graphicsRestartRequest,
+      pluginLocales: {},
+      siteLocales: {},
+    };
+    setSaving(true);
+    setError(undefined);
+    try {
+      const next = await window.kawaikara.preferences.update(nextDraft, {
+        restartForGraphicsChange: true,
+      });
+      setSavedPreferences(next);
+      setDraftPreferences(next);
+      onPreferencesChange?.(next);
+      setGraphicsRestartRequest(undefined);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openLogDirectory = async () => {
     setError(undefined);
     try {
@@ -355,6 +434,27 @@ export function PreferenceView({
       await window.kawaikara.overlay.close();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const installBundle = async () => {
+    if (!draftPreferences) return;
+    setInstallingBundle(true);
+    setBundleNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.bundles.install(
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cancelled') return;
+      setBundles(await window.kawaikara.bundles.list());
+      setBundleNotice(
+        messages.bundleInstallSuccess.replace('{name}', result.bundle.name),
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setInstallingBundle(false);
     }
   };
 
@@ -450,6 +550,7 @@ export function PreferenceView({
                 <Tab value="video">{messages.video}</Tab>
                 <Tab value="profiles">{messages.browserProfiles}</Tab>
                 <Tab value="shortcuts">{messages.shortcuts}</Tab>
+                <Tab value="bundles">{messages.bundles}</Tab>
                 <Tab value="developer">{messages.developer}</Tab>
                 <Tab value="app-info">{messages.appInfo}</Tab>
               </TabList>
@@ -458,12 +559,16 @@ export function PreferenceView({
                 <PreferenceTabScroll label={messages.general}>
                   <GeneralTab
                     displays={displays}
+                    graphicsMode={
+                      graphicsRestartRequest ?? draftPreferences.graphicsMode
+                    }
                     messages={messages}
                     preferences={draftPreferences}
                     saving={saving}
                     siteOptions={siteOptions}
                     sites={sites}
                     onEditMenuOrder={() => setMenuOrderEditorOpen(true)}
+                    onGraphicsModeChange={requestGraphicsModeChange}
                     onUpdate={updateDraft}
                   />
                 </PreferenceTabScroll>
@@ -484,7 +589,7 @@ export function PreferenceView({
                 <PreferenceTabScroll label={messages.browserProfiles}>
                   <BrowserProfilesTab
                     messages={messages}
-                    plugins={plugins}
+                    bundles={runtimeBundles}
                     preferences={draftPreferences}
                     saving={saving}
                     sites={sites}
@@ -505,6 +610,17 @@ export function PreferenceView({
                     title={messages.menuCategoryShortcuts}
                     onChange={updateShortcut}
                   />
+                  {providerShortcutItems.length ? (
+                    <ShortcutSection
+                      duplicateIds={duplicateShortcutIds}
+                      items={providerShortcutItems}
+                      messages={messages}
+                      preferences={draftPreferences}
+                      saving={saving}
+                      title={messages.providerShortcuts}
+                      onChange={updateShortcut}
+                    />
+                  ) : null}
                   <ShortcutSection
                     description={messages.videoShortcutsDescription}
                     duplicateIds={duplicateShortcutIds}
@@ -513,6 +629,16 @@ export function PreferenceView({
                     preferences={draftPreferences}
                     saving={saving}
                     title={messages.videoShortcuts}
+                    onChange={updateShortcut}
+                  />
+                  <ShortcutSection
+                    description={messages.shortFormVideoShortcutsDescription}
+                    duplicateIds={duplicateShortcutIds}
+                    items={shortFormVideoShortcutItems}
+                    messages={messages}
+                    preferences={draftPreferences}
+                    saving={saving}
+                    title={messages.shortFormVideoShortcuts}
                     onChange={updateShortcut}
                   />
                   <ShortcutSection
@@ -536,6 +662,22 @@ export function PreferenceView({
                 </PreferenceTabScroll>
               </TabPanel>
 
+              <TabPanel className="preference-tab-panel" value="bundles">
+                <PreferenceTabScroll label={messages.bundles}>
+                  <BundlesTab
+                    bundles={bundles}
+                    installing={installingBundle}
+                    messages={messages}
+                    notice={bundleNotice}
+                    preferences={draftPreferences}
+                    runtimeBundles={runtimeBundles}
+                    saving={saving}
+                    onInstall={installBundle}
+                    onUpdate={updateDraft}
+                  />
+                </PreferenceTabScroll>
+              </TabPanel>
+
               <TabPanel className="preference-tab-panel" value="developer">
                 <PreferenceTabScroll label={messages.developer}>
                   <DeveloperTab
@@ -555,7 +697,6 @@ export function PreferenceView({
                     checkingUpdates={checkingUpdates}
                     developerYouTubeStatus={developerYouTubeStatus}
                     messages={messages}
-                    plugins={plugins}
                     preferences={draftPreferences}
                     saving={saving}
                     updateCheckResult={updateCheckResult}
@@ -612,6 +753,50 @@ export function PreferenceView({
             onClose={() => setMenuOrderEditorOpen(false)}
             onUpdate={updateDraft}
           />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {graphicsRestartRequest !== undefined ? (
+          <motion.div
+            className="preference-dialog-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              aria-describedby="graphics-restart-description"
+              aria-labelledby="graphics-restart-title"
+              aria-modal="true"
+              className="preference-dialog"
+              role="dialog"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            >
+              <Head id="graphics-restart-title" level={2} size="sm">
+                {messages.graphicsRestartTitle}
+              </Head>
+              <Text id="graphics-restart-description" size="sm" tone="muted">
+                {messages.graphicsRestartDescription}
+              </Text>
+              <Flex justify="end" gap="sm">
+                <Button
+                  disabled={saving}
+                  variant="ghost"
+                  onClick={() => setGraphicsRestartRequest(undefined)}
+                >
+                  {messages.cancel}
+                </Button>
+                <Button
+                  isLoading={saving}
+                  onClick={() => void applyGraphicsModeChange()}
+                >
+                  {messages.applyAndRestart}
+                </Button>
+              </Flex>
+            </motion.div>
+          </motion.div>
         ) : null}
       </AnimatePresence>
 
@@ -898,21 +1083,25 @@ function NumberPreferenceControl({
 
 function GeneralTab({
   displays,
+  graphicsMode,
   messages,
   preferences,
   saving,
   siteOptions,
   sites,
   onEditMenuOrder,
+  onGraphicsModeChange,
   onUpdate,
 }: {
   readonly displays: readonly DisplayInfo[];
+  readonly graphicsMode: GraphicsMode;
   readonly messages: AppMessages;
   readonly preferences: PreferenceState;
   readonly saving: boolean;
   readonly siteOptions: readonly { label: string; value: string }[];
   readonly sites: readonly SiteMenuItem[];
   readonly onEditMenuOrder: () => void;
+  readonly onGraphicsModeChange: (graphicsMode: GraphicsMode) => void;
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   return (
@@ -1139,7 +1328,87 @@ function GeneralTab({
           />
         </Stack>
       </section>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.performance}
+        </Text>
+        <GraphicsModeControl
+          disabled={saving}
+          messages={messages}
+          value={graphicsMode}
+          onChange={onGraphicsModeChange}
+        />
+      </section>
     </Stack>
+  );
+}
+
+function GraphicsModeControl({
+  disabled,
+  messages,
+  value,
+  onChange,
+}: {
+  readonly disabled: boolean;
+  readonly messages: AppMessages;
+  readonly value: GraphicsMode;
+  readonly onChange: (value: GraphicsMode) => void;
+}) {
+  const options: readonly {
+    readonly label: string;
+    readonly description: string;
+    readonly value: GraphicsMode;
+  }[] = [
+    {
+      label: messages.graphicsModeNative,
+      description: messages.graphicsModeNativeDescription,
+      value: 'native',
+    },
+    {
+      label: messages.graphicsModeCompatible,
+      description: messages.graphicsModeCompatibleDescription,
+      value: 'capture',
+    },
+    {
+      label: messages.graphicsModeSoftware,
+      description: messages.graphicsModeSoftwareDescription,
+      value: 'software',
+    },
+  ];
+  const selected = options.find((option) => option.value === value) ?? options[1];
+
+  return (
+    <div className="graphics-mode-setting">
+      <Text size="sm" weight="medium">
+        {messages.graphicsMode}
+      </Text>
+      <Text size="xs" tone="muted">
+        {messages.graphicsModeDescription}
+      </Text>
+      <div
+        aria-label={messages.graphicsMode}
+        className="graphics-mode-control"
+        role="radiogroup"
+      >
+        {options.map((option) => (
+          <button
+            aria-checked={option.value === value}
+            className={option.value === value ? 'is-active' : undefined}
+            disabled={disabled}
+            key={option.value}
+            role="radio"
+            type="button"
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <Text className="graphics-mode-selected-description" size="xs" tone="muted">
+        {selected.description}
+      </Text>
+    </div>
   );
 }
 
@@ -1498,22 +1767,22 @@ function OrderButtons({
 }
 
 function BrowserProfilesTab({
+  bundles,
   messages,
-  plugins,
   preferences,
   saving,
   sites,
   onUpdate,
 }: {
+  readonly bundles: readonly BundleRuntimeInfo[];
   readonly messages: AppMessages;
-  readonly plugins: readonly PluginInfo[];
   readonly preferences: PreferenceState;
   readonly saving: boolean;
   readonly sites: readonly SiteMenuItem[];
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   const [newProfileName, setNewProfileName] = useState('');
-  const pluginProfiles = plugins.flatMap((plugin) => plugin.browserProfiles);
+  const pluginProfiles = bundles.flatMap((bundle) => bundle.browserProfiles);
   const userProfiles: BrowserProfileInfo[] = preferences.browserProfiles.map(
     (profile) => ({
       id: `user:${profile.id}`,
@@ -1781,7 +2050,10 @@ function ShortcutSection({
                   </Text>
                 ) : null}
                 <Text className="shortcut-default" size="xs" tone="muted">
-                  {messages.defaultValue}: {item.defaultKey || messages.empty}
+                  {messages.defaultValue}:{' '}
+                  {item.defaultKey
+                    ? formatAccelerator(item.defaultKey).join(' + ')
+                    : messages.empty}
                 </Text>
               </div>
               <ShortcutRecorder
@@ -1890,12 +2162,447 @@ function ShortcutRecorder({
   );
 }
 
+function BundlesTab({
+  bundles,
+  installing,
+  messages,
+  notice,
+  preferences,
+  runtimeBundles,
+  saving,
+  onInstall,
+  onUpdate,
+}: {
+  readonly bundles: readonly BundleInfo[];
+  readonly installing: boolean;
+  readonly messages: AppMessages;
+  readonly notice?: string;
+  readonly preferences: PreferenceState;
+  readonly runtimeBundles: readonly BundleRuntimeInfo[];
+  readonly saving: boolean;
+  readonly onInstall: () => void | Promise<void>;
+  readonly onUpdate: (patch: PreferencePatch) => void;
+}) {
+  const [selectedBundleId, setSelectedBundleId] = useState<string>();
+  const selectedBundle = bundles.find(({ id }) => id === selectedBundleId);
+  const selectedRuntime = runtimeBundles.find(({ id }) => id === selectedBundleId);
+
+  if (selectedBundle) {
+    return (
+      <Stack className="bundle-detail" gap="lg">
+        <Flex align="center" gap="sm">
+          <Button
+            aria-label={messages.backToBundles}
+            size="icon"
+            variant="ghost"
+            onClick={() => setSelectedBundleId(undefined)}
+          >
+            <span aria-hidden="true">←</span>
+          </Button>
+          <div className="bundle-heading-copy">
+            <Text className="preference-section-title" weight="semibold">
+              {selectedBundle.name}
+            </Text>
+            <Text size="xs" tone="muted">
+              {selectedBundle.description ?? selectedBundle.id} · v{selectedBundle.version}
+            </Text>
+          </div>
+        </Flex>
+
+        {selectedBundle.permissions.length ? (
+          <section>
+            <Text className="preference-section-title" weight="semibold">
+              {messages.permissions}
+            </Text>
+            <div className="bundle-permission-list">
+              {selectedBundle.permissions.map((permission) => (
+                <span key={permission}>{permission}</span>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {selectedRuntime?.providers.length ? selectedRuntime.providers.map((provider) => (
+          <section className="bundle-provider-settings" key={provider.id}>
+            <div className="bundle-provider-heading">
+              <Text className="preference-section-title" weight="semibold">
+                {provider.title}
+              </Text>
+              {provider.description ? (
+                <Text size="xs" tone="muted">{provider.description}</Text>
+              ) : null}
+            </div>
+            {provider.settings.length ? provider.settings.map((category) => (
+              <div className="bundle-setting-category" key={category.id}>
+                <Text weight="semibold">
+                  {resolveProviderText(category.title, preferences.appLocale)}
+                </Text>
+                {category.description ? (
+                  <Text size="xs" tone="muted">
+                    {resolveProviderText(category.description, preferences.appLocale)}
+                  </Text>
+                ) : null}
+                <Stack gap="md">
+                  {category.settings.map((setting) => {
+                    const title = resolveProviderText(setting.title, preferences.appLocale);
+                    const description = setting.description
+                      ? resolveProviderText(setting.description, preferences.appLocale)
+                      : undefined;
+                    if (setting.type === 'boolean') {
+                      return (
+                        <Switch
+                          checked={getProviderBooleanSetting(
+                            preferences,
+                            provider.id,
+                            setting.key,
+                            setting.defaultValue,
+                          )}
+                          description={description}
+                          disabled={saving}
+                          key={setting.key}
+                          label={title}
+                          onCheckedChange={(value) =>
+                            onUpdateProviderSetting(
+                              preferences,
+                              provider.id,
+                              setting.key,
+                              value,
+                              onUpdate,
+                            )
+                          }
+                        />
+                      );
+                    }
+                    const value = preferences.providerSettings[provider.id]?.[setting.key];
+                    const items = Array.isArray(value) ? value : [];
+                    return (
+                      <ProviderItemListSetting
+                        description={description}
+                        disabled={saving}
+                        emptyText={setting.emptyText
+                          ? resolveProviderText(setting.emptyText, preferences.appLocale)
+                          : messages.empty}
+                        items={items}
+                        key={setting.key}
+                        messages={messages}
+                        title={title}
+                        onChange={(nextItems) =>
+                          onUpdateProviderSetting(
+                            preferences,
+                            provider.id,
+                            setting.key,
+                            nextItems,
+                            onUpdate,
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </Stack>
+              </div>
+            )) : (
+              <Text size="sm" tone="muted">{messages.noProviderSettings}</Text>
+            )}
+          </section>
+        )) : (
+          <Text size="sm" tone="muted">{messages.noProviderSettings}</Text>
+        )}
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="lg">
+      <section>
+        <Flex align="start" justify="between" gap="lg">
+          <div className="bundle-heading-copy">
+            <Text className="preference-section-title" weight="semibold">
+              {messages.bundleManagement}
+            </Text>
+            <Text size="xs" tone="muted">
+              {messages.bundlesDescription}
+            </Text>
+          </div>
+          <Button
+            isLoading={installing}
+            variant="secondary"
+            onClick={() => void onInstall()}
+          >
+            {messages.addBundle}
+          </Button>
+        </Flex>
+        <div className="bundle-trust-warning">
+          <Text size="xs" tone="danger">
+            {messages.bundleTrustWarning}
+          </Text>
+        </div>
+        {notice ? (
+          <Text className="bundle-install-notice" size="xs">
+            {notice}
+          </Text>
+        ) : null}
+      </section>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.installedBundles}
+        </Text>
+        {bundles.length ? (
+          <Stack gap="sm">
+            {bundles.map((bundle) => (
+              <button
+                className={`bundle-info-row is-${bundle.status}`}
+                key={bundle.id}
+                type="button"
+                onClick={() => setSelectedBundleId(bundle.id)}
+              >
+                <Flex align="start" justify="between" gap="md">
+                  <div className="bundle-info-copy">
+                    <Flex align="center" gap="sm">
+                      <Text weight="semibold">{bundle.name}</Text>
+                      <span className={`bundle-source-badge is-${bundle.source}`}>
+                        {bundle.source === 'built-in'
+                          ? messages.builtInBundle
+                          : messages.userBundle}
+                      </span>
+                    </Flex>
+                    <Text size="xs" tone="muted">
+                      {bundle.description ?? bundle.id}
+                    </Text>
+                  </div>
+                  <Stack className="bundle-version-copy" gap="xs">
+                    <Text size="xs" tone="muted">v{bundle.version}</Text>
+                    <Text
+                      size="xs"
+                      tone={bundle.status === 'failed' ? 'danger' : 'muted'}
+                    >
+                      {getBundleStatusLabel(messages, bundle)}
+                    </Text>
+                  </Stack>
+                </Flex>
+                {bundle.status === 'active' ? (
+                  <Text className="bundle-contributions" size="xs" tone="muted">
+                    {formatBundleContributions(messages, bundle)}
+                  </Text>
+                ) : null}
+                {bundle.permissions.length ? (
+                  <div className="bundle-permission-list" aria-label={messages.permissions}>
+                    {bundle.permissions.map((permission) => (
+                      <span key={permission}>{permission}</span>
+                    ))}
+                  </div>
+                ) : null}
+                {bundle.error ? (
+                  <Text className="bundle-error" size="xs" tone="danger">
+                    {bundle.error}
+                  </Text>
+                ) : null}
+              </button>
+            ))}
+          </Stack>
+        ) : (
+          <Text size="sm" tone="muted">{messages.noBundles}</Text>
+        )}
+      </section>
+    </Stack>
+  );
+}
+
+function ProviderItemListSetting({
+  description,
+  disabled,
+  emptyText,
+  items,
+  messages,
+  title,
+  onChange,
+}: {
+  readonly description?: string;
+  readonly disabled: boolean;
+  readonly emptyText: string;
+  readonly items: readonly ProviderSettingListItem[];
+  readonly messages: AppMessages;
+  readonly title: string;
+  readonly onChange: (items: readonly ProviderSettingListItem[]) => void;
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
+  const visibleItems = items.slice(0, 5);
+  const selected = new Set(selectedIds);
+  const removeIds = (ids: ReadonlySet<string>) => {
+    onChange(items.filter((item) => !ids.has(item.id)));
+    setSelectedIds([]);
+    if (ids.size === items.length) setDialogOpen(false);
+  };
+
+  const dialog = dialogOpen ? createPortal(
+    <div className="preference-dialog-backdrop bundle-list-dialog-backdrop">
+      <div
+        aria-label={title}
+        aria-modal="true"
+        className="preference-dialog bundle-list-dialog"
+        role="dialog"
+      >
+        <Flex align="center" justify="between" gap="md">
+          <Stack gap="xs">
+            <Text weight="semibold">{title}</Text>
+            <Text size="xs" tone="muted">
+              {messages.bundleListCount.replace('{count}', String(items.length))}
+            </Text>
+          </Stack>
+          <Button size="sm" variant="ghost" onClick={() => {
+            setSelectedIds([]);
+            setDialogOpen(false);
+          }}>
+            {messages.done}
+          </Button>
+        </Flex>
+        <Flex className="bundle-list-actions" align="center" justify="between" gap="sm">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setSelectedIds(
+              selectedIds.length === items.length ? [] : items.map(({ id }) => id),
+            )}
+          >
+            {selectedIds.length === items.length
+              ? messages.clearSelection
+              : messages.selectAll}
+          </Button>
+          <Button
+            disabled={disabled || selectedIds.length === 0}
+            size="sm"
+            variant="secondary"
+            onClick={() => removeIds(selected)}
+          >
+            {messages.removeSelected.replace('{count}', String(selectedIds.length))}
+          </Button>
+        </Flex>
+        <div className="bundle-list-dialog-content">
+          {items.map((item) => (
+            <div
+              className={`bundle-item-list-row is-dialog${selected.has(item.id) ? ' is-selected' : ''}`}
+              key={item.id}
+            >
+              <input
+                aria-label={item.label}
+                checked={selected.has(item.id)}
+                disabled={disabled}
+                type="checkbox"
+                onChange={() => setSelectedIds((current) =>
+                  current.includes(item.id)
+                    ? current.filter((id) => id !== item.id)
+                    : [...current, item.id],
+                )}
+              />
+              <ProviderListItemIdentity item={item} />
+              {selectedIds.length === 0 ? (
+                <Button
+                  disabled={disabled}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => removeIds(new Set([item.id]))}
+                >
+                  {messages.remove}
+                </Button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  return (
+    <div className="bundle-item-list-setting">
+      <Stack gap="xs">
+        <Text size="sm" weight="semibold">{title}</Text>
+        {description ? <Text size="xs" tone="muted">{description}</Text> : null}
+      </Stack>
+      {items.length ? (
+        <div className="bundle-item-list-compact">
+          {visibleItems.map((item) => (
+            <div className="bundle-item-list-row" key={item.id}>
+              <ProviderListItemIdentity item={item} />
+              <Button
+                disabled={disabled}
+                size="sm"
+                variant="ghost"
+                onClick={() => removeIds(new Set([item.id]))}
+              >
+                {messages.remove}
+              </Button>
+            </div>
+          ))}
+          {items.length > 5 ? (
+            <button
+              className="bundle-item-list-more"
+              type="button"
+              onClick={() => setDialogOpen(true)}
+            >
+              <span>{messages.showMore}</span>
+              <span aria-hidden="true" className="bundle-more-chevron">⌄</span>
+            </button>
+          ) : null}
+        </div>
+      ) : <Text size="xs" tone="muted">{emptyText}</Text>}
+      {dialog}
+    </div>
+  );
+}
+
+function ProviderListItemIdentity({ item }: {
+  readonly item: ProviderSettingListItem;
+}) {
+  const secondary = item.description ?? (item.label !== item.id ? item.id : undefined);
+  return (
+    <div className="bundle-list-identity">
+      {item.imageUrl ? (
+        <img alt="" className="bundle-list-avatar" src={item.imageUrl} />
+      ) : (
+        <span aria-hidden="true" className="bundle-list-avatar is-placeholder">
+          {item.label.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <Stack gap="xs">
+        <Text size="sm" weight="semibold">{item.label}</Text>
+        {secondary ? <Text size="xs" tone="muted">{secondary}</Text> : null}
+      </Stack>
+    </div>
+  );
+}
+
+function getBundleStatusLabel(
+  messages: AppMessages,
+  bundle: BundleInfo,
+): string {
+  if (bundle.status === 'active') return messages.bundleActive;
+  if (bundle.status === 'restart-required') {
+    return messages.bundleRestartRequired;
+  }
+  return messages.bundleFailed;
+}
+
+function formatBundleContributions(
+  messages: AppMessages,
+  bundle: BundleInfo,
+): string {
+  const contributions: string[] = [];
+  if (bundle.providerCount) {
+    contributions.push(`${String(bundle.providerCount)} ${messages.sites}`);
+  }
+  if (bundle.pluginCount) {
+    contributions.push(`${String(bundle.pluginCount)} ${messages.plugins}`);
+  }
+  return contributions.join(' · ') || messages.emptyBundle;
+}
+
 function AppInfoTab({
   appInfo,
   checkingUpdates,
   developerYouTubeStatus,
   messages,
-  plugins,
   preferences,
   saving,
   updateCheckResult,
@@ -1908,11 +2615,10 @@ function AppInfoTab({
   readonly checkingUpdates: boolean;
   readonly developerYouTubeStatus?: DeveloperYouTubeStatus;
   readonly messages: AppMessages;
-  readonly plugins: readonly PluginInfo[];
   readonly preferences: PreferenceState;
   readonly saving: boolean;
   readonly updateCheckResult?: ApplicationUpdateCheckResult;
-  readonly onCheckForUpdates: (channel: ReleaseChannel) => void | Promise<void>;
+  readonly onCheckForUpdates: () => void | Promise<void>;
   readonly onOpenLogDirectory: () => void | Promise<void>;
   readonly onOpenLink: (id: ApplicationLinkId) => void | Promise<void>;
   readonly onUpdate: (patch: PreferencePatch) => void;
@@ -1958,22 +2664,9 @@ function AppInfoTab({
             <div className="app-release-row">
               <Text size="xs" tone="muted">{messages.channel}</Text>
               <div className="app-release-value">
-                {appInfo.updateChannelLocked ? (
-                  <Text className="app-channel-fixed" weight="semibold">
-                    {getChannelLabel(messages, 'nightly')}
-                  </Text>
-                ) : (
-                  <Select
-                    aria-label={messages.channel}
-                    controlSize="sm"
-                    disabled={saving}
-                    options={updateChannelOptions(messages)}
-                    value={preferences.updateChannel}
-                    onValueChange={(updateChannel) =>
-                      onUpdate({ updateChannel: updateChannel as ReleaseChannel })
-                    }
-                  />
-                )}
+                <Text className="app-channel-fixed" weight="semibold">
+                  {getChannelLabel(messages, appInfo.buildChannel)}
+                </Text>
               </div>
             </div>
             <div className="app-release-row">
@@ -1986,9 +2679,7 @@ function AppInfoTab({
                   isLoading={checkingUpdates}
                   size="sm"
                   variant="secondary"
-                  onClick={() =>
-                    void onCheckForUpdates(preferences.updateChannel)
-                  }
+                  onClick={() => void onCheckForUpdates()}
                 >
                   {messages.checkForUpdates}
                 </Button>
@@ -2030,35 +2721,8 @@ function AppInfoTab({
           </Flex>
         </div>
       ) : null}
-      <section>
-        <Text className="preference-section-title" weight="semibold">
-          {messages.installedPlugins}
-        </Text>
-        <Stack gap="sm">
-          {plugins.map((plugin) => (
-            <div className="plugin-info-row" key={plugin.id}>
-              <div>
-                <Text weight="semibold">{plugin.name}</Text>
-                <Text size="xs" tone="muted">
-                  {plugin.description ?? plugin.id}
-                </Text>
-              </div>
-              <Text size="xs" tone="muted">
-                v{plugin.version} · {plugin.siteCount} {messages.sites}
-              </Text>
-            </div>
-          ))}
-        </Stack>
-      </section>
     </Stack>
   );
-}
-
-function updateChannelOptions(messages: AppMessages) {
-  return (['stable', 'staging', 'nightly'] as const).map((channel) => ({
-    label: getChannelLabel(messages, channel),
-    value: channel,
-  }));
 }
 
 function getChannelLabel(messages: AppMessages, channel: ReleaseChannel): string {
@@ -2132,6 +2796,49 @@ function getEffectiveShortcut(
   return Object.prototype.hasOwnProperty.call(shortcuts, item.id)
     ? shortcuts[item.id] ?? ''
     : item.defaultKey;
+}
+
+function getProviderBooleanSetting(
+  preferences: PreferenceState,
+  providerId: string,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const value = preferences.providerSettings[providerId]?.[key];
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function onUpdateProviderSetting(
+  preferences: PreferenceState,
+  providerId: string,
+  key: string,
+  value: boolean | readonly ProviderSettingListItem[],
+  onUpdate: (patch: PreferencePatch) => void,
+): void {
+  onUpdate({
+    providerSettings: {
+      ...preferences.providerSettings,
+      [providerId]: {
+        ...(preferences.providerSettings[providerId] ?? {}),
+        [key]: value,
+      },
+    },
+  });
+}
+
+function resolveProviderText(
+  value: ProviderLocalizedText,
+  locale: AppLocale,
+): string {
+  if (typeof value === 'string') return value;
+  const requested = locale === 'system' ? navigator.language : locale;
+  const language = requested.split('-')[0]?.toLowerCase();
+  const match = Object.entries(value).find(([key]) =>
+    key.toLowerCase() === requested.toLowerCase(),
+  )?.[1] ?? Object.entries(value).find(([key]) =>
+    key.split('-')[0]?.toLowerCase() === language,
+  )?.[1];
+  return match ?? value.default ?? value['en-US'] ?? Object.values(value)[0] ?? '';
 }
 
 function writeShortcutOverride(

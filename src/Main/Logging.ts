@@ -81,11 +81,13 @@ export async function openLogDirectory(): Promise<void> {
 export function attachRendererLogging(
   webContents: WebContents,
   scope: string,
+  includeMessage: (message: string) => boolean = () => true,
 ): () => void {
   const rendererLog = createLogger(`renderer:${scope}`);
   const handleConsoleMessage = (
     details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
   ) => {
+    if (!includeMessage(details.message)) return;
     const source = formatConsoleSource(details.sourceId, details.lineNumber);
     const args = source ? [details.message, source] : [details.message];
     switch (details.level) {

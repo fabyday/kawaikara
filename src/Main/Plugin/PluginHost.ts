@@ -1,27 +1,35 @@
 import {
   KAWAIKARA_SITE_API_VERSION,
-  type SitePluginDefinition,
+  isBundleDefinition,
+  type BundleDefinition,
 } from '@kawaikara/site-api';
 import type { SiteManager } from '../Manager/SiteManager';
 
 export class PluginHost {
-  private readonly installedPluginIds = new Set<string>();
+  private readonly installedBundleIds = new Set<string>();
 
   constructor(private readonly siteManager: SiteManager) {}
 
-  install(plugin: SitePluginDefinition): void {
-    if (plugin.apiVersion !== KAWAIKARA_SITE_API_VERSION) {
+  install(bundle: BundleDefinition): void {
+    if (!isBundleDefinition(bundle)) {
+      throw new Error('The extension entry must export one Bundle.');
+    }
+    if (bundle.apiVersion !== KAWAIKARA_SITE_API_VERSION) {
       throw new Error(
-        `Plugin ${plugin.id} requires site API ${plugin.apiVersion}; ` +
+        `Bundle ${bundle.id} requires Site API ${bundle.apiVersion}; ` +
           `this app supports ${KAWAIKARA_SITE_API_VERSION}.`,
       );
     }
-
-    if (this.installedPluginIds.has(plugin.id)) {
-      throw new Error(`Plugin ${plugin.id} is already installed.`);
+    if (this.installedBundleIds.has(bundle.id)) {
+      throw new Error(`Bundle ${bundle.id} is already installed.`);
     }
 
-    this.siteManager.registerPlugin(plugin);
-    this.installedPluginIds.add(plugin.id);
+    try {
+      this.siteManager.registerBundle(bundle);
+      this.installedBundleIds.add(bundle.id);
+    } catch (error) {
+      this.siteManager.rollbackBundleRegistration(bundle.id);
+      throw error;
+    }
   }
 }

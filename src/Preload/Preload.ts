@@ -4,7 +4,10 @@ import {
   type ApplicationLinkId,
   type ApplicationInfo,
   type ApplicationUpdateCheckResult,
+  type ApplicationUpdatePanelState,
   type AppLocale,
+  type BundleInfo,
+  type BundleInstallResult,
   type DeveloperYouTubeStatus,
   type DevToolsMode,
   type DisplayInfo,
@@ -13,7 +16,8 @@ import {
   type PictureInPictureResult,
   type PreferencePatch,
   type PreferenceState,
-  type PluginInfo,
+  type PreferenceUpdateOptions,
+  type BundleRuntimeInfo,
   type SiteMenuItem,
   type RendererMessages,
   type VideoDirectoryEntry,
@@ -50,19 +54,44 @@ const api: KawaikaraRendererApi = {
       ipcRenderer.invoke(
         IPC_CHANNELS.application.developerYouTubeStatus,
       ) as Promise<DeveloperYouTubeStatus>,
-    checkForUpdates: (channel) =>
+    checkForUpdates: () =>
       ipcRenderer.invoke(
         IPC_CHANNELS.application.checkForUpdates,
-        channel,
       ) as Promise<ApplicationUpdateCheckResult>,
+    getUpdateState: () =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.getUpdateState,
+      ) as Promise<ApplicationUpdatePanelState | undefined>,
+    downloadUpdate: () =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.downloadUpdate,
+      ) as Promise<ApplicationUpdatePanelState>,
+    installUpdate: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.application.installUpdate),
+    onUpdateStateChanged: (handler) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        state: unknown,
+      ) => handler(state as ApplicationUpdatePanelState);
+      ipcRenderer.on(IPC_CHANNELS.application.updateStateChanged, listener);
+      return () =>
+        ipcRenderer.off(IPC_CHANNELS.application.updateStateChanged, listener);
+    },
     isFullScreen: () =>
       ipcRenderer.invoke(IPC_CHANNELS.application.isFullScreen) as Promise<boolean>,
     exitFullScreen: () =>
       ipcRenderer.invoke(IPC_CHANNELS.application.exitFullScreen),
   },
-  plugins: {
+  bundles: {
+    runtime: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.bundles.runtime) as Promise<BundleRuntimeInfo[]>,
     list: () =>
-      ipcRenderer.invoke(IPC_CHANNELS.plugins.list) as Promise<PluginInfo[]>,
+      ipcRenderer.invoke(IPC_CHANNELS.bundles.list) as Promise<BundleInfo[]>,
+    install: (locale) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.bundles.install,
+        locale,
+      ) as Promise<BundleInstallResult>,
   },
   sites: {
     list: () =>
@@ -126,6 +155,14 @@ const api: KawaikaraRendererApi = {
       return () =>
         ipcRenderer.off(IPC_CHANNELS.overlay.showPreferences, listener);
     },
+    onShowUpdate: (handler) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        state: unknown,
+      ) => handler(state as ApplicationUpdatePanelState);
+      ipcRenderer.on(IPC_CHANNELS.overlay.showUpdate, listener);
+      return () => ipcRenderer.off(IPC_CHANNELS.overlay.showUpdate, listener);
+    },
     onRequestClose: (handler) => {
       const listener = () => handler();
       ipcRenderer.on(IPC_CHANNELS.overlay.requestClose, listener);
@@ -160,10 +197,11 @@ const api: KawaikaraRendererApi = {
   preferences: {
     get: () =>
       ipcRenderer.invoke(IPC_CHANNELS.preferences.get) as Promise<PreferenceState>,
-    update: (patch: PreferencePatch) =>
+    update: (patch: PreferencePatch, options?: PreferenceUpdateOptions) =>
       ipcRenderer.invoke(
         IPC_CHANNELS.preferences.update,
         patch,
+        options,
       ) as Promise<PreferenceState>,
   },
 };

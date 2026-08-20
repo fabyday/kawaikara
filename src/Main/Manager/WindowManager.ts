@@ -9,7 +9,6 @@ import {
   nativeTheme,
   screen,
   session,
-  shell,
   type Input,
   type Rectangle,
   type Session,
@@ -32,6 +31,7 @@ import { UnifiedPictureInPictureManager } from './UnifiedPictureInPictureManager
 import type { SiteRuntimeProfile } from './SiteManager';
 import {
   IPC_CHANNELS,
+  type ApplicationUpdatePanelState,
   type AppLocale,
   type AppTheme,
   type DisplayInfo,
@@ -55,7 +55,13 @@ import {
   getExternalLoginViewData,
   resolveAppLocale,
 } from '../Functional/Locale';
+import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
+import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
 import { attachRendererLogging } from '../Logging';
+import {
+  disableMacOSFullScreenAuxiliary,
+  enableMacOSFullScreenAuxiliary,
+} from '../MacOSWindowSpaces';
 
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
 const INTERNAL_VIDEO_PIP_MARGIN = 20;
@@ -168,6 +174,10 @@ export class WindowManager {
   private closeMenuOnOutsideClick = true;
   private currentVideoOpenRequest: VideoOpenRequest | null = null;
   private pendingVideoOpenRequest?: VideoOpenRequest;
+  private lastLocalVideoOpenRequest?: Extract<
+    VideoOpenRequest,
+    { readonly kind: 'local' }
+  >;
   private externalLoginGeneration = 0;
   private newWindowPolicyResolver?: (url: string) => NewWindowPolicy;
   private siteActionHandler?: (action: string) => Promise<boolean>;
@@ -188,7 +198,9 @@ export class WindowManager {
   private disposing = false;
   private viewerClosePrepared = false;
   private viewerClosePreparation?: Promise<void>;
-  private readonly alwaysOnTopReassertTimers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly internalVideoPictureInPictureReassertTimers = new Set<
+    ReturnType<typeof setTimeout>
+  >();
   private overlayRevealTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
@@ -200,6 +212,11 @@ export class WindowManager {
       () => this.requireViewerWindow(),
       () => this.requireSiteView(),
       (result) => {
+        if (result.status === 'entered') {
+          this.suspendViewerAlwaysOnTopForPictureInPicture();
+        } else if (result.status === 'exited') {
+          this.restoreViewerAlwaysOnTopAfterPictureInPicture();
+        }
         const overlayWindow = this.overlayWindow;
         if (overlayWindow && !overlayWindow.isDestroyed()) {
           overlayWindow.webContents.send(
@@ -234,6 +251,7 @@ export class WindowManager {
         preload: path.resolve(__dirname, '../preload/viewer.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        webgl: true,
         backgroundThrottling: false,
         // electron-mpv-video composes its contextBridge from the preload.
         // Remote sites remain isolated in their sandboxed WebContentsView.
@@ -248,6 +266,7 @@ export class WindowManager {
       show: false,
       frame: false,
       transparent: true,
+      hasShadow: false,
       resizable: false,
       movable: false,
       minimizable: false,
@@ -297,9 +316,6 @@ export class WindowManager {
       this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
-    viewerWindow.on('blur', () => this.scheduleAlwaysOnTopReassertion());
-    viewerWindow.on('restore', () => this.scheduleAlwaysOnTopReassertion());
-    viewerWindow.on('show', () => this.scheduleAlwaysOnTopReassertion());
     viewerWindow.on('close', (event) => {
       if (
         this.pictureInPicture.isActive() ||
@@ -317,7 +333,7 @@ export class WindowManager {
       }
     });
     viewerWindow.on('closed', () => {
-      this.clearAlwaysOnTopReassertions();
+      this.clearInternalVideoPictureInPictureReassertions();
       this.clearOverlayRevealTimer();
       this.pictureInPicture.handleViewerClosed();
       const siteWebContentsId = this.siteView?.webContents.id;
@@ -342,17 +358,19 @@ export class WindowManager {
       const editing = this.editingWebContentsIds.has(overlayWebContentsId);
       if (
         this.overlayVisible &&
-        this.overlayView === 'preference' &&
+        (this.overlayView === 'preference' || this.overlayView === 'update') &&
         input.type === 'keyDown' &&
         !input.isAutoRepeat &&
         !input.isComposing
       ) {
         const key = input.key.toLowerCase();
         if (key === 'tab') {
-          // Preferences has pointer-driven navigation; Tab must not move focus
-          // into either Preferences or the fixed Menu underlay.
-          event.preventDefault();
-          return;
+          if (this.overlayView === 'preference') {
+            // Preferences has pointer-driven navigation; Tab must not move focus
+            // into either Preferences or the fixed Menu underlay.
+            event.preventDefault();
+            return;
+          }
         }
         const plainKey =
           !input.control && !input.meta && !input.alt && !input.shift;
@@ -361,7 +379,7 @@ export class WindowManager {
           (key === 'escape' || (key === 'backspace' && !editing))
         ) {
           event.preventDefault();
-          this.showOverlay();
+          overlayWindow.webContents.send(IPC_CHANNELS.overlay.requestClose);
           return;
         }
         return;
@@ -453,9 +471,12 @@ export class WindowManager {
     );
   }
 
+  isPictureInPictureActive(): boolean {
+    return this.isAnyPictureInPictureActive();
+  }
+
   async dispose(): Promise<void> {
     this.disposing = true;
-    this.clearAlwaysOnTopReassertions();
     await this.exitInternalVideoPictureInPicture(false);
     await this.pictureInPicture.exitAllModes();
     await this.cancelExternalLogin();
@@ -491,13 +512,15 @@ export class WindowManager {
       } catch {
         continue;
       }
-      this.pendingVideoOpenRequest = {
+      const request: Extract<VideoOpenRequest, { readonly kind: 'local' }> = {
         kind: 'local',
         displayName: path.basename(filePath),
         directory: path.dirname(filePath),
         path: filePath,
         url: pathToFileURL(filePath).href,
       };
+      this.pendingVideoOpenRequest = request;
+      this.lastLocalVideoOpenRequest = request;
       return true;
     }
     return false;
@@ -534,6 +557,7 @@ export class WindowManager {
       url: pathToFileURL(filePath).href,
     };
     this.currentVideoOpenRequest = request;
+    this.lastLocalVideoOpenRequest = request;
     return request;
   }
 
@@ -545,8 +569,8 @@ export class WindowManager {
       platform: process.platform,
       arch: process.arch,
       nativeBackendAvailable: nativePlatform && existsSync(resolveMpvAddonPath()),
-      hardwareAccelerationDisabled:
-        process.env.KAWAIKARA_FORCE_SOFTWARE_RENDERING === '1',
+      electronGpuAccelerationEnabled: app.isHardwareAccelerationEnabled(),
+      hardwareAccelerationDisabled: process.env.MPV_HWDEC === 'no',
     };
   }
 
@@ -572,6 +596,7 @@ export class WindowManager {
       return false;
     }
     this.currentVideoOpenRequest = request;
+    this.lastLocalVideoOpenRequest = request;
     return true;
   }
 
@@ -625,6 +650,7 @@ export class WindowManager {
 
   queueVideoOpenRequest(request: VideoOpenRequest): void {
     this.pendingVideoOpenRequest = request;
+    if (request.kind === 'local') this.lastLocalVideoOpenRequest = request;
   }
 
   private dispatchSiteAction(action: string): void {
@@ -673,41 +699,18 @@ export class WindowManager {
         warn: (message, ...args) => console.warn(message, ...args),
         error: (message, ...args) => console.error(message, ...args),
       },
-      openExternal: (url) => shell.openExternal(url),
+      openExternal: (url) => openInDefaultBrowser(url),
     };
   }
 
   setAlwaysOnTop(enabled: boolean): void {
     this.appAlwaysOnTop = enabled;
-    if (!this.internalVideoPictureInPicture) {
+    if (!this.isAnyPictureInPictureActive()) {
       const viewer = this.viewerWindow;
       if (viewer && !viewer.isDestroyed()) {
         this.applyAlwaysOnTop(viewer, enabled);
-        if (enabled) this.scheduleAlwaysOnTopReassertion();
       }
     }
-  }
-
-  shouldRecoverAlwaysOnTopShortcut(): boolean {
-    const viewer = this.viewerWindow;
-    return Boolean(
-      this.appAlwaysOnTop &&
-      viewer &&
-      !viewer.isDestroyed() &&
-      (!viewer.isVisible() || viewer.isMinimized() || !viewer.isFocused()),
-    );
-  }
-
-  recoverAlwaysOnTop(): void {
-    const viewer = this.requireViewerWindow();
-    this.appAlwaysOnTop = true;
-    if (viewer.isMinimized()) viewer.restore();
-    this.applyAlwaysOnTop(viewer, true);
-    viewer.show();
-    if (process.platform === 'darwin') app.focus({ steal: true });
-    viewer.moveTop();
-    viewer.focus();
-    this.scheduleAlwaysOnTopReassertion();
   }
 
   private async prepareViewerWindowClose(viewer: BrowserWindow): Promise<void> {
@@ -734,53 +737,30 @@ export class WindowManager {
   }
 
   private applyAlwaysOnTop(viewer: BrowserWindow, enabled: boolean): void {
-    if (!enabled) {
-      viewer.setAlwaysOnTop(false);
-      if (process.platform === 'darwin') {
-        viewer.setVisibleOnAllWorkspaces(false, { visibleOnFullScreen: false });
-      }
-      return;
-    }
-
+    viewer.setAlwaysOnTop(enabled);
     if (process.platform === 'darwin') {
-      viewer.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      viewer.setAlwaysOnTop(true, 'screen-saver', 1);
-    } else {
-      // screen-saver is stronger than the default normal level and survives
-      // another app switching a borderless window into fullscreen.
-      viewer.setAlwaysOnTop(true, 'screen-saver');
+      // Normal AOT intentionally stays out of another application's native
+      // fullscreen Space. Dedicated PiP windows retain fullscreen visibility.
+      viewer.setVisibleOnAllWorkspaces(enabled, { visibleOnFullScreen: false });
     }
   }
 
-  private scheduleAlwaysOnTopReassertion(): void {
-    if (!this.appAlwaysOnTop || this.internalVideoPictureInPicture) return;
-    this.clearAlwaysOnTopReassertions();
-    for (const delay of [100, 650, 1_800]) {
-      const timer = setTimeout(() => {
-        this.alwaysOnTopReassertTimers.delete(timer);
-        const viewer = this.viewerWindow;
-        if (
-          !this.appAlwaysOnTop ||
-          this.internalVideoPictureInPicture ||
-          !viewer ||
-          viewer.isDestroyed()
-        ) {
-          return;
-        }
-        viewer.setAlwaysOnTop(false);
-        this.applyAlwaysOnTop(viewer, true);
-        if (!viewer.isMinimized()) {
-          viewer.showInactive();
-          viewer.moveTop();
-        }
-      }, delay);
-      this.alwaysOnTopReassertTimers.add(timer);
-    }
+  private isAnyPictureInPictureActive(): boolean {
+    return Boolean(
+      this.internalVideoPictureInPicture || this.pictureInPicture.isActive(),
+    );
   }
 
-  private clearAlwaysOnTopReassertions(): void {
-    for (const timer of this.alwaysOnTopReassertTimers) clearTimeout(timer);
-    this.alwaysOnTopReassertTimers.clear();
+  private suspendViewerAlwaysOnTopForPictureInPicture(): void {
+    const viewer = this.viewerWindow;
+    if (viewer && !viewer.isDestroyed()) this.applyAlwaysOnTop(viewer, false);
+  }
+
+  private restoreViewerAlwaysOnTopAfterPictureInPicture(): void {
+    if (this.disposing || this.isAnyPictureInPictureActive()) return;
+    const viewer = this.viewerWindow;
+    if (!viewer || viewer.isDestroyed()) return;
+    this.applyAlwaysOnTop(viewer, this.appAlwaysOnTop);
   }
 
   setMenuDismissBehavior(
@@ -875,7 +855,18 @@ export class WindowManager {
   private async togglePictureInPictureWithOverlay(
     toggle: () => ReturnType<UnifiedPictureInPictureManager['toggle']>,
   ) {
-    const result = await toggle();
+    const entering = !this.pictureInPicture.isActive();
+    if (entering) this.suspendViewerAlwaysOnTopForPictureInPicture();
+    let result;
+    try {
+      result = await toggle();
+    } catch (error) {
+      this.restoreViewerAlwaysOnTopAfterPictureInPicture();
+      throw error;
+    }
+    if (result.status !== 'entered') {
+      this.restoreViewerAlwaysOnTopAfterPictureInPicture();
+    }
     if (result.status === 'exited') {
       this.focusViewer();
     }
@@ -916,9 +907,16 @@ export class WindowManager {
 
   setAppTheme(theme: AppTheme): void {
     this.appTheme = theme;
-    // Electron exposes this to BrowserWindows and remote WebContentsViews as
-    // prefers-color-scheme, so sites that support it follow the app theme.
     nativeTheme.themeSource = theme;
+    const siteWebContents = this.siteView?.webContents;
+    if (siteWebContents && !siteWebContents.isDestroyed()) {
+      this.applyThemeToRemoteWebContents(siteWebContents);
+    }
+    for (const popup of this.sitePopupWindows) {
+      if (!popup.isDestroyed()) {
+        this.applyThemeToRemoteWebContents(popup.webContents);
+      }
+    }
   }
 
   setInternalVideoPresentation(webContentsId: number, value: unknown): boolean {
@@ -964,6 +962,7 @@ export class WindowManager {
       visibleOnAllWorkspaces: video.isVisibleOnAllWorkspaces(),
     };
     this.internalVideoPictureInPicture = saved;
+    this.suspendViewerAlwaysOnTopForPictureInPicture();
     this.hideOverlay();
 
     const aspectRatio = this.internalVideoPresentation.width > 0 &&
@@ -981,6 +980,9 @@ export class WindowManager {
       preferred,
       this.pictureInPicturePlacement,
     );
+    if (process.platform === 'darwin') {
+      this.prepareMacApplicationForInternalVideoPictureInPicture();
+    }
     video.hide();
     video.setParentWindow(null);
     viewer.hide();
@@ -993,19 +995,24 @@ export class WindowManager {
     video.setAspectRatio(aspectRatio ?? 0);
     video.setBounds(bounds, false);
     if (process.platform === 'darwin') {
+      video.setAlwaysOnTop(true, 'screen-saver');
       video.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      video.setAlwaysOnTop(true, 'screen-saver', 1);
     } else {
-      video.setAlwaysOnTop(true, 'pop-up-menu');
+      video.setAlwaysOnTop(true, 'screen-saver');
     }
     video.webContents.send(
       IPC_CHANNELS.video.pictureInPictureChanged,
       true,
     );
-    video.show();
-    video.moveTop();
-    video.focus();
-    video.webContents.focus();
+    if (process.platform === 'darwin') {
+      this.presentInternalVideoPictureInPicture(video);
+      this.scheduleInternalVideoPictureInPictureReassertion();
+    } else {
+      video.show();
+      video.moveTop();
+      video.focus();
+      video.webContents.focus();
+    }
     this.notifyPictureInPictureChanged({ status: 'entered', mode: 'window' });
     return { status: 'entered' as const, mode: 'window' as const };
   }
@@ -1013,6 +1020,7 @@ export class WindowManager {
   private async exitInternalVideoPictureInPicture(notify = true): Promise<void> {
     const state = this.internalVideoPictureInPicture;
     if (!state) return;
+    this.clearInternalVideoPictureInPictureReassertions();
     const viewer = this.viewerWindow;
     const video = this.videoWindow;
     if (video && !video.isDestroyed()) {
@@ -1034,9 +1042,15 @@ export class WindowManager {
       video.setAspectRatio(0);
       video.setAlwaysOnTop(false);
       if (process.platform === 'darwin') {
+        disableMacOSFullScreenAuxiliary(video);
         video.setVisibleOnAllWorkspaces(state.visibleOnAllWorkspaces, {
           visibleOnFullScreen: state.visibleOnAllWorkspaces,
         });
+        // PiP temporarily adopts Chatty's Dock-hidden UI-element presentation
+        // so it can join another application's fullscreen Space. Reverse that
+        // process state before showing Kawaikara's normal viewer again.
+        app.setActivationPolicy('regular');
+        await app.dock?.show();
       }
       video.setMinimumSize(...state.minimumSize);
       video.setMovable(state.movable);
@@ -1049,9 +1063,60 @@ export class WindowManager {
         video.moveTop();
       }
     }
+    this.restoreViewerAlwaysOnTopAfterPictureInPicture();
     if (notify) {
       this.notifyPictureInPictureChanged({ status: 'exited', mode: 'window' });
     }
+  }
+
+  private presentInternalVideoPictureInPicture(video: BrowserWindow): void {
+    if (video.isDestroyed()) return;
+    this.prepareMacApplicationForInternalVideoPictureInPicture();
+    video.setAlwaysOnTop(true, 'screen-saver');
+    video.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+    });
+    enableMacOSFullScreenAuxiliary(video);
+    // Keep the game active. Clicking the PiP can still activate it naturally.
+    video.showInactive();
+    video.moveTop();
+  }
+
+  private prepareMacApplicationForInternalVideoPictureInPicture(): void {
+    // AppKit's FullScreenAuxiliary behavior requires an accessory process.
+    // The native bridge then adds the existing true fullscreen Space that
+    // Electron can omit when Kawaikara originally launched as a Dock app.
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
+
+  private scheduleInternalVideoPictureInPictureReassertion(): void {
+    if (process.platform !== 'darwin' || !this.internalVideoPictureInPicture) {
+      return;
+    }
+    this.clearInternalVideoPictureInPictureReassertions();
+    for (const delay of [0, 250, 1_000]) {
+      const timer = setTimeout(() => {
+        this.internalVideoPictureInPictureReassertTimers.delete(timer);
+        const video = this.videoWindow;
+        if (
+          !this.internalVideoPictureInPicture ||
+          !video ||
+          video.isDestroyed()
+        ) {
+          return;
+        }
+        this.presentInternalVideoPictureInPicture(video);
+      }, delay);
+      this.internalVideoPictureInPictureReassertTimers.add(timer);
+    }
+  }
+
+  private clearInternalVideoPictureInPictureReassertions(): void {
+    for (const timer of this.internalVideoPictureInPictureReassertTimers) {
+      clearTimeout(timer);
+    }
+    this.internalVideoPictureInPictureReassertTimers.clear();
   }
 
   private notifyPictureInPictureChanged(result: {
@@ -1123,6 +1188,24 @@ export class WindowManager {
     this.overlayVisible = true;
     overlay.webContents.send(IPC_CHANNELS.overlay.showPreferences);
     this.revealOverlay(overlay);
+  }
+
+  showUpdateOverlay(state: ApplicationUpdatePanelState): void {
+    const overlay = this.requireOverlayWindow();
+    this.overlayView = 'update';
+    this.syncOverlayBounds();
+    this.overlayVisible = true;
+    overlay.webContents.send(IPC_CHANNELS.overlay.showUpdate, state);
+    this.revealOverlay(overlay);
+  }
+
+  updateUpdateOverlay(state: ApplicationUpdatePanelState): void {
+    const overlay = this.overlayWindow;
+    if (!overlay || overlay.isDestroyed()) return;
+    overlay.webContents.send(
+      IPC_CHANNELS.application.updateStateChanged,
+      state,
+    );
   }
 
   hideOverlay(): void {
@@ -1213,6 +1296,11 @@ export class WindowManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // Provider views are moved between native windows for unified PiP.
+        // Disable throttling at construction time so Chromium never starts a
+        // streaming document as backgrounded and lets sites pause its media or
+        // suspend its audio pipeline during a view/window transition.
+        backgroundThrottling: false,
         // HTML5 fullscreen stays inside the host window. Native app fullscreen
         // remains an explicit Kawaikara shortcut.
         disableHtmlFullscreenWindowResize: true,
@@ -1224,7 +1312,16 @@ export class WindowManager {
       createBrowserUserAgent(siteView.webContents.getUserAgent()),
     );
     this.configureSiteSession(siteSession);
+    // Provider injections log with a stable prefix. Forward only those
+    // messages instead of every third-party site console line, which keeps
+    // the application log useful when diagnosing quality/ad playback.
+    attachRendererLogging(
+      siteView.webContents,
+      `site:${runtime.siteId}`,
+      (message) => message.includes('[Kawaikara/'),
+    );
     this.attachSiteWebContents(siteView.webContents, siteSession);
+    this.applyThemeToRemoteWebContents(siteView.webContents);
     viewerWindow.contentView.addChildView(siteView);
     this.siteViewAttached = true;
     this.syncSiteViewBounds();
@@ -1240,18 +1337,61 @@ export class WindowManager {
     siteSession: Session,
   ): void {
     const webContentsId = webContents.id;
+    const refreshSiteSurface = (reason: string): void => {
+      setTimeout(() => {
+        const siteView = this.siteView;
+        if (
+          !this.siteViewAttached ||
+          !siteView ||
+          siteView.webContents.id !== webContentsId ||
+          webContents.isDestroyed()
+        ) {
+          return;
+        }
+        // WebContentsView can occasionally retain a missing compositor
+        // surface after a same-document player transition. Reasserting its
+        // visibility and invalidating the surface is safe and does not reload
+        // or reset the stream.
+        siteView.setVisible(true);
+        webContents.invalidate();
+        console.debug(`Refreshed the site compositor surface (${reason}).`);
+      }, 0);
+    };
     webContents.on('dom-ready', () => {
+      this.applyThemeToRemoteWebContents(webContents);
       void webContents
         .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user' })
         .catch((error: unknown) => {
           console.debug('The site scrollbar theme could not be applied.', error);
         });
+      refreshSiteSurface('dom-ready');
+    });
+    webContents.on('did-finish-load', () => refreshSiteSurface('did-finish-load'));
+    webContents.on('media-started-playing', () =>
+      refreshSiteSurface('media-started-playing'),
+    );
+    webContents.on(
+      'did-fail-load',
+      (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame || errorCode === -3) return;
+        console.warn('Site main-frame load failed.', {
+          errorCode,
+          errorDescription,
+          url: validatedURL,
+        });
+      },
+    );
+    webContents.on('render-process-gone', (_event, details) => {
+      console.error('Site renderer process exited.', details);
+      if (details.reason === 'clean-exit' || webContents.isDestroyed()) return;
+      setTimeout(() => {
+        if (!webContents.isDestroyed()) webContents.reload();
+      }, 500);
     });
     webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(webContentsId);
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
-
     const guardNavigation = (event: Electron.Event, url: string): void => {
       const action = this.parseSiteAction(url);
       if (action !== undefined) {
@@ -1300,7 +1440,9 @@ export class WindowManager {
       const policy = this.newWindowPolicyResolver?.(url) ?? 'viewer';
       switch (policy) {
         case 'external':
-          void shell.openExternal(url);
+          void openInDefaultBrowser(url).catch((error: unknown) => {
+            console.error(`Failed to open ${url} in the default browser.`, error);
+          });
           return { action: 'deny' };
         case 'viewer':
           void webContents.loadURL(url).catch((error: unknown) => {
@@ -1334,9 +1476,44 @@ export class WindowManager {
       // A site-specific browser UA must also be visible to popup JavaScript.
       // Session request interception covers the initial navigation headers.
       popupWindow.webContents.setUserAgent(webContents.getUserAgent());
+      this.applyThemeToRemoteWebContents(popupWindow.webContents);
       popupWindow.setMenuBarVisibility(false);
       popupWindow.on('closed', () => this.sitePopupWindows.delete(popupWindow));
     });
+  }
+
+  private applyThemeToRemoteWebContents(webContents: WebContents): void {
+    if (webContents.isDestroyed()) return;
+    const theme = this.appTheme;
+    void (async () => {
+      try {
+        if (!webContents.debugger.isAttached()) {
+          webContents.debugger.attach('1.3');
+        }
+        await webContents.debugger.sendCommand('Emulation.setEmulatedMedia', {
+          media: '',
+          features: [{ name: 'prefers-color-scheme', value: theme }],
+        });
+        // Sites without their own prefers-color-scheme rules still receive a
+        // Chromium-generated dark palette. Passing false restores their
+        // regular light rendering when the app theme changes back.
+        await webContents.debugger.sendCommand(
+          'Emulation.setAutoDarkModeOverride',
+          { enabled: theme === 'dark' },
+        );
+      } catch (error) {
+        console.debug('The site color scheme could not be emulated.', error);
+      }
+
+      try {
+        await webContents.insertCSS(
+          `:root { color-scheme: ${theme} !important; }`,
+          { cssOrigin: 'user' },
+        );
+      } catch (error) {
+        console.debug('The site color-scheme hint could not be applied.', error);
+      }
+    })();
   }
 
   private configureSiteSession(siteSession: Session): void {
@@ -1404,7 +1581,13 @@ export class WindowManager {
         }
         this.internalVideoVisible = true;
         this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
-        const request = this.pendingVideoOpenRequest;
+        // The Video renderer stays alive while a remote Provider is active.
+        // Re-send the last local source when it becomes visible again so
+        // libmpv recreates its Windows shared texture instead of retaining a
+        // stale surface. macOS happens to preserve that surface, which hid the
+        // lifecycle bug there.
+        const request =
+          this.pendingVideoOpenRequest ?? this.lastLocalVideoOpenRequest;
         this.pendingVideoOpenRequest = undefined;
         this.currentVideoOpenRequest = request ?? null;
         const video = await this.ensureVideoWindow();
@@ -1427,6 +1610,22 @@ export class WindowManager {
       },
       executeJavaScript: async <T>(code: string) =>
         (await getWebContents().executeJavaScript(code)) as T,
+      executeJavaScriptInAllFrames: async <T>(code: string) => {
+        const frames = getWebContents().mainFrame.framesInSubtree.filter(
+          (frame) => !frame.isDestroyed(),
+        );
+        const results = await Promise.allSettled(
+          frames.map((frame) => frame.executeJavaScript(code)),
+        );
+        return results.flatMap((result) =>
+          result.status === 'fulfilled' ? [result.value as T] : [],
+        );
+      },
+      sendKeyPress: (key) => {
+        const contents = getWebContents();
+        contents.sendInputEvent({ type: 'keyDown', keyCode: key });
+        contents.sendInputEvent({ type: 'keyUp', keyCode: key });
+      },
       onDomReady: (listener): Disposable => {
         const webContents = getWebContents();
         const wrapped = () => {
@@ -1457,6 +1656,23 @@ export class WindowManager {
           dispose: () => {
             if (!webContents.isDestroyed()) {
               webContents.off('did-finish-load', wrapped);
+            }
+          },
+        };
+      },
+      onFrameReady: (listener): Disposable => {
+        const webContents = getWebContents();
+        const wrapped = () => {
+          void Promise.resolve(listener()).catch((error: unknown) => {
+            console.error('Site frame-ready hook failed.', error);
+          });
+        };
+
+        webContents.on('did-frame-finish-load', wrapped);
+        return {
+          dispose: () => {
+            if (!webContents.isDestroyed()) {
+              webContents.off('did-frame-finish-load', wrapped);
             }
           },
         };
@@ -1609,6 +1825,12 @@ export class WindowManager {
       this.editingWebContentsIds.delete(webContentsId);
     });
     video.webContents.on('page-title-updated', (event) => event.preventDefault());
+    video.on('blur', () => {
+      this.scheduleInternalVideoPictureInPictureReassertion();
+    });
+    video.on('show', () => {
+      this.scheduleInternalVideoPictureInPictureReassertion();
+    });
     video.on('close', (event) => {
       if (this.disposing) return;
       event.preventDefault();
@@ -1619,6 +1841,7 @@ export class WindowManager {
       }
     });
     video.on('closed', () => {
+      this.clearInternalVideoPictureInPictureReassertions();
       this.editingWebContentsIds.delete(webContentsId);
       if (this.videoWindow === video) {
         this.videoWindow = undefined;
@@ -1810,16 +2033,7 @@ async function prepareCurrentDocumentForNavigation(
   }
 
   try {
-    await webContents.executeJavaScript(`
-      (() => {
-        const mediaElements = document.querySelectorAll('audio, video');
-        mediaElements.forEach((media) => {
-          media.autoplay = false;
-          media.pause();
-        });
-        return mediaElements.length;
-      })()
-    `);
+    await webContents.executeJavaScript(PAUSE_DOCUMENT_MEDIA_SCRIPT);
   } catch (error) {
     console.debug('The previous site document was unavailable during media cleanup.', error);
   }

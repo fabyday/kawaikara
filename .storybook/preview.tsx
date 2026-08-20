@@ -4,6 +4,7 @@ import '@kawaikara/kawai-ui/styles.css';
 import '../src/Renderer/Styles/Overlay.css';
 import '../src/Renderer/Styles/Video.css';
 import '../src/Renderer/Styles/ExternalLogin.css';
+import '../src/Renderer/Styles/Update.css';
 import './Preview.css';
 import { installKawaikaraMock } from '../stories/Mocks/KawaikaraMock';
 

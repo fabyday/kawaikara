@@ -1,16 +1,18 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import type {
   AppLocale,
   AppTheme,
+  GraphicsMode,
   LogLevelPreference,
   PreferencePatch,
   PreferenceState,
+  ProviderSettingValue,
   ScopedLocale,
 } from '../../Common/IPC';
 import {
   BUILD_CHANNEL,
-  isReleaseChannel,
   type ReleaseChannel,
 } from '../../Common/BuildConfig';
 import {
@@ -29,6 +31,7 @@ import {
 
 const DEFAULT_PREFERENCES: PreferenceState = {
   alwaysOnTop: false,
+  graphicsMode: 'capture',
   openMenuOnStartup: false,
   closeMenuOnEscape: true,
   closeMenuOnOutsideClick: true,
@@ -45,6 +48,7 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   siteLocales: {},
   browserProfiles: [],
   siteBrowserProfiles: {},
+  providerSettings: {},
   menuCategoryOrder: [],
   menuSiteOrder: [],
   videoSeekSeconds: DEFAULT_VIDEO_SEEK_SECONDS,
@@ -93,6 +97,19 @@ export class PreferenceManager {
       siteLocales: { ...this.state.siteLocales },
       browserProfiles: this.state.browserProfiles.map((profile) => ({ ...profile })),
       siteBrowserProfiles: { ...this.state.siteBrowserProfiles },
+      providerSettings: Object.fromEntries(
+        Object.entries(this.state.providerSettings).map(([providerId, settings]) => [
+          providerId,
+          Object.fromEntries(
+            Object.entries(settings).map(([key, value]) => [
+              key,
+              Array.isArray(value)
+                ? value.map((item) => ({ ...item }))
+                : value,
+            ]),
+          ),
+        ]),
+      ),
       menuCategoryOrder: [...this.state.menuCategoryOrder],
       menuSiteOrder: [...this.state.menuSiteOrder],
       shortcuts: { ...this.state.shortcuts },
@@ -121,6 +138,7 @@ export class PreferenceManager {
         typeof candidate.alwaysOnTop === 'boolean'
           ? candidate.alwaysOnTop
           : DEFAULT_PREFERENCES.alwaysOnTop,
+      graphicsMode: resolveGraphicsMode(candidate.graphicsMode, value),
       openMenuOnStartup:
         typeof candidate.openMenuOnStartup === 'boolean'
           ? candidate.openMenuOnStartup
@@ -166,6 +184,7 @@ export class PreferenceManager {
       siteBrowserProfiles: validateBrowserProfileAssignments(
         candidate.siteBrowserProfiles,
       ),
+      providerSettings: validateProviderSettings(candidate.providerSettings),
       menuCategoryOrder: validateOrderedIds(candidate.menuCategoryOrder, 160),
       menuSiteOrder: validateOrderedIds(candidate.menuSiteOrder, 320),
       videoSeekSeconds: validateVideoSeekSeconds(candidate.videoSeekSeconds),
@@ -181,6 +200,42 @@ export class PreferenceManager {
       shortcuts: validateShortcutRecord(candidate.shortcuts),
     };
   }
+}
+
+/**
+ * Graphics mode must be selected before Electron becomes ready and before the
+ * asynchronous PreferenceManager lifecycle can start.
+ */
+export function readStartupGraphicsMode(filePath: string): GraphicsMode {
+  try {
+    const value = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return DEFAULT_PREFERENCES.graphicsMode;
+    }
+    return resolveGraphicsMode(
+      (value as { readonly graphicsMode?: unknown }).graphicsMode,
+      value,
+    );
+  } catch {
+    return DEFAULT_PREFERENCES.graphicsMode;
+  }
+}
+
+function resolveGraphicsMode(value: unknown, source?: unknown): GraphicsMode {
+  if (value === 'native' || value === 'capture' || value === 'software') {
+    return value;
+  }
+
+  // Migrate the old boolean without leaving existing capture-oriented users on
+  // the slow Canvas2D path. The old enabled mode maps directly to Native.
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    const legacy = (source as { readonly enableGpuAcceleration?: unknown })
+      .enableGpuAcceleration;
+    if (legacy === true) return 'native';
+    if (legacy === false) return 'capture';
+  }
+
+  return DEFAULT_PREFERENCES.graphicsMode;
 }
 
 function validateVideoOverlayHideSeconds(value: unknown): number {
@@ -280,9 +335,66 @@ function validateBrowserProfileAssignments(
   );
 }
 
-function resolveUpdateChannel(value: unknown): ReleaseChannel {
-  if (BUILD_CHANNEL === 'nightly') return 'nightly';
-  return isReleaseChannel(value) ? value : BUILD_CHANNEL;
+function validateProviderSettings(
+  value: unknown,
+): PreferenceState['providerSettings'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+
+  const providers: Record<string, Record<string, ProviderSettingValue>> = {};
+  for (const [providerId, rawSettings] of Object.entries(value).slice(0, 200)) {
+    if (
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(providerId) ||
+      !rawSettings ||
+      typeof rawSettings !== 'object' ||
+      Array.isArray(rawSettings)
+    ) {
+      continue;
+    }
+    const settings: Record<string, ProviderSettingValue> = {};
+    for (const [key, setting] of Object.entries(rawSettings).slice(0, 100)) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/.test(key)) continue;
+      if (
+        setting === null ||
+        typeof setting === 'boolean' ||
+        typeof setting === 'string' ||
+        (typeof setting === 'number' && Number.isFinite(setting))
+      ) {
+        settings[key] = setting;
+      } else if (Array.isArray(setting)) {
+        const seen = new Set<string>();
+        const items = setting.flatMap((item) => {
+          if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+          const candidate = item as Record<string, unknown>;
+          const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+          const label = typeof candidate.label === 'string'
+            ? candidate.label.trim()
+            : '';
+          const description = typeof candidate.description === 'string'
+            ? candidate.description.trim().slice(0, 160)
+            : undefined;
+          const imageUrl = typeof candidate.imageUrl === 'string' &&
+            /^https:\/\//i.test(candidate.imageUrl)
+            ? candidate.imageUrl.slice(0, 2_048)
+            : undefined;
+          if (!id || id.length > 256 || seen.has(id)) return [];
+          seen.add(id);
+          return [{
+            id,
+            label: (label || id).slice(0, 160),
+            description,
+            imageUrl,
+          }];
+        }).slice(0, 500);
+        settings[key] = items;
+      }
+    }
+    if (Object.keys(settings).length > 0) providers[providerId] = settings;
+  }
+  return providers;
+}
+
+function resolveUpdateChannel(_value: unknown): ReleaseChannel {
+  return BUILD_CHANNEL;
 }
 
 function isAppLocale(value: unknown): value is AppLocale {

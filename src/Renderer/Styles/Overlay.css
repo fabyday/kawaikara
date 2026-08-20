@@ -865,6 +865,68 @@ img {
   margin-bottom: 12px;
 }
 
+.graphics-mode-setting {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.graphics-mode-control {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--kawai-color-border);
+  border-radius: 999px;
+  background: #202024;
+}
+
+.graphics-mode-control button {
+  min-width: 86px;
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 13px;
+  background: transparent;
+  color: var(--kawai-color-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.graphics-mode-control button + button {
+  border-left: 1px solid var(--kawai-color-border);
+}
+
+.graphics-mode-control button:hover:not(:disabled):not(.is-active) {
+  background: rgb(255 255 255 / 6%);
+}
+
+.graphics-mode-control button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--kawai-color-primary);
+  outline-offset: -2px;
+}
+
+.graphics-mode-control button.is-active {
+  background: var(--kawai-color-primary);
+  color: #fff;
+}
+
+.graphics-mode-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.graphics-mode-selected-description {
+  max-width: 560px;
+}
+
 .descriptive-select {
   width: 100%;
 }
@@ -1461,10 +1523,15 @@ img {
 .kawai-theme-light .menu-address-form input,
 .kawai-theme-light .number-preference-input-group > input,
 .kawai-theme-light .shortcut-recorder,
-.kawai-theme-light .menu-order-mode-switch {
+.kawai-theme-light .menu-order-mode-switch,
+.kawai-theme-light .graphics-mode-control {
   border-color: rgb(45 35 65 / 16%);
   background: #fff;
   color: #27232e;
+}
+
+.kawai-theme-light .graphics-mode-control button:hover:not(:disabled):not(.is-active) {
+  background: rgb(45 35 65 / 6%);
 }
 
 .kawai-theme-light .menu-address-form button,
@@ -1475,6 +1542,7 @@ img {
 .kawai-theme-light .menu-order-setting,
 .kawai-theme-light .app-info-card,
 .kawai-theme-light .plugin-info-row,
+.kawai-theme-light .bundle-info-row,
 .kawai-theme-light .preference-dialog,
 .kawai-theme-light .shortcut-key-part kbd {
   border-color: rgb(45 35 65 / 14%);
@@ -1616,7 +1684,9 @@ img {
 }
 
 .shortcut-default {
+  display: block;
   margin-top: 3px;
+  white-space: nowrap;
 }
 
 .shortcut-row.is-duplicate {
@@ -1638,11 +1708,263 @@ img {
 }
 
 .app-info-card,
-.plugin-info-row {
+.plugin-info-row,
+.bundle-info-row {
   border: 1px solid var(--kawai-color-border);
   border-radius: 12px;
   padding: 14px;
   background: #242429;
+}
+
+.bundle-heading-copy,
+.bundle-info-copy {
+  min-width: 0;
+}
+
+.bundle-heading-copy {
+  flex: 1;
+}
+
+.bundle-trust-warning {
+  margin-top: 14px;
+  border: 1px solid rgb(251 113 133 / 28%);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(127 29 29 / 18%);
+}
+
+.bundle-install-notice {
+  display: block;
+  margin-top: 10px;
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: rgb(34 197 94 / 12%);
+  color: #86efac;
+}
+
+.bundle-info-row {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.bundle-info-row:hover {
+  border-color: rgb(255 255 255 / 24%);
+  background: #29292f;
+}
+
+.bundle-provider-settings {
+  border-top: 1px solid var(--kawai-color-border);
+  padding-top: 16px;
+}
+
+.bundle-provider-heading,
+.bundle-setting-category,
+.bundle-item-list-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bundle-setting-category {
+  margin-top: 14px;
+  border-radius: 12px;
+  padding: 14px;
+  background: rgb(255 255 255 / 3%);
+}
+
+.bundle-item-list-setting {
+  border-top: 1px solid rgb(255 255 255 / 7%);
+  padding-top: 12px;
+}
+
+.bundle-item-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: rgb(255 255 255 / 5%);
+}
+
+.bundle-item-list-compact {
+  overflow: hidden;
+  border: 1px solid var(--kawai-color-border);
+  border-radius: 10px;
+}
+
+.bundle-item-list-compact .bundle-item-list-row {
+  border-radius: 0;
+}
+
+.bundle-item-list-compact .bundle-item-list-row + .bundle-item-list-row,
+.bundle-item-list-more {
+  border-top: 1px solid var(--kawai-color-border);
+}
+
+.bundle-item-list-more {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: rgb(255 255 255 / 3%);
+  color: var(--kawai-color-muted-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.bundle-more-chevron {
+  display: inline-block;
+  transform: rotate(-90deg);
+  font-size: 15px;
+}
+
+.bundle-list-identity {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.bundle-list-avatar {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgb(255 255 255 / 8%);
+}
+
+.bundle-list-avatar.is-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--kawai-color-muted-foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bundle-list-dialog {
+  width: min(560px, calc(100vw - 40px));
+  max-height: min(640px, calc(100vh - 60px));
+}
+
+.bundle-list-dialog-content {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.bundle-list-actions {
+  border-top: 1px solid var(--kawai-color-border);
+  border-bottom: 1px solid var(--kawai-color-border);
+  padding: 10px 0;
+}
+
+.bundle-item-list-row.is-dialog {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.bundle-item-list-row.is-dialog.is-selected {
+  background: color-mix(in srgb, var(--kawai-color-primary) 14%, transparent);
+}
+
+.bundle-info-row.is-failed {
+  border-color: rgb(251 113 133 / 38%);
+}
+
+.bundle-info-copy {
+  flex: 1;
+}
+
+.bundle-version-copy {
+  flex: 0 0 auto;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.bundle-source-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgb(255 255 255 / 5%);
+  color: var(--kawai-color-muted-foreground);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.bundle-source-badge.is-built-in {
+  border-color: rgb(96 165 250 / 30%);
+  background: rgb(59 130 246 / 12%);
+  color: #93c5fd;
+}
+
+.bundle-contributions,
+.bundle-error {
+  display: block;
+}
+
+.bundle-permission-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bundle-permission-list span {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgb(255 255 255 / 6%);
+  color: var(--kawai-color-muted-foreground);
+  font-size: 10px;
+}
+
+.kawai-theme-light .bundle-trust-warning {
+  border-color: rgb(190 24 93 / 22%);
+  background: rgb(244 63 94 / 8%);
+}
+
+.kawai-theme-light .bundle-install-notice {
+  background: rgb(22 163 74 / 10%);
+  color: #166534;
+}
+
+.kawai-theme-light .bundle-source-badge,
+.kawai-theme-light .bundle-permission-list span {
+  border-color: rgb(45 35 65 / 12%);
+  background: rgb(45 35 65 / 6%);
+  color: #5b5266;
+}
+
+.kawai-theme-light .bundle-source-badge.is-built-in {
+  border-color: rgb(37 99 235 / 23%);
+  background: rgb(59 130 246 / 9%);
+  color: #1d4ed8;
+}
+
+.kawai-theme-light .bundle-info-row:hover,
+.kawai-theme-light .bundle-setting-category,
+.kawai-theme-light .bundle-item-list-row {
+  background: rgb(45 35 65 / 8%);
 }
 
 .app-info-title {
@@ -2067,4 +2389,55 @@ img {
   .shortcut-duplicate {
     grid-column: 1 / -1;
   }
+}
+
+/*
+ * The overlay keeps its keyboard behaviour, but deliberately does not expose
+ * browser/Tailwind focus chrome. Current tabs, toggles and pressed actions
+ * still retain their own semantic selected state.
+ */
+.menu-shell,
+.preference-shell,
+.video-folder-context-menu {
+  --kawai-focus-ring: transparent;
+}
+
+.menu-shell :where(button, a, input, textarea, select, [tabindex]):focus,
+.menu-shell :where(button, a, input, textarea, select, [tabindex]):focus-visible,
+.preference-shell :where(button, a, input, textarea, select, [tabindex]):focus,
+.preference-shell :where(button, a, input, textarea, select, [tabindex]):focus-visible,
+.video-folder-context-menu :where(button, a, [tabindex]):focus,
+.video-folder-context-menu :where(button, a, [tabindex]):focus-visible {
+  outline: none !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+.menu-address-form input:focus,
+.menu-address-form input:focus-visible {
+  border-color: rgb(255 255 255 / 14%);
+  box-shadow: none;
+}
+
+.preference-shell :where(input, textarea, select):focus,
+.preference-shell :where(input, textarea, select):focus-visible,
+.preference-shell button[aria-haspopup='listbox']:focus,
+.preference-shell button[aria-haspopup='listbox']:focus-visible {
+  border-color: var(--kawai-color-border) !important;
+  box-shadow: none !important;
+}
+
+.graphics-mode-control button:focus-visible {
+  outline: none;
+}
+
+.shortcut-recorder:focus-within {
+  border-color: var(--kawai-color-border);
+  box-shadow: none;
+}
+
+.menu-order-drag-handle:focus-visible:not(:hover) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--kawai-color-text-muted);
 }

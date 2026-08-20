@@ -72,6 +72,29 @@ export interface AppMessages {
   readonly sharedProfileDescription: string;
   readonly drmProfileWarning: string;
   readonly shortcuts: string;
+  readonly bundles: string;
+  readonly bundleManagement: string;
+  readonly bundlesDescription: string;
+  readonly addBundle: string;
+  readonly backToBundles: string;
+  readonly bundleTrustWarning: string;
+  readonly installedBundles: string;
+  readonly builtInBundle: string;
+  readonly userBundle: string;
+  readonly bundleActive: string;
+  readonly bundleRestartRequired: string;
+  readonly bundleFailed: string;
+  readonly bundleInstallSuccess: string;
+  readonly noBundles: string;
+  readonly emptyBundle: string;
+  readonly permissions: string;
+  readonly noProviderSettings: string;
+  readonly remove: string;
+  readonly showMore: string;
+  readonly selectAll: string;
+  readonly clearSelection: string;
+  readonly removeSelected: string;
+  readonly bundleListCount: string;
   readonly appInfo: string;
   readonly developer: string;
   readonly developerTools: string;
@@ -84,6 +107,24 @@ export interface AppMessages {
   readonly devToolsPlacementDetach: string;
   readonly openDevTools: string;
   readonly viewer: string;
+  readonly shortFormVideo: string;
+  readonly shortFormVideoDescription: string;
+  readonly youtubeShortsAutoAdvance: string;
+  readonly youtubeShortsAutoAdvanceDescription: string;
+  readonly chzzkClipsAutoAdvance: string;
+  readonly chzzkClipsAutoAdvanceDescription: string;
+  readonly performance: string;
+  readonly graphicsMode: string;
+  readonly graphicsModeDescription: string;
+  readonly graphicsModeNative: string;
+  readonly graphicsModeNativeDescription: string;
+  readonly graphicsModeCompatible: string;
+  readonly graphicsModeCompatibleDescription: string;
+  readonly graphicsModeSoftware: string;
+  readonly graphicsModeSoftwareDescription: string;
+  readonly graphicsRestartTitle: string;
+  readonly graphicsRestartDescription: string;
+  readonly applyAndRestart: string;
   readonly alwaysOnTop: string;
   readonly alwaysOnTopDescription: string;
   readonly openMenuOnStartup: string;
@@ -152,6 +193,9 @@ export interface AppMessages {
   readonly logLevelNoneDescription: string;
   readonly videoShortcuts: string;
   readonly videoShortcutsDescription: string;
+  readonly shortFormVideoShortcuts: string;
+  readonly shortFormVideoShortcutsDescription: string;
+  readonly providerShortcuts: string;
   readonly menuCategoryShortcuts: string;
   readonly menuCategoryShortcutsDescription: string;
   readonly categoryPosition: string;
@@ -201,6 +245,7 @@ export interface AppMessages {
   readonly liveStatusUnavailable: string;
   readonly checkingLive: string;
   readonly installedPlugins: string;
+  readonly plugins: string;
   readonly sites: string;
 }
 
@@ -232,6 +277,7 @@ export interface VideoMessages {
   readonly nativeErrorFallback: string;
   readonly nativeUnavailableFallback: string;
   readonly softwareRenderingWarning: string;
+  readonly captureCompatibleRenderingWarning: string;
 }
 
 export interface VideoBrowserMessages {

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.builtin-sites",
+  "name": "Kawaikara Built-in Providers",
+  "description": "Official Providers bundled with Kawaikara.",
+  "version": "3.0.0-dev.0",
+  "apiVersion": 1,
+  "permissions": [
+    "navigation",
+    "internal-view",
+    "script-injection",
+    "cookies",
+    "network-interception",
+    "external-browser"
+  ],
+  "providers": [
+    "Providers/Netflix",
+    "Providers/Laftel",
+    "Providers/DisneyPlus",
+    "Providers/Video",
+    "Providers/YouTube",
+    "Providers/PrimeVideo",
+    "Providers/Wavve",
+    "Providers/Watcha",
+    "Providers/CoupangPlay",
+    "Providers/Tving",
+    "Providers/AppleTv",
+    "Providers/Crunchyroll",
+    "Providers/Chzzk",
+    "Providers/Twitch",
+    "Providers/AppleMusic",
+    "Providers/Spotify",
+    "Providers/YouTubeMusic",
+    "Providers/RidiBooks"
+  ],
+  "plugins": ["Plugins/ProviderIdentity"],
+  "locale": {
+    "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+    "defaultLocale": "inherit"
+  },
+  "browserProfiles": [
+    {
+      "id": "google",
+      "name": "Google",
+      "description": "Shares Google sign-in between YouTube integrations.",
+      "persistent": true
+    }
+  ]
+}

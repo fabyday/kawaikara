@@ -1,0 +1,16 @@
+diff --git a/dist/main/mpv-service.js b/dist/main/mpv-service.js
+index 4c6ce20..dad67b0 100644
+--- a/dist/main/mpv-service.js
++++ b/dist/main/mpv-service.js
+@@ -285,7 +285,10 @@ class PlayerSession {
+         }
+         else {
+             const frame = this.player.renderFrame(this.renderSize.width, this.renderSize.height);
+-            const rgba = frame.rgba.buffer.slice(frame.rgba.byteOffset, frame.rgba.byteOffset + frame.rgba.byteLength);
++            const rgba = frame.rgba.byteOffset === 0 &&
++                frame.rgba.byteLength === frame.rgba.buffer.byteLength
++                ? frame.rgba.buffer
++                : frame.rgba.buffer.slice(frame.rgba.byteOffset, frame.rgba.byteOffset + frame.rgba.byteLength);
+             this.window.webContents.send(channel('player:frame'), {
+                 playerId: this.id,
+                 width: frame.width,

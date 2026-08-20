@@ -50,6 +50,21 @@ body,
   height: auto;
 }
 
+.video-player-host {
+  contain: strict;
+  isolation: isolate;
+}
+
+.video-player,
+.video-fallback-player {
+  transform: translateZ(0);
+}
+
+.video-shell[data-electron-gpu="false"] .video-player {
+  /* Avoid an extra software-composited layer around the Canvas2D frame. */
+  transform: none;
+}
+
 .video-shell[data-controls-layout="overlay"] .video-player-host,
 .video-shell[data-controls-layout="overlay"] .video-fallback-player,
 .video-shell[data-controls-layout="overlay"] .video-interaction-surface {

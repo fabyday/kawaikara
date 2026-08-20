@@ -1,4 +1,5 @@
 import { DeveloperLinkManager } from '../Manager/DeveloperLinkManager';
+import { BundleManager } from '../Manager/BundleManager';
 import { DiscordPresenceManager } from '../Manager/DiscordPresenceManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
 import { ExternalDownloaderManager } from '../Manager/ExternalDownloaderManager';
@@ -22,6 +23,7 @@ import {
 } from './ManagerContainer';
 
 export const MANAGER_TOKENS = {
+  bundles: createManagerToken<BundleManager>('BundleManager'),
   developerLinks: createManagerToken<DeveloperLinkManager>(
     'DeveloperLinkManager',
   ),
@@ -47,6 +49,7 @@ export const MANAGER_TOKENS = {
 } as const;
 
 export interface ApplicationManagerOptions {
+  readonly bundleDirectoryPath: string;
   readonly preferenceFilePath: string;
   readonly videoLibraryFilePath: string;
   readonly standardVideoLocations: readonly StandardVideoLocation[];
@@ -98,6 +101,14 @@ export function createApplicationManagerContainer(
       },
     )
     .registerSingleton(
+      MANAGER_TOKENS.bundles,
+      (resolver) =>
+        new BundleManager(
+          resolver.resolve(MANAGER_TOKENS.sites),
+          options.bundleDirectoryPath,
+        ),
+    )
+    .registerSingleton(
       MANAGER_TOKENS.shortcuts,
       (resolver) =>
         new ShortcutManager(
@@ -114,7 +125,11 @@ export function createApplicationManagerContainer(
       MANAGER_TOKENS.developerLinks,
       () => new DeveloperLinkManager(),
     )
-    .registerSingleton(MANAGER_TOKENS.updates, () => new UpdateManager())
+    .registerSingleton(
+      MANAGER_TOKENS.updates,
+      (resolver) =>
+        new UpdateManager(resolver.resolve(MANAGER_TOKENS.windows)),
+    )
     .registerSingleton(
       MANAGER_TOKENS.discordPresence,
       () => new DiscordPresenceManager(),
@@ -123,6 +138,7 @@ export function createApplicationManagerContainer(
       MANAGER_TOKENS.ipc,
       (resolver) =>
         new IpcManager(
+          resolver.resolve(MANAGER_TOKENS.bundles),
           resolver.resolve(MANAGER_TOKENS.sites),
           resolver.resolve(MANAGER_TOKENS.windows),
           resolver.resolve(MANAGER_TOKENS.preferences),

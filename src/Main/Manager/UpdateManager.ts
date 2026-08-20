@@ -1,17 +1,19 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import log from 'electron-log/main';
 import { autoUpdater } from 'electron-updater';
 import {
   BUILD_CHANNEL,
+  UPDATE_REPOSITORIES,
   toUpdaterChannel,
-  type ReleaseChannel,
 } from '../../Common/BuildConfig';
 import type {
   ApplicationUpdateCheckResult,
-  AppLocale,
+  ApplicationUpdatePanelState,
+  ApplicationUpdateProgress,
   PreferenceState,
 } from '../../Common/IPC';
 import { createLogger } from '../Logging';
+import type { WindowManager } from './WindowManager';
 
 const CHECK_TIMEOUT_MS = 60_000;
 const updateLog = createLogger('updates');
@@ -19,14 +21,17 @@ const updateLog = createLogger('updates');
 interface UpdateSignal {
   readonly available: boolean;
   readonly version: string;
+  readonly releaseNotes?: string;
 }
 
 export class UpdateManager {
   private preferences?: PreferenceState;
   private checkRequest?: Promise<ApplicationUpdateCheckResult>;
+  private downloadRequest?: Promise<ApplicationUpdatePanelState>;
+  private currentState?: ApplicationUpdatePanelState;
   private installingUpdate = false;
 
-  constructor() {
+  constructor(private readonly windows: WindowManager) {
     autoUpdater.logger = log;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
@@ -34,79 +39,159 @@ export class UpdateManager {
 
   configure(preferences: PreferenceState): void {
     this.preferences = preferences;
-    const channel = this.resolveChannel(preferences.updateChannel);
-    this.applyChannel(channel);
+    this.applyBuildChannel();
   }
 
-  private applyChannel(channel: ReleaseChannel): void {
-    autoUpdater.channel = toUpdaterChannel(channel);
-    autoUpdater.allowPrerelease = channel !== 'stable';
-    autoUpdater.allowDowngrade = true;
+  private applyBuildChannel(): void {
+    const repository = UPDATE_REPOSITORIES[BUILD_CHANNEL];
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: repository.owner,
+      repo: repository.repo,
+      channel: toUpdaterChannel(BUILD_CHANNEL),
+    });
+    autoUpdater.channel = toUpdaterChannel(BUILD_CHANNEL);
+    autoUpdater.allowPrerelease = BUILD_CHANNEL !== 'stable';
+    // A package can only advance inside the repository/channel it was built
+    // for. Cross-channel upgrades and downgrades are intentionally disabled.
+    autoUpdater.allowDowngrade = false;
   }
 
   async checkAtStartup(): Promise<void> {
     if (!this.preferences?.automaticUpdates) return;
-    await this.checkForUpdates(true);
+    await this.checkForUpdatesInternal('automatic', true);
   }
 
-  async checkForUpdates(
-    offerInstallation = true,
-    preferredChannel?: ReleaseChannel,
-  ): Promise<ApplicationUpdateCheckResult> {
-    if (this.checkRequest) return this.checkRequest;
-    const request = this.performCheck(offerInstallation, preferredChannel);
-    this.checkRequest = request;
-    try {
-      return await request;
-    } finally {
-      if (this.checkRequest === request) this.checkRequest = undefined;
-      this.applyChannel(this.resolveChannel(this.preferences?.updateChannel));
-    }
+  checkForUpdates(): Promise<ApplicationUpdateCheckResult> {
+    return this.checkForUpdatesInternal('manual', false);
+  }
+
+  getState(): ApplicationUpdatePanelState | undefined {
+    return this.currentState;
   }
 
   isInstalling(): boolean {
     return this.installingUpdate;
   }
 
-  private async performCheck(
-    offerInstallation: boolean,
-    preferredChannel?: ReleaseChannel,
+  async downloadUpdate(): Promise<ApplicationUpdatePanelState> {
+    if (this.downloadRequest) return this.downloadRequest;
+    const state = this.currentState;
+    if (!state || state.phase !== 'available') {
+      throw new Error('No checked update is ready to download.');
+    }
+
+    const request = this.performDownload(state);
+    this.downloadRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (this.downloadRequest === request) this.downloadRequest = undefined;
+    }
+  }
+
+  installUpdate(): void {
+    if (this.currentState?.phase !== 'downloaded' || this.installingUpdate) {
+      return;
+    }
+    this.installingUpdate = true;
+    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+  }
+
+  private async checkForUpdatesInternal(
+    origin: ApplicationUpdatePanelState['origin'],
+    downloadAutomatically: boolean,
   ): Promise<ApplicationUpdateCheckResult> {
-    const channel = this.resolveChannel(
-      preferredChannel ?? this.preferences?.updateChannel,
-    );
+    if (this.checkRequest) {
+      if (this.currentState?.origin === 'manual') {
+        this.windows.showUpdateOverlay(this.currentState);
+      }
+      return this.checkRequest;
+    }
+    const request = this.performCheck(origin, downloadAutomatically);
+    this.checkRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (this.checkRequest === request) this.checkRequest = undefined;
+      this.applyBuildChannel();
+    }
+  }
+
+  private async performCheck(
+    origin: ApplicationUpdatePanelState['origin'],
+    downloadAutomatically: boolean,
+  ): Promise<ApplicationUpdateCheckResult> {
     const currentVersion = app.getVersion();
+    const checkingState: ApplicationUpdatePanelState = {
+      phase: 'checking',
+      origin,
+      channel: BUILD_CHANNEL,
+      currentVersion,
+    };
+    if (origin === 'manual') {
+      this.presentState(checkingState);
+    } else {
+      // Automatic startup checks are deliberately invisible. The update
+      // overlay appears only after a newer release has actually been found.
+      this.currentState = checkingState;
+    }
 
     if (!app.isPackaged) {
+      const unsupported: ApplicationUpdatePanelState = {
+        phase: 'unsupported',
+        origin,
+        channel: BUILD_CHANNEL,
+        currentVersion,
+      };
+      this.finishCheckState(unsupported);
       return {
         status: 'unsupported',
-        channel,
+        channel: BUILD_CHANNEL,
         currentVersion,
       };
     }
 
-    this.applyChannel(channel);
+    this.applyBuildChannel();
 
     try {
       const signal = await this.waitForUpdateSignal();
-      const result: ApplicationUpdateCheckResult = {
+      const checkedState: ApplicationUpdatePanelState = {
+        phase: signal.available ? 'available' : 'up-to-date',
+        origin,
+        channel: BUILD_CHANNEL,
+        currentVersion,
+        latestVersion: signal.version,
+        releaseNotes: signal.releaseNotes,
+      };
+
+      if (signal.available && downloadAutomatically) {
+        this.currentState = checkedState;
+        await this.performDownload(checkedState, true);
+      } else {
+        this.finishCheckState(checkedState);
+      }
+
+      return {
         status: signal.available ? 'update-available' : 'up-to-date',
-        channel,
+        channel: BUILD_CHANNEL,
         currentVersion,
         latestVersion: signal.version,
       };
-
-      if (signal.available && offerInstallation) {
-        const error = await this.offerUpdate(signal.version, channel);
-        if (error) return { ...result, status: 'error', error };
-      }
-      return result;
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
       updateLog.error('Update check failed.', error);
+      const failedState: ApplicationUpdatePanelState = {
+        phase: 'error',
+        origin,
+        channel: BUILD_CHANNEL,
+        currentVersion,
+        error,
+      };
+      this.finishCheckState(failedState);
       return {
         status: 'error',
-        channel,
+        channel: BUILD_CHANNEL,
         currentVersion,
         error,
       };
@@ -122,8 +207,14 @@ export class UpdateManager {
         cleanup();
         callback();
       };
-      const onAvailable = (info: { version: string }) =>
-        finish(() => resolve({ available: true, version: info.version }));
+      const onAvailable = (info: {
+        version: string;
+        releaseNotes?: unknown;
+      }) => finish(() => resolve({
+        available: true,
+        version: info.version,
+        releaseNotes: normalizeReleaseNotes(info.releaseNotes),
+      }));
       const onNotAvailable = (info: { version: string }) =>
         finish(() => resolve({ available: false, version: info.version }));
       const onError = (error: Error) => finish(() => reject(error));
@@ -151,109 +242,128 @@ export class UpdateManager {
     });
   }
 
-  private async offerUpdate(
-    version: string,
-    channel: ReleaseChannel,
-  ): Promise<string | undefined> {
-    const messages = getUpdateMessages(this.preferences?.appLocale ?? 'system');
-    const prompt = await dialog.showMessageBox({
-      type: 'info',
-      title: messages.foundTitle,
-      message: messages.foundMessage.replace('{version}', version),
-      detail: `${messages.channel}: ${channel}`,
-      buttons: [messages.download, messages.later],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
-    });
-    if (prompt.response !== 0) return undefined;
+  private async performDownload(
+    available: ApplicationUpdatePanelState,
+    presentAutomatically = false,
+  ): Promise<ApplicationUpdatePanelState> {
+    const downloading: ApplicationUpdatePanelState = {
+      ...available,
+      phase: 'downloading',
+      progress: {
+        percent: 0,
+        bytesPerSecond: 0,
+        transferred: 0,
+        total: 0,
+      },
+    };
+    if (presentAutomatically) {
+      this.presentState(downloading);
+    } else {
+      this.updateState(downloading);
+    }
 
-    const onProgress = (progress: { percent: number }) => {
+    const onProgress = (progress: ApplicationUpdateProgress) => {
       for (const window of BrowserWindow.getAllWindows()) {
         window.setProgressBar(progress.percent / 100);
       }
+      this.updateState({
+        ...available,
+        phase: 'downloading',
+        progress: normalizeProgress(progress),
+      });
     };
     autoUpdater.on('download-progress', onProgress);
+
     try {
       await autoUpdater.downloadUpdate();
+      const total = this.currentState?.progress?.total ?? 0;
+      const downloaded: ApplicationUpdatePanelState = {
+        ...available,
+        phase: 'downloaded',
+        progress: {
+          percent: 100,
+          bytesPerSecond: 0,
+          transferred: total,
+          total,
+        },
+      };
+      this.updateState(downloaded);
+      if (available.origin === 'automatic') {
+        // Automatic updates are opt-in. Once the opted-in download completes,
+        // briefly publish the completed state and restart into the new build.
+        setTimeout(() => this.installUpdate(), 750);
+      }
+      return downloaded;
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
-      await dialog.showMessageBox({
-        type: 'error',
-        title: messages.errorTitle,
-        message: messages.downloadFailed,
-        detail: error,
-      });
-      return error;
+      updateLog.error('Update download failed.', error);
+      const failed: ApplicationUpdatePanelState = {
+        ...available,
+        phase: 'error',
+        error,
+      };
+      this.updateState(failed);
+      return failed;
     } finally {
       autoUpdater.off('download-progress', onProgress);
       for (const window of BrowserWindow.getAllWindows()) {
         window.setProgressBar(-1);
       }
     }
-
-    const install = await dialog.showMessageBox({
-      type: 'info',
-      title: messages.readyTitle,
-      message: messages.readyMessage,
-      buttons: [messages.restart, messages.later],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
-    });
-    if (install.response === 0) {
-      this.installingUpdate = true;
-      setImmediate(() => autoUpdater.quitAndInstall(false, true));
-    }
-    return undefined;
   }
 
-  private resolveChannel(preferred?: ReleaseChannel): ReleaseChannel {
-    if (BUILD_CHANNEL === 'nightly') return 'nightly';
-    return preferred ?? BUILD_CHANNEL;
+  private presentState(state: ApplicationUpdatePanelState): void {
+    this.currentState = state;
+    this.windows.showUpdateOverlay(state);
+  }
+
+  private updateState(state: ApplicationUpdatePanelState): void {
+    this.currentState = state;
+    this.windows.updateUpdateOverlay(state);
+  }
+
+  private finishCheckState(state: ApplicationUpdatePanelState): void {
+    if (state.origin === 'manual') {
+      this.updateState(state);
+      return;
+    }
+    // No update (or a startup check failure) must not steal focus with an
+    // update panel. Keep the result available for diagnostics only.
+    this.currentState = state;
   }
 }
 
-function getUpdateMessages(locale: AppLocale) {
-  const resolved = locale === 'system' ? app.getLocale() : locale;
-  if (resolved.toLowerCase().startsWith('ko')) {
-    return {
-      foundTitle: 'Kawaikara 업데이트',
-      foundMessage: 'Kawaikara {version} 업데이트를 설치할 수 있습니다.',
-      channel: '채널',
-      download: '다운로드 및 설치',
-      later: '나중에',
-      errorTitle: '업데이트 오류',
-      downloadFailed: '업데이트를 다운로드하지 못했습니다.',
-      readyTitle: '업데이트 준비 완료',
-      readyMessage: '앱을 다시 시작하여 업데이트를 설치할까요?',
-      restart: '다시 시작',
-    };
-  }
-  if (resolved.toLowerCase().startsWith('ja')) {
-    return {
-      foundTitle: 'Kawaikaraアップデート',
-      foundMessage: 'Kawaikara {version}をインストールできます。',
-      channel: 'チャンネル',
-      download: 'ダウンロードしてインストール',
-      later: '後で',
-      errorTitle: 'アップデートエラー',
-      downloadFailed: 'アップデートをダウンロードできませんでした。',
-      readyTitle: 'アップデートの準備完了',
-      readyMessage: 'アプリを再起動してアップデートをインストールしますか？',
-      restart: '再起動',
-    };
-  }
+function normalizeReleaseNotes(value: unknown): string | undefined {
+  if (typeof value === 'string') return stripReleaseNoteMarkup(value);
+  if (!Array.isArray(value)) return undefined;
+  const notes = value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const candidate = entry as { version?: unknown; note?: unknown };
+    if (typeof candidate.note !== 'string') return [];
+    const prefix = typeof candidate.version === 'string'
+      ? `${candidate.version}\n`
+      : '';
+    return [`${prefix}${stripReleaseNoteMarkup(candidate.note)}`];
+  });
+  return notes.length > 0 ? notes.join('\n\n') : undefined;
+}
+
+function stripReleaseNoteMarkup(value: string): string {
+  return value
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeProgress(
+  progress: ApplicationUpdateProgress,
+): ApplicationUpdateProgress {
   return {
-    foundTitle: 'Kawaikara update',
-    foundMessage: 'Kawaikara {version} is ready to install.',
-    channel: 'Channel',
-    download: 'Download and install',
-    later: 'Later',
-    errorTitle: 'Update error',
-    downloadFailed: 'The update could not be downloaded.',
-    readyTitle: 'Update ready',
-    readyMessage: 'Restart the app to install the update?',
-    restart: 'Restart',
+    percent: Math.max(0, Math.min(100, progress.percent)),
+    bytesPerSecond: Math.max(0, progress.bytesPerSecond),
+    transferred: Math.max(0, progress.transferred),
+    total: Math.max(0, progress.total),
   };
 }

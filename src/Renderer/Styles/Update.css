@@ -1,0 +1,203 @@
+.update-motion-shell {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+}
+
+.update-shell {
+  display: grid;
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  padding: clamp(20px, 5vw, 64px);
+  place-items: center;
+  box-sizing: border-box;
+  background:
+    radial-gradient(circle at 50% 18%, rgb(112 77 178 / 30%), transparent 38%),
+    rgb(7 7 9 / 88%);
+  backdrop-filter: blur(24px);
+}
+
+.update-shell.is-manual {
+  padding: clamp(20px, 5vw, 56px);
+  background: rgb(7 7 9 / 42%);
+  backdrop-filter: blur(8px);
+}
+
+.update-panel {
+  width: min(640px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  border-color: rgb(255 255 255 / 12%);
+  background: rgb(24 24 27 / 96%);
+  box-shadow: 0 32px 100px rgb(0 0 0 / 50%);
+}
+
+.update-kawaikara-image {
+  width: calc(100% + 64px);
+  height: auto;
+  aspect-ratio: 2 / 1;
+  margin: -32px -32px 0;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 16px 16px 8px 8px;
+  background: #f5f5f4;
+}
+
+.update-heading {
+  width: 100%;
+  text-align: center;
+}
+
+.update-progress-block,
+.update-actions {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.update-progress-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.update-version-summary {
+  overflow-wrap: anywhere;
+}
+
+.update-progress-summary {
+  white-space: nowrap;
+}
+
+.update-error-message {
+  width: 100%;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 12px;
+  background: rgb(9 9 11 / 54%);
+  color: #fca5a5;
+}
+
+.update-release-notes-button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.update-release-notes-panel {
+  width: min(760px, 100%);
+  height: min(720px, 100%);
+}
+
+.update-release-notes-layout {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 20px;
+}
+
+.update-release-notes-header {
+  min-width: 0;
+}
+
+.update-release-notes-header > :last-child {
+  min-width: 0;
+}
+
+.update-release-notes-meta {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.update-release-notes-scroll {
+  min-height: 0;
+  padding: 20px 22px;
+  overflow: auto;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 14px;
+  background: rgb(9 9 11 / 54%);
+}
+
+.update-release-notes-copy {
+  color: #d4d4d8;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.update-release-notes-copy h2 {
+  margin: 24px 0 10px;
+  color: #fafafa;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.update-release-notes-copy h2:first-child {
+  margin-top: 0;
+}
+
+.update-release-notes-copy p {
+  margin: 8px 0;
+}
+
+.update-release-note-bullet {
+  display: grid;
+  margin: 7px 0;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.update-release-note-space {
+  height: 8px;
+}
+
+.kawai-theme-light .update-shell {
+  background:
+    radial-gradient(circle at 50% 18%, rgb(129 92 194 / 18%), transparent 38%),
+    rgb(240 237 246 / 90%);
+}
+
+.kawai-theme-light .update-shell.is-manual {
+  background: rgb(240 237 246 / 44%);
+  backdrop-filter: blur(8px);
+}
+
+.kawai-theme-light .update-panel {
+  border-color: rgb(45 35 65 / 14%);
+  background: #f8f7fb;
+  box-shadow: 0 32px 90px rgb(50 38 74 / 20%);
+}
+
+.kawai-theme-light .update-error-message,
+.kawai-theme-light .update-release-notes-scroll {
+  border-color: rgb(45 35 65 / 10%);
+  background: rgb(255 255 255 / 72%);
+}
+
+.kawai-theme-light .update-release-notes-copy {
+  color: #3f3f46;
+}
+
+.kawai-theme-light .update-release-notes-copy h2 {
+  color: #18181b;
+}
+
+@media (max-height: 780px) {
+  .update-shell { padding: 14px; }
+  .update-release-notes-panel { height: 100%; }
+}
+
+@media (max-height: 680px) {
+  .update-kawaikara-image {
+    height: clamp(132px, 24vh, 172px);
+    aspect-ratio: auto;
+    object-position: center 34%;
+  }
+}
+
+@media (max-width: 620px) {
+  .update-shell { padding: 14px; }
+  .update-panel { width: 100%; }
+  .update-progress-meta { grid-template-columns: 1fr; }
+  .update-progress-summary { white-space: normal; }
+}

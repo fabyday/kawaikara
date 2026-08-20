@@ -68,6 +68,7 @@ module.exports = (_environment, arguments_) => {
       'discord-rpc': 'commonjs2 discord-rpc',
       'electron-log/main': 'commonjs2 electron-log/main',
       'electron-updater': 'commonjs2 electron-updater',
+      'extract-zip': 'commonjs2 extract-zip',
     },
     plugins: [buildDefinitions],
   },

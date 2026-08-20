@@ -1,21 +1,22 @@
 # Kawaikara Developer Documentation
 
-This documentation describes the current `dev3` implementation. It is intended for contributors working on the application, built-in site integrations, or the future external plugin system.
+This documentation describes the current `dev3` implementation. It is intended for contributors working on the application, built-in Providers, or installable Bundles.
 
 The documentation distinguishes shipped behavior from incomplete design work. A capability described as **planned** is not available to users yet.
 
 ## Architecture
 
 - [Architecture overview](./Architecture/Overview.md): repository ownership, dependency direction, composition, and IPC contracts
+- [Bundle, Provider, and Plugin](./Architecture/Bundle.md): extension units, lifecycle, validation, compatibility, and current limits
 - [Runtime and lifecycle](./Architecture/Runtime.md): windows, sessions, site loading, shortcuts, navigation, and cleanup
 - [Logging and diagnostics](./Architecture/Logging.md): file rotation, scopes, crash capture, renderer logging, and redaction
 - [Security boundaries](./Architecture/Security.md): renderer isolation, remote pages, cookies, plugins, and permissions
 
 ## Plugin development
 
-- [Plugin system overview](./Plugins/Overview.md): the current plugin model, browser profiles, locales, and implementation status
-- [SiteDescriptor development guide](./Plugins/SiteDescriptor.md): metadata, loading, injection, login handling, PiP guards, and request hooks
-- [Plugin packaging and distribution](./Plugins/Packaging.md): workspace packages today and the external-loader roadmap
+- [Plugin system overview](./Plugins/Overview.md): the current Bundle model, browser profiles, locales, and implementation status
+- [Provider development guide](./Plugins/Provider.md): metadata, loading, injection, login handling, PiP guards, and request hooks
+- [Bundle packaging and distribution](./Plugins/Packaging.md): `.kawai` installation, validation, and the trust boundary
 
 ## Implemented features
 
@@ -43,4 +44,3 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 | Implemented | Executable in the current `dev3` codebase |
 | Limited | Implemented with an intentionally restricted scope |
 | Planned | Designed or documented, but no production runtime exists yet |
-

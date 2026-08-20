@@ -32,10 +32,10 @@ When a site changes, Kawaikara:
 
 1. Exits PiP and prepares the current document for removal.
 2. Cancels an external login and closes site popups.
-3. Unloads the active descriptor.
+3. Unloads the active Provider.
 4. Closes the old `WebContentsView`.
 5. Creates a new view with the selected Electron Session.
-6. Constructs and loads the next descriptor.
+6. Constructs and loads the next Provider.
 
 The view uses `sandbox: true`, `contextIsolation: true`, and `nodeIntegration: false`. `disableHtmlFullscreenWindowResize` prevents a web player's fullscreen control from resizing the entire application window. App-level fullscreen remains an explicit Kawaikara shortcut.
 
@@ -44,13 +44,23 @@ tokens before their first navigation. A user-origin scrollbar theme gives every
 site the same compact, rounded, activity-only scrollbar; the restricted preload
 toggles its visibility marker from captured scroll events.
 
-On Windows, GPU compositing remains enabled while accelerated video decoding
-and DirectComposition video overlays are disabled for DRM compatibility. The
-`KAWAIKARA_FORCE_SOFTWARE_RENDERING=1` fallback disables all hardware
-acceleration only when explicitly requested. libmpv video decoding is independent
-of Chromium's DRM decoder and uses `MPV_HWDEC=auto-safe` by default. macOS also
-keeps GPU compositing enabled; Apple Silicon uses libmpv when its native runtime
-is present, while Intel macOS uses the Chromium Video fallback.
+GPU acceleration is a restart-required General preference and is off by
+default. Main reads it synchronously before Electron becomes ready. The disabled
+mode calls `app.disableHardwareAcceleration()`, covering Chromium decoding,
+compositing, WebGL, WebGPU, rasterization, and platform video overlays on both
+macOS and Windows. Enabling it restores the complete GPU path. Changing the
+preference opens a confirmation dialog; applying saves all pending preferences,
+relaunches Kawaikara, and selects the new mode before the next renderer exists.
+`KAWAIKARA_FORCE_SOFTWARE_RENDERING=1` always selects the disabled mode.
+
+Native Video decoding remains independent of Electron's compositor. Main keeps
+`MPV_HWDEC=auto-safe` in both modes, so libmpv may continue using VideoToolbox or
+D3D11 hardware decoding. With Electron GPU acceleration enabled, frames use the
+shared-texture/WebGPU presentation path. With it disabled, libmpv copies the
+decoded frames through Canvas 2D. The software surface is limited to CSS
+resolution and 720p, and the RGBA IPC path reuses the native buffer's complete
+ArrayBuffer instead of making an additional copy. This keeps capture-compatible
+playback responsive without changing the hardware decoder selection.
 
 ### Overlay
 
@@ -65,20 +75,29 @@ While the menu is open, closing on `Escape` and closing on an outside click are 
 
 ### Site popup
 
-A descriptor can request a popup when an OAuth provider requires `window.opener`, `postMessage`, or `response_mode=web_message`. The popup uses the same Session as the site but receives no application bridge. Laftel's Sign in with Apple flow is the current built-in example.
+A Provider can request a popup when an OAuth service requires `window.opener`, `postMessage`, or `response_mode=web_message`. The popup uses the same Session as the site but receives no application bridge. Laftel's Sign in with Apple flow is the current built-in example.
 
 ### External browser
 
-Some services reject embedded Electron login. `ExternalBrowserManager` launches a temporary Chrome/Edge profile through Patchright, waits for a descriptor-supplied completion URL pattern, transfers cookies into the selected Electron Session, and restores the viewer.
+Some services reject embedded Electron login. `ExternalBrowserManager` launches a temporary Chrome/Edge profile through Patchright, waits for a Provider-supplied completion URL pattern, transfers cookies into the selected Electron Session, and restores the viewer.
 
 Completion, cancellation, a site change, or app shutdown closes the browser and removes the temporary profile. Netflix and Coupang Play currently use this path.
+
+This managed login path is intentionally distinct from a normal external link:
+cookie import requires a browser context controlled by Patchright, so it tries
+Chrome, Edge, and the app-managed Chromium runtime. A Provider's ordinary
+`openExternal()` call and the `external` new-window policy use Electron's Main
+process shell integration, which delegates HTTP(S) URLs to the default browser
+registered by macOS, Windows, or Linux. Default-browser URLs are validated
+before dispatch and are never used as a silent substitute for a cookie-import
+login flow.
 
 ## Browser profiles and Session isolation
 
 The runtime chooses a browser profile in this order:
 
 1. A user assignment for the site (`isolated`, `user:<id>`, or `plugin:<plugin-id>:<profile-id>`).
-2. The descriptor's `isolation.defaultBrowserProfile`.
+2. The Provider's `isolation.defaultBrowserProfile`.
 3. A persistent profile dedicated to the site.
 
 Partitions are generated as follows:
@@ -91,27 +110,28 @@ Partitions are generated as follows:
 
 Unsafe characters are replaced with underscores before the partition is used. Sites sharing a partition share cookies, cache, storage, and DRM-related session state, but still receive a new `WebContentsView` when activated.
 
-This model addresses cross-site failures such as a DRM service becoming unusable after visiting another service. Isolation is the default; sharing is an explicit descriptor default or user choice. YouTube and YouTube Music intentionally share the built-in `google` plugin profile.
+This model addresses cross-site failures such as a DRM service becoming unusable after visiting another service. Isolation is the default; sharing is an explicit Provider default or user choice. YouTube and YouTube Music intentionally share the built-in `google` Bundle profile.
 
-## SiteDescriptor lifecycle
+## Provider and Plugin lifecycle
 
 ```mermaid
 stateDiagram-v2
   [*] --> Registered: PluginHost.install
   Registered --> Loading: SiteManager.load(id)
-  Loading --> Active: load succeeds
-  Loading --> Disposed: load fails, then unload
-  Active --> Disposed: another site or app shutdown
+  Loading --> PluginsActive: activate matching Plugins
+  PluginsActive --> Active: Provider.load succeeds
+  PluginsActive --> Disposed: load fails, deactivate Plugins, unload Provider
+  Active --> Disposed: deactivate Plugins, unload Provider
   Disposed --> [*]
 ```
 
-Only one descriptor is active. `SiteManager` waits for the previous descriptor's `unload()`, creates the next context and descriptor, calls `load()`, and clears the new descriptor again if loading fails. Constructors should only store state; external work belongs in `load()`.
+Only one Provider is active. `SiteManager` waits for the previous Provider's Plugins to deactivate and for its `unload()`, creates the next context and Provider, activates matching Plugins, and calls `load()`. A failed activation or load deactivates already-started Plugins in reverse order before unloading the Provider. Constructors should only store state; external work belongs in `activate()` or `load()`.
 
-The base class owns a `DisposableStore`. Descriptor listeners added to `subscriptions` are released by `super.unload()`.
+The Provider and Plugin base classes each own a `DisposableStore`. Listeners added to `subscriptions` are released by `super.unload()` or `super.deactivate()`.
 
-## URL descriptor loading
+## URL Provider loading
 
-The built-in `UrlSiteDescriptor` performs:
+The built-in `UrlProvider` helper performs:
 
 ```text
 beforeLoad()
@@ -134,17 +154,17 @@ An SPA can replace its first document and cause Electron to reject the original 
 | `deny` | Ignore the request | Ads or unwanted popups |
 | `default` | Allow Electron's default behavior | Compatibility-only escape hatch |
 
-Descriptors should parse the URL and use exact scheme/hostname allowlists rather than broad substring checks.
+Providers should parse the URL and use exact scheme/hostname allowlists rather than broad substring checks.
 
 ## Remote page actions
 
-Remote pages do not receive `ipcRenderer`. When an injected control must request a Main action, the descriptor creates a `kawaikara-action://` URL.
+Remote pages do not receive `ipcRenderer`. When an injected control must request a Main action, the Provider creates a `kawaikara-action://` URL.
 
 ```mermaid
 sequenceDiagram
   participant Page as Remote page
   participant Window as WindowManager
-  participant Site as Active descriptor
+  participant Site as Active Provider
 
   Site->>Page: inject action URL and click interceptor
   Page->>Window: navigate to kawaikara-action://invoke/login
@@ -157,7 +177,7 @@ sequenceDiagram
 
 ## Request-header hook
 
-Each configured Session receives one `onBeforeSendHeaders` listener. Requests are offered to the active descriptor and the resolved site locale can set `Accept-Language` afterward.
+Each configured Session receives one `onBeforeSendHeaders` listener. Requests are offered to the active Provider and the resolved site locale can set `Accept-Language` afterward.
 
 ```ts
 onBeforeSendHeaders(details: SiteRequestDetails) {
@@ -170,7 +190,7 @@ A shared Session may carry requests for multiple integrations over time. Header 
 
 ## Shortcut scope
 
-Application and site shortcuts are matched from `before-input-event` in the focused viewer or overlay. Defaults come from `APP_SHORTCUTS` and each descriptor's `shortcut.defaultKey`; user overrides are stored in preferences.
+Application and Provider shortcuts are matched from `before-input-event` in the focused viewer or overlay. Defaults come from `APP_SHORTCUTS` and each Provider's `shortcut.defaultKey`; user overrides are stored in preferences.
 
 - Plain `Tab` does not toggle the menu while the focused web content reports that the user is editing.
 - Menu-category shortcuts, defaulting to `1`, `2`, `3`, and so on, exist only while the menu route is visible.
@@ -178,6 +198,10 @@ Application and site shortcuts are matched from `before-input-event` in the focu
   it while the fixed Menu underlay remains visible.
 - The PiP shortcut is application-local in normal mode.
 - Only while PiP is active is its accelerator registered with Electron's `globalShortcut`, allowing restoration even when another application has focus. It is unregistered immediately on exit or shutdown.
+- Previous Short/Clip, next Short/Clip, and short-form auto-advance toggle use
+  the same local matching in normal mode. While unified PiP is active, those
+  three configured accelerators are also registered globally and routed to the
+  active YouTube or CHZZK Provider; they are removed with the PiP accelerator.
 - A short in-flight/debounce guard prevents one physical key event from triggering both the local and global PiP paths.
 
 Global accelerators may still be unavailable when the operating system, Wine, a game, or another application owns the same key combination. The manager logs that registration failure instead of silently claiming success.
@@ -198,4 +222,3 @@ Renderer view
 ```
 
 Adding an IPC operation requires coordinated changes to the channel tree and types, preload implementation, Main handler, and renderer caller. Main handlers also validate values at runtime; TypeScript types do not validate untrusted IPC input.
-

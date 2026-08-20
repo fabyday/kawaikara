@@ -1,4 +1,4 @@
-name: Publish Kawaikara channel
+name: Publish Stable
 
 on:
   push:
@@ -6,15 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      channel:
-        description: Release channel
-        required: true
-        default: nightly
-        type: choice
-        options:
-          - stable
-          - staging
-          - nightly
       version:
         description: SemVer without the v prefix (optional)
         required: false
@@ -56,18 +47,18 @@ jobs:
         env:
           KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
           KAWAIKARA_EVS_PASSWORD: ${{ secrets.PASSWD }}
-      - name: Publish tagged channel
+      - name: Publish tagged Stable release
         if: startsWith(github.ref, 'refs/tags/')
-        run: pnpm release:auto
+        run: pnpm release:stable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
           KAWAIKARA_EVS_NONINTERACTIVE: '1'
-      - name: Publish selected channel
+      - name: Publish Stable release
         if: github.event_name == 'workflow_dispatch'
-        run: pnpm run release:${{ inputs.channel }}
+        run: pnpm release:stable
         env:
           KAWAIKARA_RELEASE_VERSION: ${{ inputs.version }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

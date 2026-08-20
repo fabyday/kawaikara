@@ -1,8 +1,8 @@
-import { shell } from 'electron';
 import type {
   ApplicationLinkId,
   DeveloperYouTubeStatus,
 } from '../../Common/IPC';
+import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 
 const APPLICATION_LINKS: Readonly<Record<ApplicationLinkId, string>> = {
   website: 'https://kawaikara.github.io/',
@@ -32,7 +32,7 @@ export class DeveloperLinkManager {
   private activeStatusRequest?: Promise<DeveloperYouTubeStatus>;
 
   async open(id: ApplicationLinkId): Promise<void> {
-    await shell.openExternal(APPLICATION_LINKS[id]);
+    await openInDefaultBrowser(APPLICATION_LINKS[id]);
   }
 
   async getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus> {

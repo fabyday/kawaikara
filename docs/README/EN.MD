@@ -1,6 +1,6 @@
 # Kawaikara dev3
 
-Kawaikara is a compact Electron viewer for streaming, video, music, and reading services. `dev3` rebuilds the application around isolated site sessions, explicit site plugins, an app-owned overlay, and a unified video-focused Picture in Picture window.
+Kawaikara is a compact Electron viewer for streaming, video, music, and reading services. `dev3` rebuilds the application around isolated Provider sessions, explicit Bundles, an app-owned overlay, and a unified video-focused Picture in Picture window.
 
 ## Implemented features
 
@@ -23,7 +23,7 @@ Important compatibility work includes external-browser login with cookie transfe
 
 - `Tab` opens the compact site menu when the viewer is not editing text.
 - Preferences replaces the menu and uses the complete overlay area.
-- General, Browser Profiles, Shortcuts, and App Info tabs.
+- General, Video, Browser Profiles, Shortcuts, Bundles, Developer, and App Info tabs.
 - Drag-and-drop menu ordering with keyboard and arrow-button alternatives.
 - Configurable app/site/category shortcuts with conflict detection.
 - Korean, English, Japanese, and system locale modes.
@@ -60,10 +60,10 @@ Important compatibility work includes external-browser login with cookie transfe
 
 ## Current limitations
 
-- External third-party plugins cannot yet be installed without rebuilding Kawaikara.
+- Third-party ZIP Bundles can be installed, but they run as explicitly trusted Main-process code and activate after restart.
 - Plugin permissions are descriptive and are not enforced at runtime.
 - Plugin code is not sandboxed from the Main process.
-- Plugin-provided renderer UI is not supported; descriptors can use only app-owned internal views.
+- Plugin-provided renderer UI is not supported; Providers can use only app-owned internal views.
 - Site compatibility still depends on remote DOM and authentication behavior and requires regression testing.
 
 ## Development documentation
