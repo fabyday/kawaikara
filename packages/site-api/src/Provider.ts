@@ -113,6 +113,13 @@ export interface SitePictureInPictureContribution {
    * true independently of whether the Provider exposes Kawaikara PiP.
    */
   readonly suppressPageControls?: boolean;
+  /**
+   * Controls page-originated HTML video PiP requests while page controls are
+   * suppressed. `block` is the default. `transient` lets a site's automatic
+   * request enter briefly and then closes it, preserving SPA enter/leave
+   * cleanup hooks without exposing a second user-controlled PiP lifecycle.
+   */
+  readonly pageRequestPolicy?: 'block' | 'transient';
   /** Provider-specific selectors added to Kawaikara's generic PiP controls. */
   readonly pageControlSelectors?: readonly string[];
 }

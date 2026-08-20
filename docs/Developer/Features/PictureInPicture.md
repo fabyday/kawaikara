@@ -124,6 +124,13 @@ The application-owned page policy performs several layers of suppression:
 - observes DOM mutations and open shadow roots so React/Vue player controls
   inserted later are also processed.
 
+CHZZK is the exception to the API-level block. When its SPA leaves a live
+route, it briefly uses HTML video PiP as part of the player teardown and reacts
+to the corresponding leave event. Its Provider declares
+`pageRequestPolicy: 'transient'`, so Kawaikara still hides and blocks the page
+button but permits this automatic PiP lifecycle for 250 ms before closing it.
+This prevents the detached live player from continuing audio after navigation.
+
 Generic selectors and semantic labels cover common English, Korean, and
 Japanese PiP controls. A Provider can add service-specific selectors through
 `pictureInPicture.pageControlSelectors`; CHZZK and Laftel currently do this.

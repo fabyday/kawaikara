@@ -27,14 +27,21 @@ export function shouldSuppressPagePictureInPicture(
   return contribution?.suppressPageControls !== false;
 }
 
+interface PagePictureInPicturePolicyOptions {
+  readonly pageRequestPolicy?: 'block' | 'transient';
+  readonly providerSelectors?: readonly string[];
+}
+
 /**
  * Creates a page-world policy. This is an application-owned injection rather
  * than a Provider script-injection permission: the Provider only declares the
  * selectors needed to keep its player inside Kawaikara's PiP lifecycle.
  */
 export function createPagePictureInPicturePolicyScript(
-  providerSelectors: readonly string[] = [],
+  options: PagePictureInPicturePolicyOptions = {},
 ): string {
+  const providerSelectors = options.providerSelectors ?? [];
+  const allowTransientPageRequests = options.pageRequestPolicy === 'transient';
   const selectors = [
     ...new Set([
       ...DEFAULT_PAGE_PIP_CONTROL_SELECTORS,
@@ -46,6 +53,8 @@ export function createPagePictureInPicturePolicyScript(
     (() => {
       const stateKey = '__kawaikaraPagePictureInPicturePolicy';
       const selectors = ${JSON.stringify(selectors)};
+      const allowTransientPageRequests = ${JSON.stringify(allowTransientPageRequests)};
+      const transientExitDelayMs = 250;
       const existing = globalThis[stateKey];
       if (existing && typeof existing.refresh === 'function') {
         existing.refresh();
@@ -106,6 +115,15 @@ export function createPagePictureInPicturePolicyScript(
       };
       const suppressVideo = (video) => {
         if (!(video instanceof HTMLVideoElement)) return;
+        if (allowTransientPageRequests) {
+          if (video.disablePictureInPicture) {
+            video.disablePictureInPicture = false;
+          }
+          if (video.hasAttribute('disablepictureinpicture')) {
+            video.removeAttribute('disablepictureinpicture');
+          }
+          return;
+        }
         if (!video.disablePictureInPicture) {
           video.disablePictureInPicture = true;
         }
@@ -205,23 +223,25 @@ export function createPagePictureInPicturePolicyScript(
           'NotAllowedError',
         ),
       );
-      try {
-        Object.defineProperty(document, 'pictureInPictureEnabled', {
-          configurable: true,
-          get: () => false,
-        });
-      } catch {}
-      try {
-        Object.defineProperty(
-          HTMLVideoElement.prototype,
-          'requestPictureInPicture',
-          {
+      if (!allowTransientPageRequests) {
+        try {
+          Object.defineProperty(document, 'pictureInPictureEnabled', {
             configurable: true,
-            writable: false,
-            value: blockedRequest,
-          },
-        );
-      } catch {}
+            get: () => false,
+          });
+        } catch {}
+        try {
+          Object.defineProperty(
+            HTMLVideoElement.prototype,
+            'requestPictureInPicture',
+            {
+              configurable: true,
+              writable: false,
+              value: blockedRequest,
+            },
+          );
+        } catch {}
+      }
       try {
         const documentPictureInPicture = globalThis.documentPictureInPicture;
         if (
@@ -235,13 +255,32 @@ export function createPagePictureInPicturePolicyScript(
           });
         }
       } catch {}
-      document.addEventListener('enterpictureinpicture', () => {
-        if (document.pictureInPictureElement) {
-          void document.exitPictureInPicture().catch(() => undefined);
-        }
-      }, true);
-      if (document.pictureInPictureElement) {
+      let transientExitTimer;
+      const exitPagePictureInPicture = () => {
+        if (!document.pictureInPictureElement) return;
         void document.exitPictureInPicture().catch(() => undefined);
+      };
+      const handlePagePictureInPictureEntry = () => {
+        if (!allowTransientPageRequests) {
+          exitPagePictureInPicture();
+          return;
+        }
+        console.info(
+          '[Kawaikara/PiP] Allowing transient page PiP lifecycle.',
+        );
+        clearTimeout(transientExitTimer);
+        transientExitTimer = setTimeout(() => {
+          transientExitTimer = undefined;
+          exitPagePictureInPicture();
+        }, transientExitDelayMs);
+      };
+      document.addEventListener(
+        'enterpictureinpicture',
+        handlePagePictureInPictureEntry,
+        true,
+      );
+      if (document.pictureInPictureElement) {
+        handlePagePictureInPictureEntry();
       }
 
       globalThis[stateKey] = { observer, refresh: () => scan(document) };

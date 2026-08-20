@@ -667,9 +667,10 @@ export class SiteManager {
       return async () => undefined;
     }
 
-    const script = createPagePictureInPicturePolicyScript(
-      contribution?.pageControlSelectors,
-    );
+    const script = createPagePictureInPicturePolicyScript({
+      pageRequestPolicy: contribution?.pageRequestPolicy,
+      providerSelectors: contribution?.pageControlSelectors,
+    });
     const refresh = async (): Promise<void> => {
       try {
         await context.viewer.executeJavaScript(script);

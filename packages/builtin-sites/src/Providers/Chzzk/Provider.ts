@@ -64,6 +64,10 @@ const CHZZK_PIP_CONTROL_SELECTORS = [
   },
   locale: BUILTIN_SITE_LOCALE,
   pictureInPicture: {
+    // CHZZK briefly enters native PiP while leaving a live page and performs
+    // player cleanup from the matching leave event. Let that internal cycle
+    // complete, while keeping its page PiP button hidden from the user.
+    pageRequestPolicy: 'transient',
     pageControlSelectors: CHZZK_PIP_CONTROL_SELECTORS,
   },
   menu: { category: 'Streaming', order: 10, icon: 'https://chzzk.naver.com/favicon.ico' },
