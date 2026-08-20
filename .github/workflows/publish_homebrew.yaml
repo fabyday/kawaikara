@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name : "Extract Version and SHA"
         id: kawai_meta
@@ -33,7 +33,7 @@ jobs:
 
 
       - name: Checkout Tap 
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
             repository: fabyday/homebrew-kawaikara
             token: ${{ secrets.HOMEBREW_KAWAIKARA_REPO_TOKEN }}
