@@ -1,25 +1,20 @@
-import { serializePageInjectionWithOptions } from './Serialize';
-
-export type RemotePageTheme = 'dark' | 'light';
-
-interface RemoteThemeInjectionOptions {
-  readonly theme: RemotePageTheme;
-}
+import { serializePageInjection } from './Serialize';
 
 /**
- * Applies app-owned theme compatibility inside a remote page.
+ * Installs app-owned theme compatibility inside a remote page.
  *
- * Chromium's emulated `prefers-color-scheme` is enough for standards-based
- * sites. YouTube reads that preference only while bootstrapping, however, and
- * subsequently renders from the `dark` attribute on `<html>`. Keeping this
- * bridge in Main means Providers do not need to reimplement application theme
- * behavior.
+ * Electron propagates `nativeTheme.themeSource` to every renderer through the
+ * real `prefers-color-scheme` media query. Standards-based sites need no DOM
+ * changes. YouTube reads the media query while bootstrapping, then caches the
+ * result in the `dark` attribute on `<html>`, so this bridge keeps that cached
+ * presentation state synchronized with Electron's media-query change event.
+ * Keeping the bridge in Main means Providers do not own application theming.
  */
-function applyRemotePageTheme(options: RemoteThemeInjectionOptions): void {
+function installRemoteThemeBridge(): void {
   interface RemoteThemeState {
-    theme: RemotePageTheme;
     apply(): void;
     observer: MutationObserver;
+    query: MediaQueryList;
   }
 
   const pageGlobal = globalThis as typeof globalThis & {
@@ -27,57 +22,54 @@ function applyRemotePageTheme(options: RemoteThemeInjectionOptions): void {
   };
   const installed = pageGlobal.__kawaikaraRemoteTheme;
   if (installed) {
-    installed.theme = options.theme;
     installed.apply();
     return;
   }
 
   const isYouTube = /(^|\.)youtube\.com$/i.test(location.hostname);
+  if (!isYouTube) return;
+
   let applying = false;
+  const query = matchMedia('(prefers-color-scheme: dark)');
   const state: RemoteThemeState = {
-    theme: options.theme,
     apply() {
       const root = document.documentElement;
       if (!root || applying) return;
       applying = true;
       try {
-        root.style.colorScheme = state.theme;
-        if (isYouTube) {
-          // YouTube does not reevaluate prefers-color-scheme after startup.
-          // Its own theme selectors use html[dark], so update that same public
-          // DOM state immediately without reloading or involving the Provider.
-          root.toggleAttribute('dark', state.theme === 'dark');
-        }
+        // YouTube's own theme selectors use html[dark]. This is deliberately
+        // presentation-only: account settings, cookies, and Provider state are
+        // left untouched.
+        root.toggleAttribute('dark', query.matches);
       } finally {
         applying = false;
       }
     },
     observer: new MutationObserver(() => undefined),
+    query,
   };
 
-  if (isYouTube) {
-    let queued = false;
-    state.observer = new MutationObserver(() => {
-      if (applying || queued) return;
-      const shouldBeDark = state.theme === 'dark';
-      if (document.documentElement.hasAttribute('dark') === shouldBeDark) return;
-      queued = true;
-      queueMicrotask(() => {
-        queued = false;
-        state.apply();
-      });
+  let queued = false;
+  state.observer = new MutationObserver(() => {
+    if (applying || queued) return;
+    if (document.documentElement.hasAttribute('dark') === query.matches) return;
+    queued = true;
+    queueMicrotask(() => {
+      queued = false;
+      state.apply();
     });
-    state.observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['dark'],
-    });
-    document.addEventListener('yt-navigate-finish', state.apply, true);
-  }
+  });
+  state.observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['dark'],
+  });
+  query.addEventListener('change', state.apply);
+  document.addEventListener('yt-navigate-finish', state.apply, true);
+  window.addEventListener('pageshow', state.apply);
 
   pageGlobal.__kawaikaraRemoteTheme = state;
   state.apply();
 }
 
-export const createRemoteThemeInjectionScript = (
-  theme: RemotePageTheme,
-): string => serializePageInjectionWithOptions(applyRemotePageTheme, { theme });
+export const createRemoteThemeBridgeInjectionScript = (): string =>
+  serializePageInjection(installRemoteThemeBridge);

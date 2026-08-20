@@ -57,7 +57,7 @@ import {
 } from '../Functional/Locale';
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
-import { createRemoteThemeInjectionScript } from '../Inject/RemoteTheme';
+import { createRemoteThemeBridgeInjectionScript } from '../Inject/RemoteTheme';
 import { attachRendererLogging } from '../Logging';
 import {
   disableMacOSFullScreenAuxiliary,
@@ -144,8 +144,6 @@ export class WindowManager {
   private readonly pictureInPicture: UnifiedPictureInPictureManager;
   private readonly editingWebContentsIds = new Set<number>();
   private readonly sitePopupWindows = new Set<BrowserWindow>();
-  private readonly remoteThemeTasks = new Map<number, Promise<void>>();
-  private readonly remoteThemeCssKeys = new Map<number, string>();
   private appTitle = 'Kawaikara';
   private appLocale: AppLocale = 'system';
   private appTheme: AppTheme = 'dark';
@@ -910,16 +908,11 @@ export class WindowManager {
 
   setAppTheme(theme: AppTheme): void {
     this.appTheme = theme;
+    // Electron propagates this value to every current and future renderer as
+    // the native prefers-color-scheme media query. Do not replace it with a
+    // DevTools emulation override: a persistent override prevents renderers
+    // from receiving subsequent native theme changes.
     nativeTheme.themeSource = theme;
-    const siteWebContents = this.siteView?.webContents;
-    if (siteWebContents && !siteWebContents.isDestroyed()) {
-      this.applyThemeToRemoteWebContents(siteWebContents);
-    }
-    for (const popup of this.sitePopupWindows) {
-      if (!popup.isDestroyed()) {
-        this.applyThemeToRemoteWebContents(popup.webContents);
-      }
-    }
   }
 
   setInternalVideoPresentation(webContentsId: number, value: unknown): boolean {
@@ -1324,7 +1317,6 @@ export class WindowManager {
       (message) => message.includes('[Kawaikara/'),
     );
     this.attachSiteWebContents(siteView.webContents, siteSession);
-    this.applyThemeToRemoteWebContents(siteView.webContents);
     viewerWindow.contentView.addChildView(siteView);
     this.siteViewAttached = true;
     this.syncSiteViewBounds();
@@ -1361,7 +1353,7 @@ export class WindowManager {
       }, 0);
     };
     webContents.on('dom-ready', () => {
-      this.applyThemeToRemoteWebContents(webContents);
+      this.installRemoteThemeBridge(webContents);
       void webContents
         .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user' })
         .catch((error: unknown) => {
@@ -1427,8 +1419,6 @@ export class WindowManager {
     });
     webContents.on('destroyed', () => {
       this.editingWebContentsIds.delete(webContentsId);
-      this.remoteThemeTasks.delete(webContentsId);
-      this.remoteThemeCssKeys.delete(webContentsId);
     });
 
     webContents.setWindowOpenHandler(({ url }) => {
@@ -1481,71 +1471,24 @@ export class WindowManager {
       // A site-specific browser UA must also be visible to popup JavaScript.
       // Session request interception covers the initial navigation headers.
       popupWindow.webContents.setUserAgent(webContents.getUserAgent());
-      this.applyThemeToRemoteWebContents(popupWindow.webContents);
+      popupWindow.webContents.on('dom-ready', () => {
+        this.installRemoteThemeBridge(popupWindow.webContents);
+      });
+      this.installRemoteThemeBridge(popupWindow.webContents);
       popupWindow.setMenuBarVisibility(false);
       popupWindow.on('closed', () => {
         this.sitePopupWindows.delete(popupWindow);
-        this.remoteThemeTasks.delete(popupWindow.webContents.id);
-        this.remoteThemeCssKeys.delete(popupWindow.webContents.id);
       });
     });
   }
 
-  private applyThemeToRemoteWebContents(webContents: WebContents): void {
+  private installRemoteThemeBridge(webContents: WebContents): void {
     if (webContents.isDestroyed()) return;
-    const webContentsId = webContents.id;
-    const theme = this.appTheme;
-    const previous = this.remoteThemeTasks.get(webContentsId) ?? Promise.resolve();
-    const task = previous.catch(() => undefined).then(async () => {
-      if (webContents.isDestroyed()) return;
-      try {
-        if (!webContents.debugger.isAttached()) {
-          webContents.debugger.attach('1.3');
-        }
-        await webContents.debugger.sendCommand('Emulation.setEmulatedMedia', {
-          media: '',
-          features: [{ name: 'prefers-color-scheme', value: theme }],
-        });
-        // Sites without their own prefers-color-scheme rules still receive a
-        // Chromium-generated dark palette. Passing false restores their
-        // regular light rendering when the app theme changes back.
-        await webContents.debugger.sendCommand(
-          'Emulation.setAutoDarkModeOverride',
-          { enabled: theme === 'dark' },
-        );
-      } catch (error) {
-        console.debug('The site color scheme could not be emulated.', error);
-      }
-
-      try {
-        const previousCssKey = this.remoteThemeCssKeys.get(webContentsId);
-        if (previousCssKey) {
-          await webContents.removeInsertedCSS(previousCssKey).catch(() => undefined);
-        }
-        const cssKey = await webContents.insertCSS(
-          `:root { color-scheme: ${theme} !important; }`,
-          { cssOrigin: 'user' },
-        );
-        this.remoteThemeCssKeys.set(webContentsId, cssKey);
-      } catch (error) {
-        console.debug('The site color-scheme hint could not be applied.', error);
-      }
-
-      try {
-        await webContents.executeJavaScript(
-          createRemoteThemeInjectionScript(theme),
-          true,
-        );
-      } catch (error) {
-        console.debug('The live site theme bridge could not be applied.', error);
-      }
-    });
-    this.remoteThemeTasks.set(webContentsId, task);
-    void task.finally(() => {
-      if (this.remoteThemeTasks.get(webContentsId) === task) {
-        this.remoteThemeTasks.delete(webContentsId);
-      }
-    });
+    void webContents
+      .executeJavaScript(createRemoteThemeBridgeInjectionScript(), true)
+      .catch((error: unknown) => {
+        console.debug('The live site theme bridge could not be installed.', error);
+      });
   }
 
   private configureSiteSession(siteSession: Session): void {
