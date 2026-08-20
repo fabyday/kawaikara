@@ -1,31 +1,65 @@
-name: Publish Site API
+name: Publish Site API release
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - 'site-api-v*'
 
 permissions:
-  contents: read
-  id-token: write
+  contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v5
         with:
           version: 10.33.0
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - name: Validate tag and package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(node -p "require('./packages/site-api/package.json').version")"
+          expected_tag="site-api-v${package_version}"
+          if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match $expected_tag."
+            exit 1
+          fi
       - run: pnpm --filter @kawaikara/site-api typecheck
       - run: pnpm --filter @kawaikara/site-api build
-      - run: pnpm --filter @kawaikara/site-api publish --no-git-checks
+      - name: Pack public Site API artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site-api-release
+          pnpm --filter @kawaikara/site-api pack \
+            --pack-destination "$GITHUB_WORKSPACE/site-api-release"
+      - name: Verify packed artifact in an isolated consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          consumer="$(mktemp -d)"
+          trap 'find "$consumer" -type f -delete; find "$consumer" -depth -type d -empty -delete' EXIT
+          tarball="$(find "$GITHUB_WORKSPACE/site-api-release" -maxdepth 1 -name '*.tgz' -print -quit)"
+          npm install --ignore-scripts --prefix "$consumer" "$tarball"
+          node -e "require('$consumer/node_modules/@kawaikara/site-api')"
+      - name: Publish immutable GitHub Release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(node -p "require('./packages/site-api/package.json').version")"
+          mapfile -d '' assets < <(find site-api-release -maxdepth 1 -name '*.tgz' -print0)
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --verify-tag \
+            --title "Kawaikara Site API ${package_version}" \
+            --notes "Immutable Site API ${package_version} package for external .kawai Bundle projects."

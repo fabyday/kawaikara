@@ -2,6 +2,11 @@
   "name": "@kawaikara/site-api",
   "version": "1.0.0",
   "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabyday/kawaikara.git",
+    "directory": "packages/site-api"
+  },
   "main": "dist/Index.js",
   "types": "dist/Index.d.ts",
   "files": ["dist"],
@@ -11,6 +16,7 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm clean && tsc -p tsconfig.json",
+    "prepare": "pnpm build",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
