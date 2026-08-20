@@ -1,0 +1,33 @@
+name: Nightly
+
+on:
+  schedule:
+    # 00:00 KST (GitHub cron uses UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Optional dev commit SHA; it must belong to dev
+        required: false
+        type: string
+      base_version:
+        description: Optional x.y.z base version
+        required: false
+        type: string
+      force:
+        description: Publish even when this source commit already has a Nightly
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-development-channel.yaml
+    with:
+      channel: nightly
+      source_branch: dev
+      source_sha: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_sha || '' }}
+      base_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.base_version || '' }}
+      use_kst_cutoff: ${{ github.event_name == 'schedule' }}
+      force: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force == 'true' }}
+    secrets: inherit

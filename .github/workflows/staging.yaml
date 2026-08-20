@@ -1,0 +1,30 @@
+name: Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Optional dev commit SHA; defaults to the latest dev commit
+        required: false
+        type: string
+      base_version:
+        description: Optional x.y.z base version
+        required: false
+        type: string
+      force:
+        description: Publish another Staging build from an already-published commit
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-development-channel.yaml
+    with:
+      channel: staging
+      source_branch: dev
+      source_sha: ${{ github.event.inputs.source_sha }}
+      base_version: ${{ github.event.inputs.base_version }}
+      use_kst_cutoff: false
+      force: ${{ github.event.inputs.force == 'true' }}
+    secrets: inherit
