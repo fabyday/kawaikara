@@ -14,6 +14,9 @@
     "pnpm": ">=10"
   },
   "pnpm": {
+    "overrides": {
+      "electron-mpv-video>node-gyp": "12.4.0"
+    },
     "patchedDependencies": {
       "electron-mpv-video@0.1.1": "patches/electron-mpv-video@0.1.1.patch"
     }
