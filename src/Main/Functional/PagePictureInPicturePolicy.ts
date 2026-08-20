@@ -55,6 +55,7 @@ export function createPagePictureInPicturePolicyScript(
       const selectors = ${JSON.stringify(selectors)};
       const pageRequestPolicy = ${JSON.stringify(pageRequestPolicy)};
       const allowPageRequests = pageRequestPolicy !== 'block';
+      const allowProgrammaticControlActivation = pageRequestPolicy === 'allow';
       const transientExitDelayMs = 250;
       const existing = globalThis[stateKey];
       if (existing && typeof existing.refresh === 'function') {
@@ -97,9 +98,20 @@ export function createPagePictureInPicturePolicyScript(
         .join(' ')
         .replace(/\\s+/g, ' ')
         .trim();
-      const isPictureInPictureControl = (element) =>
-        selectors.some((selector) => matchesSelector(element, selector)) ||
-        semanticPattern.test(semanticLabel(element));
+      const isPictureInPictureControl = (element) => {
+        if (selectors.some((selector) => matchesSelector(element, selector))) {
+          return true;
+        }
+        // Only use text/class heuristics for the interactive control itself.
+        // Player toolbars and CHZZK's automatic mini-player contain the PIP
+        // button as a descendant, so their combined text also contains “PIP”.
+        // Treating those containers as controls hides the entire control bar
+        // or the mini-player while its audio continues in the background.
+        return (
+          matchesSelector(element, interactiveSelector) &&
+          semanticPattern.test(semanticLabel(element))
+        );
+      };
       const suppressControl = (element) => {
         if (!(element instanceof HTMLElement)) return;
         element.dataset.kawaikaraPagePipSuppressed = 'true';
@@ -108,9 +120,27 @@ export function createPagePictureInPicturePolicyScript(
         element.style.setProperty('display', 'none', 'important');
         element.style.setProperty('visibility', 'hidden', 'important');
         element.style.setProperty('pointer-events', 'none', 'important');
-        if ('disabled' in element) {
+        if (
+          !allowProgrammaticControlActivation &&
+          'disabled' in element
+        ) {
           try {
-            element.disabled = true;
+            if (!element.disabled) {
+              element.dataset.kawaikaraPagePipDisabled = 'true';
+              element.disabled = true;
+            }
+          } catch {}
+        } else if (
+          allowProgrammaticControlActivation &&
+          element.dataset.kawaikaraPagePipDisabled === 'true' &&
+          'disabled' in element
+        ) {
+          // HTMLElement.click() is a no-op on disabled buttons. CHZZK uses
+          // its hidden PIP control internally while leaving a live route, so
+          // restore only the disabled state that this policy introduced.
+          try {
+            element.disabled = false;
+            delete element.dataset.kawaikaraPagePipDisabled;
           } catch {}
         }
       };
@@ -198,17 +228,18 @@ export function createPagePictureInPicturePolicyScript(
       const findControl = (event) => {
         for (const candidate of event.composedPath()) {
           if (!(candidate instanceof Element)) continue;
-          const interactive = candidate.matches(interactiveSelector)
-            ? candidate
-            : candidate.closest(interactiveSelector);
-          if (interactive && isPictureInPictureControl(interactive)) {
-            return interactive;
-          }
-          if (isPictureInPictureControl(candidate)) return candidate;
+          if (
+            matchesSelector(candidate, interactiveSelector) &&
+            isPictureInPictureControl(candidate)
+          ) return candidate;
         }
         return null;
       };
       const blockControl = (event) => {
+        // CHZZK activates its page-owned mini-player through a synthetic click
+        // while navigating away from a live stream. Keep trusted user input
+        // blocked, but let that internal activation reach the player handler.
+        if (allowProgrammaticControlActivation && !event.isTrusted) return;
         const control = findControl(event);
         if (!control) return;
         suppressControl(control);

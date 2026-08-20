@@ -125,12 +125,15 @@ The application-owned page policy performs several layers of suppression:
   inserted later are also processed.
 
 CHZZK is the exception to the API-level block. When its SPA leaves a live
-route, it moves the stream into HTML video PiP and keeps that detached player
-responsible for playback and audio. Its Provider declares
-`pageRequestPolicy: 'allow'`: Kawaikara still hides and blocks CHZZK's manual
-page button, but the site's automatic browser PiP remains visible until the
-site or user closes it. `transient` remains available for sites that need only
-a short enter/leave cleanup cycle.
+route, it moves the stream into a page-owned mini-player and keeps that
+detached player responsible for playback and audio. Its Provider declares
+`pageRequestPolicy: 'allow'`: Kawaikara still hides and blocks trusted user
+input on CHZZK's manual page button, but synthetic activation used by the SPA
+is allowed and the automatic mini-player remains visible and controllable.
+Semantic PiP matching is restricted to interactive controls; matching a
+toolbar or mini-player container merely because a descendant contains the word
+`PIP` would hide the whole surface while audio continued. `transient` remains
+available for sites that need only a short enter/leave cleanup cycle.
 
 Generic selectors and semantic labels cover common English, Korean, and
 Japanese PiP controls. A Provider can add service-specific selectors through

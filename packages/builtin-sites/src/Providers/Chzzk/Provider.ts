@@ -64,9 +64,10 @@ const CHZZK_PIP_CONTROL_SELECTORS = [
   },
   locale: BUILTIN_SITE_LOCALE,
   pictureInPicture: {
-    // CHZZK moves the stream into its own native PiP when leaving a live page.
-    // Keep that automatic lifecycle visible so the detached player owns the
-    // audio; only CHZZK's user-facing PiP controls remain hidden.
+    // CHZZK moves the stream into its page-owned mini-player when leaving a
+    // live route. Keep that automatic lifecycle operational and visible so
+    // the detached player remains controllable; only its manual PIP button is
+    // hidden from the user.
     pageRequestPolicy: 'allow',
     pageControlSelectors: CHZZK_PIP_CONTROL_SELECTORS,
   },
