@@ -26,8 +26,8 @@ importers:
         specifier: workspace:*
         version: link:packages/builtin-sites
       '@kawaikara/kawai-ui':
-        specifier: github:Kawaikara/KawaiUi#0.1.0
-        version: https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/0f214e1e7fafbb8ab31265d9b39899409a9f1559(motion@13.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: github:Kawaikara/KawaiUi#0.1.1
+        version: https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/1811ae76a834ad15a82bcd955fae86f346cdb09d(motion@13.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@kawaikara/site-api':
         specifier: workspace:*
         version: link:packages/site-api
@@ -498,9 +498,9 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kawaikara/kawai-ui@https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/0f214e1e7fafbb8ab31265d9b39899409a9f1559':
-    resolution: {tarball: https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/0f214e1e7fafbb8ab31265d9b39899409a9f1559}
-    version: 0.1.0
+  '@kawaikara/kawai-ui@https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/1811ae76a834ad15a82bcd955fae86f346cdb09d':
+    resolution: {tarball: https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/1811ae76a834ad15a82bcd955fae86f346cdb09d}
+    version: 0.1.1
     peerDependencies:
       '@dnd-kit/react': ^0.5.0
       motion: '>=11'
@@ -3735,7 +3735,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kawaikara/kawai-ui@https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/0f214e1e7fafbb8ab31265d9b39899409a9f1559(motion@13.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@kawaikara/kawai-ui@https://codeload.github.com/Kawaikara/KawaiUi/tar.gz/1811ae76a834ad15a82bcd955fae86f346cdb09d(motion@13.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       class-variance-authority: 0.7.1
       clsx: 2.1.1

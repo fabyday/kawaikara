@@ -3,5 +3,3 @@ packages:
 allowBuilds:
   electron: true
   electron-mpv-video: false
-onlyBuiltDependencies:
-  - '@kawaikara/kawai-ui'
