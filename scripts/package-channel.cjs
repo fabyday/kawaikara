@@ -49,7 +49,7 @@ try {
   authenticateWidevineFromEnvironment();
   writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
   run(['build']);
-  run([
+  runElectronBuilder([
     'exec',
     'electron-builder',
     '--config',
@@ -59,6 +59,32 @@ try {
   ]);
 } finally {
   writeFileSync(packagePath, originalPackage);
+}
+
+function runElectronBuilder(arguments_) {
+  // GitHub's macOS runner can occasionally leave hdiutil unable to attach the
+  // writable image used by dmgbuild (`Device not configured`). The app and ZIP
+  // have already built at that point, and a fresh electron-builder invocation
+  // succeeds without changing inputs. Keep the retry CI/macOS-only and bounded
+  // so deterministic packaging or signing failures still surface promptly.
+  const attempts =
+    process.platform === 'darwin' && process.env.GITHUB_ACTIONS === 'true'
+      ? 2
+      : 1;
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      run(arguments_);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts) throw error;
+      console.warn(
+        `electron-builder failed on macOS CI (attempt ${attempt}/${attempts}); retrying the package step once.`,
+      );
+    }
+  }
+  throw lastError;
 }
 
 function authenticateWidevineFromEnvironment() {

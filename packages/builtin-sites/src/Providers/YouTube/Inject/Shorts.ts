@@ -125,12 +125,56 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       (renderer) => visibleRatio(renderer) >= 0.5,
     );
 
+  const resolveImageUrl = (
+    scope: Element | Document,
+    anchor: HTMLAnchorElement,
+  ): string | undefined => {
+    const candidates = new Set<HTMLImageElement>();
+    for (const image of anchor.querySelectorAll<HTMLImageElement>('img')) {
+      candidates.add(image);
+    }
+    for (const image of scope.querySelectorAll<HTMLImageElement>([
+      '#avatar img',
+      'yt-avatar-shape img',
+      'yt-img-shadow img',
+      'img[alt*="channel" i]',
+      'img[alt*="채널" i]',
+    ].join(','))) {
+      candidates.add(image);
+    }
+
+    const anchorRect = anchor.getBoundingClientRect();
+    return [...candidates]
+      .map((image) => {
+        const url = image.currentSrc || image.src;
+        if (!url.startsWith('https://') || visibleRatio(image) <= 0) return undefined;
+        const rect = image.getBoundingClientRect();
+        const horizontalDistance = Math.abs(
+          rect.left + rect.width / 2 - (anchorRect.left + anchorRect.width / 2),
+        );
+        const verticalDistance = Math.abs(
+          rect.top + rect.height / 2 - (anchorRect.top + anchorRect.height / 2),
+        );
+        return { url, distance: horizontalDistance + verticalDistance };
+      })
+      .filter((candidate): candidate is { url: string; distance: number } =>
+        candidate !== undefined,
+      )
+      .sort((left, right) => left.distance - right.distance)[0]?.url;
+  };
+
   const resolveActivePublisher = async (): Promise<ShortsPublisher | undefined> => {
     if (!isShortsPage()) return undefined;
     const renderer = findActiveRenderer();
-    const anchors = renderer?.querySelectorAll<HTMLAnchorElement>(
+    const activeVideo = [...document.querySelectorAll<HTMLVideoElement>('video')]
+      .find(isActiveShortsVideo);
+    // Some Shorts revisions do not mark or retain a reel renderer around the
+    // active video. Fall back to its main surface; the distance-scored avatar
+    // lookup still selects the publisher image instead of the audio artwork.
+    const scope = renderer ?? activeVideo?.closest('main') ?? document;
+    const anchors = scope.querySelectorAll<HTMLAnchorElement>(
       'a[href^="/@"], a[href^="/channel/"]',
-    ) ?? [];
+    );
     const anchor = [...anchors].find((candidate) => {
       const path = new URL(candidate.href, location.origin).pathname;
       return /^\/(?:@[^/]+|channel\/UC[^/]+)(?:\/|$)/i.test(path);
@@ -140,21 +184,38 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     const url = new URL(anchor.href, location.origin);
     const channelMatch = /^\/channel\/(UC[^/]+)/i.exec(url.pathname);
     const label = (anchor.textContent ?? '').trim() || url.pathname.split('/')[1] || '';
-    if (channelMatch) return { id: channelMatch[1], label: label || channelMatch[1] };
+    const currentImageUrl = resolveImageUrl(scope, anchor);
+    if (channelMatch) {
+      return {
+        id: channelMatch[1],
+        label: label || channelMatch[1],
+        imageUrl: currentImageUrl,
+      };
+    }
 
     const handle = /^\/(@[^/]+)/.exec(url.pathname)?.[1];
     if (!handle) return undefined;
     const key = handle.toLowerCase();
     const handleId = `handle:${key}`;
     if (pageGlobal.__kawaikaraYouTubeShorts?.bannedPublisherIds.has(handleId)) {
-      return { id: handleId, label: label || handle };
+      return {
+        id: handleId,
+        label: label || handle,
+        handle,
+        imageUrl: currentImageUrl,
+      };
     }
     const cached = publisherByHandle.get(key);
-    if (cached) return cached;
+    if (cached) {
+      if (cached.imageUrl || !currentImageUrl) return cached;
+      const enriched = { ...cached, imageUrl: currentImageUrl };
+      publisherByHandle.set(key, enriched);
+      return enriched;
+    }
 
     let id = handleId;
     let displayLabel = label || handle;
-    let imageUrl: string | undefined;
+    let imageUrl = currentImageUrl;
     try {
       const response = await fetch(`/${handle}`, { credentials: 'include' });
       if (response.ok) {

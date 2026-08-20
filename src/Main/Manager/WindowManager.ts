@@ -57,6 +57,7 @@ import {
 } from '../Functional/Locale';
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
+import { createRemoteThemeInjectionScript } from '../Inject/RemoteTheme';
 import { attachRendererLogging } from '../Logging';
 import {
   disableMacOSFullScreenAuxiliary,
@@ -1528,6 +1529,15 @@ export class WindowManager {
         this.remoteThemeCssKeys.set(webContentsId, cssKey);
       } catch (error) {
         console.debug('The site color-scheme hint could not be applied.', error);
+      }
+
+      try {
+        await webContents.executeJavaScript(
+          createRemoteThemeInjectionScript(theme),
+          true,
+        );
+      } catch (error) {
+        console.debug('The live site theme bridge could not be applied.', error);
       }
     });
     this.remoteThemeTasks.set(webContentsId, task);

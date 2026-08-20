@@ -388,7 +388,7 @@ function installChzzkQualityEnhancement(
     // the label vertically and horizontally when PZP applies its own flex
     // rules, which is why the previous Kawaikara string looked misaligned.
     const nativeBadge = Array.from(item.querySelectorAll<HTMLElement>(
-      '.pzp-ui-track-badge, [class*="track-badge"]',
+      '.pzp-ui-track-badge, .pzp-pc-ui-track-badge, [class*="track-badge"]',
     )).find((badge) =>
       /^(?:HD|Kawaikara)$/i.test(String(badge.textContent ?? '').trim()),
     );
@@ -422,6 +422,25 @@ function installChzzkQualityEnhancement(
       }
       [data-kawaikara-quality-bypass="1080"] {
         position: relative !important;
+      }
+      /*
+       * PZP can restore the HD text with a character-data-only React update,
+       * which does not recreate the quality row. Render the replacement from
+       * the stable native badge element so it cannot regress to HD while the
+       * menu is open.
+       */
+      [data-kawaikara-quality-native-badge="true"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        font-size: 0 !important;
+      }
+      [data-kawaikara-quality-native-badge="true"] > * {
+        display: none !important;
+      }
+      [data-kawaikara-quality-native-badge="true"]::after {
+        content: "Kawaikara" !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
       }
     `;
     (document.head ?? document.documentElement).append(style);

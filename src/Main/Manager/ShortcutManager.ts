@@ -359,22 +359,36 @@ export class ShortcutManager {
     const existing = Array.isArray(settings[settingKey])
       ? settings[settingKey] as readonly ProviderSettingListItem[]
       : [];
-    if (!existing.some((item) => item.id === publisher.id)) {
-      settings[settingKey] = [
-        ...existing,
-        {
-          id: publisher.id,
-          label: publisher.label || publisher.id,
-          description: publisher.handle,
-          imageUrl: publisher.imageUrl,
-        },
-      ];
+    const nextItem: ProviderSettingListItem = {
+      id: publisher.id,
+      label: publisher.label || publisher.id,
+      description: publisher.handle,
+      imageUrl: publisher.imageUrl,
+    };
+    const existingIndex = existing.findIndex((item) => item.id === publisher.id);
+    const shouldEnrichExisting = existingIndex >= 0 && Boolean(
+      (publisher.imageUrl && !existing[existingIndex]?.imageUrl) ||
+      (publisher.handle && !existing[existingIndex]?.description),
+    );
+    if (existingIndex < 0 || shouldEnrichExisting) {
+      settings[settingKey] = existingIndex < 0
+        ? [...existing, nextItem]
+        : existing.map((item, index) => index === existingIndex
+          ? {
+              ...item,
+              label: publisher.label || item.label,
+              description: publisher.handle ?? item.description,
+              imageUrl: publisher.imageUrl ?? item.imageUrl,
+            }
+          : item);
       providerSettings[siteId] = settings;
       await this.preferences.update({ providerSettings });
       await this.sites.applyCurrentProviderSettings();
-      await this.sites.handleAction(
-        SHORT_FORM_VIDEO_ACTIONS.announcePublisherBan,
-      );
+      if (existingIndex < 0) {
+        await this.sites.handleAction(
+          SHORT_FORM_VIDEO_ACTIONS.announcePublisherBan,
+        );
+      }
     }
     if (contribution.next) {
       await this.sites.handleAction(SHORT_FORM_VIDEO_ACTIONS.next);
