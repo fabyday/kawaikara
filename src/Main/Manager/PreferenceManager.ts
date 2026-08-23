@@ -35,7 +35,7 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   openMenuOnStartup: false,
   closeMenuOnEscape: true,
   closeMenuOnOutsideClick: true,
-  automaticUpdates: false,
+  automaticUpdates: true,
   updateChannel: BUILD_CHANNEL,
   defaultSiteId: 'kawaikara.youtube',
   devToolsMode: 'detach',

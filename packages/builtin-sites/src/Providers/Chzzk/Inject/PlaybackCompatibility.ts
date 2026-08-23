@@ -221,6 +221,7 @@ function installChzzkAdResponseBlocker(): void {
 
 export interface ChzzkQualityInjectionOptions {
   readonly enableBypassActionUrl: string;
+  readonly enable720BypassActionUrl: string;
   readonly disableBypassActionUrl: string;
 }
 
@@ -246,6 +247,10 @@ function installChzzkQualityEnhancement(
     [index: number]: ChzzkVideoTrack | undefined;
   }
 
+  type ManagedQuality = '720' | '1080';
+  type NativeQuality = '320' | '360' | '480';
+  type QualityLabel = NativeQuality | ManagedQuality;
+
   const pageGlobal = globalThis as typeof globalThis & {
     __kawaikaraChzzkQualityEnhancement?: QualityInjectionState;
   };
@@ -255,11 +260,23 @@ function installChzzkQualityEnhancement(
     return;
   }
 
+  const qualityPaneSelector = [
+    '.pzp-setting-quality-pane',
+    '[class*="setting-quality-pane"]',
+    '[class*="quality-pane"]',
+  ].join(',');
   const qualityItemSelector = [
     'div.pzp-setting-quality-pane ul > li',
     'li.pzp-ui-setting-quality-item',
     'li.pzp-pc-ui-setting-quality-item',
     '[class*="setting-quality-pane"] li',
+    '[class*="quality-pane"] li',
+    '[class*="setting-quality-pane"] button',
+    '[class*="quality-pane"] button',
+    '[class*="setting-quality-pane"] [role="menuitem"]',
+    '[class*="quality-pane"] [role="menuitem"]',
+    '[class*="setting-quality-pane"] [class*="setting-quality-item"]:not([class*="__"])',
+    '[class*="quality-pane"] [class*="setting-quality-item"]:not([class*="__"])',
   ].join(',');
   const nativeQualityCheckedClass = 'pzp-ui-setting-pane-item--checked';
   const playerSelector = [
@@ -277,6 +294,21 @@ function installChzzkQualityEnhancement(
     '[class*="ad-video" i]',
     '[class*="advertisement-video" i]',
   ].join(',');
+  const extensionGateHelpSelector =
+    'a[href*="help.naver.com/alias/navergame/"]';
+  const normalQualityGateLabelPattern = /설치\s*없이\s*일반\s*화질\s*시청/i;
+  const extensionGateTextPattern =
+    /브라우저\s*확장\s*프로그램|확장\s*프로그램\s*설치|고화질\s*시청/i;
+  const qualityLabelPattern =
+    /(?:^|\D)(320|360|480|720|1080)\s*p?(?:\D|$)/i;
+  const managedQualityLabelPattern =
+    /(?:^|\D)(720|1080)\s*p?(?:\D|$)/i;
+  const currentQualityValuePattern =
+    /^(?:320|360|480|720|1080)\s*p?(?:\s*(?:HD|Kawaikara))?$/i;
+  const currentQualitySettingRowPattern =
+    /^(?:Quality|화질)\s+(?:320|360|480|720|1080)\s*p?(?:\s*Kawaikara)?$/i;
+  const currentQualitySuffixPattern =
+    /(?:320|360|480|720|1080)\s*p?(?:\s*(?:HD|Kawaikara))?$/i;
   const qualityTargetKeys = [
     '_corePlayer',
     'corePlayer',
@@ -290,9 +322,12 @@ function installChzzkQualityEnhancement(
 
   let routeKey = location.pathname;
   let routeApplied = false;
-  let bypassRequested = false;
-  let lastBypassSignal: boolean | undefined;
+  // The Provider starts in the original main-branch 480p -> 1080p mode, so
+  // the public 1080p Kawaikara row is active as soon as the live page mounts.
+  let bypassRequested = true;
+  let lastProviderQuality: '' | ManagedQuality | undefined = '1080';
   let defaultQualityPending = true;
+  let defaultSelectionDeadline = Date.now();
   let appliedTrackLists = new WeakSet<ChzzkVideoTrackList>();
   let refreshTimer = 0;
   let resolutionVerificationTimer = 0;
@@ -302,11 +337,17 @@ function installChzzkQualityEnhancement(
   let decodedVideoHeight = 0;
   let qualityVerified = false;
   let automaticActivationAttempts = 0;
+  let activatingInternalBypassItem = false;
+  let qualitySelectionRevision = 0;
+  let lastManagedQualityActivationAt = 0;
+  let lastManagedQualityActivationTarget: '' | ManagedQuality = '';
   const maximumAutomaticActivationAttempts = 4;
   const attachedVideos = new WeakSet<HTMLVideoElement>();
   const playbackRecoveryTimers = new WeakMap<HTMLVideoElement, number>();
   const playbackRecoveryTimerIds = new Set<number>();
   const retryTimers = new Set<number>();
+  const activatedExtensionGates = new WeakSet<HTMLElement>();
+  const attachedManagedQualityItems = new WeakSet<HTMLElement>();
 
   const logQuality = (
     status: string,
@@ -324,6 +365,41 @@ function installChzzkQualityEnhancement(
 
   const isLiveRoute = (): boolean => /^\/live(?:\/|$)/.test(location.pathname);
 
+  const activateNormalQualityGate = (): boolean => {
+    if (!isLiveRoute()) return false;
+    const button = Array.from(
+      document.querySelectorAll<HTMLElement>('button, [role="button"]'),
+    ).find(
+      (candidate) =>
+        normalQualityGateLabelPattern.test(
+          String(candidate.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        ),
+    );
+    if (
+      !button ||
+      (button instanceof HTMLButtonElement && button.disabled) ||
+      activatedExtensionGates.has(button)
+    ) {
+      return false;
+    }
+    const containerText = String(
+      button.closest('[class*="layer"], [role="dialog"], main, body')
+        ?.textContent ?? document.body?.textContent ?? '',
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!extensionGateTextPattern.test(containerText)) return false;
+    activatedExtensionGates.add(button);
+    // This is not a dismissible dialog: it replaces the player until CHZZK's
+    // own "watch without installation" action runs. Triggering that action
+    // creates the normal 480p player, after which Kawaikara can select its
+    // internal route and redirect it to 1080p.
+    defaultSelectionDeadline = Date.now() + 1_200;
+    logQuality('browser extension gate bypassed; loading normal player');
+    button.click();
+    return true;
+  };
+
   const read = <T>(target: unknown, property: PropertyKey): T | undefined => {
     if (
       target === null ||
@@ -339,54 +415,119 @@ function installChzzkQualityEnhancement(
     }
   };
 
-  const signalProviderBypass = (enabled: boolean): void => {
-    bypassRequested = enabled;
-    if (lastBypassSignal === enabled) return;
-    lastBypassSignal = enabled;
-    const actionUrl = enabled
+  const signalProviderQuality = (quality: '' | ManagedQuality): void => {
+    bypassRequested = quality !== '';
+    if (lastProviderQuality === quality) return;
+    lastProviderQuality = quality;
+    const actionUrl = quality === '1080'
       ? options.enableBypassActionUrl
-      : options.disableBypassActionUrl;
+      : quality === '720'
+        ? options.enable720BypassActionUrl
+        : options.disableBypassActionUrl;
     window.location.assign(actionUrl);
-    logQuality(`1080p request bypass ${enabled ? 'enabled' : 'disabled'}`);
+    logQuality(
+      quality
+        ? `${quality}p Kawaikara request bypass enabled`
+        : 'quality request bypass disabled',
+    );
   };
 
-  const getQualityItems = (): HTMLElement[] =>
-    Array.from(document.querySelectorAll<HTMLElement>(qualityItemSelector));
+  const normalizeQualityItem = (element: Element): HTMLElement | null => {
+    const pane = element.closest<HTMLElement>(qualityPaneSelector);
+    if (!pane) return null;
+    const interactive = element.closest<HTMLElement>(
+      'li, button, [role="menuitem"], [role="option"]',
+    );
+    if (interactive && pane.contains(interactive)) return interactive;
 
-  const getItemSource = (item: HTMLElement): '' | '480' | '1080' => {
-    if (item.dataset.kawaikaraQualityBypass === '1080') return '1080';
+    let current: Element | null = element;
+    while (current && current !== pane) {
+      if (
+        current instanceof HTMLElement &&
+        /(?:setting|quality).*(?:item|option)|(?:item|option).*(?:setting|quality)/i.test(
+          current.className,
+        ) &&
+        !/__/.test(current.className)
+      ) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return element instanceof HTMLElement ? element : null;
+  };
+
+  const getQualityItems = (): HTMLElement[] => {
+    const items = new Set<HTMLElement>();
+    for (const candidate of document.querySelectorAll<HTMLElement>(
+      qualityItemSelector,
+    )) {
+      const item = normalizeQualityItem(candidate);
+      if (!item) continue;
+      const text = String(item.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (qualityLabelPattern.test(text)) items.add(item);
+    }
+    return Array.from(items);
+  };
+
+  const isManagedQuality = (quality: string): quality is ManagedQuality =>
+    quality === '720' || quality === '1080';
+
+  const getItemSource = (item: HTMLElement): '' | QualityLabel => {
+    if (isManagedQuality(item.dataset.kawaikaraQualityBypass ?? '')) {
+      return item.dataset.kawaikaraQualityBypass as ManagedQuality;
+    }
     const text = String(item.textContent ?? '').replace(/\s+/g, ' ').trim();
-    if (/(?:^|\D)480\s*p?(?:\D|$)/i.test(text)) {
-      return '480';
-    }
-    if (/(?:^|\D)1080\s*p?(?:\D|$)/i.test(text)) {
-      return '1080';
-    }
-    return '';
+    const match = qualityLabelPattern.exec(text);
+    return match ? match[1] as QualityLabel : '';
   };
 
-  const getItemLabelTarget = (item: HTMLElement): HTMLElement | null =>
-    item.querySelector<HTMLElement>(
+  const getItemLabelTarget = (item: HTMLElement): HTMLElement | null => {
+    const knownTarget = item.querySelector<HTMLElement>(
       '.pzp-pc-ui-setting-quality-item__prefix, .pzp-ui-setting-quality-item__prefix, [class*="quality-item__prefix"]',
     ) ?? item.querySelector<HTMLElement>('div:nth-child(2) > span > div');
+    if (knownTarget) return knownTarget;
+    return Array.from(
+      item.querySelectorAll<HTMLElement>('span, div, em, strong'),
+    ).find((candidate) => {
+      const text = String(candidate.textContent ?? '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return qualityLabelPattern.test(text) && candidate.children.length <= 2;
+    }) ?? null;
+  };
 
-  const decorateBypassItem = (item: HTMLElement): void => {
-    // Keep CHZZK's real 480p item intact. The premium-looking 1080p row is
-    // the public Kawaikara action; its click is intercepted below and routed
-    // to the 480p track whose playlist is upgraded by onBeforeRequest.
-    item.dataset.kawaikaraQualitySource = '1080';
-    item.dataset.kawaikaraQualityBypass = '1080';
+  const attachManagedQualityItem = (item: HTMLElement): void => {
+    if (attachedManagedQualityItems.has(item)) return;
+    attachedManagedQualityItems.add(item);
+    item.addEventListener('pointerdown', handleManagedQualityEvent, true);
+    item.addEventListener('mousedown', handleManagedQualityEvent, true);
+    item.addEventListener('touchstart', handleManagedQualityEvent, true);
+    item.addEventListener('click', handleManagedQualityEvent, true);
+    item.addEventListener('keydown', onManagedQualityItemKeyDown, true);
+  };
+
+  const decorateBypassItem = (
+    item: HTMLElement,
+    quality: ManagedQuality,
+  ): void => {
+    // Keep CHZZK's real low-quality rows intact. The high-quality rows are
+    // public Kawaikara actions; their native clicks are intercepted below and
+    // routed to the internal 480p track whose playlist is upgraded to 1080p by
+    // onBeforeRequest.
+    item.dataset.kawaikaraQualitySource = quality;
+    item.dataset.kawaikaraQualityBypass = quality;
+    attachManagedQualityItem(item);
 
     const labelTarget = getItemLabelTarget(item);
     if (!labelTarget) return;
     if (!item.dataset.kawaikaraOriginalQualityLabel) {
       item.dataset.kawaikaraOriginalQualityLabel =
-        String(labelTarget.textContent ?? '').trim() || '1080p HD';
+        String(labelTarget.textContent ?? '').trim() || `${quality}p HD`;
     }
-    // Preserve CHZZK's native 1080p row layout and replace only its existing
-    // HD badge text. Nesting another badge inside the resolution prefix shifts
+    // Preserve CHZZK's native row layout and replace only its existing HD
+    // badge text. Nesting another badge inside the resolution prefix shifts
     // the label vertically and horizontally when PZP applies its own flex
-    // rules, which is why the previous Kawaikara string looked misaligned.
+    // rules.
     const nativeBadge = Array.from(item.querySelectorAll<HTMLElement>(
       '.pzp-ui-track-badge, .pzp-pc-ui-track-badge, [class*="track-badge"]',
     )).find((badge) =>
@@ -408,7 +549,7 @@ function installChzzkQualityEnhancement(
     // Defensive fallback for a future PZP revision without a separate badge.
     // Plain text keeps the native prefix's baseline instead of adding a nested
     // badge with incompatible layout rules.
-    labelTarget.textContent = '1080p Kawaikara';
+    labelTarget.textContent = `${quality}p Kawaikara`;
   };
 
   const ensureQualityPresentationStyle = (): void => {
@@ -420,7 +561,7 @@ function installChzzkQualityEnhancement(
       [data-kawaikara-internal-check="true"] {
         visibility: hidden !important;
       }
-      [data-kawaikara-quality-bypass="1080"] {
+      [data-kawaikara-quality-bypass] {
         position: relative !important;
       }
       /*
@@ -439,6 +580,22 @@ function installChzzkQualityEnhancement(
       }
       [data-kawaikara-quality-native-badge="true"]::after {
         content: "Kawaikara" !important;
+        color: #00ffa3 !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+      }
+      /* Also survive a React replacement of the badge's text node. */
+      [data-kawaikara-quality-bypass] [class*="track-badge"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        font-size: 0 !important;
+      }
+      [data-kawaikara-quality-bypass] [class*="track-badge"] > * {
+        display: none !important;
+      }
+      [data-kawaikara-quality-bypass] [class*="track-badge"]::after {
+        content: "Kawaikara" !important;
+        color: #00ffa3 !important;
         font-size: 10px !important;
         line-height: 1 !important;
       }
@@ -480,13 +637,14 @@ function installChzzkQualityEnhancement(
     sourceItem.dataset.kawaikaraQualityInternalSource = 'true';
     // PZP renders the native check from its --checked class, not from ARIA.
     // Move that class away from the internal route (normally 480p) so the
-    // public 1080p Kawaikara row owns the one and only visible check. The old
-    // cloned marker is removed below because it produced a duplicate icon.
+    // public Kawaikara row owns the one and only visible check. The old cloned
+    // marker is removed below because it produced a duplicate icon.
     for (const item of getQualityItems()) {
-      item.classList.toggle(nativeQualityCheckedClass, item === bypassItem);
+      const selected = item === bypassItem;
+      item.classList.toggle(nativeQualityCheckedClass, selected);
+      item.setAttribute('aria-checked', String(selected));
+      item.setAttribute('aria-selected', String(selected));
     }
-    bypassItem.setAttribute('aria-checked', 'true');
-    bypassItem.setAttribute('aria-selected', 'true');
     sourceItem.setAttribute('aria-checked', 'false');
     sourceItem.setAttribute('aria-selected', 'false');
 
@@ -511,15 +669,19 @@ function installChzzkQualityEnhancement(
     bypassItem: HTMLElement | null,
     sourceItem: HTMLElement | null,
   ): void => {
-    if (bypassItem) {
-      delete bypassItem.dataset.kawaikaraQualityActive;
-      if (bypassItem.dataset.kawaikaraQualityMirroredCheck === 'true') {
-        bypassItem.classList.remove(nativeQualityCheckedClass);
-        delete bypassItem.dataset.kawaikaraQualityMirroredCheck;
+    const bypassItems = new Set<HTMLElement>(
+      document.querySelectorAll<HTMLElement>('[data-kawaikara-quality-bypass]'),
+    );
+    if (bypassItem) bypassItems.add(bypassItem);
+    for (const item of bypassItems) {
+      delete item.dataset.kawaikaraQualityActive;
+      if (item.dataset.kawaikaraQualityMirroredCheck === 'true') {
+        item.classList.remove(nativeQualityCheckedClass);
+        delete item.dataset.kawaikaraQualityMirroredCheck;
       }
-      bypassItem.removeAttribute('aria-checked');
-      bypassItem.removeAttribute('aria-selected');
-      for (const marker of bypassItem.querySelectorAll(
+      item.removeAttribute('aria-checked');
+      item.removeAttribute('aria-selected');
+      for (const marker of item.querySelectorAll(
         '[data-kawaikara-quality-check]',
       )) {
         marker.remove();
@@ -538,8 +700,24 @@ function installChzzkQualityEnhancement(
 
   const getNativeQualityLabel = (item: HTMLElement): string | undefined => {
     const text = String(item.textContent ?? '').replace(/\s+/g, ' ').trim();
-    const match = /(?:^|\D)(360|480|720|1080)\s*p?(?:\D|$)/i.exec(text);
+    const match = qualityLabelPattern.exec(text);
     return match ? `${match[1]}p` : undefined;
+  };
+
+  const synchronizeNativeSelectedIndicator = (label: string): void => {
+    const items = getQualityItems();
+    const selectedItem = items.find(
+      (item) =>
+        !item.dataset.kawaikaraQualityBypass &&
+        getNativeQualityLabel(item) === label,
+    );
+    if (!selectedItem) return;
+    for (const item of items) {
+      const selected = item === selectedItem;
+      item.classList.toggle(nativeQualityCheckedClass, selected);
+      item.setAttribute('aria-checked', String(selected));
+      item.setAttribute('aria-selected', String(selected));
+    }
   };
 
   const getCurrentQualityLabelTargets = (): HTMLElement[] => {
@@ -557,10 +735,8 @@ function installChzzkQualityEnhancement(
       const text = String(candidate.textContent ?? '').replace(/\s+/g, ' ').trim();
       const isBypassSummary =
         candidate.dataset.kawaikaraQualitySummary === 'true';
-      const isValue =
-        /^(?:360|480|720|1080)\s*p?(?:\s*(?:HD|Kawaikara))?$/i.test(text);
-      const isSettingRow =
-        /^(?:Quality|화질)\s+(?:360|480|720|1080)\s*p?(?:\s*Kawaikara)?$/i.test(text);
+      const isValue = currentQualityValuePattern.test(text);
+      const isSettingRow = currentQualitySettingRowPattern.test(text);
       if (!isValue && !isSettingRow && !isBypassSummary) continue;
       const leaves = Array.from(candidate.querySelectorAll<HTMLElement>('*')).filter(
         (element) => {
@@ -569,8 +745,8 @@ function installChzzkQualityEnhancement(
             .replace(/\s+/g, ' ')
             .trim();
           return (
-            /^(?:360|480|720|1080)\s*p?(?:\s*(?:HD|Kawaikara))?$/i.test(leafText) ||
-            /^(?:Quality|화질)\s+(?:360|480|720|1080)\s*p?(?:\s*Kawaikara)?$/i.test(leafText)
+            currentQualityValuePattern.test(leafText) ||
+            currentQualitySettingRowPattern.test(leafText)
           );
         },
       );
@@ -600,22 +776,28 @@ function installChzzkQualityEnhancement(
         .replace(/\s+/g, ' ')
         .trim();
       target.textContent = /^(?:Quality|화질)\s+/i.test(targetText)
-        ? targetText.replace(/(?:360|480|720|1080)\s*p?(?:\s*(?:HD|Kawaikara))?$/i, value)
+        ? targetText.replace(currentQualitySuffixPattern, value)
         : value;
     }
   };
 
+  const getManagedQualityLabel = (): string =>
+    `${lastProviderQuality === '720' ? '720' : '1080'}p Kawaikara`;
+
+  const getExpectedManagedHeight = (): 720 | 1080 =>
+    lastProviderQuality === '720' ? 720 : 1080;
+
   const updateCurrentQualityLabel = (): void => {
-    writeCurrentQualityLabel('1080p Kawaikara', true);
+    writeCurrentQualityLabel(getManagedQualityLabel(), true);
   };
 
   const restoreCurrentQualityLabel = (): void => {
     for (const target of document.querySelectorAll<HTMLElement>(
       '[data-kawaikara-quality-summary]',
     )) {
-      // CHZZK owns native 360p/480p/720p labels. Do not restore a cached
+      // CHZZK owns native low-quality labels. Do not restore a cached
       // string here: React reuses these nodes, so an old 480p snapshot can
-      // overwrite a newly selected 720p or 360p value.
+      // overwrite a newly selected native value.
       delete target.dataset.kawaikaraQualitySummary;
     }
   };
@@ -625,11 +807,16 @@ function installChzzkQualityEnhancement(
     sourceItem: HTMLElement | null,
   ): void => {
     ensureQualityPresentationStyle();
-    if (!routeApplied) {
+    // Presentation follows the public selection, not the asynchronous player
+    // route. The route can be recreated while CHZZK changes MediaSource or
+    // verifies the decoded resolution, but the selected quality must not
+    // flicker back to a native value during that transition.
+    if (!bypassRequested) {
       restoreCurrentQualityLabel();
       clearSelectedIndicator(bypassItem, sourceItem);
       return;
     }
+    clearSelectedIndicator(null, sourceItem);
     updateCurrentQualityLabel();
     if (!bypassItem || !sourceItem) return;
     mirrorSelectedIndicator(bypassItem, sourceItem);
@@ -685,18 +872,28 @@ function installChzzkQualityEnhancement(
   const updateQualityMenu = (): {
     bypassItem: HTMLElement | null;
     sourceItem: HTMLElement | null;
+    selectedNativeLabel?: string;
   } => {
     let bypassItem: HTMLElement | null = null;
+    let fallbackBypassItem: HTMLElement | null = null;
     let sourceItem: HTMLElement | null = null;
+    let selectedNativeLabel: string | undefined;
+    const selectedManagedQuality: ManagedQuality =
+      lastProviderQuality === '720' ? '720' : '1080';
     for (const item of getQualityItems()) {
       const source = getItemSource(item);
+      if (isMenuItemSelected(item)) {
+        selectedNativeLabel = getNativeQualityLabel(item);
+      }
       if (source === '480') sourceItem = item;
-      if (source !== '1080') continue;
-      bypassItem = item;
-      decorateBypassItem(bypassItem);
+      if (source !== '720' && source !== '1080') continue;
+      decorateBypassItem(item, source);
+      if (source === selectedManagedQuality) bypassItem = item;
+      if (!fallbackBypassItem || source === '1080') fallbackBypassItem = item;
     }
+    bypassItem ??= fallbackBypassItem;
     updateQualityPresentation(bypassItem, sourceItem);
-    return { bypassItem, sourceItem };
+    return { bypassItem, sourceItem, selectedNativeLabel };
   };
 
   const getVisibleArea = (element: HTMLElement): number => {
@@ -823,16 +1020,33 @@ function installChzzkQualityEnhancement(
     return parts.join(' ').toLowerCase();
   };
 
-  const is480Track = (track: ChzzkVideoTrack): boolean => {
+  const getTrackHeight = (track: ChzzkVideoTrack): number | undefined => {
     const height = Number(
       read(track, 'height') ?? read(track, 'videoHeight'),
     );
-    if (height === 480) return true;
+    if ([320, 360, 480, 720, 1080].includes(height)) return height;
     const text = trackText(track);
-    return (
-      /(?:^|\D)480\s*p?(?:\D|$)/i.test(text) ||
-      /\d{3,5}\s*x\s*480(?:\D|$)/i.test(text)
-    );
+    const qualityMatch = qualityLabelPattern.exec(text);
+    if (qualityMatch) return Number(qualityMatch[1]);
+    const resolutionMatch = /\d{3,5}\s*x\s*(320|360|480|720|1080)(?:\D|$)/i.exec(text);
+    return resolutionMatch ? Number(resolutionMatch[1]) : undefined;
+  };
+
+  const is480Track = (track: ChzzkVideoTrack): boolean =>
+    getTrackHeight(track) === 480;
+
+  const getSelectedTrackHeight = (): number | undefined => {
+    for (const trackList of collectTrackLists()) {
+      const tracks = toTrackArray(trackList);
+      const selectedIndex = Number(read(trackList, 'selectedIndex'));
+      const selectedTrack =
+        (Number.isInteger(selectedIndex) ? tracks[selectedIndex] : undefined) ??
+        tracks.find((track) => read(track, 'selected') === true);
+      if (!selectedTrack) continue;
+      const height = getTrackHeight(selectedTrack);
+      if (height) return height;
+    }
+    return undefined;
   };
 
   const selectTrack = (
@@ -890,7 +1104,7 @@ function installChzzkQualityEnhancement(
       if (selectTrack(trackList, tracks, bypassTrack)) {
         appliedTrackLists.add(trackList);
         routeApplied = true;
-        logQuality('internal 480p route selected for the 1080p bypass', {
+        logQuality('internal 480p route selected for quality bypass', {
           method: 'videoTracks',
         });
         return true;
@@ -912,6 +1126,12 @@ function installChzzkQualityEnhancement(
     if (!force && now - lastMenuActivationAt < 500) return false;
     lastMenuActivationAt = now;
     try {
+      // The internal 480p row is an implementation detail of the Kawaikara
+      // route. Its synthetic click must not be mistaken for a user choosing a
+      // native quality, which would disable the request redirect. Browser and
+      // React event timing differs enough for that race to surface on one OS
+      // while remaining hidden on another.
+      activatingInternalBypassItem = true;
       sourceItem.focus({ preventScroll: true });
       // CHZZK's current React player handles keyboard activation more
       // consistently than HTMLElement.click() for a hidden/internal quality.
@@ -945,15 +1165,18 @@ function installChzzkQualityEnhancement(
         )}`,
       );
       return false;
+    } finally {
+      activatingInternalBypassItem = false;
     }
     return true;
   };
 
-  const activateQualityBypass = (): void => {
+  const activateQualityBypass = (quality: ManagedQuality): void => {
     // A manual click must work even after the automatic initial selection.
     // Selecting CHZZK's internal 480p track is intentional: the Provider's
-    // request hook replaces only that playlist URL with its 1080p counterpart.
-    signalProviderBypass(true);
+    // request hook replaces that route with the selected 720p/1080p target.
+    qualitySelectionRevision += 1;
+    signalProviderQuality(quality);
     routeApplied = false;
     defaultQualityPending = false;
     appliedTrackLists = new WeakSet<ChzzkVideoTrackList>();
@@ -961,52 +1184,152 @@ function installChzzkQualityEnhancement(
     const { bypassItem, sourceItem } = updateQualityMenu();
     activateInternalMenuItem(sourceItem, true);
     updateQualityPresentation(bypassItem, sourceItem);
-    logQuality('1080p Kawaikara selected by the user');
+    logQuality(`${quality}p Kawaikara selected by the user`, {
+      mediaRoute: `${quality}p`,
+    });
     scheduleRetryBurst();
   };
 
-  const getBypassItemFromEvent = (event: Event): HTMLElement | null =>
-    event.target instanceof Element
-      ? event.target.closest<HTMLElement>(
-          '[data-kawaikara-quality-bypass="1080"]',
+  const resolveQualityItemFromEvent = (event: Event): HTMLElement | null => {
+    const path = typeof event.composedPath === 'function'
+      ? event.composedPath()
+      : [event.target];
+    for (const target of path) {
+      if (!(target instanceof Element)) continue;
+      const item = normalizeQualityItem(target);
+      if (
+        item &&
+        qualityLabelPattern.test(
+          String(item.textContent ?? '').replace(/\s+/g, ' ').trim(),
         )
-      : null;
-
-  const onBypassClick = (event: MouseEvent): void => {
-    if (!isLiveRoute() || !getBypassItemFromEvent(event)) return;
-    // Capture at document level before CHZZK/React sees the locked 1080 row,
-    // otherwise the original action can open its subscription UI.
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    activateQualityBypass();
+      ) {
+        return item;
+      }
+    }
+    if (!(event.target instanceof Element)) return null;
+    for (
+      let current: Element | null = event.target;
+      current && current !== document.body && current !== document.documentElement;
+      current = current.parentElement
+    ) {
+      if (!(current instanceof HTMLElement)) continue;
+      const text = String(current.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (!qualityLabelPattern.test(text)) continue;
+      if (
+        current.matches(
+          'li, button, [role="menuitem"], [class*="quality" i], [class*="setting" i]',
+        ) ||
+        current.closest(
+          '[class*="setting-quality-pane"], [class*="quality-pane"], [role="menu"]',
+        )
+      ) {
+        return current;
+      }
+    }
+    return null;
   };
 
-  const onBypassKeyDown = (event: KeyboardEvent): void => {
+  const getManagedQualityFromEvent = (
+    event: Event,
+  ): { item: HTMLElement; quality: ManagedQuality } | null => {
+    const bypassItem = event.target instanceof Element
+      ? event.target.closest<HTMLElement>(
+          '[data-kawaikara-quality-bypass]',
+        )
+      : null;
+    if (bypassItem) {
+      const quality = bypassItem.dataset.kawaikaraQualityBypass ?? '';
+      return isManagedQuality(quality)
+        ? { item: bypassItem, quality }
+        : null;
+    }
+    const item = resolveQualityItemFromEvent(event);
+    if (!item) return null;
+    const source = getItemSource(item);
+    return source === '720' || source === '1080'
+      ? { item, quality: source }
+      : null;
+  };
+
+  const getNativeQualityItemFromEvent = (event: Event): HTMLElement | null => {
+    const item = resolveQualityItemFromEvent(event);
+    if (!item) return null;
+    const source = getItemSource(item);
+    return source === '320' || source === '360' || source === '480'
+      ? item
+      : null;
+  };
+
+  function handleManagedQualityEvent(
+    event: Event,
+    keyboard = false,
+  ): void {
+    const managed = getManagedQualityFromEvent(event);
+    if (!isLiveRoute() || !managed) return;
     if (
-      !isLiveRoute() ||
-      (event.key !== 'Enter' && event.key !== ' ') ||
-      !getBypassItemFromEvent(event)
+      keyboard &&
+      event instanceof KeyboardEvent &&
+      event.key !== 'Enter' &&
+      event.key !== ' '
     ) {
       return;
     }
     event.preventDefault();
     event.stopImmediatePropagation();
-    activateQualityBypass();
+    if (shouldActivateManagedQuality(managed.quality)) {
+      activateQualityBypass(managed.quality);
+    }
+  }
+
+  function onManagedQualityItemKeyDown(event: KeyboardEvent): void {
+    handleManagedQualityEvent(event, true);
+  }
+
+  const shouldActivateManagedQuality = (
+    target: ManagedQuality,
+  ): boolean => {
+    const now = Date.now();
+    if (
+      lastManagedQualityActivationTarget === target &&
+      now - lastManagedQualityActivationAt < 250
+    ) {
+      return false;
+    }
+    lastManagedQualityActivationTarget = target;
+    lastManagedQualityActivationAt = now;
+    return true;
+  };
+
+  const onBypassPointerStart = (event: Event): void => {
+    // Capture at Window before CHZZK/React sees a locked high-quality row.
+    // CHZZK may start opening the extension gate on pointerdown/mousedown,
+    // before the eventual click event reaches this page-world listener.
+    handleManagedQualityEvent(event);
+  };
+
+  const onBypassClick = (event: MouseEvent): void => {
+    handleManagedQualityEvent(event);
+  };
+
+  const onBypassKeyDown = (event: KeyboardEvent): void => {
+    handleManagedQualityEvent(event, true);
   };
 
   const onNativeQualityClick = (event: MouseEvent): void => {
     if (!isLiveRoute() || !(event.target instanceof Element)) return;
-    const item = event.target.closest<HTMLElement>(qualityItemSelector);
-    if (!item || item.dataset.kawaikaraQualityBypass === '1080') return;
+    const item = getNativeQualityItemFromEvent(event);
+    if (!item) return;
+    if (activatingInternalBypassItem) return;
     const nativeQualityLabel = getNativeQualityLabel(item);
+    const selectionRevision = ++qualitySelectionRevision;
     defaultQualityPending = false;
-    signalProviderBypass(false);
+    signalProviderQuality('');
     routeApplied = false;
     qualityVerified = false;
     decodedVideoWidth = 0;
     decodedVideoHeight = 0;
     const bypassItem = document.querySelector<HTMLElement>(
-      '[data-kawaikara-quality-bypass="1080"]',
+      '[data-kawaikara-quality-bypass]',
     );
     const sourceItem = getQualityItems().find(
       (qualityItem) => getItemSource(qualityItem) === '480',
@@ -1014,16 +1337,25 @@ function installChzzkQualityEnhancement(
     clearSelectedIndicator(bypassItem, sourceItem);
     // React applies the clicked native quality after this capture listener.
     // Refresh only after that commit so CHZZK remains authoritative for its
-    // 360p/480p/720p summary and selection marker.
-    window.setTimeout(() => {
+    // native summary and selection marker.
+    const synchronizeNativeLabel = (): void => {
+      if (selectionRevision !== qualitySelectionRevision) return;
       // The bypass itself uses CHZZK's 480p state internally. Clicking the
       // visible native 480p row can therefore be a no-op from React's point of
       // view, leaving our old 1080p summary in place. Reconcile from the row
       // that the user actually clicked without caching a reusable DOM node.
       if (nativeQualityLabel) {
         writeCurrentQualityLabel(nativeQualityLabel, false);
+        synchronizeNativeSelectedIndicator(nativeQualityLabel);
       }
       scheduleRefresh();
+    };
+    window.setTimeout(() => {
+      synchronizeNativeLabel();
+      // CHZZK can commit the selected quality in a deferred React render.
+      // One animation-frame follow-up keeps its summary and row selection in
+      // sync without polling or overriding later native changes.
+      window.requestAnimationFrame(synchronizeNativeLabel);
     }, 0);
   };
 
@@ -1056,11 +1388,15 @@ function installChzzkQualityEnhancement(
     }
     decodedVideoWidth = video.videoWidth;
     decodedVideoHeight = video.videoHeight;
-    if (!bypassRequested || video.videoHeight < 1000 || qualityVerified) return;
+    const expectedHeight = getExpectedManagedHeight();
+    const matchesExpectedHeight = expectedHeight === 720
+      ? video.videoHeight >= 700 && video.videoHeight < 1000
+      : video.videoHeight >= 1000;
+    if (!bypassRequested || !matchesExpectedHeight || qualityVerified) return;
     qualityVerified = true;
     routeApplied = true;
     defaultQualityPending = false;
-    logQuality('decoded 1080p stream verified', {
+    logQuality(`decoded ${expectedHeight}p stream verified`, {
       width: video.videoWidth,
       height: video.videoHeight,
     });
@@ -1083,11 +1419,13 @@ function installChzzkQualityEnhancement(
       if (video !== getMainVideo()) return;
       observeDecodedVideo(video);
       if (!routeApplied || qualityVerified || decodedVideoHeight <= 0) return;
+      const expectedHeight = getExpectedManagedHeight();
       console.warn(
-        `[Kawaikara/CHZZK][quality] decoded stream is below the expected 1080p ${JSON.stringify(
+        `[Kawaikara/CHZZK][quality] decoded stream does not match the selected ${expectedHeight}p target ${JSON.stringify(
           {
             width: decodedVideoWidth,
             height: decodedVideoHeight,
+            expectedHeight,
             automaticActivationAttempts,
           },
         )}`,
@@ -1185,10 +1523,12 @@ function installChzzkQualityEnhancement(
   const refresh = (_force = false): void => {
     if (location.pathname !== routeKey) {
       routeKey = location.pathname;
+      qualitySelectionRevision += 1;
       routeApplied = false;
-      bypassRequested = false;
-      lastBypassSignal = undefined;
+      bypassRequested = isLiveRoute();
+      lastProviderQuality = undefined;
       defaultQualityPending = true;
+      defaultSelectionDeadline = Date.now();
       qualityVerified = false;
       decodedVideoWidth = 0;
       decodedVideoHeight = 0;
@@ -1196,8 +1536,20 @@ function installChzzkQualityEnhancement(
       appliedTrackLists = new WeakSet<ChzzkVideoTrackList>();
     }
     if (!isLiveRoute()) {
-      signalProviderBypass(false);
+      signalProviderQuality('');
       restoreQualityItems();
+      return;
+    }
+
+    // A SPA transition can follow a non-live route where the Provider bypass
+    // was disabled. Re-enable the default target before CHZZK can issue the
+    // first internal 480p request for the new live player.
+    if (defaultQualityPending && lastProviderQuality === undefined) {
+      signalProviderQuality('1080');
+    }
+
+    if (activateNormalQualityGate()) {
+      scheduleRetryBurst();
       return;
     }
 
@@ -1206,12 +1558,44 @@ function installChzzkQualityEnhancement(
     for (const video of document.querySelectorAll<HTMLVideoElement>('video')) {
       attachVideo(video);
     }
-    const { bypassItem, sourceItem } = updateQualityMenu();
+    const { bypassItem, sourceItem, selectedNativeLabel } = updateQualityMenu();
     if (defaultQualityPending) {
+      const selectedTrackHeight = getSelectedTrackHeight();
+      const selectedMenuHeight = Number(
+        /^(320|360|480|720|1080)p$/i.exec(selectedNativeLabel ?? '')?.[1],
+      );
+      const restoredHeight =
+        selectedMenuHeight === 720 || selectedMenuHeight === 1080
+          ? selectedMenuHeight
+          : selectedTrackHeight === 720 || selectedTrackHeight === 1080
+            ? selectedTrackHeight
+            : undefined;
+      if (restoredHeight === 720 || restoredHeight === 1080) {
+        // A remembered high-quality choice is still a Kawaikara choice. Never
+        // invoke CHZZK's locked row; select the internal 480p route and map it
+        // to the remembered target in the Provider instead.
+        const restoredQuality = String(restoredHeight) as ManagedQuality;
+        qualitySelectionRevision += 1;
+        defaultQualityPending = false;
+        routeApplied = false;
+        qualityVerified = false;
+        signalProviderQuality(restoredQuality);
+        applyDefaultTrack();
+        const menu = updateQualityMenu();
+        activateInternalMenuItem(menu.sourceItem ?? sourceItem, true);
+        updateQualityPresentation(menu.bypassItem, menu.sourceItem ?? sourceItem);
+        logQuality(`restored ${restoredHeight}p Kawaikara without browser extension`, {
+          mediaRoute: `${restoredHeight}p`,
+        });
+        scheduleRetryBurst();
+      }
+    }
+    if (defaultQualityPending && Date.now() >= defaultSelectionDeadline) {
       // Merely observing CHZZK's temporary selected row is not enough. The
       // internal 480p action must really fire so the Provider receives a 480p
-      // media request and can redirect it to the 1080p playlist.
-      signalProviderBypass(true);
+      // media request and can redirect it to the default 1080p playlist.
+      qualitySelectionRevision += 1;
+      signalProviderQuality('1080');
       applyDefaultTrack();
       const activated =
         automaticActivationAttempts < maximumAutomaticActivationAttempts &&
@@ -1227,9 +1611,11 @@ function installChzzkQualityEnhancement(
     }
     updateQualityPresentation(bypassItem, sourceItem);
     if (routeApplied) {
-      logQuality('1080p bypass route is active', {
+      const displayedQuality = getManagedQualityLabel();
+      logQuality(`${displayedQuality} bypass route is active`, {
         internalSource: '480p',
-        displayedSource: '1080p',
+        displayedSource: displayedQuality,
+        mediaRoute: `${getExpectedManagedHeight()}p`,
         decodedHeight: decodedVideoHeight || null,
         verified: qualityVerified,
       });
@@ -1271,21 +1657,39 @@ function installChzzkQualityEnhancement(
     'video',
     playerSelector,
     qualityItemSelector,
+    extensionGateHelpSelector,
+    'button',
+    '[role="button"]',
     '[class*="setting"]',
     '[role="menuitem"]',
   ].join(',');
   const containsRelevantNode = (node: Node): boolean =>
     node instanceof Element &&
-    (node.matches(relevantNodeSelector) || Boolean(node.querySelector(relevantNodeSelector)));
+    (node.matches(relevantNodeSelector) ||
+      Boolean(node.querySelector(relevantNodeSelector)) ||
+      extensionGateTextPattern.test(node.textContent ?? ''));
 
   const observer = new MutationObserver((records) => {
+    let relevantMutation = false;
     for (const record of records) {
       for (const node of record.addedNodes) {
         if (!containsRelevantNode(node)) continue;
-        scheduleRefresh();
-        return;
+        relevantMutation = true;
+        if (
+          node instanceof Element &&
+          extensionGateTextPattern.test(node.textContent ?? '') &&
+          activateNormalQualityGate()
+        ) {
+          scheduleRetryBurst();
+        }
       }
     }
+    if (!relevantMutation) return;
+    // MutationObserver callbacks run before the next paint. Decorating newly
+    // mounted rows here keeps HD from flashing and installs row-local capture
+    // listeners before the user can reach CHZZK's locked click handler.
+    updateQualityMenu();
+    scheduleRefresh();
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
@@ -1297,8 +1701,11 @@ function installChzzkQualityEnhancement(
   window.addEventListener('popstate', onPageShow, true);
   document.addEventListener('click', scheduleRefresh, true);
   document.addEventListener('click', onNativeQualityClick, true);
-  document.addEventListener('click', onBypassClick, true);
-  document.addEventListener('keydown', onBypassKeyDown, true);
+  window.addEventListener('pointerdown', onBypassPointerStart, true);
+  window.addEventListener('mousedown', onBypassPointerStart, true);
+  window.addEventListener('touchstart', onBypassPointerStart, true);
+  window.addEventListener('click', onBypassClick, true);
+  window.addEventListener('keydown', onBypassKeyDown, true);
   window.addEventListener(
     'beforeunload',
     () => {
@@ -1311,8 +1718,11 @@ function installChzzkQualityEnhancement(
       playbackRecoveryTimerIds.clear();
       document.removeEventListener('click', scheduleRefresh, true);
       document.removeEventListener('click', onNativeQualityClick, true);
-      document.removeEventListener('click', onBypassClick, true);
-      document.removeEventListener('keydown', onBypassKeyDown, true);
+      window.removeEventListener('pointerdown', onBypassPointerStart, true);
+      window.removeEventListener('mousedown', onBypassPointerStart, true);
+      window.removeEventListener('touchstart', onBypassPointerStart, true);
+      window.removeEventListener('click', onBypassClick, true);
+      window.removeEventListener('keydown', onBypassKeyDown, true);
     },
     { once: true },
   );
@@ -1321,6 +1731,7 @@ function installChzzkQualityEnhancement(
     liveRoute: isLiveRoute(),
     routeApplied,
     bypassRequested,
+    providerQuality: lastProviderQuality ?? '',
     defaultQualityPending,
     qualityVerified,
     automaticActivationAttempts,
@@ -1420,7 +1831,11 @@ function installChzzkAdSkipper(): void {
     '[class*="dimmed" i]',
     '[class*="backdrop" i]',
   ].join(',');
-  const warningTextPattern = /(?:ad\s*block(?:er)?|광고\s*차단|광고.{0,40}확장.{0,40}(?:종료|비활성)|확장.{0,40}기능.{0,40}광고)/i;
+  // The CHZZK high-quality extension gate is handled by the quality
+  // enhancement, which must click "설치없이 일반 화질 시청" to mount the
+  // real player. Hiding that gate here leaves a permanently blank player.
+  const warningTextPattern =
+    /(?:ad\s*block(?:er)?|광고\s*차단|광고.{0,40}확장.{0,40}(?:종료|비활성)|확장.{0,40}기능.{0,40}광고)/i;
   const hiddenWarningAttribute = 'data-kawaikara-adblock-warning';
   const warningStyleId = 'kawaikara-chzzk-adblock-warning-style';
   const attachedVideos = new WeakSet<HTMLVideoElement>();
@@ -2036,7 +2451,7 @@ function installChzzkAdSkipper(): void {
     findWarningBackdrop(element)?.setAttribute(hiddenWarningAttribute, 'hidden');
     hiddenWarningCount += 1;
     console.info(
-      `[Kawaikara/CHZZK][ad:block] suppressed anti-adblock warning ${JSON.stringify({
+      `[Kawaikara/CHZZK][ad:block] suppressed extension/anti-adblock dialog ${JSON.stringify({
         count: hiddenWarningCount,
       })}`,
     );
@@ -2066,8 +2481,9 @@ function installChzzkAdSkipper(): void {
       attachVideo(video);
     }
 
-    if (element instanceof HTMLElement && element.matches(warningSelector)) {
-      hideAdBlockWarning(element);
+    if (element instanceof HTMLElement) {
+      const containingWarning = element.closest<HTMLElement>(warningSelector);
+      if (containingWarning) hideAdBlockWarning(containingWarning);
     }
     for (const warning of element.querySelectorAll<HTMLElement>(warningSelector)) {
       hideAdBlockWarning(warning);
@@ -2199,15 +2615,6 @@ function installChzzkAdSkipper(): void {
   );
   refresh();
   scheduleStartupFallbackScan();
-}
-
-export function createChzzkQualityEnhancementScript(
-  options: ChzzkQualityInjectionOptions,
-): string {
-  return serializePageInjectionWithOptions(
-    installChzzkQualityEnhancement,
-    options,
-  );
 }
 
 export const CHZZK_AD_RESPONSE_BLOCKER_SCRIPT = serializePageInjection(

@@ -85,13 +85,22 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 ### CHZZK
 
 - Restricts PiP to actual live, video, or clip detail pages, avoiding autoplay previews on the home page.
-- Leaves CHZZK's native 360p, 480p, and 720p rows and their current-quality
-  labels under CHZZK's control.
-- Relabels only the native 1080p row as `1080p Kawaikara`. Selecting it enables
-  the Provider request bypass and routes the internal 480p playlist request to
-  the 1080p media route; selecting any native row disables the bypass again.
+- Replaces CHZZK's Quality control with a Kawaikara-owned menu containing
+  `1080p Kawaikara`, `720p Kawaikara`, `480p`, and `320p`. CHZZK currently
+  exposes 360p as its lowest native track, so the public 320p compatibility
+  item safely delegates to that track.
+- Selecting `720p Kawaikara` or `1080p Kawaikara` first activates CHZZK's
+  internal 480p track and then uses the proven main-branch request bypass to
+  replace `480p` in the media URL with the selected target. The native high
+  rows are never activated, preventing CHZZK's browser-extension gate.
+- A single Kawaikara selection state drives both the Quality summary and the
+  checked menu row. Selecting 480p or 320p disables request rewriting before
+  activating the corresponding native low-quality track.
 - Defaults live playback to the Kawaikara 1080p route and logs request-routing
   and decoded-resolution verification through the page and Provider consoles.
+- Suppresses and automatically activates CHZZK's own `watch without
+  installation` fallback if a previously remembered native high selection
+  produces the Chrome/Edge extension gate before the custom menu is mounted.
 - Tracks Clip detail routes independently from live playback, advances only a
   visible active Clip after real completion, and shares the short-form previous,
   next, toggle, status-overlay, and PiP-global shortcut behavior with YouTube.

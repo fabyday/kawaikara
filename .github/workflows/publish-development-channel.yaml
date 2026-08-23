@@ -28,6 +28,18 @@ on:
     secrets:
       KAWAIKARA_RELEASE_APP_PRIVATE_KEY:
         required: true
+      ACCOUNT:
+        required: true
+      PASSWD:
+        required: true
+      DISCORD_APP_ID:
+        required: true
+      SELF_SIGNED_CERT:
+        required: true
+      SELF_SIGNED_CERT_FOR_MAC:
+        required: true
+      SELF_SIGNED_CERT_FOR_MAC_PASSWD:
+        required: false
 
 concurrency:
   group: publish-${{ inputs.channel }}
@@ -115,6 +127,21 @@ jobs:
           fi
           echo "repository=$repository" >> "$GITHUB_OUTPUT"
 
+      - name: Validate release App configuration
+        env:
+          RELEASE_APP_CLIENT_ID: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$RELEASE_APP_CLIENT_ID" ]] || {
+            echo "::error::Repository variable KAWAIKARA_RELEASE_APP_CLIENT_ID is missing."
+            exit 1
+          }
+          [[ -n "$RELEASE_APP_PRIVATE_KEY" ]] || {
+            echo "::error::Repository secret KAWAIKARA_RELEASE_APP_PRIVATE_KEY is missing."
+            exit 1
+          }
+
       - name: Create read-only release App token
         id: release-app
         uses: actions/create-github-app-token@v3
@@ -196,6 +223,22 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
+      - name: Validate package credentials
+        run: |
+          set -euo pipefail
+          for variable in CODE_SIGN_CERT DISCORD_CLIENT_ID WIDEVINE_ACCOUNT WIDEVINE_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Required ${variable} credential is missing for the ${CHANNEL} ${PLATFORM} package."
+              exit 1
+            fi
+          done
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          PLATFORM: ${{ matrix.platform }}
+          CODE_SIGN_CERT: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_APP_ID }}
+          WIDEVINE_ACCOUNT: ${{ secrets.ACCOUNT }}
+          WIDEVINE_PASSWORD: ${{ secrets.PASSWD }}
       - uses: pnpm/action-setup@v5
         with:
           version: 10.33.0

@@ -1,8 +1,11 @@
 export {
   CHZZK_AD_RESPONSE_BLOCKER_SCRIPT,
   CHZZK_AD_SKIPPER_SCRIPT,
-  createChzzkQualityEnhancementScript,
 } from './PlaybackCompatibility';
+export {
+  createChzzkQualityEnhancementScript,
+  type ChzzkQualityInjectionOptions,
+} from './Quality';
 export {
   createChzzkClipsCommandScript,
   createChzzkClipsInjectionScript,

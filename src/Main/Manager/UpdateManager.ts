@@ -58,8 +58,13 @@ export class UpdateManager {
   }
 
   async checkAtStartup(): Promise<void> {
-    if (!this.preferences?.automaticUpdates) return;
-    await this.checkForUpdatesInternal('automatic', true);
+    // Every packaged channel checks its own feed. The preference controls
+    // automatic download/install, not whether the application can discover
+    // and present a release at all.
+    await this.checkForUpdatesInternal(
+      'automatic',
+      this.preferences?.automaticUpdates === true,
+    );
   }
 
   checkForUpdates(): Promise<ApplicationUpdateCheckResult> {
@@ -168,6 +173,10 @@ export class UpdateManager {
       if (signal.available && downloadAutomatically) {
         this.currentState = checkedState;
         await this.performDownload(checkedState, true);
+      } else if (signal.available && origin === 'automatic') {
+        // Users who disabled automatic installation still receive the update
+        // prompt and can explicitly choose whether to download it.
+        this.presentState(checkedState);
       } else {
         this.finishCheckState(checkedState);
       }

@@ -20,6 +20,7 @@ import {
 } from './Inject/Index';
 
 const CHZZK_ENABLE_1080_BYPASS_ACTION = 'chzzk:quality:enable-1080';
+const CHZZK_ENABLE_720_BYPASS_ACTION = 'chzzk:quality:enable-720';
 const CHZZK_DISABLE_1080_BYPASS_ACTION = 'chzzk:quality:disable-1080';
 
 const CHZZK_BROWSER_USER_AGENT =
@@ -78,7 +79,7 @@ export class ChzzkProvider extends UrlProvider {
   protected readonly url = 'https://chzzk.naver.com/';
   private injectionPass = 0;
   private qualityRedirectCount = 0;
-  private qualityBypassEnabled = true;
+  private qualityBypassTarget: '720p' | '1080p' | undefined = '1080p';
   private autoAdvanceClips = true;
   private clipsInjectionInstalled = false;
 
@@ -90,7 +91,11 @@ export class ChzzkProvider extends UrlProvider {
   }
 
   protected async beforeLoad(): Promise<void> {
-    this.qualityBypassEnabled = true;
+    // Match the original integration: the internal 480p player route is
+    // upgraded to 1080p from the first request. The page injection can later
+    // switch this target to 720p or disable it for a native low-quality row.
+    this.qualityBypassTarget = '1080p';
+    this.qualityRedirectCount = 0;
     this.context.viewer.setUserAgent(CHZZK_BROWSER_USER_AGENT);
   }
 
@@ -101,20 +106,34 @@ export class ChzzkProvider extends UrlProvider {
       enableBypassActionUrl: this.context.actions.createUrl(
         CHZZK_ENABLE_1080_BYPASS_ACTION,
       ),
+      enable720BypassActionUrl: this.context.actions.createUrl(
+        CHZZK_ENABLE_720_BYPASS_ACTION,
+      ),
       disableBypassActionUrl: this.context.actions.createUrl(
         CHZZK_DISABLE_1080_BYPASS_ACTION,
       ),
     });
     const injections = [
-      ['ad response blocker', CHZZK_AD_RESPONSE_BLOCKER_SCRIPT],
+      // Resolve the player-blocking extension gate first. Until CHZZK's own
+      // "watch without installation" action runs there is no video element or
+      // quality menu for any other playback feature to attach to.
       ['quality enhancement', qualityEnhancementScript],
+      ['ad response blocker', CHZZK_AD_RESPONSE_BLOCKER_SCRIPT],
       ['ad skipper', CHZZK_AD_SKIPPER_SCRIPT],
     ] as const;
-    const results = await Promise.allSettled(
-      injections.map(([, script]) =>
-        this.context.viewer.executeJavaScript(script),
-      ),
-    );
+    const results: PromiseSettledResult<unknown>[] = [];
+    for (const [, script] of injections) {
+      try {
+        results.push({
+          status: 'fulfilled',
+          value: await this.context.viewer.executeJavaScript(script),
+        });
+      } catch (reason) {
+        // Continue installing the remaining independent features even when a
+        // preceding page-world patch is unavailable.
+        results.push({ status: 'rejected', reason });
+      }
+    }
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
         this.context.logger.warn(
@@ -147,11 +166,15 @@ export class ChzzkProvider extends UrlProvider {
       return true;
     }
     if (action === CHZZK_ENABLE_1080_BYPASS_ACTION) {
-      this.setQualityBypassEnabled(true, '1080p Kawaikara selected');
+      this.setQualityBypassTarget('1080p', '1080p Kawaikara selected');
+      return true;
+    }
+    if (action === CHZZK_ENABLE_720_BYPASS_ACTION) {
+      this.setQualityBypassTarget('720p', '720p Kawaikara selected');
       return true;
     }
     if (action === CHZZK_DISABLE_1080_BYPASS_ACTION) {
-      this.setQualityBypassEnabled(false, 'native CHZZK quality selected');
+      this.setQualityBypassTarget(undefined, 'native CHZZK quality selected');
       return true;
     }
     return false;
@@ -172,10 +195,13 @@ export class ChzzkProvider extends UrlProvider {
     // Do not cancel Veta CORS preflights. A failed OPTIONS request is itself
     // an anti-adblock signal and makes CHZZK show its blocker warning. Ads are
     // neutralized by the page response patch and media skipper instead.
-    if (details.method !== 'GET' || !this.qualityBypassEnabled) return undefined;
-    if (!isChzzk480MediaUrl(details.url)) return undefined;
+    if (details.method !== 'GET' || !this.qualityBypassTarget) return undefined;
+    // Keep this deliberately equivalent to the proven main-branch bypass.
+    // CHZZK moves media between CDN families, so host/path allowlists can
+    // silently miss the playlist that actually carries the 480p route.
+    if (!details.url.includes('480p')) return undefined;
 
-    const redirectURL = details.url.replace(/480p/gi, '1080p');
+    const redirectURL = details.url.replace('480p', this.qualityBypassTarget);
     if (redirectURL === details.url) return undefined;
     this.qualityRedirectCount += 1;
     if (
@@ -183,8 +209,9 @@ export class ChzzkProvider extends UrlProvider {
       this.qualityRedirectCount % 100 === 0
     ) {
       this.context.logger.info(
-        'CHZZK 1080p bypass redirected the internal 480p media route.',
+        'CHZZK quality bypass redirected the internal 480p media route.',
         {
+          target: this.qualityBypassTarget,
           redirectCount: this.qualityRedirectCount,
           request: describeMediaUrl(details.url),
           redirectedTo: describeMediaUrl(redirectURL),
@@ -212,17 +239,21 @@ export class ChzzkProvider extends UrlProvider {
   }
 
   async unload(): Promise<void> {
-    this.qualityBypassEnabled = false;
+    this.qualityBypassTarget = undefined;
     this.context.viewer.setUserAgent();
     await super.unload();
   }
 
-  private setQualityBypassEnabled(enabled: boolean, reason: string): void {
-    if (this.qualityBypassEnabled === enabled) return;
-    this.qualityBypassEnabled = enabled;
+  private setQualityBypassTarget(
+    target: '720p' | '1080p' | undefined,
+    reason: string,
+  ): void {
+    if (this.qualityBypassTarget === target) return;
+    this.qualityBypassTarget = target;
+    this.qualityRedirectCount = 0;
     this.context.logger.info(
-      `CHZZK 1080p request bypass ${enabled ? 'enabled' : 'disabled'}.`,
-      { reason },
+      `CHZZK quality request bypass ${target ? `enabled for ${target}` : 'disabled'}.`,
+      { reason, target: target ?? null },
     );
   }
 
@@ -275,22 +306,6 @@ function resolveClipsLabels(
     next: 'Next clip',
     previous: 'Previous clip',
   };
-}
-
-function isChzzk480MediaUrl(value: string): boolean {
-  if (!/480p/i.test(value) || !isChzzkRelatedUrl(value)) return false;
-  try {
-    const url = new URL(value);
-    // The old integration rewrote every 480p media request, not only the
-    // top-level m3u8. Current CHZZK players can request nested playlists and
-    // segment paths carrying the quality directory, so restricting this to a
-    // single .m3u8 silently falls back to the real 480p stream.
-    return /(?:480p|chunklist|playlist|manifest|segment|\.m3u8|\.m4s|\.ts)/i.test(
-      url.pathname,
-    );
-  } catch {
-    return false;
-  }
 }
 
 function describeMediaUrl(value: string): string {
