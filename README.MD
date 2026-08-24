@@ -10,15 +10,17 @@
 </p>
 
 
+
+
 <!-- Badges  -->
 ![Windows Support](https://img.shields.io/badge/Windows-Supported-0078D4?style=flat&logo=windows)
 ![macOS Support](https://img.shields.io/badge/macOS-Supported-0078D4?style=flat&logo=apple)
 [![](https://dcbadge.vercel.app/api/server/JJs974BX45?style=flat)](https://discord.gg/JJs974BX45)
-[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/2.1.2)
+
 
 
 <!-- Download Badges -->
-
+[![GitHub release](https://img.shields.io/github/release/fabyday/kawaikara.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/2.1.2)
 [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/latest/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases/latest)
 [![GitHub downloads](https://img.shields.io/github/downloads/fabyday/kawaikara/total.svg?logo=github)](https://github.com/fabyday/kawaikara/releases)
 
@@ -30,6 +32,23 @@
 
 <!-- Badge End -->
 
+<!-- Intorudction Start -->
+I enjoy streaming on Discord and watching videos with my friends, and Discord's broadcasting works really well for me. However, there are a few limitations. Discord captures a single application window, and many streaming services use DRM.
+
+Watching streaming services directly in a browser can be an alternative, but browsers waste a lot of screen space. I don't want actual fullscreen — I just want the content itself, without the address bar, scrollbars, tabs, and other browser UI.
+
+That's why I decided to build Kawaikara — a super-duper tight & fit viewer for OTT and streaming services.
+
+Over time, Kawaikara has grown beyond a simple OTT viewer. It's becoming a more flexible media platform, with local video playback, Discord-friendly streaming, browser integration, and an extensible Bundle & Plugin system — while keeping the original goal simple: just the content, without the clutter.
+
+<!-- Intorudction End -->
+## Features
+- **Focused OTT Viewing**
+- **Discord-Friendly Streaming**
+- **Local Video Playback**
+- **Extensible Bundle & Plugin System**
+- **Cross-Platform** (Windows / macOS)
+- **Browser Integration** — Kawaikara Protocol & Chrome / Firefox Extension
 ## Release channels
 
 Each channel is installed and updated independently. Its application identity,
@@ -45,10 +64,6 @@ history are isolated, so Stable, Staging, and Nightly can be installed together.
 
 
 
-
-I'm enjoying Discord broadcasting with my friends. and its service fit to me very weeelll. However there are few problems. Discord acquires only single program window and many streaming services use DRM. watching OTT-streaming by Browser may be an alternative way. But Wathching By Browser waste screen area(I just want fullscreen mode but not actually fullscreen. I just want to remove address bar and scrollbar and other UIs.) That's why I decide to develop super-duper-tight&fit OTT-streaming viewer.
-
-# 
 
 ### For more information, visit Home Page
 
@@ -66,6 +81,28 @@ I'm enjoying Discord broadcasting with my friends. and its service fit to me ver
 
 * Open websties directly in **Kawaikara**
 * Easily Share links with your friends
+
+
+## Bundle & Plugin System
+
+Kawaikara provides an extensible Bundle & Plugin System that allows support for websites and services to be added without modifying Kawaikara itself.
+
+Bundle is a package that adds support for a specific website or service to Kawaikara. A Bundle can contain Providers and Plugins that define how Kawaikara interacts with and extends the service.
+
+Provider defines how Kawaikara recognizes and interacts with a website or service. It provides the core integration required for Kawaikara to support that service.
+
+Plugin extends a Provider with additional features or behaviors. Plugins can modify or enhance the experience without changing the Provider itself.
+```
+Bundle
+├── Provider
+│   └── Core service integration
+│
+└── Plugins
+    ├── Additional feature
+    ├── UI enhancement
+    └── Custom behavior
+```
+This architecture makes Kawaikara extensible: new services and features can be distributed as Bundles and Plugins independently from the main application.
 
 
 ## MIT License
