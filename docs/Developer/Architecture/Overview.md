@@ -18,7 +18,10 @@ dev3/
 │   ├── Common/                 # Shared IPC, preferences, build, shortcut, and PiP types
 │   ├── Main/
 │   │   ├── Main.ts             # Composition root and application lifecycle
-│   │   ├── Manager/            # Window, site, IPC, preference, update, login, and helper managers
+│   │   ├── DependencyInjection/ # Manager tokens, construction, and ownership
+│   │   ├── Functional/         # Stateless Main-process helpers and platform bridges
+│   │   ├── Manager/            # Window, site, IPC, logging, preference, update, and service managers
+│   │   ├── Inject/             # Application-owned page injection builders
 │   │   └── Plugin/             # PluginHost
 │   ├── Preload/                # Restricted bridges for app-owned and remote renderers
 │   └── Renderer/
@@ -32,6 +35,8 @@ dev3/
 ```
 
 Directories and files under `Renderer`, `View`, and `Component` use PascalCase to match the project convention.
+`src/Main/Main.ts` is intentionally the only file at the `src/Main` root;
+implementation files belong to one of its responsibility-based subdirectories.
 
 ## Dependency direction
 
@@ -62,6 +67,7 @@ The important rules are:
 ```mermaid
 sequenceDiagram
   participant Electron as Electron app
+  participant Logging as LoggingManager
   participant Preferences as PreferenceManager
   participant Windows as WindowManager
   participant Sites as SiteManager
@@ -69,6 +75,7 @@ sequenceDiagram
   participant IPC as IpcManager
 
   Electron->>Electron: wait for Widevine component
+  Electron->>Logging: initialize and register
   Electron->>Preferences: load()
   Electron->>Windows: createWindows()
   Electron->>Sites: create with SiteContext factory
@@ -80,7 +87,7 @@ sequenceDiagram
   Electron->>Electron: start presence and optional update check
 ```
 
-The app also creates managers for shortcuts, the external downloader, developer links, updates, and Discord Rich Presence. Shutdown runs in the reverse direction: IPC handlers are removed, the global PiP shortcut is unregistered, the active Provider is unloaded, external resources are closed, and only then does Electron quit.
+The app also creates managers for logging, shortcuts, the external downloader, developer links, updates, and Discord Rich Presence. Shutdown runs in the reverse direction: IPC handlers are removed, the global PiP shortcut is unregistered, the active Provider is unloaded, external resources are closed, the log session is finished, and only then does Electron quit.
 
 ## Main responsibilities
 
@@ -144,7 +151,7 @@ This avoids import-order behavior, shared reflection registries between tests, p
 
 ## Current boundary versus future work
 
-The application/package split, explicit Bundle definitions, Provider-scoped Plugin activation, profile isolation, typed IPC, built-in Bundle, and validated third-party `.kawai` installation are implemented. `.kawai` is a ZIP container with an application-specific extension. External Bundles use an explicit trusted-code model and load on restart. Sandboxing, signature checks, permission enforcement, updates, and rollback remain planned work.
+The application/package split, explicit Bundle definitions, Provider-scoped Plugin activation, profile isolation, typed IPC, built-in Bundle, validated third-party `.kawai` installation, and HTTPS archive updates/removal are implemented. `.kawai` is a ZIP container with an application-specific extension. External Bundle code loads and unloads on restart under an explicit trusted-code model. Sandboxing, signature checks, runtime permission enforcement, and automatic rollback remain planned work.
 
 ## Change rules
 

@@ -62,6 +62,12 @@ export interface SiteRuntimeProfile {
   readonly siteId: string;
 }
 
+export interface BrowserDataTarget {
+  readonly id: string;
+  readonly name: string;
+  readonly partition: string;
+}
+
 export interface ResolvedSiteAddress {
   readonly siteId: string;
   readonly url: string;
@@ -69,6 +75,7 @@ export interface ResolvedSiteAddress {
 
 type SiteContextFactory = (
   runtime: SiteRuntimeProfile,
+  permissions: ReadonlySet<string>,
 ) => Promise<SiteContext>;
 
 export class SiteManager {
@@ -201,6 +208,7 @@ export class SiteManager {
         id: metadata.id,
         bundleId,
         title: metadata.title,
+        addressHosts: [...(metadata.address?.hosts ?? [])],
         category: metadata.menu.category,
         icon: metadata.menu.icon,
         panels: this.listPluginViewPanels(metadata),
@@ -315,7 +323,10 @@ export class SiteManager {
 
     const locale = this.resolveLocales(registration);
     const runtime = this.resolveBrowserProfile(registration);
-    const context = await this.createContext(runtime);
+    const context = await this.createContext(
+      runtime,
+      new Set(registration.metadata.permissions ?? []),
+    );
     const providerContext: SiteContext = {
       ...context,
       locale,
@@ -400,6 +411,61 @@ export class SiteManager {
     return true;
   }
 
+  resolveBrowserProfileDataTarget(profileId: string): BrowserDataTarget | undefined {
+    const profile = this.findBrowserProfile(profileId, this.getPreferences());
+    if (!profile) return undefined;
+    const runtime = createSharedRuntime('', profile);
+    return {
+      id: profile.id,
+      name: profile.name,
+      partition: runtime.partition,
+    };
+  }
+
+  resolveIsolatedSiteDataTarget(siteId: string): BrowserDataTarget | undefined {
+    const registration = this.sites.get(siteId);
+    if (!registration) return undefined;
+    const runtime = this.resolveBrowserProfile(registration);
+    if (runtime.id !== `isolated:${siteId}`) return undefined;
+    return {
+      id: siteId,
+      name: registration.metadata.title,
+      partition: runtime.partition,
+    };
+  }
+
+  listBrowserDataPartitions(): string[] {
+    const preferences = this.getPreferences();
+    const partitions = new Set<string>();
+    for (const registration of this.sites.values()) {
+      partitions.add(this.resolveBrowserProfile(registration).partition);
+      partitions.add(createIsolatedRuntime(registration.metadata.id).partition);
+    }
+    for (const profile of this.pluginBrowserProfiles.values()) {
+      partitions.add(createSharedRuntime('', profile).partition);
+    }
+    for (const profile of preferences.browserProfiles) {
+      const resolved = this.findBrowserProfile(`user:${profile.id}`, preferences);
+      if (resolved) partitions.add(createSharedRuntime('', resolved).partition);
+    }
+    return [...partitions];
+  }
+
+  async withPartitionSuspended<T>(
+    partition: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const siteId = this.currentRuntime?.partition === partition
+      ? this.currentSiteId
+      : undefined;
+    if (siteId) await this.unloadCurrent();
+    try {
+      return await operation();
+    } finally {
+      if (siteId) await this.load(siteId);
+    }
+  }
+
   resolveNewWindowPolicy(url: string): NewWindowPolicy {
     return this.currentProvider?.onNewWindow(url) ?? 'deny';
   }
@@ -422,7 +488,7 @@ export class SiteManager {
 
     let target: URL;
     try {
-      const parsed = new URL(trimmed);
+      const parsed = new URL(normalizeAddressInput(trimmed));
       if (parsed.protocol === 'kawaikara:') {
         if (
           parsed.hostname !== 'open' ||
@@ -433,7 +499,7 @@ export class SiteManager {
         }
         const nested = parsed.searchParams.get('url');
         if (!nested) return undefined;
-        target = new URL(nested);
+        target = new URL(normalizeAddressInput(nested));
       } else {
         target = parsed;
       }
@@ -478,6 +544,14 @@ export class SiteManager {
     return this.currentProvider?.allowPictureInPicture(url) ?? false;
   }
 
+  getPictureInPictureContentOverlaySelectors(): readonly string[] {
+    if (!this.currentSiteId) return [];
+    return (
+      this.sites.get(this.currentSiteId)?.metadata.pictureInPicture
+        ?.contentOverlaySelectors ?? []
+    );
+  }
+
   transformRequestHeaders(
     details: SiteRequestDetails,
   ): SiteRequestHeaders | undefined {
@@ -513,26 +587,28 @@ export class SiteManager {
         `Bundle ${bundleId} exported a Provider without @provider metadata.`,
       );
     }
-    if (metadata.id !== undefined && manifest.id !== metadata.id) {
-      throw new Error(
-        `Provider manifest id ${manifest.id} does not match @provider id ${metadata.id}.`,
-      );
-    }
     if (manifest.apiVersion !== 1 || manifest.schemaVersion !== 1) {
       throw new Error(`Provider ${manifest.id} uses an unsupported manifest or API version.`);
     }
-    for (const permission of metadata.permissions ?? []) {
+    for (const permission of manifest.permissions) {
       if (!grantedPermissions.has(permission)) {
         throw new Error(
           `Provider ${manifest.id} requires Bundle permission ${permission}.`,
         );
       }
     }
+    const contributions = manifest.contributes;
     const effectiveMetadata: ProviderMetadata = {
       ...metadata,
+      ...contributions,
       id: manifest.id,
       title: manifest.name,
-      description: manifest.description ?? metadata.description,
+      description: manifest.description,
+      menu: {
+        ...metadata.menu,
+        ...contributions.menu,
+      },
+      permissions: manifest.permissions,
     } as ProviderMetadata;
     const defaultProfile = effectiveMetadata.isolation?.defaultBrowserProfile;
     if (defaultProfile && !localProfileIds.has(defaultProfile)) {
@@ -841,6 +917,20 @@ function resolveGlobalLocale(
 const CONTRIBUTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 
 function validateProviderContributions(metadata: ProviderMetadata): void {
+  if (
+    !metadata.menu ||
+    typeof metadata.menu.category !== 'string' ||
+    !metadata.menu.category.trim() ||
+    metadata.menu.category.length > 80 ||
+    (metadata.menu.order !== undefined && !Number.isFinite(metadata.menu.order)) ||
+    (metadata.menu.icon !== undefined &&
+      (typeof metadata.menu.icon !== 'string' || metadata.menu.icon.length > 262_144))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid menu metadata.`);
+  }
+  if (metadata.menu.panels !== undefined && !Array.isArray(metadata.menu.panels)) {
+    throw new Error(`Provider ${metadata.id} has invalid PluginView panels.`);
+  }
   validatePanelContributions(metadata.menu.panels ?? [], `Provider ${metadata.id}`);
   if (
     metadata.menu.panels?.length &&
@@ -848,13 +938,95 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
   ) {
     throw new Error(`Provider ${metadata.id} must declare plugin-view permission.`);
   }
+  if (
+    metadata.address &&
+    (!Array.isArray(metadata.address.hosts) ||
+      metadata.address.hosts.length === 0 ||
+      metadata.address.hosts.length > 40 ||
+      metadata.address.hosts.some(
+        (host) =>
+          typeof host !== 'string' ||
+          !/^[A-Za-z0-9.-]+$/.test(host) ||
+          host.startsWith('.') ||
+          host.endsWith('.'),
+      ))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid address hosts.`);
+  }
+  if (
+    metadata.shortcut?.defaultKey !== undefined &&
+    (typeof metadata.shortcut.defaultKey !== 'string' ||
+      metadata.shortcut.defaultKey.length > 100)
+  ) {
+    throw new Error(`Provider ${metadata.id} has an invalid default shortcut.`);
+  }
+  if (
+    metadata.shortcut?.actions !== undefined &&
+    !Array.isArray(metadata.shortcut.actions)
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid action shortcuts.`);
+  }
+  if (
+    metadata.locale &&
+    ((metadata.locale.supportedLocales !== undefined &&
+      (!Array.isArray(metadata.locale.supportedLocales) ||
+        metadata.locale.supportedLocales.length > 40 ||
+        metadata.locale.supportedLocales.some(
+          (locale) => typeof locale !== 'string' || !locale.trim() || locale.length > 40,
+        ))) ||
+      (metadata.locale.defaultLocale !== undefined &&
+        (typeof metadata.locale.defaultLocale !== 'string' ||
+          !metadata.locale.defaultLocale.trim() ||
+          metadata.locale.defaultLocale.length > 40)))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid locale metadata.`);
+  }
+  if (
+    metadata.isolation &&
+    ((metadata.isolation.drm !== undefined &&
+      typeof metadata.isolation.drm !== 'boolean') ||
+      (metadata.isolation.defaultBrowserProfile !== undefined &&
+        (typeof metadata.isolation.defaultBrowserProfile !== 'string' ||
+          !metadata.isolation.defaultBrowserProfile.trim())))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid isolation metadata.`);
+  }
+  const pip = metadata.pictureInPicture;
+  if (
+    pip &&
+    ((pip.enabled !== undefined && typeof pip.enabled !== 'boolean') ||
+      (pip.suppressPageControls !== undefined &&
+        typeof pip.suppressPageControls !== 'boolean') ||
+      (pip.pageRequestPolicy !== undefined &&
+        !['block', 'transient', 'allow'].includes(pip.pageRequestPolicy)) ||
+      !isOptionalBoundedStringArray(pip.pageControlSelectors, 100, 1_000) ||
+      !isOptionalBoundedStringArray(pip.contentOverlaySelectors, 100, 1_000))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid Picture in Picture metadata.`);
+  }
+
   const settingTypes = new Map<string, 'boolean' | 'item-list'>();
+  if (
+    metadata.settings?.categories !== undefined &&
+    !Array.isArray(metadata.settings.categories)
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid setting categories.`);
+  }
   const categories = metadata.settings?.categories ?? [];
   if (categories.length > 32) {
     throw new Error(`Provider ${metadata.id} declares too many setting categories.`);
   }
   const categoryIds = new Set<string>();
   for (const category of categories) {
+    if (
+      !category ||
+      typeof category !== 'object' ||
+      typeof category.id !== 'string' ||
+      !Array.isArray(category.settings) ||
+      category.settings.length > 64
+    ) {
+      throw new Error(`Provider ${metadata.id} has an invalid setting category.`);
+    }
     requireContributionId(category.id, `${metadata.id} setting category`);
     if (categoryIds.has(category.id)) {
       throw new Error(`Provider ${metadata.id} repeats setting category ${category.id}.`);
@@ -864,10 +1036,14 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
     if (category.description) {
       validateLocalizedText(category.description, `${metadata.id} setting category description`);
     }
-    if (!Array.isArray(category.settings) || category.settings.length > 64) {
-      throw new Error(`Provider ${metadata.id} has an invalid setting category.`);
-    }
     for (const setting of category.settings) {
+      if (
+        !setting ||
+        typeof setting !== 'object' ||
+        typeof setting.key !== 'string'
+      ) {
+        throw new Error(`Provider ${metadata.id} has an invalid setting.`);
+      }
       requireContributionId(setting.key, `${metadata.id} setting`);
       if (settingTypes.has(setting.key)) {
         throw new Error(`Provider ${metadata.id} repeats setting key ${setting.key}.`);
@@ -890,6 +1066,22 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
   }
 
   const shortForm = metadata.shortFormVideo;
+  if (
+    shortForm &&
+    ((shortForm.previous !== undefined && typeof shortForm.previous !== 'boolean') ||
+      (shortForm.next !== undefined && typeof shortForm.next !== 'boolean') ||
+      (shortForm.autoAdvance !== undefined &&
+        (!shortForm.autoAdvance ||
+          typeof shortForm.autoAdvance !== 'object' ||
+          typeof shortForm.autoAdvance.settingKey !== 'string' ||
+          typeof shortForm.autoAdvance.defaultValue !== 'boolean')) ||
+      (shortForm.publisherBan !== undefined &&
+        (!shortForm.publisherBan ||
+          typeof shortForm.publisherBan !== 'object' ||
+          typeof shortForm.publisherBan.settingKey !== 'string')))
+  ) {
+    throw new Error(`Provider ${metadata.id} has invalid short-form metadata.`);
+  }
   if (shortForm?.autoAdvance) {
     requireSettingType(
       metadata.id,
@@ -909,6 +1101,15 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
 
   const localShortcutIds = new Set<string>();
   for (const shortcut of metadata.shortcut?.actions ?? []) {
+    if (
+      !shortcut ||
+      typeof shortcut !== 'object' ||
+      typeof shortcut.id !== 'string' ||
+      typeof shortcut.defaultKey !== 'string' ||
+      typeof shortcut.action !== 'string'
+    ) {
+      throw new Error(`Provider ${metadata.id} has an invalid action shortcut.`);
+    }
     requireContributionId(shortcut.id, `${metadata.id} action shortcut`);
     if (localShortcutIds.has(shortcut.id)) {
       throw new Error(`Provider ${metadata.id} repeats action shortcut ${shortcut.id}.`);
@@ -924,6 +1125,23 @@ function validateProviderContributions(metadata: ProviderMetadata): void {
   }
 }
 
+function isOptionalBoundedStringArray(
+  value: readonly string[] | undefined,
+  maximumItems: number,
+  maximumItemLength: number,
+): boolean {
+  return value === undefined || (
+    Array.isArray(value) &&
+    value.length <= maximumItems &&
+    value.every(
+      (item) =>
+        typeof item === 'string' &&
+        item.length > 0 &&
+        item.length <= maximumItemLength,
+    )
+  );
+}
+
 function validatePanelContributions(
   panels: readonly PluginViewPanelContribution[],
   owner: string,
@@ -931,14 +1149,27 @@ function validatePanelContributions(
   if (panels.length > 16) throw new Error(`${owner} declares too many PluginView panels.`);
   const ids = new Set<string>();
   for (const panel of panels) {
+    if (
+      !panel ||
+      typeof panel !== 'object' ||
+      typeof panel.id !== 'string' ||
+      !panel.content ||
+      typeof panel.content !== 'object'
+    ) {
+      throw new Error(`${owner} has an invalid PluginView panel.`);
+    }
     requireContributionId(panel.id, `${owner} PluginView panel`);
     if (ids.has(panel.id)) throw new Error(`${owner} repeats PluginView panel ${panel.id}.`);
     ids.add(panel.id);
     validateLocalizedText(panel.title, `${owner} PluginView panel title`);
-    if (panel.content.kind === 'internal') {
+    if (
+      panel.content.kind === 'internal' &&
+      typeof panel.content.viewId === 'string'
+    ) {
       requireContributionId(panel.content.viewId, `${owner} internal view`);
     } else if (
       panel.content.kind !== 'html' ||
+      typeof panel.content.html !== 'string' ||
       !panel.content.html.trim() ||
       panel.content.html.length > 262_144
     ) {
@@ -961,7 +1192,7 @@ function requireSettingType(
 }
 
 function requireContributionId(value: string, label: string): void {
-  if (!CONTRIBUTION_ID_PATTERN.test(value)) {
+  if (typeof value !== 'string' || !CONTRIBUTION_ID_PATTERN.test(value)) {
     throw new Error(`${label} has invalid id ${value}.`);
   }
 }
@@ -979,7 +1210,10 @@ function validateLocalizedText(value: ProviderLocalizedText, label: string): voi
     entries.length === 0 ||
     entries.length > 20 ||
     entries.some(([locale, text]) =>
-      !locale.trim() || !text.trim() || text.length > 500,
+      !locale.trim() ||
+      typeof text !== 'string' ||
+      !text.trim() ||
+      text.length > 500,
     )
   ) {
     throw new Error(`${label} is invalid.`);
@@ -1015,6 +1249,12 @@ function isNavigationAborted(error: unknown): boolean {
     'code' in error &&
     (error as { code?: unknown }).code === 'ERR_ABORTED'
   );
+}
+
+function normalizeAddressInput(value: string): string {
+  if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)) return value;
+  if (value.startsWith('//')) return `https:${value}`;
+  return `https://${value}`;
 }
 
 function createPluginBrowserProfileId(pluginId: string, profileId: string): string {

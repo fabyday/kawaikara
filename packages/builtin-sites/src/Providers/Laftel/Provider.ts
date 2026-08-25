@@ -5,7 +5,7 @@ import {
   type SiteRequestHeaders,
 } from '@kawaikara/site-api';
 import { LAFTEL_ICON } from '../../Icons';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
+import { createVideoPictureInPicture } from '../../PictureInPicture';
 import { createBrowserUserAgent, setHeader } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
 
@@ -18,16 +18,11 @@ const LAFTEL_PIP_CONTROL_SELECTORS = [
 ] as const;
 
 @provider({
-  id: 'kawaikara.laftel',
-  address: { hosts: ['laftel.net'] },
-  title: 'Laftel',
-  shortcut: { defaultKey: 'Control+Alt+2' },
-  locale: BUILTIN_SITE_LOCALE,
   pictureInPicture: {
+    ...createVideoPictureInPicture(),
     pageControlSelectors: LAFTEL_PIP_CONTROL_SELECTORS,
   },
   menu: { category: 'OTT', order: 20, icon: LAFTEL_ICON },
-  permissions: ['navigation', 'network-interception'],
 })
 export class LaftelProvider extends UrlProvider {
   protected readonly url = 'https://laftel.net/';

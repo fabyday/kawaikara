@@ -74,6 +74,10 @@ export function getDefaultMenuCategoryShortcut(index: number): string {
   return index >= 0 && index < 9 ? String(index + 1) : '';
 }
 
+export function isApplePlatform(): boolean {
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+}
+
 export function matchesKeyboardAccelerator(
   event: KeyboardEvent,
   accelerator: string,
@@ -90,7 +94,7 @@ export function matchesKeyboardAccelerator(
   let meta = false;
   let alt = false;
   let shift = false;
-  const apple = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+  const apple = isApplePlatform();
   for (const modifier of parts) {
     switch (modifier) {
       case 'commandorcontrol':

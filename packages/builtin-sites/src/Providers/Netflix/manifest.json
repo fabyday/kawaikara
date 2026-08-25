@@ -1,1 +1,28 @@
-{"schemaVersion":1,"id":"kawaikara.netflix","name":"Netflix","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","script-injection","external-browser","cookies"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.netflix",
+  "name": "Netflix",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": [
+    "navigation",
+    "script-injection",
+    "external-browser",
+    "cookies"
+  ],
+  "contributes": {
+    "address": { "hosts": ["netflix.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+1" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "drm": true },
+    "menu": {
+      "category": "OTT",
+      "order": 10,
+      "icon": "https://netflix.com/favicon.ico"
+    }
+  }
+}

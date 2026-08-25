@@ -3,12 +3,15 @@ import {
   IPC_CHANNELS,
   type ApplicationLinkId,
   type ApplicationInfo,
+  type ApplicationDataActionResult,
   type ApplicationUpdateCheckResult,
   type ApplicationUpdatePanelState,
   type AppLocale,
   type AppTheme,
   type BundleInfo,
   type BundleInstallResult,
+  type BundleRemoveResult,
+  type BundleUpdateResult,
   type DeveloperYouTubeStatus,
   type DevToolsMode,
   type DisplayInfo,
@@ -69,6 +72,8 @@ const api: KawaikaraRendererApi = {
       ) as Promise<ApplicationUpdatePanelState>,
     installUpdate: () =>
       ipcRenderer.invoke(IPC_CHANNELS.application.installUpdate),
+    copyText: (value) =>
+      ipcRenderer.invoke(IPC_CHANNELS.application.copyText, value),
     onUpdateStateChanged: (handler) => {
       const listener = (
         _event: Electron.IpcRendererEvent,
@@ -93,10 +98,16 @@ const api: KawaikaraRendererApi = {
         IPC_CHANNELS.bundles.install,
         locale,
       ) as Promise<BundleInstallResult>,
+    update: (id, locale) =>
+      ipcRenderer.invoke(IPC_CHANNELS.bundles.update, id, locale) as Promise<BundleUpdateResult>,
+    remove: (id, locale) =>
+      ipcRenderer.invoke(IPC_CHANNELS.bundles.remove, id, locale) as Promise<BundleRemoveResult>,
   },
   sites: {
     list: () =>
       ipcRenderer.invoke(IPC_CHANNELS.sites.list) as Promise<SiteMenuItem[]>,
+    currentAddress: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.sites.currentAddress) as Promise<string>,
     open: (id) => ipcRenderer.invoke(IPC_CHANNELS.sites.open, id),
     openAddress: (value) =>
       ipcRenderer.invoke(IPC_CHANNELS.sites.openAddress, value),
@@ -206,6 +217,30 @@ const api: KawaikaraRendererApi = {
         patch,
         options,
       ) as Promise<PreferenceState>,
+  },
+  data: {
+    clearBrowserProfile: (profileId, locale) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.data.clearBrowserProfile,
+        profileId,
+        locale,
+      ) as Promise<ApplicationDataActionResult>,
+    clearIsolatedSite: (siteId, locale) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.data.clearIsolatedSite,
+        siteId,
+        locale,
+      ) as Promise<ApplicationDataActionResult>,
+    clearApplicationCache: (locale) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.data.clearApplicationCache,
+        locale,
+      ) as Promise<ApplicationDataActionResult>,
+    resetApplication: (locale) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.data.resetApplication,
+        locale,
+      ) as Promise<ApplicationDataActionResult>,
   },
 };
 

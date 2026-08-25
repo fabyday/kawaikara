@@ -29,6 +29,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.netflix',
     bundleId: 'kawaikara.builtin-sites',
     title: 'Netflix',
+    addressHosts: ['netflix.com'],
     category: 'OTT',
     icon: svgIcon('N', '#e50914'),
     panels: [],
@@ -45,6 +46,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.laftel',
     bundleId: 'kawaikara.builtin-sites',
     title: 'Laftel',
+    addressHosts: ['laftel.net'],
     category: 'OTT',
     icon: svgIcon('L', '#6d5dfc'),
     panels: [],
@@ -61,6 +63,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.coupang-play',
     bundleId: 'kawaikara.builtin-sites',
     title: 'Coupang Play',
+    addressHosts: ['coupangplay.com'],
     category: 'OTT',
     icon: svgIcon('C', '#00a8ff'),
     panels: [],
@@ -77,6 +80,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.video',
     bundleId: 'kawaikara.builtin-sites',
     title: 'Video',
+    addressHosts: [],
     category: 'Video',
     panels: [{
       id: 'provider:kawaikara.video:library',
@@ -97,6 +101,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.youtube',
     bundleId: 'kawaikara.builtin-sites',
     title: 'YouTube',
+    addressHosts: ['youtube.com'],
     category: 'Video',
     icon: svgIcon('▶', '#ff0033'),
     panels: [],
@@ -105,7 +110,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     actionShortcuts: [],
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
     defaultLocale: 'inherit',
-    defaultBrowserProfileId: 'plugin:kawaikara.builtin-sites:google',
+    defaultBrowserProfileId: 'plugin:kawaikara.builtin-sites:google-v2',
     drm: false,
     pictureInPictureEnabled: true,
     isCurrent: true,
@@ -114,6 +119,7 @@ export const STORY_SITES: SiteMenuItem[] = [
     id: 'kawaikara.spotify',
     bundleId: 'kawaikara.builtin-sites',
     title: 'Spotify',
+    addressHosts: ['spotify.com'],
     category: 'Music',
     icon: svgIcon('S', '#1db954'),
     panels: [],
@@ -373,6 +379,7 @@ export function installKawaikaraMock(
         return updateState;
       },
       installUpdate: async () => undefined,
+      copyText: async () => undefined,
       onUpdateStateChanged: (handler) => {
         updateStateHandlers.add(handler);
         return () => updateStateHandlers.delete(handler);
@@ -394,7 +401,7 @@ export function installKawaikaraMock(
           defaultLocale: 'inherit',
           browserProfiles: [
             {
-              id: 'plugin:kawaikara.builtin-sites:google',
+              id: 'plugin:kawaikara.builtin-sites:google-v2',
               name: 'Google',
               description: 'Shares Google sign-in between YouTube integrations.',
               persistent: true,
@@ -448,6 +455,7 @@ export function installKawaikaraMock(
           name: 'Kawaikara Built-in Sites',
           description: 'Official Providers bundled with Kawaikara.',
           version: '3.0.0-dev.0',
+          updatable: true,
           kind: 'bundle',
           source: 'built-in',
           status: 'active',
@@ -457,6 +465,8 @@ export function installKawaikaraMock(
         },
       ],
       install: async () => ({ status: 'cancelled' }),
+      update: async () => ({ status: 'cancelled' }),
+      remove: async () => ({ status: 'cancelled' }),
     },
     sites: {
       list: async () =>
@@ -464,6 +474,7 @@ export function installKawaikaraMock(
           ...site,
           isCurrent: site.id === currentSiteId,
         })),
+      currentAddress: async () => 'https://www.youtube.com/',
       open: async (id) => {
         currentSiteId = id;
         emitHidden();
@@ -540,6 +551,12 @@ export function installKawaikaraMock(
         preferences = { ...preferences, ...patch };
         return { ...preferences };
       },
+    },
+    data: {
+      clearBrowserProfile: async () => ({ status: 'cleared' }),
+      clearIsolatedSite: async () => ({ status: 'cleared' }),
+      clearApplicationCache: async () => ({ status: 'cancelled' }),
+      resetApplication: async () => ({ status: 'cancelled' }),
     },
   };
 

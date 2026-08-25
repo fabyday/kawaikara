@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -137,7 +138,10 @@ export function PreferenceView({
     useState<ApplicationUpdateCheckResult>();
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [installingBundle, setInstallingBundle] = useState(false);
+  const [bundleActionId, setBundleActionId] = useState<string>();
   const [bundleNotice, setBundleNotice] = useState<string>();
+  const [dataActionId, setDataActionId] = useState<string>();
+  const [dataNotice, setDataNotice] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [shortcutConflict, setShortcutConflict] =
@@ -494,6 +498,128 @@ export function PreferenceView({
     }
   };
 
+  const updateBundle = async (bundle: BundleInfo) => {
+    if (!draftPreferences || !bundle.updatable) return;
+    setBundleActionId(bundle.id);
+    setBundleNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.bundles.update(
+        bundle.id,
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cancelled') return;
+      setBundles(await window.kawaikara.bundles.list());
+      setBundleNotice(
+        messages.bundleUpdateSuccess.replace('{name}', result.bundle.name),
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBundleActionId(undefined);
+    }
+  };
+
+  const removeBundle = async (bundle: BundleInfo) => {
+    if (!draftPreferences) return;
+    setBundleActionId(bundle.id);
+    setBundleNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.bundles.remove(
+        bundle.id,
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cancelled') return;
+      setBundles(await window.kawaikara.bundles.list());
+      setBundleNotice(
+        messages.bundleRemoveSuccess.replace('{name}', bundle.name),
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBundleActionId(undefined);
+    }
+  };
+
+  const clearBrowserProfileData = async (profile: BrowserProfileInfo) => {
+    if (!draftPreferences) return;
+    const actionId = `profile:${profile.id}`;
+    setDataActionId(actionId);
+    setDataNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.data.clearBrowserProfile(
+        profile.id,
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cleared') {
+        setDataNotice(
+          messages.dataClearSuccess.replace('{name}', profile.name),
+        );
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDataActionId(undefined);
+    }
+  };
+
+  const clearIsolatedSiteData = async (site: SiteMenuItem) => {
+    if (!draftPreferences) return;
+    const actionId = `site:${site.id}`;
+    setDataActionId(actionId);
+    setDataNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.data.clearIsolatedSite(
+        site.id,
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cleared') {
+        setDataNotice(
+          messages.dataClearSuccess.replace('{name}', site.title),
+        );
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDataActionId(undefined);
+    }
+  };
+
+  const clearApplicationCache = async () => {
+    if (!draftPreferences) return;
+    setDataActionId('application-cache');
+    setDataNotice(undefined);
+    setError(undefined);
+    try {
+      await window.kawaikara.data.clearApplicationCache(
+        draftPreferences.appLocale,
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDataActionId(undefined);
+    }
+  };
+
+  const resetApplication = async () => {
+    if (!draftPreferences) return;
+    setDataActionId('application-reset');
+    setDataNotice(undefined);
+    setError(undefined);
+    try {
+      await window.kawaikara.data.resetApplication(
+        draftPreferences.appLocale,
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDataActionId(undefined);
+    }
+  };
+
   const updateShortcut = (item: ShortcutItem, accelerator: string) => {
     if (!draftPreferences) return;
     const previousShortcuts = { ...draftPreferences.shortcuts };
@@ -599,6 +725,8 @@ export function PreferenceView({
               <TabPanel className="preference-tab-panel" value="general">
                 <PreferenceTabScroll label={messages.general}>
                   <GeneralTab
+                    dataActionId={dataActionId}
+                    dataActionsDisabled={hasChanges}
                     displays={displays}
                     graphicsMode={
                       graphicsRestartRequest ?? draftPreferences.graphicsMode
@@ -609,7 +737,9 @@ export function PreferenceView({
                     siteOptions={siteOptions}
                     sites={sites}
                     onEditMenuOrder={() => setMenuOrderEditorOpen(true)}
+                    onClearApplicationCache={clearApplicationCache}
                     onGraphicsModeChange={requestGraphicsModeChange}
+                    onResetApplication={resetApplication}
                     onUpdate={updateDraft}
                   />
                 </PreferenceTabScroll>
@@ -629,11 +759,15 @@ export function PreferenceView({
               <TabPanel className="preference-tab-panel" value="profiles">
                 <PreferenceTabScroll label={messages.browserProfiles}>
                   <BrowserProfilesTab
+                    dataActionId={dataActionId}
+                    dataActionsDisabled={hasChanges}
                     messages={messages}
                     bundles={runtimeBundles}
                     preferences={draftPreferences}
                     saving={saving}
                     sites={sites}
+                    onClearIsolatedSiteData={clearIsolatedSiteData}
+                    onClearProfileData={clearBrowserProfileData}
                     onUpdate={updateDraft}
                   />
                 </PreferenceTabScroll>
@@ -709,12 +843,15 @@ export function PreferenceView({
                     bundles={bundles}
                     activationToken={bundleTabActivation}
                     installing={installingBundle}
+                    actionBundleId={bundleActionId}
                     messages={messages}
                     notice={bundleNotice}
                     preferences={draftPreferences}
                     runtimeBundles={runtimeBundles}
                     saving={saving}
                     onInstall={installBundle}
+                    onRemoveBundle={removeBundle}
+                    onUpdateBundle={updateBundle}
                     onUpdate={updateDraft}
                   />
                 </PreferenceTabScroll>
@@ -760,6 +897,12 @@ export function PreferenceView({
         {draftPreferences && error ? (
           <Text className="menu-error preference-error" size="xs" tone="danger">
             {error}
+          </Text>
+        ) : null}
+
+        {draftPreferences && dataNotice ? (
+          <Text className="preference-data-notice" size="xs">
+            {dataNotice}
           </Text>
         ) : null}
 
@@ -1170,6 +1313,8 @@ function NumberPreferenceControl({
 }
 
 function GeneralTab({
+  dataActionId,
+  dataActionsDisabled,
   displays,
   graphicsMode,
   messages,
@@ -1178,9 +1323,13 @@ function GeneralTab({
   siteOptions,
   sites,
   onEditMenuOrder,
+  onClearApplicationCache,
   onGraphicsModeChange,
+  onResetApplication,
   onUpdate,
 }: {
+  readonly dataActionId?: string;
+  readonly dataActionsDisabled: boolean;
   readonly displays: readonly DisplayInfo[];
   readonly graphicsMode: GraphicsMode;
   readonly messages: AppMessages;
@@ -1189,7 +1338,9 @@ function GeneralTab({
   readonly siteOptions: readonly { label: string; value: string }[];
   readonly sites: readonly SiteMenuItem[];
   readonly onEditMenuOrder: () => void;
+  readonly onClearApplicationCache: () => void | Promise<void>;
   readonly onGraphicsModeChange: (graphicsMode: GraphicsMode) => void;
+  readonly onResetApplication: () => void | Promise<void>;
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   return (
@@ -1427,6 +1578,48 @@ function GeneralTab({
           value={graphicsMode}
           onChange={onGraphicsModeChange}
         />
+      </section>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.dataManagement}
+        </Text>
+        <Stack gap="sm">
+          <div className="application-data-row">
+            <div className="application-data-copy">
+              <Text weight="semibold">{messages.applicationCacheReset}</Text>
+              <Text size="xs" tone="muted">
+                {messages.applicationCacheResetDescription}
+              </Text>
+            </div>
+            <Button
+              disabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+              isLoading={dataActionId === 'application-cache'}
+              size="sm"
+              variant="secondary"
+              onClick={() => void onClearApplicationCache()}
+            >
+              {messages.applicationCacheReset}
+            </Button>
+          </div>
+          <div className="application-data-row is-danger">
+            <div className="application-data-copy">
+              <Text weight="semibold">{messages.applicationReset}</Text>
+              <Text size="xs" tone="muted">
+                {messages.applicationResetDescription}
+              </Text>
+            </div>
+            <Button
+              disabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+              isLoading={dataActionId === 'application-reset'}
+              size="sm"
+              variant="danger"
+              onClick={() => void onResetApplication()}
+            >
+              {messages.applicationReset}
+            </Button>
+          </div>
+        </Stack>
       </section>
     </Stack>
   );
@@ -1856,17 +2049,25 @@ function OrderButtons({
 
 function BrowserProfilesTab({
   bundles,
+  dataActionId,
+  dataActionsDisabled,
   messages,
   preferences,
   saving,
   sites,
+  onClearIsolatedSiteData,
+  onClearProfileData,
   onUpdate,
 }: {
   readonly bundles: readonly BundleRuntimeInfo[];
+  readonly dataActionId?: string;
+  readonly dataActionsDisabled: boolean;
   readonly messages: AppMessages;
   readonly preferences: PreferenceState;
   readonly saving: boolean;
   readonly sites: readonly SiteMenuItem[];
+  readonly onClearIsolatedSiteData: (site: SiteMenuItem) => void | Promise<void>;
+  readonly onClearProfileData: (profile: BrowserProfileInfo) => void | Promise<void>;
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   const [newProfileName, setNewProfileName] = useState('');
@@ -1941,9 +2142,12 @@ function BrowserProfilesTab({
           <Stack gap="sm">
             {pluginProfiles.map((profile) => (
               <BrowserProfileCard
+                clearDisabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+                clearLoading={dataActionId === `profile:${profile.id}`}
                 key={profile.id}
                 messages={messages}
                 profile={profile}
+                onClear={() => void onClearProfileData(profile)}
               />
             ))}
           </Stack>
@@ -1956,20 +2160,26 @@ function BrowserProfilesTab({
         </Text>
         {preferences.browserProfiles.length ? (
           <Stack gap="sm">
-            {preferences.browserProfiles.map((profile) => (
-              <BrowserProfileCard
-                key={profile.id}
-                messages={messages}
-                profile={{
-                  id: `user:${profile.id}`,
-                  name: profile.name,
-                  persistent: profile.persistent,
-                  source: 'user',
-                }}
-                removeDisabled={saving}
-                onRemove={() => removeProfile(profile)}
-              />
-            ))}
+            {preferences.browserProfiles.map((profile) => {
+              const runtimeProfile: BrowserProfileInfo = {
+                id: `user:${profile.id}`,
+                name: profile.name,
+                persistent: profile.persistent,
+                source: 'user',
+              };
+              return (
+                <BrowserProfileCard
+                  clearDisabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+                  clearLoading={dataActionId === `profile:${runtimeProfile.id}`}
+                  key={profile.id}
+                  messages={messages}
+                  profile={runtimeProfile}
+                  removeDisabled={saving || Boolean(dataActionId)}
+                  onClear={() => void onClearProfileData(runtimeProfile)}
+                  onRemove={() => removeProfile(profile)}
+                />
+              );
+            })}
           </Stack>
         ) : (
           <Text size="sm" tone="muted">{messages.noUserProfiles}</Text>
@@ -2003,19 +2213,32 @@ function BrowserProfilesTab({
                         )}
                   </Text>
                 </div>
-                <Select
-                  disabled={saving}
-                  label={messages.browserProfile}
-                  options={profileOptions(messages, allProfiles)}
-                  value={effective}
-                  onValueChange={(browserProfileId) => {
-                    const assignments = { ...preferences.siteBrowserProfiles };
-                    const defaultValue = site.defaultBrowserProfileId ?? 'isolated';
-                    if (browserProfileId === defaultValue) delete assignments[site.id];
-                    else assignments[site.id] = browserProfileId;
-                    onUpdate({ siteBrowserProfiles: assignments });
-                  }}
-                />
+                <div className="profile-site-controls">
+                  <Select
+                    disabled={saving}
+                    label={messages.browserProfile}
+                    options={profileOptions(messages, allProfiles)}
+                    value={effective}
+                    onValueChange={(browserProfileId) => {
+                      const assignments = { ...preferences.siteBrowserProfiles };
+                      const defaultValue = site.defaultBrowserProfileId ?? 'isolated';
+                      if (browserProfileId === defaultValue) delete assignments[site.id];
+                      else assignments[site.id] = browserProfileId;
+                      onUpdate({ siteBrowserProfiles: assignments });
+                    }}
+                  />
+                  {effective === 'isolated' ? (
+                    <Button
+                      disabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+                      isLoading={dataActionId === `site:${site.id}`}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void onClearIsolatedSiteData(site)}
+                    >
+                      {messages.clearSiteData}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             );
           })}
@@ -2026,14 +2249,20 @@ function BrowserProfilesTab({
 }
 
 function BrowserProfileCard({
+  clearDisabled,
+  clearLoading,
   messages,
   profile,
   removeDisabled,
+  onClear,
   onRemove,
 }: {
+  readonly clearDisabled?: boolean;
+  readonly clearLoading?: boolean;
   readonly messages: AppMessages;
   readonly profile: BrowserProfileInfo;
   readonly removeDisabled?: boolean;
+  readonly onClear: () => void;
   readonly onRemove?: () => void;
 }) {
   return (
@@ -2051,11 +2280,22 @@ function BrowserProfileCard({
           {profile.description ?? profile.pluginName ?? messages.persistentProfile}
         </Text>
       </div>
-      {onRemove ? (
-        <Button disabled={removeDisabled} size="sm" variant="danger" onClick={onRemove}>
-          {messages.removeProfile}
+      <div className="profile-card-actions">
+        <Button
+          disabled={clearDisabled}
+          isLoading={clearLoading}
+          size="sm"
+          variant="ghost"
+          onClick={onClear}
+        >
+          {messages.clearProfileData}
         </Button>
-      ) : null}
+        {onRemove ? (
+          <Button disabled={removeDisabled} size="sm" variant="danger" onClick={onRemove}>
+            {messages.removeProfile}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -2251,6 +2491,7 @@ function ShortcutRecorder({
 }
 
 function BundlesTab({
+  actionBundleId,
   activationToken,
   bundles,
   installing,
@@ -2260,8 +2501,11 @@ function BundlesTab({
   runtimeBundles,
   saving,
   onInstall,
+  onRemoveBundle,
+  onUpdateBundle,
   onUpdate,
 }: {
+  readonly actionBundleId?: string;
   readonly activationToken: number;
   readonly bundles: readonly BundleInfo[];
   readonly installing: boolean;
@@ -2271,11 +2515,16 @@ function BundlesTab({
   readonly runtimeBundles: readonly BundleRuntimeInfo[];
   readonly saving: boolean;
   readonly onInstall: () => void | Promise<void>;
+  readonly onRemoveBundle: (bundle: BundleInfo) => void | Promise<void>;
+  readonly onUpdateBundle: (bundle: BundleInfo) => void | Promise<void>;
   readonly onUpdate: (patch: PreferencePatch) => void;
 }) {
   const [selectedBundleId, setSelectedBundleId] = useState<string>();
   const selectedBundle = bundles.find(({ id }) => id === selectedBundleId);
   const selectedRuntime = runtimeBundles.find(({ id }) => id === selectedBundleId);
+  const providersWithSettings = selectedRuntime?.providers.filter(
+    (provider) => provider.settings.length > 0,
+  ) ?? [];
 
   useEffect(() => {
     setSelectedBundleId(undefined);
@@ -2316,7 +2565,7 @@ function BundlesTab({
           </section>
         ) : null}
 
-        {selectedRuntime?.providers.length ? selectedRuntime.providers.map((provider) => (
+        {providersWithSettings.map((provider) => (
           <section className="bundle-provider-settings" key={provider.id}>
             <div className="bundle-provider-heading">
               <Text className="preference-section-title" weight="semibold">
@@ -2326,7 +2575,7 @@ function BundlesTab({
                 <Text size="xs" tone="muted">{provider.description}</Text>
               ) : null}
             </div>
-            {provider.settings.length ? provider.settings.map((category) => (
+            {provider.settings.map((category) => (
               <div className="bundle-setting-category" key={category.id}>
                 <Text weight="semibold">
                   {resolveProviderText(category.title, preferences.appLocale)}
@@ -2395,13 +2644,9 @@ function BundlesTab({
                   })}
                 </Stack>
               </div>
-            )) : (
-              <Text size="sm" tone="muted">{messages.noProviderSettings}</Text>
-            )}
+            ))}
           </section>
-        )) : (
-          <Text size="sm" tone="muted">{messages.noProviderSettings}</Text>
-        )}
+        ))}
       </Stack>
     );
   }
@@ -2445,11 +2690,18 @@ function BundlesTab({
         {bundles.length ? (
           <Stack gap="sm">
             {bundles.map((bundle) => (
-              <button
+              <div
                 className={`bundle-info-row is-${bundle.status}`}
                 key={bundle.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedBundleId(bundle.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedBundleId(bundle.id);
+                  }
+                }}
               >
                 <Flex align="start" justify="between" gap="md">
                   <div className="bundle-info-copy">
@@ -2492,7 +2744,36 @@ function BundlesTab({
                     {bundle.error}
                   </Text>
                 ) : null}
-              </button>
+                {bundle.updatable || bundle.source === 'user' ? (
+                  <Flex className="bundle-row-actions" justify="end" gap="sm">
+                    <Button
+                      disabled={!bundle.updatable || actionBundleId !== undefined}
+                      size="sm"
+                      title={bundle.updatable ? undefined : messages.bundleUpdateUnavailable}
+                      variant="secondary"
+                      onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                        event.stopPropagation();
+                        void onUpdateBundle(bundle);
+                      }}
+                    >
+                      {messages.bundleUpdate}
+                    </Button>
+                    {bundle.source === 'user' ? (
+                      <Button
+                        disabled={actionBundleId !== undefined}
+                        size="sm"
+                        variant="danger"
+                        onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                          event.stopPropagation();
+                          void onRemoveBundle(bundle);
+                        }}
+                      >
+                        {messages.remove}
+                      </Button>
+                    ) : null}
+                  </Flex>
+                ) : null}
+              </div>
             ))}
           </Stack>
         ) : (

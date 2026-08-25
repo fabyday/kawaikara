@@ -36,6 +36,7 @@ function defineIpcChannels<const T extends IpcChannelTree>(channels: T): T {
 export const IPC_CHANNELS = defineIpcChannels({
   sites: {
     list: 'kawaikara:sites:list',
+    currentAddress: 'kawaikara:sites:current-address',
     open: 'kawaikara:sites:open',
     openAddress: 'kawaikara:sites:open-address',
   },
@@ -52,6 +53,7 @@ export const IPC_CHANNELS = defineIpcChannels({
     installUpdate: 'kawaikara:application:install-update',
     updateStateChanged: 'kawaikara:application:update-state-changed',
     messages: 'kawaikara:application:messages',
+    copyText: 'kawaikara:application:copy-text',
     isFullScreen: 'kawaikara:application:is-full-screen',
     exitFullScreen: 'kawaikara:application:exit-full-screen',
     fullScreenChanged: 'kawaikara:application:full-screen-changed',
@@ -60,6 +62,8 @@ export const IPC_CHANNELS = defineIpcChannels({
     runtime: 'kawaikara:bundles:runtime',
     list: 'kawaikara:bundles:list',
     install: 'kawaikara:bundles:install',
+    update: 'kawaikara:bundles:update',
+    remove: 'kawaikara:bundles:remove',
   },
   overlay: {
     close: 'kawaikara:overlay:close',
@@ -109,6 +113,12 @@ export const IPC_CHANNELS = defineIpcChannels({
     previewTheme: 'kawaikara:preferences:preview-theme',
     update: 'kawaikara:preferences:update',
   },
+  data: {
+    clearBrowserProfile: 'kawaikara:data:clear-browser-profile',
+    clearIsolatedSite: 'kawaikara:data:clear-isolated-site',
+    clearApplicationCache: 'kawaikara:data:clear-application-cache',
+    resetApplication: 'kawaikara:data:reset-application',
+  },
 } as const);
 
 type LeafValues<T> = T extends IpcChannelName
@@ -145,6 +155,7 @@ export interface SiteMenuItem {
   readonly id: string;
   readonly bundleId: string;
   readonly title: string;
+  readonly addressHosts: readonly string[];
   readonly category: string;
   readonly icon?: string;
   readonly panels: readonly PluginViewPanelInfo[];
@@ -227,6 +238,10 @@ export interface BundleInfo {
   readonly name: string;
   readonly description?: string;
   readonly version: string;
+  /** Whether the Bundle top-level manifest provides an update source. */
+  readonly updatable: boolean;
+  /** @deprecated Use updatable. Resolver-based updates do not expose a URL. */
+  readonly updateUrl?: string;
   readonly kind: 'bundle' | 'unknown';
   readonly source: BundleSource;
   readonly status: BundleStatus;
@@ -239,6 +254,19 @@ export interface BundleInfo {
 export type BundleInstallResult =
   | { readonly status: 'cancelled' }
   | { readonly status: 'installed'; readonly bundle: BundleInfo };
+
+export type BundleUpdateResult =
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'updated'; readonly bundle: BundleInfo };
+
+export type BundleRemoveResult =
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'removed'; readonly bundleId: string };
+
+export type ApplicationDataActionResult =
+  | { readonly status: 'cancelled' }
+  | { readonly status: 'cleared' }
+  | { readonly status: 'restarting' };
 
 export interface ApplicationInfo {
   readonly name: string;
@@ -498,6 +526,7 @@ export interface KawaikaraRendererApi {
     getUpdateState(): Promise<ApplicationUpdatePanelState | undefined>;
     downloadUpdate(): Promise<ApplicationUpdatePanelState>;
     installUpdate(): Promise<void>;
+    copyText(value: string): Promise<void>;
     onUpdateStateChanged(
       handler: (state: ApplicationUpdatePanelState) => void,
     ): () => void;
@@ -508,9 +537,12 @@ export interface KawaikaraRendererApi {
     runtime(): Promise<BundleRuntimeInfo[]>;
     list(): Promise<BundleInfo[]>;
     install(locale: AppLocale): Promise<BundleInstallResult>;
+    update(id: string, locale: AppLocale): Promise<BundleUpdateResult>;
+    remove(id: string, locale: AppLocale): Promise<BundleRemoveResult>;
   };
   sites: {
     list(): Promise<SiteMenuItem[]>;
+    currentAddress(): Promise<string>;
     open(id: string): Promise<void>;
     openAddress(value: string): Promise<SiteAddressOpenResult>;
   };
@@ -540,6 +572,18 @@ export interface KawaikaraRendererApi {
       patch: PreferencePatch,
       options?: PreferenceUpdateOptions,
     ): Promise<PreferenceState>;
+  };
+  data: {
+    clearBrowserProfile(
+      profileId: string,
+      locale: AppLocale,
+    ): Promise<ApplicationDataActionResult>;
+    clearIsolatedSite(
+      siteId: string,
+      locale: AppLocale,
+    ): Promise<ApplicationDataActionResult>;
+    clearApplicationCache(locale: AppLocale): Promise<ApplicationDataActionResult>;
+    resetApplication(locale: AppLocale): Promise<ApplicationDataActionResult>;
   };
 }
 

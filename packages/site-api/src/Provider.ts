@@ -146,6 +146,11 @@ export interface SitePictureInPictureContribution {
   readonly pageRequestPolicy?: 'block' | 'transient' | 'allow';
   /** Provider-specific selectors added to Kawaikara's generic PiP controls. */
   readonly pageControlSelectors?: readonly string[];
+  /**
+   * Page-rendered overlays that remain visible above the video in unified PiP.
+   * Use this for subtitle/caption containers rendered outside the video element.
+   */
+  readonly contentOverlaySelectors?: readonly string[];
 }
 
 export interface SiteAddressContribution {
@@ -168,10 +173,13 @@ export interface ProviderMetadata {
   readonly permissions?: readonly SitePermission[];
 }
 
-/** Code-owned behavior metadata; manifest identity and copy are canonical. */
+/**
+ * Code-owned compatibility metadata. Static configuration belongs in the
+ * Provider manifest; the decorator remains a runtime Provider marker and may
+ * carry only values that cannot reasonably be represented there.
+ */
 export type ProviderDecoratorMetadata =
-  Omit<ProviderMetadata, 'id' | 'title' | 'description'> &
-  Partial<Pick<ProviderMetadata, 'id' | 'title' | 'description'>>;
+  Partial<Omit<ProviderMetadata, 'id' | 'title' | 'description' | 'permissions'>>;
 
 export interface SiteRequestDetails {
   readonly url: string;

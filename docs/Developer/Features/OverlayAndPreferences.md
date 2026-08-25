@@ -25,6 +25,10 @@ to Menu. Moving focus to another application does not close either layer.
 - `Escape` or a non-editing `Backspace` in Preferences means Back to Menu.
 - The Menu route can close on `Escape` and on outside click; both behaviors are preferences and default to enabled.
 - Category jump shortcuts are active only while Menu is visible.
+- Standard editable-field shortcuts such as `Command/Control+C`, `V`, `X`,
+  `A`, and undo/redo are dispatched directly to the focused `WebContents`.
+  This preserves native text editing even though the application menu is
+  intentionally removed.
 - Menu entry slides only the shared left rail. The full-window shade and an
   optional Site panel fade in without horizontal translation, so the Site panel
   never appears as a dark rectangle sweeping across the viewer.
@@ -35,11 +39,22 @@ Editable-focus reporting understands normal inputs, textareas, selects, `content
 
 The menu groups Providers by category and displays the current Provider, icon, localized category label, and configured shortcut target. User order is applied on top of Provider defaults. The opaque shared rail stays on the left. The transparent right-side parent contains a shared address bar and the selected Provider's PluginView contributions. One panel fills the area without a selector; multiple panels use a browser-like title strip. Stable owner id plus panel id controls selection, so duplicate visible titles are safe. The built-in Video panel is an app-owned internal view; Bundle HTML panels run in sandboxed frames.
 
-`Control+L`/`Command+L` focuses the address bar. Each Provider declares the
+The address help renders only the current platform binding: `Cmd+L` on macOS
+and `Ctrl+L` on Windows or Linux. That binding focuses the address bar. Each Provider declares the
 HTTPS hosts it accepts through `metadata.address.hosts`. Resolution prefers the
-most specific matching host, and the same path accepts validated
+most specific matching host. Inputs without a scheme are normalized to HTTPS,
+and registered hosts are exposed through a KawaiiUI-styled combobox rather than
+the platform-native datalist. Its larger rows show the Provider icon, title,
+and host and support pointer, Up/Down, and Enter navigation. The unfocused field
+elides `https://`, a trivial `www.`, and a root slash; focusing it reveals the
+complete editable URL. The same path accepts validated
 `kawaikara://open?url=...` deep links. Unsupported input stays in place and
-receives an inline error, red border, and shake feedback.
+receives an inline error, red border, and shake feedback. Go is followed by a
+copy button that writes the complete editable address to the system clipboard.
+
+Provider favicons are preloaded into retained, decoded image elements owned by
+the overlay renderer. The visible Menu can therefore unmount after its close
+animation without flashing empty icons when Tab opens it again.
 
 The rail header and footer remain fixed. Only the bounded site list scrolls, and
 its rounded scrollbar appears briefly on Menu entry and during scrolling before
@@ -75,6 +90,10 @@ Category shortcuts default to `1`, `2`, `3`, and so on in current category order
   `app.disableHardwareAcceleration()`. Changing it opens a restart warning;
   applying saves all pending settings and relaunches the application. Native
   libmpv hardware decoding remains enabled independently.
+- Data management at the bottom separates a cache-only restart from a full
+  application reset. Cache reset preserves sign-ins, preferences, user Bundles,
+  and local history. Application reset removes both app-owned data roots after
+  confirmation and starts with defaults.
 
 The separate Video tab contains keyboard seek distance, control layout, and a
 validated floating-point overlay hide delay in seconds.
@@ -83,7 +102,9 @@ The Bundles tab lists built-in and user-installed Bundles with their versions,
 Provider and Plugin counts, declared permissions,
 and activation status. `Add .kawai Bundle` opens a native file picker, validates
 and installs the archive, and marks it as restart-required. A failed Bundle is
-reported without blocking the rest of the application.
+reported without blocking the rest of the application. Bundle detail renders
+only Providers that contribute settings; it does not add an empty-settings
+message or section for other Providers.
 
 The global app locale is authoritative. Saving preferences clears legacy per-plugin and per-site locale overrides. Site and plugin locale metadata remains useful for resolving the closest supported locale.
 
@@ -94,8 +115,15 @@ The global app locale is authoritative. Saving preferences clears legacy per-plu
 - Use plugin-contributed profiles that may be persistent or in-memory.
 - Assign each site to isolated, user, or plugin shared state.
 - Warn when a DRM-marked site is assigned to shared state.
+- Clear cookies, storage, authentication state, and caches for a user or
+  Bundle-contributed profile independently of deleting its definition.
+- Clear the dedicated Session directly from a site row only when that site is
+  assigned to isolated state. Shared assignments use their profile-level action.
 
-Changing the active site's profile assignment recreates its `WebContentsView` against the new Electron Session.
+Changing the active site's profile assignment recreates its `WebContentsView`
+against the new Electron Session. Clearing a Session used by the active site
+temporarily unloads that site, clears the partition, and then loads it again so
+the signed-out state is visible immediately.
 
 ### Shortcuts
 
@@ -159,6 +187,12 @@ face rather than leaving partially visible title text.
 ## Persistence and validation
 
 Preferences are stored at `UserRoot/KawaiData/preferences.json`. Electron's own profiles, sessions, and caches use `UserRoot/Electron`; Kawaikara-owned configuration, video history, and diagnostic logs use `UserRoot/KawaiData`. A first run with this layout copies known legacy preference and video-library files when their new destinations do not exist. Main validates every field when loading and updating; invalid fields fall back to defaults or are omitted. Read methods return cloned arrays and objects so renderer drafts cannot mutate manager state accidentally.
+
+Cache and application resets write a marker beneath the channel-specific user
+root and relaunch. The next process consumes that marker before Chromium,
+logging, or preferences open files. Cache mode removes only known Electron cache
+directories; application mode removes the exact `Electron` and `KawaiData`
+children, never their parent or another channel's root.
 
 The renderer keeps saved and draft states separately. A save bar appears only when their serialized values differ. Saving updates active window behavior, PiP configuration, global shortcut state, update configuration, locale/title, and the current browser profile when necessary.
 

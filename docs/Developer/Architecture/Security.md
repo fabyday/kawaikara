@@ -85,7 +85,7 @@ flowchart LR
 
 ## Cookies, profiles, and external login
 
-External login copies cookies from a temporary browser profile into the Electron Session selected for the site. The runtime does not log cookie values and removes the temporary browser profile when the flow ends.
+External login copies only cookies from a temporary Chrome/Edge profile into the Electron Session selected for the site. The runtime never logs cookie values, never reuses an external browser profile, removes the temporary profile when the flow ends, and deletes state left by the retired persistent-profile implementation. Electron's selected Session is the sole persistent owner of imported authentication cookies.
 
 Site-specific persistent isolation is the default. A plugin default or user assignment can intentionally place multiple sites in the same Session. This shares cookies, cache, local storage, and potentially DRM-sensitive state. The preference UI warns when a DRM-marked site is assigned to a shared profile, but does not prohibit the assignment.
 

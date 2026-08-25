@@ -9,12 +9,7 @@ PiP eligibility, Menu metadata, default shortcut, and Session defaults.
 ```ts
 import { AbstractProvider, provider } from '@kawaikara/site-api';
 
-@provider({
-  menu: { category: 'OTT', order: 10 },
-  shortcut: { defaultKey: 'Control+Alt+E' },
-  address: { hosts: ['example.com'] },
-  permissions: ['navigation'],
-})
+@provider()
 export default class ExampleProvider extends AbstractProvider {
   async load(): Promise<void> {
     await this.context.viewer.loadURL('https://example.com/');
@@ -31,9 +26,11 @@ Providers/ExampleVideo/
 └── Provider.js
 ```
 
-Identity and user-facing copy (`id`, `name`, `description`, and `version`) live
-only in `manifest.json`. The decorator describes executable capabilities. The
-Provider must be listed by the containing Bundle manifest.
+Identity, permissions, and static contributions live in `manifest.json`. A
+Provider manifest uses `contributes` for menu placement, shortcuts, addresses,
+settings, locale, isolation, and PiP metadata. The decorator marks the runtime
+constructor; the class contains executable behavior. The Provider must be
+listed by the containing Bundle manifest.
 
 ## Context capabilities
 
@@ -64,41 +61,47 @@ saves Provider settings. Values are stored under
 `providerSettings[providerId]`, so two Providers may use the same local key
 without sharing state. Missing keys must always resolve to Provider defaults.
 
-Providers declare their own Preferences UI through `metadata.settings`. The
+Providers declare their own Preferences UI through
+`manifest.contributes.settings`. The
 app renders each category inside Preferences > Bundles > the containing Bundle,
 without adding Provider-specific React code. Supported controls currently are
 `boolean` and `item-list`; list values contain stable `{ id, label }` pairs and
 are intended for data such as blocked publishers.
 
-```ts
-@provider({
-  // ...
-  settings: {
-    categories: [{
-      id: 'playback',
-      title: { 'en-US': 'Playback', 'ko-KR': '재생' },
-      settings: [{
-        type: 'boolean',
-        key: 'short-form-video.auto-advance',
-        title: 'Play the next video automatically',
-        defaultValue: true,
-      }],
-    }],
-  },
-})
+```json
+{
+  "contributes": {
+    "settings": {
+      "categories": [
+        {
+          "id": "playback",
+          "title": { "en-US": "Playback", "ko-KR": "재생" },
+          "settings": [
+            {
+              "type": "boolean",
+              "key": "short-form-video.auto-advance",
+              "title": "Play the next video automatically",
+              "defaultValue": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
 ```
 
 ## Short-form video capabilities
 
-Use `metadata.shortFormVideo` for vertical feeds instead of implementing app
-keys in each Provider. The standard interface supports previous, next,
+Use `manifest.contributes.shortFormVideo` for vertical feeds instead of
+implementing app keys in each Provider. The standard interface supports previous, next,
 auto-advance, and publisher quick-ban capabilities. Kawaikara binds the shared
 Shortcut preferences in normal mode and registers them globally only while its
 unified PiP is active. The Provider handles navigation through `onAction()` and
 resolves the current publisher through `getShortFormVideoPublisher()`.
 
 Provider-only actions that do not fit this interface can be declared under
-`metadata.shortcut.actions`. They appear automatically on the shared Shortcut
+`manifest.contributes.shortcut.actions`. They appear automatically on the shared Shortcut
 page and are dispatched to `onAction()` only while that Provider is active.
 
 ## Navigation and popups
@@ -119,9 +122,9 @@ idempotent because streaming SPAs can navigate without replacing the complete
 document. Prefer stable semantic selectors and fail quietly when a remote DOM
 changes.
 
-Declare `script-injection` in decorator metadata and in the top-level Bundle
-manifest. The Bundle permission list is the single installation-consent
-boundary; child manifests do not repeat it.
+Declare `script-injection` in the Provider manifest and grant it in the
+top-level Bundle manifest. The Bundle list is the installation-consent boundary;
+the Provider list determines which capabilities that Provider receives.
 
 Keep injected entry points in a Provider-local `Inject/` directory, split by
 feature rather than accumulating one Provider-sized string. Write the page-world
@@ -139,13 +142,11 @@ Declare `network-interception` when using either hook.
 
 ## PiP eligibility
 
-Use both levels:
+Declare `"pictureInPicture": { "enabled": true }` under the Provider
+manifest's `contributes`, then keep route-dependent behavior in code:
 
 ```ts
-@provider({
-  // ...
-  pictureInPicture: { enabled: true },
-})
+@provider()
 export default class ExampleProvider extends AbstractProvider {
   allowPictureInPicture(url: string): boolean {
     return new URL(url).pathname.startsWith('/watch/');
@@ -153,7 +154,7 @@ export default class ExampleProvider extends AbstractProvider {
 }
 ```
 
-The metadata controls whether the app exposes the unified PiP action. The route
+The manifest contribution controls whether the app exposes the unified PiP action. The route
 guard prevents home-page previews and unrelated `<video>` elements from being
 selected. DOM selection logic should prefer visible, playing, sufficiently
 large video elements and support site-specific player structures.
@@ -171,18 +172,22 @@ shape through `@plugin({ panels })`. Declare `plugin-view` at the Provider and
 Bundle permission boundary. One panel occupies the whole PluginView surface;
 multiple panels automatically receive a browser-style selector.
 
-```ts
-@provider({
-  menu: {
-    category: 'Examples',
-    panels: [{
-      id: 'help',
-      title: { 'en-US': 'Help', 'ko-KR': '도움말' },
-      content: { kind: 'html', html: '<main>...</main>' },
-    }],
-  },
-  permissions: ['navigation', 'plugin-view'],
-})
+```json
+{
+  "permissions": ["navigation", "plugin-view"],
+  "contributes": {
+    "menu": {
+      "category": "Examples",
+      "panels": [
+        {
+          "id": "help",
+          "title": { "en-US": "Help", "ko-KR": "도움말" },
+          "content": { "kind": "html", "html": "<main>...</main>" }
+        }
+      ]
+    }
+  }
+}
 ```
 
 Panel ids must be unique only inside the contributing Provider or Plugin.
@@ -201,7 +206,8 @@ with `isolation.drm` so shared-state choices can be warned about.
 
 - Provider source is TypeScript and its manifest points to one compiled JavaScript entry.
 - Identity and descriptive text exist only in the Provider manifest.
-- Bundle permissions cover every capability declared by Provider code.
+- Provider manifest permissions declare runtime capabilities and remain a
+  subset of the Bundle permission grant.
 - Event hooks are registered before initial navigation.
 - Injection is idempotent and cleanup is complete.
 - Login, URL, popup, and PiP guards are narrow.

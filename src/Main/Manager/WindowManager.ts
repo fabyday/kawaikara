@@ -23,6 +23,7 @@ import type {
   SiteRequestDetails,
   SiteRequestHeaders,
   SiteRequestRedirect,
+  SiteCookieStore,
   SiteExternalBrowser,
   SiteViewer,
 } from '@kawaikara/site-api';
@@ -58,11 +59,11 @@ import {
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
 import { createRemoteThemeBridgeInjectionScript } from '../Inject/RemoteTheme';
-import { attachRendererLogging } from '../Logging';
+import type { LoggingManager } from './LoggingManager';
 import {
   disableMacOSFullScreenAuxiliary,
   enableMacOSFullScreenAuxiliary,
-} from '../MacOSWindowSpaces';
+} from '../Functional/MacOSWindowSpaces';
 
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
 const INTERNAL_VIDEO_PIP_MARGIN = 20;
@@ -171,6 +172,7 @@ export class WindowManager {
   private readonly configuredSiteSessions = new WeakSet<Session>();
   private overlayVisible = false;
   private overlayView: OverlayView = 'menu';
+  private restoreMenuAfterPictureInPicture = false;
   private closeMenuOnEscape = true;
   private closeMenuOnOutsideClick = true;
   private currentVideoOpenRequest: VideoOpenRequest | null = null;
@@ -184,6 +186,7 @@ export class WindowManager {
   private siteActionHandler?: (action: string) => Promise<boolean>;
   private navigationGuard?: (url: string) => boolean;
   private pictureInPictureGuard?: (url: string) => boolean;
+  private pictureInPictureContentOverlaySelectors?: () => readonly string[];
   private pictureInPictureStateHandler?: (active: boolean) => void;
   private shortcutHandler?: (input: Input, editing: boolean) => boolean;
   private requestHeadersTransformer?: (
@@ -207,11 +210,14 @@ export class WindowManager {
   constructor(
     externalBrowser: ExternalBrowserManager,
     createPictureInPicture: PictureInPictureManagerFactory,
+    private readonly logging: LoggingManager,
   ) {
     this.externalBrowser = externalBrowser;
     this.pictureInPicture = createPictureInPicture(
       () => this.requireViewerWindow(),
       () => this.requireSiteView(),
+      () => this.pictureInPictureContentOverlaySelectors?.() ?? [],
+      this.logging,
       (result) => {
         if (result.status === 'entered') {
           this.suspendViewerAlwaysOnTopForPictureInPicture();
@@ -229,7 +235,10 @@ export class WindowManager {
       },
       () => {
         const viewer = this.viewerWindow;
-        if (viewer && !viewer.isDestroyed()) this.focusViewer();
+        if (viewer && !viewer.isDestroyed()) {
+          this.focusViewer();
+          this.restoreOverlayAfterPictureInPicture();
+        }
       },
       (placement) => this.pictureInPicturePlacementRecorder?.(placement),
     );
@@ -286,8 +295,8 @@ export class WindowManager {
     this.overlayWindow = overlayWindow;
     this.disposing = false;
     this.viewerClosePrepared = false;
-    attachRendererLogging(viewerWindow.webContents, 'viewer');
-    attachRendererLogging(overlayWindow.webContents, 'overlay');
+    this.logging.attachRenderer(viewerWindow.webContents, 'viewer');
+    this.logging.attachRenderer(overlayWindow.webContents, 'overlay');
     viewerWindow.setMenu(null);
     viewerWindow.setMenuBarVisibility(false);
     const overlayWebContentsId = overlayWindow.webContents.id;
@@ -357,6 +366,10 @@ export class WindowManager {
 
     overlayWindow.webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(overlayWebContentsId);
+      if (handleNativeEditingShortcut(overlayWindow.webContents, input, editing)) {
+        event.preventDefault();
+        return;
+      }
       if (
         this.overlayVisible &&
         (this.overlayView === 'preference' || this.overlayView === 'update') &&
@@ -431,6 +444,10 @@ export class WindowManager {
     });
     viewerWindow.webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(viewerWebContentsId);
+      if (handleNativeEditingShortcut(viewerWindow.webContents, input, editing)) {
+        event.preventDefault();
+        return;
+      }
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
     viewerWindow.webContents.on('did-start-loading', () => {
@@ -447,6 +464,7 @@ export class WindowManager {
     handleAction(action: string): Promise<boolean>;
     allowNavigation(url: string): boolean;
     allowPictureInPicture(url: string): boolean;
+    getPictureInPictureContentOverlaySelectors(): readonly string[];
     transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined;
     transformRequestHeaders(
       details: SiteRequestDetails,
@@ -456,6 +474,8 @@ export class WindowManager {
     this.siteActionHandler = handlers.handleAction;
     this.navigationGuard = handlers.allowNavigation;
     this.pictureInPictureGuard = handlers.allowPictureInPicture;
+    this.pictureInPictureContentOverlaySelectors =
+      handlers.getPictureInPictureContentOverlaySelectors;
     this.requestTransformer = handlers.transformRequest;
     this.requestHeadersTransformer = handlers.transformRequestHeaders;
   }
@@ -486,6 +506,7 @@ export class WindowManager {
     this.siteActionHandler = undefined;
     this.navigationGuard = undefined;
     this.pictureInPictureGuard = undefined;
+    this.pictureInPictureContentOverlaySelectors = undefined;
     this.pictureInPictureStateHandler = undefined;
     this.requestTransformer = undefined;
     this.requestHeadersTransformer = undefined;
@@ -583,6 +604,17 @@ export class WindowManager {
     return this.currentVideoOpenRequest;
   }
 
+  getCurrentSiteAddress(): string {
+    const webContents = this.siteView?.webContents;
+    if (!webContents || webContents.isDestroyed()) return '';
+    const value = webContents.getURL();
+    try {
+      return new URL(value).protocol === 'https:' ? value : '';
+    } catch {
+      return '';
+    }
+  }
+
   activateVideoOpenRequest(
     webContentsId: number,
     request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
@@ -675,7 +707,10 @@ export class WindowManager {
     await overlay.loadFile(path.resolve(__dirname, '../renderer/index.html'));
   }
 
-  async createSiteContext(runtime: SiteRuntimeProfile): Promise<SiteContext> {
+  async createSiteContext(
+    runtime: SiteRuntimeProfile,
+    permissions: ReadonlySet<string>,
+  ): Promise<SiteContext> {
     const { siteSession, webContents } = await this.activateSiteView(runtime);
     const viewer = this.createSiteViewer(webContents);
     const externalBrowser: SiteExternalBrowser = {
@@ -694,6 +729,9 @@ export class WindowManager {
         },
       },
       externalBrowser,
+      cookies: permissions.has('cookies')
+        ? createSiteCookieStore(siteSession)
+        : undefined,
       logger: {
         debug: (message, ...args) => console.debug(message, ...args),
         info: (message, ...args) => console.info(message, ...args),
@@ -857,19 +895,21 @@ export class WindowManager {
     toggle: () => ReturnType<UnifiedPictureInPictureManager['toggle']>,
   ) {
     const entering = !this.pictureInPicture.isActive();
+    if (entering && !this.prepareOverlayForPictureInPicture()) {
+      return { status: 'disabled' as const, mode: 'video' as const };
+    }
     if (entering) this.suspendViewerAlwaysOnTopForPictureInPicture();
     let result;
     try {
       result = await toggle();
     } catch (error) {
       this.restoreViewerAlwaysOnTopAfterPictureInPicture();
+      if (entering) this.restoreOverlayAfterPictureInPicture();
       throw error;
     }
     if (result.status !== 'entered') {
       this.restoreViewerAlwaysOnTopAfterPictureInPicture();
-    }
-    if (result.status === 'exited') {
-      this.focusViewer();
+      if (entering) this.restoreOverlayAfterPictureInPicture();
     }
     return result;
   }
@@ -878,10 +918,14 @@ export class WindowManager {
     if (this.restoringPictureInPicture) return;
     this.restoringPictureInPicture = true;
     try {
+      const restoreInternalViewer = this.internalVideoPictureInPicture !== undefined;
       await this.exitInternalVideoPictureInPicture();
       await this.pictureInPicture.exitAllModes();
       const viewer = this.viewerWindow;
-      if (viewer && !viewer.isDestroyed()) this.focusViewer();
+      if (restoreInternalViewer && viewer && !viewer.isDestroyed()) {
+        this.focusViewer();
+        this.restoreOverlayAfterPictureInPicture();
+      }
     } catch (error) {
       console.error('PiP could not restore the viewer window.', error);
     } finally {
@@ -942,10 +986,14 @@ export class WindowManager {
     if (this.internalVideoPictureInPicture) {
       await this.exitInternalVideoPictureInPicture();
       this.focusViewer();
+      this.restoreOverlayAfterPictureInPicture();
       return { status: 'exited' as const, mode: 'window' as const };
     }
     if (!this.internalVideoPresentation.ready) {
       return { status: 'no-video' as const, mode: 'window' as const };
+    }
+    if (!this.prepareOverlayForPictureInPicture()) {
+      return { status: 'disabled' as const, mode: 'window' as const };
     }
 
     const viewer = this.requireViewerWindow();
@@ -959,7 +1007,6 @@ export class WindowManager {
     };
     this.internalVideoPictureInPicture = saved;
     this.suspendViewerAlwaysOnTopForPictureInPicture();
-    this.hideOverlay();
 
     const aspectRatio = this.internalVideoPresentation.width > 0 &&
         this.internalVideoPresentation.height > 0
@@ -1226,6 +1273,20 @@ export class WindowManager {
     }
   }
 
+  private prepareOverlayForPictureInPicture(): boolean {
+    if (this.overlayVisible && this.overlayView !== 'menu') return false;
+    this.restoreMenuAfterPictureInPicture =
+      this.overlayVisible && this.overlayView === 'menu';
+    if (this.restoreMenuAfterPictureInPicture) this.hideOverlay();
+    return true;
+  }
+
+  private restoreOverlayAfterPictureInPicture(): void {
+    if (!this.restoreMenuAfterPictureInPicture) return;
+    this.restoreMenuAfterPictureInPicture = false;
+    this.showOverlay();
+  }
+
   toggleOverlay(): void {
     if (this.overlayVisible) {
       const overlay = this.requireOverlayWindow();
@@ -1304,14 +1365,11 @@ export class WindowManager {
     });
 
     this.siteView = siteView;
-    siteView.webContents.setUserAgent(
-      createBrowserUserAgent(siteView.webContents.getUserAgent()),
-    );
     this.configureSiteSession(siteSession);
     // Provider injections log with a stable prefix. Forward only those
     // messages instead of every third-party site console line, which keeps
     // the application log useful when diagnosing quality/ad playback.
-    attachRendererLogging(
+    this.logging.attachRenderer(
       siteView.webContents,
       `site:${runtime.siteId}`,
       (message) => message.includes('[Kawaikara/'),
@@ -1385,6 +1443,10 @@ export class WindowManager {
     });
     webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(webContentsId);
+      if (handleNativeEditingShortcut(webContents, input, editing)) {
+        event.preventDefault();
+        return;
+      }
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
     const guardNavigation = (event: Electron.Event, url: string): void => {
@@ -1689,7 +1751,11 @@ export class WindowManager {
     );
 
     try {
-      return await this.externalBrowser.login(options, targetSession);
+      return await this.externalBrowser.login(
+        options,
+        targetSession,
+        webContents,
+      );
     } finally {
       if (
         generation === this.externalLoginGeneration &&
@@ -1770,12 +1836,17 @@ export class WindowManager {
       },
     });
     this.videoWindow = video;
-    attachRendererLogging(video.webContents, 'video');
+    this.logging.attachRenderer(video.webContents, 'video');
     this.mpv.attachWindow(video);
     video.setMenu(null);
     video.setMenuBarVisibility(false);
     const webContentsId = video.webContents.id;
     video.webContents.on('before-input-event', (event, input) => {
+      const editing = this.editingWebContentsIds.has(webContentsId);
+      if (handleNativeEditingShortcut(video.webContents, input, editing)) {
+        event.preventDefault();
+        return;
+      }
       const plainTab =
         input.type === 'keyDown' &&
         !input.isAutoRepeat &&
@@ -1793,7 +1864,6 @@ export class WindowManager {
         if (!this.internalVideoPictureInPicture) this.toggleOverlay();
         return;
       }
-      const editing = this.editingWebContentsIds.has(webContentsId);
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
     video.webContents.on('did-start-loading', () => {
@@ -2123,10 +2193,128 @@ function normalizeNavigationHost(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\./, '');
 }
 
-function createBrowserUserAgent(userAgent: string): string {
-  return userAgent
-    .replace(/\s(?:Electron|kawaikara)\/[^\s]+/gi, '')
-    .trim();
+function createSiteCookieStore(siteSession: Session): SiteCookieStore {
+  return {
+    list: async ({ domains }) => {
+      const normalizedDomains = normalizeCookieQueryDomains(domains);
+      const cookies = await siteSession.cookies.get({});
+      return cookies
+        .filter((cookie): cookie is Electron.Cookie & { domain: string } =>
+          typeof cookie.domain === 'string' &&
+          cookieMatchesDomains(cookie.domain, normalizedDomains),
+        )
+        .map(({ name, domain }) => ({ name, domain }));
+    },
+    clear: async ({ domains, names }) => {
+      const normalizedDomains = normalizeCookieQueryDomains(domains);
+      const normalizedNames = names === undefined
+        ? undefined
+        : new Set(names.map(validateCookieName));
+      const cookies = await siteSession.cookies.get({});
+      const matchingCookies = cookies.filter(
+        (cookie): cookie is Electron.Cookie & { domain: string } =>
+          typeof cookie.domain === 'string' &&
+          cookieMatchesDomains(cookie.domain, normalizedDomains) &&
+          (normalizedNames === undefined || normalizedNames.has(cookie.name)),
+      );
+      await Promise.all(matchingCookies.map(async (cookie) => {
+        const domain = cookie.domain.replace(/^\./, '');
+        const cookiePath = cookie.path ?? '/';
+        const pathName = cookiePath.startsWith('/') ? cookiePath : `/${cookiePath}`;
+        const protocol = cookie.secure ? 'https:' : 'http:';
+        await siteSession.cookies.remove(
+          `${protocol}//${domain}${pathName}`,
+          cookie.name,
+        );
+      }));
+      return matchingCookies.length;
+    },
+  };
+}
+
+function normalizeCookieQueryDomains(domains: readonly string[]): readonly string[] {
+  if (domains.length === 0 || domains.length > 32) {
+    throw new Error('Cookie queries require between 1 and 32 domains.');
+  }
+  return [...new Set(domains.map((domain) => {
+    const normalized = domain.trim().toLowerCase();
+    if (
+      normalized.length > 253 ||
+      !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(normalized) ||
+      normalized.includes('..')
+    ) {
+      throw new Error(`Invalid cookie query domain: ${domain}`);
+    }
+    return normalized;
+  }))];
+}
+
+function validateCookieName(name: string): string {
+  if (!name || name.length > 256 || /[\u0000-\u0020\u007f;,]/.test(name)) {
+    throw new Error('Invalid cookie name.');
+  }
+  return name;
+}
+
+function cookieMatchesDomains(
+  cookieDomain: string,
+  queryDomains: readonly string[],
+): boolean {
+  const normalized = cookieDomain.replace(/^\./, '').toLowerCase();
+  return queryDomains.some((domain) =>
+    normalized === domain || normalized.endsWith(`.${domain}`),
+  );
+}
+
+/** Restore standard text-editing accelerators after removing Electron's menu. */
+function handleNativeEditingShortcut(
+  webContents: WebContents,
+  input: Input,
+  editing: boolean,
+): boolean {
+  if (
+    !editing ||
+    input.type !== 'keyDown' ||
+    input.isAutoRepeat ||
+    input.isComposing ||
+    input.alt
+  ) {
+    return false;
+  }
+
+  const primaryModifier = process.platform === 'darwin'
+    ? input.meta && !input.control
+    : input.control && !input.meta;
+  if (!primaryModifier) return false;
+
+  switch (input.key.toLowerCase()) {
+    case 'a':
+      if (input.shift) return false;
+      webContents.selectAll();
+      return true;
+    case 'c':
+      if (input.shift) return false;
+      webContents.copy();
+      return true;
+    case 'v':
+      if (input.shift) return false;
+      webContents.paste();
+      return true;
+    case 'x':
+      if (input.shift) return false;
+      webContents.cut();
+      return true;
+    case 'z':
+      if (input.shift) webContents.redo();
+      else webContents.undo();
+      return true;
+    case 'y':
+      if (process.platform === 'darwin' || input.shift) return false;
+      webContents.redo();
+      return true;
+    default:
+      return false;
+  }
 }
 
 function resolveLocalizedAppTitle(locale: string): string {

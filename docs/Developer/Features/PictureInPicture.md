@@ -161,16 +161,40 @@ a fixed, full-window layer. The entry script:
 - adds a black backdrop; and
 - adds a closed-shadow-root overlay above the site.
 
+Built-in video Providers share a standard DOM-caption selector set covering
+native Video.js and Shaka layers plus common subtitle/caption container naming.
+Providers add stable service-specific selectors for Netflix, Coupang Play,
+Prime Video, Disney+, Apple TV+, Wavve, Crunchyroll, Twitch, YouTube, and CHZZK.
+Native WebVTT cues painted by the selected `<video>` remain visible without a
+DOM selector. DOM captions are raised above the video but stay non-interactive,
+so they cannot intercept the PiP controls.
+
+The transformation also walks composed ancestors across open Shadow DOM
+boundaries. Equivalent video/subtitle styles are installed in each accessible
+shadow root, including roots added while PiP is active, and removed during
+restoration. Closed third-party shadow roots remain intentionally inaccessible;
+their native video-painted cues still work, but a DOM caption hidden entirely
+inside one requires cooperation from the player.
+
 The closed shadow root prevents service CSS from restyling Kawaikara's Return
 and Play/Pause buttons. The video itself is made non-interactive, so hidden
 player controls cannot capture clicks.
 
-The Return button cannot call Electron IPC directly because remote Provider
-pages stay sandboxed and do not receive a privileged PiP bridge. Instead, its
-click writes a process-randomized sentinel through `console.debug()`. Main
-listens only for that exact sentinel on the active SiteView and begins the
-normal exit path. Play/Pause stays entirely in the page and controls the
-selected media element directly.
+The overlay also requests Chromium's top layer through a manual popover, with
+the maximum-z-index fixed layer retained as a compatibility fallback. When a
+site such as Apple TV+ replaces its player iframe during playback, Main
+reinjects the same shared overlay and forcibly synchronizes the current native
+hover state so both controls are immediately available in the replacement
+frame.
+
+The buttons cannot call Electron IPC directly because remote Provider pages
+stay sandboxed and do not receive a privileged PiP bridge. Their DOM click
+handlers write separate process-randomized sentinels through `console.debug()`;
+Main accepts only those exact values from the active SiteView. Main also maps
+trusted native mouse-down coordinates over the shared button bounds to the
+same actions. That fallback keeps Return and Play/Pause responsive when a DRM
+or composited player displays the overlay but does not deliver the DOM click.
+The two paths are debounced so one click cannot toggle playback twice.
 
 `Tab` and `Shift+Tab` are consumed while PiP is active so focus cannot move into
 hidden page UI or reveal the application menu behind PiP. Plain `Escape`
@@ -341,6 +365,11 @@ The YouTube Provider advances to the next Short only after actual completion:
 Same-document navigation to the next Short keeps the active PiP session attached
 to the existing view.
 
+When PiP starts from a visible Menu, `WindowManager` hides both the overlay and
+Viewer and remembers that Menu state. Returning restores the Viewer and reopens
+the Menu. Preference and update overlays reject PiP entry because their draft
+or modal state must remain visible and interactive.
+
 ## Failure recovery and invariants
 
 Entry and exit promises are serialized. A second toggle joins the operation
@@ -409,7 +438,7 @@ and verify that the active Chromium/libmpv rendering backend is not recreated.
 - `src/Main/Functional/PagePictureInPicturePolicy.ts`: page-native PiP API and
   control suppression.
 - `packages/site-api/src/Provider.ts`: Provider PiP metadata and route contract.
-- `src/Main/MacOSWindowSpaces.ts` and `scripts/MacOSWindowSpaces.mm`: native
+- `src/Main/Functional/MacOSWindowSpaces.ts` and `scripts/MacOSWindowSpaces.mm`: native
   macOS full-screen Space bridge.
 - `scripts/build-macos-window-spaces.cjs` and `electron-builder.config.cjs`:
   universal add-on build and packaging.

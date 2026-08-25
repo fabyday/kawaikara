@@ -1,1 +1,32 @@
-{"schemaVersion":1,"id":"kawaikara.video","name":"Video","description":"Play a local video file or an HLS stream.","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js"}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.video",
+  "name": "Video",
+  "description": "Play a local video file or an HLS stream.",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["internal-view", "plugin-view"],
+  "contributes": {
+    "shortcut": { "defaultKey": "Control+Alt+4" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "menu": {
+      "category": "Video",
+      "order": 0,
+      "panels": [
+        {
+          "id": "library",
+          "title": {
+            "en-US": "Library",
+            "ko-KR": "라이브러리",
+            "ja-JP": "ライブラリ"
+          },
+          "content": { "kind": "internal", "viewId": "video-library" }
+        }
+      ]
+    }
+  }
+}

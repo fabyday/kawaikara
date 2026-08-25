@@ -26,6 +26,44 @@ export interface BundleBrowserProfileContribution {
   readonly persistent?: boolean;
 }
 
+export type BundleReleaseChannel = 'stable' | 'staging' | 'nightly';
+
+/** Values provided to a trusted Bundle update resolver when Update is clicked. */
+export interface BundleUpdateContext {
+  readonly currentVersion: string;
+  readonly channel: BundleReleaseChannel;
+  readonly platform: string;
+  readonly arch: string;
+}
+
+export type BundleUpdateResolver = (
+  context: BundleUpdateContext,
+) => string | Promise<string>;
+
+/** Update metadata stored in the top-level Bundle manifest. */
+export type BundleUpdateManifest =
+  | {
+      readonly type: 'archive';
+      /** Credential-free HTTPS URL returning a ZIP-compatible .kawai archive. */
+      readonly url: string;
+    }
+  | {
+      readonly type: 'resolver';
+      /** Compiled CommonJS resolver entry relative to the Bundle root. */
+      readonly main: string;
+    };
+
+/** Validated runtime form of Bundle update metadata. */
+export type BundleUpdateDefinition =
+  | {
+      readonly type: 'archive';
+      readonly url: string;
+    }
+  | {
+      readonly type: 'resolver';
+      readonly resolve: BundleUpdateResolver;
+    };
+
 export interface PluginMetadata {
   readonly id: string;
   readonly name?: string;
@@ -84,11 +122,22 @@ export interface ProviderManifest {
   readonly apiVersion: typeof KAWAIKARA_SITE_API_VERSION;
   /** Compiled JavaScript entry relative to the Provider directory. */
   readonly main: string;
-  /** @deprecated Put the install consent boundary in BundleManifest.permissions. */
-  readonly permissions?: readonly SitePermission[];
+  /** Provider capabilities; each entry must also be granted by the Bundle. */
+  readonly permissions: readonly SitePermission[];
+  /** Static Provider metadata kept out of the executable class. */
+  readonly contributes: ProviderManifestContributions;
   /** Plugin directories relative to this Provider directory. */
   readonly plugins?: readonly string[];
 }
+
+export type ProviderManifestContributions =
+  Partial<
+    Omit<
+      ProviderMetadata,
+      'id' | 'title' | 'description' | 'permissions' | 'menu'
+    >
+  > &
+  Pick<ProviderMetadata, 'menu'>;
 
 /** One Provider directory and the code loaded from its manifest entry. */
 export interface ProviderDefinition {
@@ -105,6 +154,10 @@ export interface BundleManifest {
   readonly name: string;
   readonly description?: string;
   readonly version: string;
+  /** Preferred top-level update declaration. */
+  readonly update?: BundleUpdateManifest;
+  /** @deprecated Use update: { type: 'archive', url } instead. */
+  readonly updateUrl?: string;
   readonly apiVersion: typeof KAWAIKARA_SITE_API_VERSION;
   readonly permissions?: readonly SitePermission[];
   /** Provider directories relative to the Bundle root. */
@@ -125,6 +178,9 @@ export interface BundleDefinition {
   readonly name?: string;
   readonly description?: string;
   readonly version: string;
+  readonly update?: BundleUpdateDefinition;
+  /** @deprecated Use update instead. */
+  readonly updateUrl?: string;
   readonly apiVersion: typeof KAWAIKARA_SITE_API_VERSION;
   readonly permissions: readonly SitePermission[];
   readonly locale?: BundleLocaleContribution;
@@ -152,7 +208,8 @@ export function defineProvider(definition: {
     ...definition,
     manifest: Object.freeze({
       ...definition.manifest,
-      permissions: Object.freeze([...(definition.manifest.permissions ?? [])]),
+      permissions: Object.freeze([...definition.manifest.permissions]),
+      contributes: Object.freeze({ ...definition.manifest.contributes }),
       plugins: Object.freeze([...(definition.manifest.plugins ?? [])]),
     }),
     plugins: Object.freeze([...(definition.plugins ?? [])]),
@@ -170,6 +227,9 @@ export function defineBundle(
   return Object.freeze({
     ...definition,
     kind: 'bundle' as const,
+    update: definition.update
+      ? Object.freeze({ ...definition.update })
+      : undefined,
     permissions: Object.freeze([...(definition.permissions ?? [])]),
     browserProfiles: Object.freeze([...(definition.browserProfiles ?? [])]),
     providers: Object.freeze([...definition.providers]) as unknown as BundleDefinition['providers'],

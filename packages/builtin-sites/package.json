@@ -1,6 +1,6 @@
 {
   "name": "@kawaikara/builtin-sites",
-  "version": "3.0.0-dev.0",
+  "version": "1.0.0",
   "private": true,
   "main": "dist/Index.js",
   "types": "dist/Index.d.ts",

@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from 'electron';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
+/** Native bridge for presenting Kawaikara PiP across macOS fullscreen Spaces. */
 interface MacOSWindowSpacesAddon {
   setFullScreenAuxiliary(nativeWindowHandle: Buffer): void;
   clearFullScreenAuxiliary(nativeWindowHandle: Buffer): void;

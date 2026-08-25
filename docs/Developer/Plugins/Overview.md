@@ -91,10 +91,10 @@ stores only overrides; an empty override disables the shortcut.
 | `network-interception` | Transform requests or headers |
 | `external-browser` | Start a separate login browser |
 
-The top-level Bundle manifest must include all permissions declared by every
-`@provider` in that Bundle. Provider manifests do not repeat permissions.
-Permissions are displayed during inspection but do not yet sandbox arbitrary
-module initialization.
+Each Provider manifest declares its runtime permissions. The top-level Bundle
+manifest must include their union and remains the user-facing installation
+consent boundary. Permissions are displayed during inspection but do not yet
+sandbox arbitrary module initialization.
 
 ## Authoring principles
 

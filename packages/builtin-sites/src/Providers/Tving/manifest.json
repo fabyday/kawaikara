@@ -1,1 +1,23 @@
-{"schemaVersion":1,"id":"kawaikara.tving","name":"TVING","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.tving",
+  "name": "TVING",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation"],
+  "contributes": {
+    "address": { "hosts": ["tving.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+T" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "drm": true },
+    "menu": {
+      "category": "OTT",
+      "order": 80,
+      "icon": "https://www.tving.com/favicon.ico"
+    }
+  }
+}

@@ -3,46 +3,39 @@ import {
   type SiteRequestDetails,
   type SiteRequestHeaders,
 } from '@kawaikara/site-api';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
+import { createVideoPictureInPicture } from '../../PictureInPicture';
 import {
-  createBrowserUserAgent,
   createLoginInterceptionScript,
   isLoginNavigation,
   setHeader,
 } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
 
+const COUPANG_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const COUPANG_CLIENT_HINT =
+  '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+const COUPANG_PIP_SUBTITLE_SELECTORS = [
+  '.vjs-text-track-display',
+  '.vjs-text-track-cue',
+  '.shaka-text-container',
+] as const;
+
 @provider({
-  id: 'kawaikara.coupang-play',
-  address: { hosts: ['coupangplay.com'] },
-  title: 'Coupang Play',
-  shortcut: { defaultKey: 'Control+Alt+9' },
-  locale: BUILTIN_SITE_LOCALE,
-  isolation: { drm: true },
-  menu: { category: 'OTT', order: 70, icon: 'https://www.coupangplay.com/favicon.ico' },
-  permissions: [
-    'navigation',
-    'script-injection',
-    'external-browser',
-    'cookies',
-    'network-interception',
-  ],
+  pictureInPicture: createVideoPictureInPicture(
+    COUPANG_PIP_SUBTITLE_SELECTORS,
+  ),
 })
 export class CoupangPlayProvider extends UrlProvider {
   protected readonly url = 'https://www.coupangplay.com/';
   private loginPending = false;
   private loginInjectionReady = false;
-  private browserUserAgent?: string;
-  private chromeMajorVersion = '134';
 
   protected async beforeLoad(): Promise<void> {
-    this.browserUserAgent = createBrowserUserAgent(
-      this.context.viewer.getUserAgent(),
-    );
-    this.chromeMajorVersion =
-      /Chrome\/(\d+)/.exec(this.browserUserAgent)?.[1] ??
-      this.chromeMajorVersion;
-    this.context.viewer.setUserAgent(this.browserUserAgent);
+    // Coupang's Akamai flow is sensitive to Electron's browser identity. Keep
+    // the legacy main-branch identity that is known to complete playback login.
+    this.context.viewer.setUserAgent(COUPANG_USER_AGENT);
   }
 
   protected async afterLoad(): Promise<void> {
@@ -77,7 +70,23 @@ export class CoupangPlayProvider extends UrlProvider {
     try {
       const result = await this.context.externalBrowser.login({
         startUrl: this.url,
-        completionUrlPattern: '/(?:home|profile)(?:[/?#]|$)',
+        // Coupang currently uses both /profile and /profiles-style routes.
+        // Match the legacy main-branch behavior so the browser closes as soon
+        // as either the profile surface or the authenticated home opens.
+        completionUrlPattern: '/(?:home|profile)',
+        // This Session is site-isolated. Import the external browser's final
+        // cookie jar as the sole source of truth instead of merging stale
+        // Akamai and authentication cookies from a previous attempt.
+        replaceSessionCookies: true,
+        cookieImportMode: 'domain-scoped-https',
+        resetSessionOrigins: [
+          'https://coupangplay.com',
+          'https://www.coupangplay.com',
+        ],
+        // The last known-good implementation returned to the original root
+        // document only after Chrome had fully closed. Forcing /home starts a
+        // protected request before Coupang has rebuilt its viewer session.
+        awaitBrowserCleanup: true,
         siteTitle: 'Coupang Play',
         locale: this.context.locale?.app,
       });
@@ -99,7 +108,7 @@ export class CoupangPlayProvider extends UrlProvider {
   ): SiteRequestHeaders | undefined {
     const hostname = /^https?:\/\/([^/:]+)/i.exec(details.url)?.[1]?.toLowerCase();
     if (!hostname) return undefined;
-    if (hostname !== 'coupangplay.com' && !hostname.endsWith('.coupangplay.com')) {
+    if (!isCoupangHost(hostname)) {
       return undefined;
     }
 
@@ -107,11 +116,9 @@ export class CoupangPlayProvider extends UrlProvider {
     setHeader(
       headers,
       'Sec-Ch-Ua',
-      `"Google Chrome";v="${this.chromeMajorVersion}", "Chromium";v="${this.chromeMajorVersion}", "Not_A Brand";v="24"`,
+      COUPANG_CLIENT_HINT,
     );
-    if (this.browserUserAgent) {
-      setHeader(headers, 'User-Agent', this.browserUserAgent);
-    }
+    setHeader(headers, 'User-Agent', COUPANG_USER_AGENT);
     return headers;
   }
 
@@ -125,4 +132,11 @@ export class CoupangPlayProvider extends UrlProvider {
     this.context.viewer.setUserAgent();
     await super.unload();
   }
+}
+
+function isCoupangHost(hostname: string): boolean {
+  return hostname === 'coupangplay.com' ||
+    hostname.endsWith('.coupangplay.com') ||
+    hostname === 'coupang.com' ||
+    hostname.endsWith('.coupang.com');
 }

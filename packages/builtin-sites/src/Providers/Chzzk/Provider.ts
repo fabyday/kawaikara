@@ -7,7 +7,7 @@ import {
   type SiteRequestHeaders,
   type SiteRequestRedirect,
 } from '@kawaikara/site-api';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
+import { createVideoPictureInPicture } from '../../PictureInPicture';
 import { setHeader } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
 import {
@@ -35,36 +35,12 @@ const CHZZK_PIP_CONTROL_SELECTORS = [
 ] as const;
 
 @provider({
-  id: 'kawaikara.chzzk',
-  address: { hosts: ['chzzk.naver.com'] },
-  title: 'CHZZK',
-  shortcut: { defaultKey: 'Control+Alt+Z' },
-  settings: {
-    categories: [{
-      id: 'clips',
-      title: { 'en-US': 'Clips', 'ko-KR': '클립', 'ja-JP': 'クリップ' },
-      settings: [{
-        type: 'boolean',
-        key: SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
-        title: {
-          'en-US': 'Play the next clip automatically',
-          'ko-KR': '다음 클립 자동 재생',
-          'ja-JP': '次のクリップを自動再生',
-        },
-        defaultValue: true,
-      }],
-    }],
-  },
-  shortFormVideo: {
-    previous: true,
-    next: true,
-    autoAdvance: {
-      settingKey: SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
-      defaultValue: true,
-    },
-  },
-  locale: BUILTIN_SITE_LOCALE,
   pictureInPicture: {
+    ...createVideoPictureInPicture([
+      '.pzp-pc__subtitle',
+      '.pzp-pc-subtitle',
+      '.pzp-pc__caption',
+    ]),
     // CHZZK moves the stream into its page-owned mini-player when leaving a
     // live route. Keep that automatic lifecycle operational and visible so
     // the detached player remains controllable; only its manual PIP button is
@@ -72,8 +48,6 @@ const CHZZK_PIP_CONTROL_SELECTORS = [
     pageRequestPolicy: 'allow',
     pageControlSelectors: CHZZK_PIP_CONTROL_SELECTORS,
   },
-  menu: { category: 'Streaming', order: 10, icon: 'https://chzzk.naver.com/favicon.ico' },
-  permissions: ['navigation', 'network-interception', 'script-injection'],
 })
 export class ChzzkProvider extends UrlProvider {
   protected readonly url = 'https://chzzk.naver.com/';

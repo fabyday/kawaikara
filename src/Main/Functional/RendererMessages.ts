@@ -11,6 +11,9 @@ export interface AppMessages {
   readonly addressPlaceholder: string;
   readonly addressHelp: string;
   readonly unsupportedAddress: string;
+  readonly addressGo: string;
+  readonly copyAddress: string;
+  readonly addressCopied: string;
   readonly pictureInPicture: string;
   readonly automaticPictureInPicture: string;
   readonly gamePictureInPicture: string;
@@ -62,6 +65,9 @@ export interface AppMessages {
   readonly profileName: string;
   readonly profileNamePlaceholder: string;
   readonly addProfile: string;
+  readonly clearProfileData: string;
+  readonly clearSiteData: string;
+  readonly dataClearSuccess: string;
   readonly removeProfile: string;
   readonly noUserProfiles: string;
   readonly persistentProfile: string;
@@ -85,10 +91,13 @@ export interface AppMessages {
   readonly bundleRestartRequired: string;
   readonly bundleFailed: string;
   readonly bundleInstallSuccess: string;
+  readonly bundleUpdate: string;
+  readonly bundleUpdateUnavailable: string;
+  readonly bundleUpdateSuccess: string;
+  readonly bundleRemoveSuccess: string;
   readonly noBundles: string;
   readonly emptyBundle: string;
   readonly permissions: string;
-  readonly noProviderSettings: string;
   readonly remove: string;
   readonly showMore: string;
   readonly selectAll: string;
@@ -114,6 +123,11 @@ export interface AppMessages {
   readonly chzzkClipsAutoAdvance: string;
   readonly chzzkClipsAutoAdvanceDescription: string;
   readonly performance: string;
+  readonly dataManagement: string;
+  readonly applicationCacheReset: string;
+  readonly applicationCacheResetDescription: string;
+  readonly applicationReset: string;
+  readonly applicationResetDescription: string;
   readonly graphicsMode: string;
   readonly graphicsModeDescription: string;
   readonly graphicsModeNative: string;

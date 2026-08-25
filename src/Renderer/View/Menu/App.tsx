@@ -34,11 +34,13 @@ import {
   AutoHideScrollArea,
 } from '../../Component/AutoHideScrollArea';
 import { PictureInPictureButton } from '../../Component/PictureInPictureButton';
+import { SiteIcon, SiteIconCache } from '../../Component/SiteIcon';
 import { SiteMenuButton } from '../../Component/SiteMenuButton';
 import {
   createOrderedSiteGroups,
   getDefaultMenuCategoryShortcut,
   getMenuCategoryShortcutId,
+  isApplePlatform,
   matchesKeyboardAccelerator,
 } from '../../Domain/MenuOrder';
 import { PreferenceView } from '../Preference/App';
@@ -60,9 +62,14 @@ export function App() {
   const [shortcutTargetCategory, setShortcutTargetCategory] = useState<string>();
   const [sitePanelRefreshKey, setSitePanelRefreshKey] = useState(0);
   const [address, setAddress] = useState('');
+  const [addressFocused, setAddressFocused] = useState(false);
   const [addressError, setAddressError] = useState(false);
   const [addressFailureKey, setAddressFailureKey] = useState(0);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [addressSuggestionsDismissed, setAddressSuggestionsDismissed] =
+    useState(false);
+  const [activeAddressSuggestion, setActiveAddressSuggestion] = useState(0);
+  const [addressCopied, setAddressCopied] = useState(false);
   const [previewTheme, setPreviewTheme] = useState<AppTheme>();
   const [updateState, setUpdateState] = useState<ApplicationUpdatePanelState>();
   const [updatePanelView, setUpdatePanelView] = useState<
@@ -71,6 +78,7 @@ export function App() {
   const addressInputRef = useRef<HTMLInputElement>(null);
   const closeTimer = useRef<number | undefined>(undefined);
   const pipFailureTimer = useRef<number | undefined>(undefined);
+  const addressCopiedTimer = useRef<number | undefined>(undefined);
   const shortcutHighlightTimer = useRef<number | undefined>(undefined);
   const categoryElements = useRef(new Map<string, HTMLElement>());
   const viewRef = useRef<OverlayView>('menu');
@@ -103,6 +111,9 @@ export function App() {
       if (pipFailureTimer.current !== undefined) {
         window.clearTimeout(pipFailureTimer.current);
       }
+      if (addressCopiedTimer.current !== undefined) {
+        window.clearTimeout(addressCopiedTimer.current);
+      }
     },
     [],
   );
@@ -110,11 +121,13 @@ export function App() {
   useEffect(() => {
     void Promise.all([
       window.kawaikara.sites.list(),
+      window.kawaikara.sites.currentAddress(),
       window.kawaikara.preferences.get(),
       window.kawaikara.application.getMessages(),
     ])
-      .then(([nextSites, nextPreferences, nextLocalization]) => {
+      .then(([nextSites, nextAddress, nextPreferences, nextLocalization]) => {
         setSites(nextSites);
+        setAddress(nextAddress);
         setSelectedId(nextSites.find((site) => site.isCurrent)?.id);
         setPreferences(nextPreferences);
         setLocalization(nextLocalization);
@@ -141,10 +154,12 @@ export function App() {
       setSitePanelRefreshKey((current) => current + 1);
       void Promise.all([
         window.kawaikara.sites.list(),
+        window.kawaikara.sites.currentAddress(),
         window.kawaikara.preferences.get(),
         window.kawaikara.application.getMessages(),
-      ]).then(([nextSites, nextPreferences, nextLocalization]) => {
+      ]).then(([nextSites, nextAddress, nextPreferences, nextLocalization]) => {
         setSites(nextSites);
+        setAddress(nextAddress);
         setSelectedId(nextSites.find((site) => site.isCurrent)?.id);
         setPreferences(nextPreferences);
         setLocalization(nextLocalization);
@@ -241,6 +256,15 @@ export function App() {
     [selectedId, sites],
   );
 
+  const addressSuggestions = useMemo(
+    () => createAddressSuggestions(sites, address),
+    [address, sites],
+  );
+  const addressSuggestionsVisible =
+    addressFocused &&
+    !addressSuggestionsDismissed &&
+    addressSuggestions.length > 0;
+
   useEffect(() => {
     if (pipFailureKey === 0) return;
     if (pipFailureTimer.current !== undefined) {
@@ -267,6 +291,10 @@ export function App() {
   useEffect(() => {
     if (!menuVisible || view !== 'menu' || !preferences) return;
     const handleCategoryShortcut = (event: KeyboardEvent) => {
+      // This listener runs in the capture phase, before the address input's
+      // own key handler. Check the event target directly instead of waiting
+      // for the asynchronous Main-process editable-focus report.
+      if (isEditableKeyboardTarget(event.target)) return;
       const target = groups.find(([category], index) => {
         const shortcut =
           preferences.shortcuts[getMenuCategoryShortcutId(category)] ??
@@ -386,13 +414,13 @@ export function App() {
     }
   };
 
-  const openAddress = async (event: FormEvent) => {
-    event.preventDefault();
+  const openAddressValue = async (value: string) => {
     if (addressLoading) return;
     setAddressLoading(true);
     setAddressError(false);
+    setAddressSuggestionsDismissed(true);
     try {
-      const result = await window.kawaikara.sites.openAddress(address);
+      const result = await window.kawaikara.sites.openAddress(value);
       if (result.status === 'unsupported') {
         setAddressError(true);
         setAddressFailureKey((current) => current + 1);
@@ -403,6 +431,37 @@ export function App() {
     } finally {
       setAddressLoading(false);
     }
+  };
+
+  const openAddress = async (event: FormEvent) => {
+    event.preventDefault();
+    await openAddressValue(address);
+  };
+
+  const copyAddress = async () => {
+    const value = address.trim();
+    if (!value) return;
+    try {
+      await window.kawaikara.application.copyText(value);
+      setAddressCopied(true);
+      if (addressCopiedTimer.current !== undefined) {
+        window.clearTimeout(addressCopiedTimer.current);
+      }
+      addressCopiedTimer.current = window.setTimeout(() => {
+        addressCopiedTimer.current = undefined;
+        setAddressCopied(false);
+      }, 1_400);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const chooseAddressSuggestion = (suggestion: AddressSuggestion) => {
+    setAddress(suggestion.host);
+    setAddressError(false);
+    setAddressSuggestionsDismissed(true);
+    setActiveAddressSuggestion(0);
+    addressInputRef.current?.focus();
   };
 
   const setOverlayView = (nextView: OverlayView) => {
@@ -435,11 +494,17 @@ export function App() {
 
   if (!localization) return null;
 
+  const addressHelp = messages.addressHelp.replace(
+    '{shortcut}',
+    isApplePlatform() ? 'Cmd+L' : 'Ctrl+L',
+  );
+
   const manualUpdateVisible =
     view === 'update' && updateState?.origin === 'manual';
 
   return (
     <KawaiProvider>
+      <SiteIconCache sites={sites} />
       <AnimatePresence initial={false}>
         {(menuVisible && view === 'menu') ||
         view === 'preference' ||
@@ -650,29 +715,127 @@ export function App() {
               onSubmit={(event) => void openAddress(event)}
             >
               <input
+                aria-activedescendant={
+                  addressSuggestionsVisible
+                    ? `kawaikara-address-suggestion-${activeAddressSuggestion}`
+                    : undefined
+                }
+                aria-autocomplete="list"
+                aria-controls="kawaikara-address-suggestions"
+                aria-expanded={addressSuggestionsVisible}
                 aria-invalid={addressError}
                 disabled={addressLoading}
                 placeholder={messages.addressPlaceholder}
                 ref={addressInputRef}
+                role="combobox"
                 spellCheck={false}
                 type="text"
-                value={address}
+                value={addressFocused ? address : formatAddressForDisplay(address)}
                 onChange={(event) => {
                   setAddress(event.currentTarget.value);
                   setAddressError(false);
+                  setAddressCopied(false);
+                  setAddressSuggestionsDismissed(false);
+                  setActiveAddressSuggestion(0);
                 }}
+                onFocus={(event) => {
+                  const input = event.currentTarget;
+                  setAddressFocused(true);
+                  setAddressSuggestionsDismissed(false);
+                  setActiveAddressSuggestion(0);
+                  window.requestAnimationFrame(() => input.select());
+                }}
+                onBlur={() => setAddressFocused(false)}
                 onKeyDown={(event) => {
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    if (addressSuggestions.length === 0) return;
+                    event.preventDefault();
+                    setAddressSuggestionsDismissed(false);
+                    setActiveAddressSuggestion((current) => {
+                      const direction = event.key === 'ArrowDown' ? 1 : -1;
+                      return (
+                        current + direction + addressSuggestions.length
+                      ) % addressSuggestions.length;
+                    });
+                    return;
+                  }
+                  if (event.key === 'Escape' && addressSuggestionsVisible) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setAddressSuggestionsDismissed(true);
+                    return;
+                  }
                   if (event.key !== 'Enter') return;
                   event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
+                  const suggestion = addressSuggestionsVisible
+                    ? addressSuggestions[activeAddressSuggestion]
+                    : undefined;
+                  if (suggestion) {
+                    setAddress(suggestion.host);
+                    void openAddressValue(suggestion.host);
+                  } else {
+                    event.currentTarget.form?.requestSubmit();
+                  }
                 }}
               />
-              <button disabled={addressLoading || !address.trim()} type="submit">
+              <button
+                aria-label={messages.addressGo}
+                disabled={addressLoading || !address.trim()}
+                title={messages.addressGo}
+                type="submit"
+              >
                 <span aria-hidden="true">→</span>
               </button>
+              <button
+                aria-label={messages.copyAddress}
+                className={addressCopied ? 'is-copied' : undefined}
+                disabled={!address.trim()}
+                title={messages.copyAddress}
+                type="button"
+                onClick={() => void copyAddress()}
+              >
+                {addressCopied ? <CheckIcon /> : <CopyIcon />}
+              </button>
+              {addressSuggestionsVisible ? (
+                <div
+                  aria-label={messages.addressPlaceholder}
+                  className="menu-address-suggestions"
+                  id="kawaikara-address-suggestions"
+                  role="listbox"
+                >
+                  {addressSuggestions.map((suggestion, index) => (
+                    <button
+                      aria-selected={index === activeAddressSuggestion}
+                      className={
+                        index === activeAddressSuggestion ? 'is-active' : undefined
+                      }
+                      id={`kawaikara-address-suggestion-${index}`}
+                      key={`${suggestion.site.id}:${suggestion.host}`}
+                      role="option"
+                      type="button"
+                      onClick={() => chooseAddressSuggestion(suggestion)}
+                      onMouseEnter={() => setActiveAddressSuggestion(index)}
+                      onPointerDown={(event) => event.preventDefault()}
+                    >
+                      <SiteIcon site={suggestion.site} />
+                      <span className="menu-address-suggestion-copy">
+                        <strong>{suggestion.site.title}</strong>
+                        <small>{suggestion.host}</small>
+                      </span>
+                      <span aria-hidden="true" className="menu-address-suggestion-arrow">
+                        ↗
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </form>
             <p className={addressError ? 'is-error' : ''}>
-              {addressError ? messages.unsupportedAddress : messages.addressHelp}
+              {addressError
+                ? messages.unsupportedAddress
+                : addressCopied
+                  ? messages.addressCopied
+                  : addressHelp}
             </p>
           </section>
           <div
@@ -789,6 +952,116 @@ function getPictureInPictureError(
     case 'exited':
       return '';
   }
+}
+
+function formatAddressForDisplay(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return value;
+    const hostname = url.hostname.replace(/^www\./i, '');
+    const path = url.pathname === '/' ? '' : url.pathname;
+    return `${hostname}${url.port ? `:${url.port}` : ''}${path}${url.search}${url.hash}`;
+  } catch {
+    return value;
+  }
+}
+
+interface AddressSuggestion {
+  readonly host: string;
+  readonly site: SiteMenuItem;
+}
+
+function createAddressSuggestions(
+  sites: readonly SiteMenuItem[],
+  value: string,
+): AddressSuggestion[] {
+  const query = normalizeAddressSuggestionQuery(value);
+  const seenHosts = new Set<string>();
+  return sites
+    .flatMap((site) => site.addressHosts.map((host) => ({
+      host: host.toLowerCase(),
+      site,
+    })))
+    .filter(({ host, site }) => {
+      if (seenHosts.has(host)) return false;
+      if (
+        query &&
+        !host.includes(query) &&
+        !site.title.toLowerCase().includes(query)
+      ) {
+        return false;
+      }
+      seenHosts.add(host);
+      return true;
+    })
+    .sort((left, right) => {
+      const leftScore = addressSuggestionScore(left, query);
+      const rightScore = addressSuggestionScore(right, query);
+      return leftScore - rightScore || left.site.title.localeCompare(right.site.title);
+    })
+    .slice(0, 8);
+}
+
+function normalizeAddressSuggestionQuery(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(
+      /^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    if (parsed.protocol === 'kawaikara:') {
+      const nested = parsed.searchParams.get('url');
+      return nested ? normalizeAddressSuggestionQuery(nested) : '';
+    }
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return trimmed
+      .replace(/^[a-z][a-z\d+.-]*:\/\//i, '')
+      .replace(/^www\./, '')
+      .split(/[/?#]/, 1)[0] ?? '';
+  }
+}
+
+function addressSuggestionScore(
+  suggestion: AddressSuggestion,
+  query: string,
+): number {
+  if (!query) return 4;
+  if (suggestion.host === query) return 0;
+  if (suggestion.host.startsWith(query)) return 1;
+  if (suggestion.site.title.toLowerCase().startsWith(query)) return 2;
+  return 3;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest([
+    'input',
+    'textarea',
+    'select',
+    '[contenteditable]:not([contenteditable="false"])',
+    '[role="textbox"]',
+    '[role="searchbox"]',
+    '[role="combobox"]',
+    '[role="spinbutton"]',
+  ].join(',')));
+}
+
+function CopyIcon() {
+  return (
+    <svg aria-hidden="true" className="menu-address-action-icon" viewBox="0 0 24 24">
+      <rect height="11" rx="2" width="11" x="8" y="8" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" className="menu-address-action-icon" viewBox="0 0 24 24">
+      <path d="m5 12 4 4L19 6" />
+    </svg>
+  );
 }
 
 function AlwaysOnTopIcon() {

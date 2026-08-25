@@ -20,12 +20,12 @@ import {
   type PictureInPicturePlacementPreference,
   type PictureInPictureSizePreference,
 } from '../../Common/PictureInPicture';
-import { attachRendererLogging } from '../Logging';
+import type { LoggingManager } from './LoggingManager';
 import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
 import {
   disableMacOSFullScreenAuxiliary,
   enableMacOSFullScreenAuxiliary,
-} from '../MacOSWindowSpaces';
+} from '../Functional/MacOSWindowSpaces';
 
 const PIP_MARGIN = 20;
 const PIP_HOVER_POLL_INTERVAL_MS = 80;
@@ -33,6 +33,8 @@ const PIP_VIDEO_DISCOVERY_RETRY_MS = 100;
 const PIP_VIDEO_DISCOVERY_ATTEMPTS = 2;
 const PIP_RETURN_BUTTON_BOUNDS = { x: 12, y: 12, width: 40, height: 40 };
 const PIP_RESTORE_MESSAGE = `__kawaikara_pip_restore_${randomUUID()}`;
+const PIP_PLAYBACK_MESSAGE = `__kawaikara_pip_playback_${randomUUID()}`;
+const PIP_CONTROL_ACTION_DEBOUNCE_MS = 300;
 const PIP_PLAYBACK_BUTTON_SIZE = 54;
 const PIP_NATIVE_DRAG_STYLE =
   process.platform === 'win32' ? '-webkit-app-region:drag;' : '';
@@ -81,7 +83,10 @@ const FIND_VIDEO_SCRIPT = `
   })();
 `;
 
-const ENTER_UNIFIED_PIP_SCRIPT = `
+function createEnterUnifiedPipScript(
+  contentOverlaySelectors: readonly string[],
+): string {
+  return `
   (() => {
     const existing = window.__kawaikaraUnifiedPictureInPicture;
     if (existing) {
@@ -127,10 +132,17 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       return { status: 'not-ready' };
     }
 
+    const contentOverlaySelectors = ${JSON.stringify(contentOverlaySelectors)};
+    const composedParentElement = (element) => {
+      if (element.parentElement) return element.parentElement;
+      const root = element.getRootNode();
+      return root instanceof ShadowRoot ? root.host : null;
+    };
+
     const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
     video.setAttribute('data-kawaikara-unified-pip-video', 'true');
     const elements = [];
-    for (let element = video; element; element = element.parentElement) {
+    for (let element = video; element; element = composedParentElement(element)) {
       elements.push({ element, style: element.getAttribute('style') });
     }
     const backdrop = document.createElement('div');
@@ -141,7 +153,7 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       'width:100vw!important',
       'height:100vh!important',
       'background:#000!important',
-      'z-index:2147483646!important',
+      'z-index:2147483645!important',
       'pointer-events:none!important',
     ].join(';');
     document.body.append(backdrop);
@@ -167,10 +179,37 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
     video.style.setProperty('object-fit', 'contain', 'important');
     video.style.setProperty('background', '#000', 'important');
     video.style.setProperty('visibility', 'visible', 'important');
-    video.style.setProperty('z-index', '2147483647', 'important');
+    video.style.setProperty('z-index', '2147483646', 'important');
 
     const controlsStyle = document.createElement('style');
     controlsStyle.dataset.kawaikaraUnifiedPipControls = 'true';
+    const contentOverlayStyleText = contentOverlaySelectors
+      .map((selector) =>
+        'body ' + selector + ',' +
+        'body ' + selector + ' *{' +
+          'visibility:visible!important;' +
+          'pointer-events:none!important;' +
+          'z-index:2147483647!important}'
+      )
+      .join('');
+    const shadowContentOverlayStyleText = contentOverlaySelectors
+      .map((selector) =>
+        selector + ',' + selector + ' *{' +
+          'visibility:visible!important;' +
+          'pointer-events:none!important;' +
+          'z-index:2147483647!important}'
+      )
+      .join('');
+    const shadowControlsStyleText =
+      ':host *{visibility:hidden!important;pointer-events:none!important}' +
+      'video[data-kawaikara-unified-pip-video="true"]{' +
+        'position:fixed!important;inset:0!important;' +
+        'width:100vw!important;height:100vh!important;' +
+        'max-width:none!important;max-height:none!important;' +
+        'object-fit:contain!important;background:#000!important;' +
+        'visibility:visible!important;pointer-events:none!important;' +
+        'z-index:2147483646!important}' +
+      shadowContentOverlayStyleText;
     const controlsStyleText =
       'html,body{width:100%!important;height:100%!important;' +
         'overflow:hidden!important;overscroll-behavior:none!important}' +
@@ -185,14 +224,15 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
         'max-width:none!important;max-height:none!important;' +
         'object-fit:contain!important;background:#000!important;' +
         'visibility:visible!important;pointer-events:none!important;' +
-        'z-index:2147483647!important}' +
+        'z-index:2147483646!important}' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-enclosure,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-panel,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-timeline,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-current-time-display,' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-time-remaining-display' +
-      '{display:none!important;opacity:0!important;visibility:hidden!important}';
+      '{display:none!important;opacity:0!important;visibility:hidden!important}' +
+      contentOverlayStyleText;
     const navigationControlsStyleText =
       'body [data-kawaikara-unified-pip-backdrop="true"]{' +
         'visibility:visible!important;pointer-events:none!important}' +
@@ -202,11 +242,50 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
         'max-width:none!important;max-height:none!important;' +
         'object-fit:contain!important;background:#000!important;' +
         'visibility:visible!important;pointer-events:none!important;' +
-        'z-index:2147483647!important}' +
+        'z-index:2147483646!important}' +
       'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls{' +
-        'display:none!important;opacity:0!important;visibility:hidden!important}';
+        'display:none!important;opacity:0!important;visibility:hidden!important}' +
+      contentOverlayStyleText;
     controlsStyle.textContent = controlsStyleText;
     document.head.append(controlsStyle);
+
+    // Document styles cannot cross a shadow boundary. Install the equivalent
+    // video/subtitle policy in every accessible player shadow root and track
+    // roots added while PiP is active.
+    const shadowStyles = [];
+    const styledShadowRoots = new WeakSet();
+    const installShadowStyle = (root) => {
+      if (styledShadowRoots.has(root)) return;
+      styledShadowRoots.add(root);
+      const style = document.createElement('style');
+      style.dataset.kawaikaraUnifiedPipShadow = 'true';
+      style.textContent = shadowControlsStyleText;
+      root.append(style);
+      shadowStyles.push(style);
+      root.querySelectorAll('*').forEach((element) => {
+        if (element.shadowRoot) installShadowStyle(element.shadowRoot);
+      });
+    };
+    const scanShadowRoots = (root) => {
+      if (root instanceof Element && root.shadowRoot) {
+        installShadowStyle(root.shadowRoot);
+      }
+      root.querySelectorAll?.('*').forEach((element) => {
+        if (element.shadowRoot) installShadowStyle(element.shadowRoot);
+      });
+    };
+    scanShadowRoots(document);
+    const shadowObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) scanShadowRoots(node);
+        }
+      }
+    });
+    shadowObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
 
     const maintainNavigationVideoPosition = () => {
       const activeState = window.__kawaikaraUnifiedPictureInPicture;
@@ -246,7 +325,7 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       for (
         let element = activeState.video;
         element;
-        element = element.parentElement
+        element = composedParentElement(element)
       ) {
         elements.push({ element, style: element.getAttribute('style') });
       }
@@ -272,7 +351,7 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       activeState.video.style.setProperty('object-fit', 'contain', 'important');
       activeState.video.style.setProperty('background', '#000', 'important');
       activeState.video.style.setProperty('visibility', 'visible', 'important');
-      activeState.video.style.setProperty('z-index', '2147483647', 'important');
+      activeState.video.style.setProperty('z-index', '2147483646', 'important');
       activeState.controlsStyle.textContent = activeState.controlsStyleText;
       activeState.layoutReleased = false;
       activeState.navigationOffsetX = 0;
@@ -300,10 +379,14 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
 
     const overlay = document.createElement('div');
     overlay.dataset.kawaikaraUnifiedPipOverlay = 'true';
+    overlay.setAttribute('popover', 'manual');
     overlay.style.cssText = [
       'all:initial!important',
       'position:fixed!important',
       'inset:0!important',
+      'margin:0!important',
+      'padding:0!important',
+      'border:0!important',
       'display:block!important',
       'z-index:2147483647!important',
       'pointer-events:auto!important',
@@ -385,19 +468,12 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       icon.append(path);
       playbackButton.replaceChildren(icon);
     };
-    const togglePlayback = (event) => {
+    const requestPlaybackToggle = (event) => {
       event.preventDefault();
       event.stopImmediatePropagation();
-      const activeVideo = activePlaybackVideo();
-      if (activeVideo.paused || activeVideo.ended) {
-        if (activeVideo.ended) activeVideo.currentTime = 0;
-        void activeVideo.play().catch(() => undefined);
-      } else {
-        activeVideo.pause();
-      }
-      renderPlaybackButton();
+      console.debug(${JSON.stringify(PIP_PLAYBACK_MESSAGE)});
     };
-    playbackButton.addEventListener('click', togglePlayback);
+    playbackButton.addEventListener('click', requestPlaybackToggle);
     video.addEventListener('play', renderPlaybackButton);
     video.addEventListener('pause', renderPlaybackButton);
     video.addEventListener('ended', renderPlaybackButton);
@@ -409,6 +485,16 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       console.debug(${JSON.stringify(PIP_RESTORE_MESSAGE)});
     });
     document.documentElement.append(overlay);
+    // Apple TV and some other players use their own topmost compositing
+    // layers. The Popover top layer keeps Kawaikara's shared restore and
+    // playback controls above those surfaces without Provider-specific DOM.
+    if (typeof overlay.showPopover === 'function') {
+      try {
+        overlay.showPopover();
+      } catch {
+        // The fixed, maximum-z-index overlay remains the compatibility path.
+      }
+    }
 
     window.__kawaikaraUnifiedPictureInPicture = {
       backdrop,
@@ -425,6 +511,8 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       releaseLayoutForNavigation,
       renderPlaybackButton,
       restoreLayoutAfterNavigation,
+      shadowObserver,
+      shadowStyles,
       video,
       videoMarker,
     };
@@ -434,6 +522,30 @@ const ENTER_UNIFIED_PIP_SCRIPT = `
       videoHeight: video.videoHeight,
       videoWidth: video.videoWidth,
     };
+  })();
+`;
+}
+
+const TOGGLE_UNIFIED_PIP_PLAYBACK_SCRIPT = `
+  (async () => {
+    const state = window.__kawaikaraUnifiedPictureInPicture;
+    if (!state?.video) return { status: 'missing' };
+    const video = state.video;
+    try {
+      if (video.paused || video.ended) {
+        if (video.ended) video.currentTime = 0;
+        await video.play();
+      } else {
+        video.pause();
+      }
+      state.renderPlaybackButton?.();
+      return { status: 'toggled', paused: video.paused };
+    } catch (error) {
+      return {
+        status: 'failed',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   })();
 `;
 
@@ -453,6 +565,8 @@ const EXIT_UNIFIED_PIP_SCRIPT = `
       else element.setAttribute('style', style);
     }
     state.controlsStyle.remove();
+    state.shadowObserver?.disconnect();
+    state.shadowStyles?.forEach((style) => style.remove());
     state.overlay.remove();
     state.backdrop.remove();
     if (state.videoMarker === null) {
@@ -475,6 +589,11 @@ const REFRESH_UNIFIED_PIP_VIDEO_SCRIPT = `
   (() => {
     const state = window.__kawaikaraUnifiedPictureInPicture;
     if (!state) return { status: 'missing' };
+    const composedParentElement = (element) => {
+      if (element.parentElement) return element.parentElement;
+      const root = element.getRootNode();
+      return root instanceof ShadowRoot ? root.host : null;
+    };
 
     const videos = [];
     const visit = (root) => {
@@ -537,7 +656,7 @@ const REFRESH_UNIFIED_PIP_VIDEO_SCRIPT = `
     const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
     video.setAttribute('data-kawaikara-unified-pip-video', 'true');
     const elements = [];
-    for (let element = video; element; element = element.parentElement) {
+    for (let element = video; element; element = composedParentElement(element)) {
       elements.push({ element, style: element.getAttribute('style') });
     }
     for (const { element } of elements) {
@@ -561,7 +680,7 @@ const REFRESH_UNIFIED_PIP_VIDEO_SCRIPT = `
     video.style.setProperty('object-fit', 'contain', 'important');
     video.style.setProperty('background', '#000', 'important');
     video.style.setProperty('visibility', 'visible', 'important');
-    video.style.setProperty('z-index', '2147483647', 'important');
+    video.style.setProperty('z-index', '2147483646', 'important');
 
     state.video = video;
     state.controls = video.controls;
@@ -688,6 +807,10 @@ interface VideoCandidate {
 interface UnifiedPictureInPictureState {
   closing: boolean;
   controlsVisible: boolean;
+  lastControlAction?: {
+    readonly action: 'playback' | 'restore';
+    readonly at: number;
+  };
   dragState?: {
     readonly cursorX: number;
     readonly cursorY: number;
@@ -726,6 +849,8 @@ export class UnifiedPictureInPictureManager {
   constructor(
     private readonly getViewerWindow: () => BrowserWindow,
     private readonly getSiteView: () => WebContentsView,
+    private readonly getContentOverlaySelectors: () => readonly string[],
+    private readonly logging: LoggingManager,
     private readonly onStateChanged: (result: PictureInPictureResult) => void,
     private readonly onExited: () => void,
     private readonly onLastPlacementChanged?: (
@@ -802,7 +927,7 @@ export class UnifiedPictureInPictureManager {
       hostFrames = await this.enterHostFrames(candidate.frame);
       const result = parseEnterResult(
         await candidate.frame.executeJavaScript(
-          ENTER_UNIFIED_PIP_SCRIPT,
+          createEnterUnifiedPipScript(this.getContentOverlaySelectors()),
           true,
         ),
       );
@@ -839,8 +964,13 @@ export class UnifiedPictureInPictureManager {
       const consoleListener = (
         details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
       ): void => {
-        if (details.message !== PIP_RESTORE_MESSAGE) return;
-        void this.exit();
+        const activeState = this.state;
+        if (!activeState || activeState.pipWindow !== pipWindow) return;
+        if (details.message === PIP_RESTORE_MESSAGE) {
+          this.activateControl(activeState, 'restore');
+        } else if (details.message === PIP_PLAYBACK_MESSAGE) {
+          this.activateControl(activeState, 'playback');
+        }
       };
       const pointerInputListener = (
         _event: Electron.Event,
@@ -1008,7 +1138,7 @@ export class UnifiedPictureInPictureManager {
         sandbox: true,
       },
     });
-    attachRendererLogging(pipWindow.webContents, 'picture-in-picture');
+    this.logging.attachRenderer(pipWindow.webContents, 'picture-in-picture');
     pipWindow.setMenu(null);
     pipWindow.setMenuBarVisibility(false);
     pipWindow.setMinimumSize(
@@ -1095,17 +1225,12 @@ export class UnifiedPictureInPictureManager {
     }
 
     const mouseInput = input as Electron.MouseInputEvent;
-    if (process.platform === 'win32') {
-      // Crossing between a native draggable region and a no-drag button can
-      // emit a transient mouseLeave on Windows. The screen-coordinate poll is
-      // authoritative for hiding; input events only reveal controls eagerly.
-      if (input.type !== 'mouseLeave') this.setControlsVisible(state, true);
-      return;
-    }
-
     if (input.type === 'mouseDown') {
       if (mouseInput.button && mouseInput.button !== 'left') return;
-      if (isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)) return;
+      if (isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)) {
+        this.activateControl(state, 'restore');
+        return;
+      }
       const [contentWidth, contentHeight] = state.pipWindow.getContentSize();
       if (
         isPointInside(mouseInput, {
@@ -1115,8 +1240,20 @@ export class UnifiedPictureInPictureManager {
           height: PIP_PLAYBACK_BUTTON_SIZE,
         })
       ) {
+        this.activateControl(state, 'playback');
         return;
       }
+    }
+
+    if (process.platform === 'win32') {
+      // Crossing between a native draggable region and a no-drag button can
+      // emit a transient mouseLeave on Windows. The screen-coordinate poll is
+      // authoritative for hiding; input events only reveal controls eagerly.
+      if (input.type !== 'mouseLeave') this.setControlsVisible(state, true);
+      return;
+    }
+
+    if (input.type === 'mouseDown') {
       const cursor = resolveGlobalMousePoint(mouseInput);
       const [windowX, windowY] = state.pipWindow.getPosition();
       state.dragState = {
@@ -1141,6 +1278,45 @@ export class UnifiedPictureInPictureManager {
       Math.round(drag.windowY + cursor.y - drag.cursorY),
       false,
     );
+  }
+
+  private activateControl(
+    state: UnifiedPictureInPictureState,
+    action: 'playback' | 'restore',
+  ): void {
+    if (this.state !== state || state.closing) return;
+    const now = Date.now();
+    if (
+      state.lastControlAction?.action === action &&
+      now - state.lastControlAction.at < PIP_CONTROL_ACTION_DEBOUNCE_MS
+    ) {
+      return;
+    }
+    state.lastControlAction = { action, at: now };
+    if (action === 'restore') {
+      void this.exit();
+      return;
+    }
+    if (state.frame.isDestroyed()) return;
+    void state.frame
+      .executeJavaScript(TOGGLE_UNIFIED_PIP_PLAYBACK_SCRIPT, true)
+      .then((result: unknown) => {
+        if (
+          typeof result === 'object' &&
+          result !== null &&
+          'status' in result &&
+          result.status === 'failed'
+        ) {
+          this.logging
+            .createLogger('picture-in-picture')
+            .debug('Unified PiP playback control was rejected.', result);
+        }
+      })
+      .catch((error: unknown) => {
+        this.logging
+          .createLogger('picture-in-picture')
+          .debug('Unified PiP playback control failed.', error);
+      });
   }
 
   private startHoverTracking(state: UnifiedPictureInPictureState): void {
@@ -1244,7 +1420,10 @@ export class UnifiedPictureInPictureManager {
       await this.restoreHostFrames(previousHostFrames);
       const nextHostFrames = await this.enterHostFrames(candidate.frame);
       const result = parseEnterResult(
-        await candidate.frame.executeJavaScript(ENTER_UNIFIED_PIP_SCRIPT, true),
+        await candidate.frame.executeJavaScript(
+          createEnterUnifiedPipScript(this.getContentOverlaySelectors()),
+          true,
+        ),
       );
       if (result.status !== 'entered') {
         await this.restoreHostFrames(nextHostFrames);
@@ -1255,6 +1434,10 @@ export class UnifiedPictureInPictureManager {
       }
       state.frame = candidate.frame;
       state.hostFrames = nextHostFrames;
+      // A replacement iframe owns a newly injected overlay. Reapply the
+      // current native hover state even when the boolean did not change;
+      // otherwise its buttons remain at their default hidden opacity.
+      this.setControlsVisible(state, state.controlsVisible, true);
       if (!previousFrame.isDestroyed()) {
         await previousFrame.executeJavaScript(
           "document.querySelectorAll('video').forEach((video) => video.pause())",
@@ -1298,8 +1481,11 @@ export class UnifiedPictureInPictureManager {
   private setControlsVisible(
     state: UnifiedPictureInPictureState,
     visible: boolean,
+    force = false,
   ): void {
-    if (state.controlsVisible === visible || state.frame.isDestroyed()) return;
+    if ((!force && state.controlsVisible === visible) || state.frame.isDestroyed()) {
+      return;
+    }
     state.controlsVisible = visible;
     void state.frame
       .executeJavaScript(`

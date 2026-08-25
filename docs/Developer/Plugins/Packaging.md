@@ -9,6 +9,7 @@ directory and manifest.
 ```text
 example-bundle/
 ├── manifest.json
+├── Update.js
 ├── Providers/
 │   └── ExampleVideo/
 │       ├── manifest.json
@@ -36,6 +37,10 @@ directory.
   "name": "Example Streaming",
   "description": "Example Providers for Kawaikara",
   "version": "1.0.0",
+  "update": {
+    "type": "archive",
+    "url": "https://downloads.example.com/example.streaming.kawai"
+  },
   "apiVersion": 1,
   "permissions": ["navigation", "script-injection"],
   "providers": ["Providers/ExampleVideo"],
@@ -55,7 +60,28 @@ directory.
 ```
 
 `providers` is required and cannot be empty. `plugins` is optional. All paths
-are relative directories beneath the Bundle root.
+are relative directories beneath the Bundle root. `update` is optional. The
+`archive` form above must use a credential-free HTTPS URL that returns a
+ZIP-compatible `.kawai` archive with the same Bundle id.
+
+When the newest archive depends on the release channel, platform, or
+architecture, use a resolver instead:
+
+```json
+"update": {
+  "type": "resolver",
+  "main": "Update.js"
+}
+```
+
+`Update.js` is a trusted CommonJS module at the Bundle root. It exports one
+function as `default`, `resolveBundleUpdate`, or `resolveUpdate`. The function
+receives `{ currentVersion, channel, platform, arch }` and returns (or resolves
+to) a credential-free HTTPS archive URL. Resolver code is validated as part of
+the Bundle and executes in Main, so it is covered by the same trusted-code
+boundary as Provider and Plugin entries. The legacy top-level `updateUrl`
+string remains readable for existing Bundles, but new Bundles should use
+`update`.
 
 ## Provider manifest
 
@@ -67,15 +93,36 @@ are relative directories beneath the Bundle root.
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
+  "permissions": ["navigation"],
+  "contributes": {
+    "address": { "hosts": ["example.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+E" },
+    "locale": {
+      "supportedLocales": ["en-US", "ko-KR"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "drm": true },
+    "pictureInPicture": { "enabled": true },
+    "menu": {
+      "category": "OTT",
+      "order": 10,
+      "icon": "https://example.com/favicon.ico"
+    }
+  },
   "plugins": ["Plugins/PlayerHelper"]
 }
 ```
 
 Write Provider source in TypeScript. `main` points to the compiled `.js` file
 and exports one Provider constructor as the module value, `default`, `provider`,
-or the only function export. The Provider manifest owns its ID, name, and
-description; the decorator owns behavior contributions. Bundle-level
-`permissions` is the single user-consent boundary.
+or the only function export. The Provider manifest owns identity, permissions,
+and static contributions. `contributes` may contain address, menu, shortcut,
+settings, short-form video, locale, isolation, and PiP declarations. The class
+uses `@provider()` as its runtime marker and contains lifecycle and site behavior.
+Bundle-level permissions remain the installation consent boundary, while each
+Provider permission list must be a subset and determines its runtime API access.
+Both `permissions` and `contributes.menu` are required; use an empty permission
+array when a Provider needs no capability.
 
 Provider-owned Plugin directories are relative to the Provider directory. Their
 runtime scope is always that Provider.
@@ -104,6 +151,10 @@ list Provider IDs to restrict activation. A Provider-owned Plugin does not need
 Provider and Plugin entries should bundle their runtime dependencies. The `.kawai` container
 installer does not run a package manager. Import the public Site API only for
 Kawaikara capabilities; do not import app Main modules or Electron internals.
+At activation, Kawaikara creates the reserved
+`node_modules/@kawaikara/site-api` bridge inside the installed Bundle so every
+entry receives the app's exact Site API instance. Bundles must not use that
+reserved directory for their own files.
 
 The official `packages/builtin-sites` package follows exactly this layout under
 `src/Providers` and `src/Plugins`. Its TypeScript composition root uses
@@ -125,6 +176,13 @@ filesystem ownership at build time.
 One malformed installed Bundle is marked failed in Preferences without stopping
 other Bundles or application startup.
 
+Bundles with `update` expose an Update action. Updates pass the same archive and
+manifest validation, replace the installed directory atomically, and take
+effect after restart. A built-in Bundle update is stored as a validated
+on-disk override and takes precedence over the embedded copy on the next start.
+Only user-installed Bundles expose Remove; removing one deletes its installed
+directory and already loaded code is unloaded on restart.
+
 ## Limits and trust boundary
 
 - Maximum `.kawai` file size: 32 MB.
@@ -143,8 +201,11 @@ initialization, so users must install only archives from trusted publishers.
 - Bundle `providers` contains at least one directory.
 - Every Provider and Plugin has TypeScript source, its own `manifest.json`, and
   a compiled JavaScript entry.
-- Manifest IDs match `@provider` and `@plugin` metadata.
-- The top-level Bundle manifest declares every required permission.
+- Provider identity and static configuration are declared in its manifest;
+  `@provider()` only marks the constructor.
+- Each Provider manifest declares its capabilities, and the top-level Bundle
+  manifest grants their union.
+- The top-level Bundle manifest owns its optional archive or resolver update source.
 - Provider-owned Plugins are stored below their owning Provider.
 - Bundle-level Plugin `providerIds` accurately expresses global or targeted
   scope.

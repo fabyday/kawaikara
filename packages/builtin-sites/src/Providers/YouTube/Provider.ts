@@ -3,12 +3,15 @@ import {
   SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
   SHORT_FORM_VIDEO_BANNED_PUBLISHERS_SETTING,
   provider,
+  type NewWindowPolicy,
   type ProviderSettingListItem,
   type ProviderSettings,
   type ShortFormVideoPublisher,
 } from '@kawaikara/site-api';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
+import { createVideoPictureInPicture } from '../../PictureInPicture';
+import { matchesUrlHost } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
+import { repairIncompleteGoogleSession } from '../Google/SessionRepair';
 import {
   createYouTubeShortsCommandScript,
   createYouTubeShortsInjectionScript,
@@ -17,62 +20,12 @@ import {
 } from './Inject/Shorts';
 
 @provider({
-  id: 'kawaikara.youtube',
-  address: { hosts: ['youtube.com', 'youtu.be'] },
-  title: 'YouTube',
-  shortcut: { defaultKey: 'Control+Alt+5' },
-  settings: {
-    categories: [{
-      id: 'shorts',
-      title: { 'en-US': 'Shorts', 'ko-KR': '쇼츠', 'ja-JP': 'Shorts' },
-      description: {
-        'en-US': 'Control Shorts playback and publishers hidden from the feed.',
-        'ko-KR': '쇼츠 재생과 피드에서 숨길 게시자를 관리합니다.',
-        'ja-JP': 'Shorts の再生とフィードから非表示にする投稿者を管理します。',
-      },
-      settings: [{
-        type: 'boolean',
-        key: SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
-        title: {
-          'en-US': 'Play the next Short automatically',
-          'ko-KR': '다음 쇼츠 자동 재생',
-          'ja-JP': '次の Shorts を自動再生',
-        },
-        defaultValue: true,
-      }, {
-        type: 'item-list',
-        key: SHORT_FORM_VIDEO_BANNED_PUBLISHERS_SETTING,
-        title: {
-          'en-US': 'Banned publishers',
-          'ko-KR': '차단한 게시자',
-          'ja-JP': 'ブロックした投稿者',
-        },
-        description: {
-          'en-US': 'Shorts from these publishers are skipped automatically.',
-          'ko-KR': '이 게시자의 쇼츠는 자동으로 건너뜁니다.',
-          'ja-JP': 'これらの投稿者の Shorts は自動的にスキップされます。',
-        },
-        emptyText: {
-          'en-US': 'No publishers are banned.',
-          'ko-KR': '차단한 게시자가 없습니다.',
-          'ja-JP': 'ブロックした投稿者はいません。',
-        },
-      }],
-    }],
-  },
-  shortFormVideo: {
-    previous: true,
-    next: true,
-    autoAdvance: {
-      settingKey: SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
-      defaultValue: true,
-    },
-    publisherBan: { settingKey: SHORT_FORM_VIDEO_BANNED_PUBLISHERS_SETTING },
-  },
-  locale: BUILTIN_SITE_LOCALE,
-  isolation: { defaultBrowserProfile: 'google' },
-  menu: { category: 'Video', order: 10, icon: 'https://www.youtube.com/favicon.ico' },
-  permissions: ['navigation', 'script-injection'],
+  pictureInPicture: createVideoPictureInPicture([
+    '.ytp-caption-window-container',
+    '.ytp-caption-window-bottom',
+    '.caption-window',
+    '.ytp-caption-segment',
+  ]),
 })
 export class YouTubeProvider extends UrlProvider {
   protected readonly url = 'https://www.youtube.com/';
@@ -80,11 +33,22 @@ export class YouTubeProvider extends UrlProvider {
   private bannedPublishers: readonly ProviderSettingListItem[] = [];
   private injectionInstalled = false;
 
+  protected async beforeLoad(): Promise<void> {
+    await repairIncompleteGoogleSession(this.context);
+  }
+
   protected async afterLoad(): Promise<void> {
     await this.context.viewer.executeJavaScript(
       createYouTubeShortsInjectionScript(this.shortsOptions(false)),
-    );
-    this.injectionInstalled = true;
+    ).then(() => {
+      this.injectionInstalled = true;
+    }).catch((error: unknown) => {
+      this.injectionInstalled = false;
+      this.context.logger.debug(
+        'YouTube Shorts injection could not be installed for this document.',
+        error,
+      );
+    });
   }
 
   async onSettingsChanged(settings: ProviderSettings): Promise<void> {
@@ -147,6 +111,16 @@ export class YouTubeProvider extends UrlProvider {
     return false;
   }
 
+  onNewWindow(url: string): NewWindowPolicy {
+    if (matchesUrlHost(url, ['accounts.google.com'])) return 'viewer';
+    if (matchesUrlHost(url, ['youtube.com', 'youtu.be'])) {
+      return /^https?:\/\/(?:www\.)?youtube\.com\/(?:redirect\?|ads\/|pagead\/)/i.test(url)
+        ? 'external'
+        : 'viewer';
+    }
+    return 'external';
+  }
+
   allowPictureInPicture(value: string): boolean {
     const match =
       /^https:\/\/(?:www\.|m\.)?youtube\.com(\/[^?#]*)?(?:\?([^#]*))?(?:#|$)/i.exec(
@@ -159,6 +133,11 @@ export class YouTubeProvider extends UrlProvider {
       (pathname === '/watch' && /(?:^|&)v=[^&]+/.test(query)) ||
       /^\/(?:shorts|live)\/[^/]+\/?$/.test(pathname)
     );
+  }
+
+  async unload(): Promise<void> {
+    this.injectionInstalled = false;
+    await super.unload();
   }
 
   private async runShortsCommand(

@@ -26,6 +26,7 @@
     "build:dev": "pnpm build:packages && pnpm build:native && webpack --config webpack.config.cjs --mode development",
     "dev": "pnpm build:dev && cross-env KAWAI_DEV=true electron .",
     "package:dev": "node scripts/package-dev.cjs",
+    "package:built-in-bundle": "node scripts/package-builtin-bundle.cjs",
     "postinstall": "node scripts/install-electron-mpv.cjs",
     "widevine:auth": "node scripts/widevine.cjs auth",
     "widevine:verify": "node scripts/widevine.cjs verify",

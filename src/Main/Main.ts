@@ -13,22 +13,19 @@ import {
     parseExternalOpenUrl,
     type ExternalOpenRequest,
 } from './Functional/ExternalOpen';
-import {
-    createLogger,
-    configureLogLevel,
-    finishLogSession,
-    initializeLogging,
-} from './Logging';
+import { LoggingManager } from './Manager/LoggingManager';
 import {
     configureUserDataPaths,
     getKawaiDataPath,
     getUserDataLayout,
     initializeUserDataLayout,
-} from './UserDataPaths';
+} from './Functional/UserDataPaths';
 
 configureUserDataPaths();
-initializeLogging();
-const applicationLog = createLogger('application');
+Menu.setApplicationMenu(null);
+const logging = new LoggingManager();
+logging.initialize();
+const applicationLog = logging.createLogger('application');
 const startupPreferenceFilePath = getKawaiDataPath('preferences.json');
 
 const forceSoftwareRendering =
@@ -124,7 +121,6 @@ async function startApplication(): Promise<void> {
     await initializeUserDataLayout();
     applicationLog.info('User data layout initialized.', getUserDataLayout());
     applicationLog.info('Application startup began.');
-    Menu.setApplicationMenu(null);
     if (process.platform === 'darwin') {
         app.setActivationPolicy('regular');
         await app.dock?.show();
@@ -136,6 +132,7 @@ async function startApplication(): Promise<void> {
 
     const managers = createApplicationManagerContainer({
         bundleDirectoryPath: getKawaiDataPath('Bundles'),
+        logging,
         preferenceFilePath: startupPreferenceFilePath,
         videoLibraryFilePath: getKawaiDataPath('video-library.json'),
         standardVideoLocations: [
@@ -149,7 +146,7 @@ async function startApplication(): Promise<void> {
     const preferences = managers.resolve(MANAGER_TOKENS.preferences);
     const videoLibrary = managers.resolve(MANAGER_TOKENS.videoLibrary);
     await Promise.all([preferences.load(), videoLibrary.load()]);
-    configureLogLevel(preferences.get().logLevel);
+    logging.configureLevel(preferences.get().logLevel);
 
     const windows = managers.resolve(MANAGER_TOKENS.windows);
     windows.setAppLocale(preferences.get().appLocale, app.getLocale());
@@ -181,6 +178,8 @@ async function startApplication(): Promise<void> {
         handleAction: (action) => sites.handleAction(action),
         allowNavigation: (url) => sites.allowNavigation(url),
         allowPictureInPicture: (url) => sites.allowPictureInPicture(url),
+        getPictureInPictureContentOverlaySelectors: () =>
+            sites.getPictureInPictureContentOverlaySelectors(),
         transformRequest: (details) => sites.transformRequest(details),
         transformRequestHeaders: (details) =>
             sites.transformRequestHeaders(details),
@@ -288,7 +287,7 @@ app.on('before-quit', (event) => {
             applicationLog.error('Kawaikara shutdown failed.', error);
         })
         .finally(() => {
-            finishLogSession();
+            logging.finish();
             app.quit();
         });
 });

@@ -79,9 +79,9 @@ A Provider can request a popup when an OAuth service requires `window.opener`, `
 
 ### External browser
 
-Some services reject embedded Electron login. `ExternalBrowserManager` launches a temporary Chrome/Edge profile through Patchright, waits for a Provider-supplied completion URL pattern, transfers cookies into the selected Electron Session, and restores the viewer.
+Some services reject embedded Electron login. `ExternalBrowserManager` launches a temporary Chrome/Edge profile through Patchright, waits for a Provider-supplied completion URL pattern, transfers only its cookies into the selected Electron Session, and restores the viewer. The external profile is never reused. Providers may transiently seed it with the Electron Session's cookies for an add-account flow, but the completed cookie jar is copied back to Electron and the temporary profile is removed.
 
-Completion, cancellation, a site change, or app shutdown closes the browser and removes the temporary profile. Netflix and Coupang Play currently use this path.
+Completion, cancellation, a site change, or app shutdown closes the browser and removes the temporary profile. Legacy persistent external-browser state is deleted before a new login starts. Netflix and Coupang Play currently use this path. YouTube and YouTube Music instead keep authentication inside their shared Electron Session, using Chromium's native user agent and UA Client Hints without an external cookie-transfer round trip.
 
 This managed login path is intentionally distinct from a normal external link:
 cookie import requires a browser context controlled by Patchright, so it tries
@@ -111,6 +111,13 @@ Partitions are generated as follows:
 Unsafe characters are replaced with underscores before the partition is used. Sites sharing a partition share cookies, cache, storage, and DRM-related session state, but still receive a new `WebContentsView` when activated.
 
 This model addresses cross-site failures such as a DRM service becoming unusable after visiting another service. Isolation is the default; sharing is an explicit Provider default or user choice. YouTube and YouTube Music intentionally share the built-in `google` Bundle profile.
+
+Preferences can clear one resolved profile partition or a site's dedicated
+isolated partition. If that partition owns the active site, `SiteManager`
+unloads its Provider and view before Electron clears cookies, local storage,
+IndexedDB, authentication state, and caches, then loads the site again. A site
+assigned to shared state exposes no site-level clear action; clearing its shared
+profile is intentionally a profile-wide operation.
 
 ## Provider and Plugin lifecycle
 
@@ -193,7 +200,7 @@ A shared Session may carry requests for multiple integrations over time. Header 
 Application and Provider shortcuts are matched from `before-input-event` in the focused viewer or overlay. Defaults come from `APP_SHORTCUTS` and each Provider's `shortcut.defaultKey`; user overrides are stored in preferences.
 
 - Plain `Tab` does not toggle the menu while the focused web content reports that the user is editing.
-- Menu-category shortcuts, defaulting to `1`, `2`, `3`, and so on, exist only while the menu route is visible.
+- Menu-category shortcuts, defaulting to `1`, `2`, `3`, and so on, exist only while the menu route is visible and no editable control owns the key event.
 - Menu uses `Tab` as its close toggle without moving focus; Preferences consumes
   it while the fixed Menu underlay remains visible.
 - The PiP shortcut is application-local in normal mode.

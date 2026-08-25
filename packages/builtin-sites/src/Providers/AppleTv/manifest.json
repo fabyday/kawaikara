@@ -1,1 +1,23 @@
-{"schemaVersion":1,"id":"kawaikara.apple-tv","name":"Apple TV+","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","network-interception"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.apple-tv",
+  "name": "Apple TV+",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation", "network-interception"],
+  "contributes": {
+    "address": { "hosts": ["tv.apple.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+A" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "drm": true, "defaultBrowserProfile": "apple" },
+    "menu": {
+      "category": "OTT",
+      "order": 90,
+      "icon": "https://tv.apple.com/favicon.ico"
+    }
+  }
+}

@@ -140,8 +140,9 @@ img {
 }
 
 .menu-address-form {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr) 42px 42px;
   gap: 6px;
   animation: none;
 }
@@ -184,6 +185,99 @@ img {
 .menu-address-form button:disabled {
   cursor: default;
   opacity: 0.38;
+}
+
+.menu-address-form > button:not(:disabled):hover,
+.menu-address-form > button.is-copied {
+  border-color: rgb(168 85 247 / 42%);
+  background: #303037;
+}
+
+.menu-address-form > button.is-copied {
+  color: #c4b5fd;
+}
+
+.menu-address-action-icon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.menu-address-suggestions {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: min(390px, calc(100vh - 124px));
+  gap: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 15px;
+  padding: 7px;
+  background: rgb(24 24 27 / 98%);
+  box-shadow: 0 22px 60px rgb(0 0 0 / 48%);
+  backdrop-filter: blur(18px);
+}
+
+.menu-address-form .menu-address-suggestions > button {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: 58px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  border-color: transparent;
+  border-radius: 11px;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--kawai-color-foreground);
+  font: inherit;
+  text-align: left;
+}
+
+.menu-address-form .menu-address-suggestions > button:hover,
+.menu-address-form .menu-address-suggestions > button.is-active {
+  border-color: rgb(168 85 247 / 22%);
+  background: rgb(168 85 247 / 13%);
+}
+
+.menu-address-suggestion-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+.menu-address-suggestion-copy strong,
+.menu-address-suggestion-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-address-suggestion-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.menu-address-suggestion-copy small {
+  color: var(--kawai-color-muted-foreground);
+  font-size: 11px;
+}
+
+.menu-address-suggestion-arrow {
+  flex: 0 0 auto;
+  color: var(--kawai-color-muted-foreground);
+  font-size: 15px;
 }
 
 .menu-address-form.has-error {
@@ -860,6 +954,20 @@ img {
   object-fit: contain;
 }
 
+.site-icon-cache {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.site-icon-cache img {
+  width: 1px;
+  height: 1px;
+}
+
 .site-icon-fallback {
   background: var(--kawai-color-secondary);
   color: var(--kawai-color-secondary-foreground);
@@ -930,7 +1038,9 @@ img {
   display: grid;
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
+  box-sizing: border-box;
   grid-template-columns: 150px minmax(0, 1fr);
   align-items: stretch;
   gap: 22px;
@@ -947,10 +1057,17 @@ img {
 .preference-tab-scroll {
   width: 100%;
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-right: 0;
 }
 
 .preference-tab-content {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding-right: 16px;
   padding-bottom: 92px;
 }
@@ -1479,6 +1596,20 @@ img {
   background: #242429;
 }
 
+.browser-profile-card > :first-child {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.profile-card-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .profile-source-badge {
   display: inline-flex;
   align-items: center;
@@ -1507,9 +1638,40 @@ img {
   flex: 1;
 }
 
-.profile-site-row > :last-child {
+.profile-site-controls {
+  display: flex;
   width: min(340px, 46%);
+  min-width: 0;
   flex: 0 1 340px;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-site-controls > button {
+  align-self: flex-end;
+}
+
+.application-data-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--kawai-color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #242429;
+}
+
+.application-data-row.is-danger {
+  border-color: rgb(251 113 133 / 30%);
+}
+
+.application-data-copy {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 .pip-custom-size-fields {
@@ -1646,6 +1808,24 @@ img {
   border-color: rgb(45 35 65 / 14%);
   background: #efedf4;
   color: #27232e;
+}
+
+.kawai-theme-light .menu-address-suggestions {
+  border-color: rgb(45 35 65 / 14%);
+  background: rgb(248 247 251 / 98%);
+  box-shadow: 0 22px 55px rgb(50 38 74 / 20%);
+}
+
+.kawai-theme-light .menu-address-form .menu-address-suggestions > button {
+  border-color: transparent;
+  background: transparent;
+  color: #27232e;
+}
+
+.kawai-theme-light .menu-address-form .menu-address-suggestions > button:hover,
+.kawai-theme-light .menu-address-form .menu-address-suggestions > button.is-active {
+  border-color: rgb(126 34 206 / 18%);
+  background: rgb(126 34 206 / 9%);
 }
 
 .kawai-theme-light .always-on-top-button.is-active {
@@ -1808,6 +1988,10 @@ img {
 .app-info-card,
 .plugin-info-row,
 .bundle-info-row {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--kawai-color-border);
   border-radius: 12px;
   padding: 14px;
@@ -1817,6 +2001,7 @@ img {
 .bundle-heading-copy,
 .bundle-info-copy {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bundle-heading-copy {
@@ -1850,12 +2035,38 @@ img {
   text-align: left;
   cursor: pointer;
   appearance: none;
+  overflow: hidden;
   transition: border-color 140ms ease, background 140ms ease;
 }
 
 .bundle-info-row:hover {
   border-color: rgb(255 255 255 / 24%);
   background: #29292f;
+}
+
+.bundle-row-actions {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.bundle-detail,
+.bundle-provider-settings,
+.bundle-provider-heading,
+.bundle-setting-category,
+.bundle-item-list-setting,
+.bundle-permission-list {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.bundle-permission-list > span,
+.bundle-provider-heading,
+.bundle-setting-category {
+  overflow-wrap: anywhere;
 }
 
 .bundle-provider-settings {
@@ -2215,6 +2426,48 @@ img {
   background: #2b2b31;
 }
 
+.kawai-theme-light .browser-profile-card,
+.kawai-theme-light .profile-site-row,
+.kawai-theme-light .application-data-row,
+.kawai-theme-light .developer-tools-card,
+.kawai-theme-light .app-release-panel,
+.kawai-theme-light .app-info-auto-update,
+.kawai-theme-light .developer-link-button {
+  border-color: rgb(45 35 65 / 14%);
+  background: #fff;
+  color: #27232e;
+}
+
+.kawai-theme-light .application-data-row.is-danger {
+  border-color: rgb(190 24 93 / 24%);
+}
+
+.kawai-theme-light .preference-data-notice {
+  background: rgb(22 163 74 / 12%);
+  color: #166534;
+}
+
+.kawai-theme-light .profile-source-badge,
+.kawai-theme-light .developer-link-icon {
+  border-color: rgb(45 35 65 / 12%);
+  background: rgb(45 35 65 / 6%);
+}
+
+.kawai-theme-light .app-info-auto-update input:not(:checked) +
+  .app-info-auto-update-control {
+  background: #c9c4d2;
+  box-shadow: 0 0 0 1px rgb(45 35 65 / 14%) inset;
+}
+
+.kawai-theme-light .app-channel-fixed {
+  color: #6d28d9;
+}
+
+.kawai-theme-light .developer-link-button:hover {
+  border-color: rgb(45 35 65 / 24%);
+  background: #f4f1f7;
+}
+
 .developer-link-icon {
   position: relative;
   display: grid;
@@ -2370,6 +2623,14 @@ img {
   flex: 0 0 auto;
 }
 
+.preference-data-notice {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  padding: 8px;
+  background: rgb(34 197 94 / 14%);
+  color: #86efac;
+}
+
 .preference-dialog-backdrop {
   position: fixed;
   z-index: 20;
@@ -2477,14 +2738,21 @@ img {
 
   .profile-create-row,
   .browser-profile-card,
-  .profile-site-row {
+  .profile-site-row,
+  .application-data-row {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .profile-site-row > :last-child {
+  .profile-site-controls {
     width: 100%;
     flex-basis: auto;
+  }
+
+  .profile-card-actions,
+  .profile-site-controls > button,
+  .application-data-row > button {
+    width: 100%;
   }
 
   .shortcut-label {

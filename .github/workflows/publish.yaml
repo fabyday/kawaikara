@@ -82,3 +82,25 @@ jobs:
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
           KAWAIKARA_EVS_NONINTERACTIVE: '1'
+      - name: Publish built-in Provider Bundle
+        if: matrix.platform == 'mac'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            release_tag="$GITHUB_REF_NAME"
+            release_version="${release_tag#v}"
+          elif [[ -n "$REQUESTED_VERSION" ]]; then
+            release_version="$REQUESTED_VERSION"
+            release_tag="v${release_version}"
+          else
+            release_version="$(node -p "require('./package.json').version")"
+            release_tag="v${release_version}"
+          fi
+          pnpm package:built-in-bundle -- \
+            "builds/stable/kawaikara.builtin-sites.kawai"
+          gh release upload "$release_tag" \
+            "builds/stable/kawaikara.builtin-sites.kawai" --clobber

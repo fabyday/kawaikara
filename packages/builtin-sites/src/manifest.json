@@ -3,7 +3,7 @@
   "id": "kawaikara.builtin-sites",
   "name": "Kawaikara Built-in Providers",
   "description": "Official Providers bundled with Kawaikara.",
-  "version": "3.0.0-dev.0",
+  "version": "1.0.0",
   "apiVersion": 1,
   "permissions": [
     "navigation",
@@ -14,6 +14,10 @@
     "network-interception",
     "external-browser"
   ],
+  "update": {
+    "type": "resolver",
+    "main": "Update.js"
+  },
   "providers": [
     "Providers/Netflix",
     "Providers/Laftel",
@@ -44,6 +48,12 @@
       "id": "google",
       "name": "Google",
       "description": "Shares Google sign-in between YouTube integrations.",
+      "persistent": true
+    },
+    {
+      "id": "apple",
+      "name": "Apple",
+      "description": "Shares Apple Account sign-in between Apple TV and Apple Music.",
       "persistent": true
     }
   ]

@@ -1,4 +1,4 @@
-import { app, dialog } from 'electron';
+import { app, dialog, net } from 'electron';
 import {
   KAWAIKARA_MANIFEST_VERSION,
   KAWAIKARA_SITE_API_VERSION,
@@ -9,14 +9,19 @@ import {
   type BundleDefinition,
   type BundleLocaleContribution,
   type BundleManifest,
+  type BundleUpdateDefinition,
+  type BundleUpdateManifest,
+  type BundleUpdateResolver,
   type PluginConstructor,
   type PluginDefinition,
   type PluginManifest,
   type ProviderConstructor,
   type ProviderDefinition,
   type ProviderManifest,
+  type ProviderManifestContributions,
   type SitePermission,
 } from '@kawaikara/site-api';
+import * as SiteApi from '@kawaikara/site-api';
 import extractZip from 'extract-zip';
 import { randomUUID } from 'node:crypto';
 import {
@@ -28,6 +33,7 @@ import {
   rename,
   rm,
   stat,
+  writeFile,
 } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -35,7 +41,10 @@ import type {
   AppLocale,
   BundleInfo,
   BundleInstallResult,
+  BundleRemoveResult,
+  BundleUpdateResult,
 } from '../../Common/IPC';
+import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import { PluginHost } from '../Plugin/PluginHost';
 import type { SiteManager } from './SiteManager';
 
@@ -54,6 +63,19 @@ const ALLOWED_PERMISSIONS = new Set<SitePermission>([
   'network-interception',
   'external-browser',
 ]);
+const SITE_API_BRIDGE_KEY = '__kawaikaraSiteApiV1';
+
+const existingSiteApiBridge = Reflect.get(globalThis, SITE_API_BRIDGE_KEY);
+if (existingSiteApiBridge === undefined) {
+  Object.defineProperty(globalThis, SITE_API_BRIDGE_KEY, {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: SiteApi,
+  });
+} else if (existingSiteApiBridge !== SiteApi) {
+  throw new Error('A conflicting Kawaikara Site API bridge is already installed.');
+}
 
 interface InspectedPlugin {
   readonly directoryPath: string;
@@ -67,6 +89,7 @@ interface InspectedProvider {
 }
 
 interface InspectedBundle {
+  readonly rootPath: string;
   readonly manifest: BundleManifest;
   readonly providers: readonly [InspectedProvider, ...InspectedProvider[]];
   readonly plugins: readonly InspectedPlugin[];
@@ -76,6 +99,9 @@ interface InspectedBundle {
 export class BundleManager {
   private readonly host: PluginHost;
   private readonly records = new Map<string, BundleInfo>();
+  private readonly bundledDefinitions = new Map<string, BundleDefinition>();
+  private readonly activatedBundleIds = new Set<string>();
+  private readonly updateDefinitions = new Map<string, BundleUpdateDefinition>();
 
   constructor(
     siteManager: SiteManager,
@@ -85,7 +111,11 @@ export class BundleManager {
   }
 
   installBundled(bundle: BundleDefinition): void {
-    this.host.install(bundle);
+    if (this.bundledDefinitions.has(bundle.id)) {
+      throw new Error(`Built-in Bundle ${bundle.id} is already registered.`);
+    }
+    this.bundledDefinitions.set(bundle.id, bundle);
+    this.setUpdateDefinition(bundle.id, getBundleUpdateDefinition(bundle));
     this.records.set(bundle.id, createBundleInfo(bundle, 'built-in', 'active'));
   }
 
@@ -100,6 +130,13 @@ export class BundleManager {
         path.join(this.bundleDirectoryPath, entry.name),
         entry.name,
       );
+    }
+    for (const bundle of this.bundledDefinitions.values()) {
+      if (this.activatedBundleIds.has(bundle.id)) continue;
+      this.host.install(bundle);
+      this.activatedBundleIds.add(bundle.id);
+      this.setUpdateDefinition(bundle.id, getBundleUpdateDefinition(bundle));
+      this.records.set(bundle.id, createBundleInfo(bundle, 'built-in', 'active'));
     }
   }
 
@@ -170,12 +207,149 @@ export class BundleManager {
       if (confirmation.response !== 1) return { status: 'cancelled' };
 
       await rename(bundleRoot, destinationPath);
-      const info = createInspectedInfo(inspected, 'restart-required');
+      let updateDefinition: BundleUpdateDefinition | undefined;
+      try {
+        await ensureSiteApiBridge(destinationPath);
+        // Resolver modules are trusted Main code. Load them only after the
+        // install consent dialog has been accepted and the Bundle is in place.
+        updateDefinition = loadBundleUpdateDefinition(destinationPath, manifest);
+      } catch (error) {
+        await rm(destinationPath, { recursive: true, force: true });
+        throw error;
+      }
+      const info = createInspectedInfo(inspected, 'restart-required', 'user');
+      this.setUpdateDefinition(manifest.id, updateDefinition);
       this.records.set(info.id, info);
       return { status: 'installed', bundle: info };
     } finally {
       await rm(stagingPath, { recursive: true, force: true });
     }
+  }
+
+  async update(id: string, locale: AppLocale): Promise<BundleUpdateResult> {
+    const current = this.requireBundle(id);
+    const updateDefinition = this.updateDefinitions.get(id);
+    if (!updateDefinition) {
+      throw new Error(`Bundle ${id} does not provide update metadata.`);
+    }
+    const copy = getBundleActionCopy(locale);
+    const confirmation = await dialog.showMessageBox({
+      type: 'warning',
+      title: copy.updateTitle,
+      message: copy.updateMessage.replace('{name}', current.name),
+      detail: copy.restartDetail,
+      buttons: [copy.cancel, copy.update],
+      cancelId: 0,
+      defaultId: 1,
+      noLink: true,
+    });
+    if (confirmation.response !== 1) return { status: 'cancelled' };
+
+    await mkdir(this.bundleDirectoryPath, { recursive: true });
+    const token = randomUUID();
+    const archivePath = path.join(this.bundleDirectoryPath, `.update-${token}.kawai`);
+    const stagingPath = path.join(this.bundleDirectoryPath, `.updating-${token}`);
+    const destinationPath = path.join(this.bundleDirectoryPath, id);
+    const backupPath = path.join(this.bundleDirectoryPath, `.backup-${id}-${token}`);
+    await mkdir(stagingPath, { recursive: false });
+    let backedUp = false;
+    try {
+      const updateUrl = await resolveBundleUpdateUrl(updateDefinition, current.version);
+      await downloadBundleArchive(updateUrl, archivePath);
+      await extractArchive(archivePath, stagingPath);
+      const bundleRoot = await findBundleRoot(stagingPath);
+      await validateExtractedTree(bundleRoot);
+      const manifest = await readBundleManifest(bundleRoot);
+      if (manifest.id !== id) {
+        throw new Error(`Update Bundle id ${manifest.id} does not match ${id}.`);
+      }
+      if (compareSemVer(manifest.version, current.version) < 0) {
+        throw new Error(
+          `Update Bundle ${manifest.version} is older than installed version ` +
+          `${current.version}.`,
+        );
+      }
+      const inspected = await inspectBundle(bundleRoot, manifest);
+      const hadInstalledOverride = await pathExists(destinationPath);
+      if (hadInstalledOverride) {
+        await rename(destinationPath, backupPath);
+        backedUp = true;
+      }
+      try {
+        await rename(bundleRoot, destinationPath);
+        await ensureSiteApiBridge(destinationPath);
+        const nextUpdateDefinition = loadBundleUpdateDefinition(
+          destinationPath,
+          manifest,
+        );
+        this.setUpdateDefinition(id, nextUpdateDefinition);
+      } catch (error) {
+        if (await pathExists(destinationPath)) {
+          await rm(destinationPath, { recursive: true, force: true });
+        }
+        if (backedUp) {
+          await rename(backupPath, destinationPath);
+          backedUp = false;
+        }
+        throw error;
+      }
+      const info = createInspectedInfo(
+        inspected,
+        'restart-required',
+        current.source,
+      );
+      this.records.set(id, info);
+      return { status: 'updated', bundle: info };
+    } finally {
+      await rm(archivePath, { force: true });
+      await rm(stagingPath, { recursive: true, force: true });
+      if (backedUp) await rm(backupPath, { recursive: true, force: true });
+    }
+  }
+
+  async remove(id: string, locale: AppLocale): Promise<BundleRemoveResult> {
+    const bundle = this.requireUserBundle(id);
+    const copy = getBundleActionCopy(locale);
+    const confirmation = await dialog.showMessageBox({
+      type: 'warning',
+      title: copy.removeTitle,
+      message: copy.removeMessage.replace('{name}', bundle.name),
+      detail: copy.restartDetail,
+      buttons: [copy.cancel, copy.remove],
+      cancelId: 0,
+      defaultId: 0,
+      noLink: true,
+    });
+    if (confirmation.response !== 1) return { status: 'cancelled' };
+    await rm(path.join(this.bundleDirectoryPath, id), {
+      recursive: true,
+      force: false,
+    });
+    this.records.delete(id);
+    this.updateDefinitions.delete(id);
+    return { status: 'removed', bundleId: id };
+  }
+
+  private requireUserBundle(id: string): BundleInfo {
+    const bundle = this.requireBundle(id);
+    if (!bundle || bundle.source !== 'user') {
+      throw new Error(`User Bundle ${id} is not installed.`);
+    }
+    return bundle;
+  }
+
+  private requireBundle(id: string): BundleInfo {
+    const bundle = this.records.get(id);
+    if (!bundle) throw new Error(`Bundle ${id} is not installed.`);
+    return bundle;
+  }
+
+  private setUpdateDefinition(
+    id: string,
+    definition: BundleUpdateDefinition | undefined,
+  ): void {
+    if (definition) this.updateDefinitions.set(id, definition);
+    else this.updateDefinitions.delete(id);
   }
 
   private async loadInstalledDirectory(
@@ -192,23 +366,52 @@ export class BundleManager {
           `Bundle directory ${directoryName} does not match manifest id ${manifest.id}.`,
         );
       }
+      const embeddedBundle = this.bundledDefinitions.get(manifest.id);
+      if (
+        embeddedBundle &&
+        compareSemVer(manifest.version, embeddedBundle.version) < 0
+      ) {
+        console.warn(
+          `Ignoring older on-disk built-in Bundle ${manifest.id} ` +
+          `(${manifest.version} < ${embeddedBundle.version}).`,
+        );
+        return;
+      }
       inspected = await inspectBundle(rootPath, manifest);
+      await ensureSiteApiBridge(rootPath);
       const bundle = loadBundleDefinition(inspected);
       this.host.install(bundle);
+      this.activatedBundleIds.add(manifest.id);
+      const source = this.bundledDefinitions.has(manifest.id)
+        ? 'built-in'
+        : 'user';
+      this.setUpdateDefinition(manifest.id, getBundleUpdateDefinition(bundle));
       this.records.set(
         manifest.id,
-        createBundleInfo(bundle, 'user', 'active', inspected.permissions),
+        createBundleInfo(bundle, source, 'active', inspected.permissions),
       );
     } catch (error) {
       const id = manifest?.id ?? directoryName;
+      const source = this.bundledDefinitions.has(id) ? 'built-in' : 'user';
+      let updateDefinition: BundleUpdateDefinition | undefined;
+      if (manifest) {
+        try {
+          updateDefinition = loadBundleUpdateDefinition(rootPath, manifest);
+        } catch {
+          // The primary load error below is more useful. A broken resolver
+          // cannot be used to repair this Bundle from the UI.
+        }
+      }
+      this.setUpdateDefinition(id, updateDefinition);
       this.records.set(id, {
         id,
         name: manifest?.name ?? directoryName,
         description: manifest?.description,
         version: manifest?.version ?? '0.0.0',
         kind: manifest ? 'bundle' : 'unknown',
-        source: 'user',
+        source,
         status: 'failed',
+        updatable: Boolean(updateDefinition),
         providerCount: inspected?.providers.length ?? 0,
         pluginCount: inspected
           ? inspected.plugins.length +
@@ -295,6 +498,9 @@ async function inspectBundle(
   rootPath: string,
   manifest: BundleManifest,
 ): Promise<InspectedBundle> {
+  if (manifest.update?.type === 'resolver') {
+    await resolveOwnedEntry(rootPath, manifest.update.main, 'Bundle update resolver');
+  }
   const providers: InspectedProvider[] = [];
   const providerIds = new Set<string>();
   const pluginIds = new Set<string>();
@@ -342,16 +548,17 @@ async function inspectBundle(
   const permissions = [...(manifest.permissions ?? [])];
   const grantedPermissions = new Set(permissions);
   for (const provider of providers) {
-    for (const legacyPermission of provider.manifest.permissions ?? []) {
-      if (!grantedPermissions.has(legacyPermission)) {
+    for (const permission of provider.manifest.permissions ?? []) {
+      if (!grantedPermissions.has(permission)) {
         throw new Error(
-          `Provider ${provider.manifest.id} requests ${legacyPermission}, ` +
+          `Provider ${provider.manifest.id} requests ${permission}, ` +
           'but the Bundle manifest does not grant it.',
         );
       }
     }
   }
   return {
+    rootPath,
     manifest,
     providers: providers as [InspectedProvider, ...InspectedProvider[]],
     plugins,
@@ -381,6 +588,11 @@ function loadBundleDefinition(inspected: InspectedBundle): BundleDefinition {
     name: inspected.manifest.name,
     description: inspected.manifest.description,
     version: inspected.manifest.version,
+    update: loadBundleUpdateDefinition(
+      inspected.rootPath,
+      inspected.manifest,
+    ),
+    updateUrl: inspected.manifest.updateUrl,
     apiVersion: KAWAIKARA_SITE_API_VERSION,
     permissions: inspected.manifest.permissions ?? [],
     locale: inspected.manifest.locale,
@@ -388,6 +600,65 @@ function loadBundleDefinition(inspected: InspectedBundle): BundleDefinition {
     providers,
     plugins: inspected.plugins.map(loadPluginDefinition),
   });
+}
+
+function loadBundleUpdateDefinition(
+  rootPath: string,
+  manifest: BundleManifest,
+): BundleUpdateDefinition | undefined {
+  if (manifest.update?.type === 'archive') {
+    return Object.freeze({ type: 'archive', url: manifest.update.url });
+  }
+  if (manifest.update?.type === 'resolver') {
+    return Object.freeze({
+      type: 'resolver',
+      resolve: loadUpdateResolver(path.resolve(rootPath, manifest.update.main)),
+    });
+  }
+  return manifest.updateUrl
+    ? Object.freeze({ type: 'archive', url: manifest.updateUrl })
+    : undefined;
+}
+
+function getBundleUpdateDefinition(
+  bundle: BundleDefinition,
+): BundleUpdateDefinition | undefined {
+  return bundle.update ?? (bundle.updateUrl
+    ? Object.freeze({ type: 'archive', url: bundle.updateUrl })
+    : undefined);
+}
+
+function loadUpdateResolver(entryPath: string): BundleUpdateResolver {
+  const externalRequire = createRequire(entryPath);
+  const exported = externalRequire(entryPath) as unknown;
+  if (typeof exported === 'function') return exported as BundleUpdateResolver;
+  if (!exported || typeof exported !== 'object') {
+    throw new Error('Bundle update resolver must export a function.');
+  }
+  const namespace = exported as Record<string, unknown>;
+  const preferred =
+    namespace.default ?? namespace.resolveBundleUpdate ?? namespace.resolveUpdate;
+  if (typeof preferred !== 'function') {
+    throw new Error(
+      'Bundle update resolver must export default, resolveBundleUpdate, or resolveUpdate.',
+    );
+  }
+  return preferred as BundleUpdateResolver;
+}
+
+async function resolveBundleUpdateUrl(
+  definition: BundleUpdateDefinition,
+  currentVersion: string,
+): Promise<string> {
+  const value = definition.type === 'archive'
+    ? definition.url
+    : await definition.resolve({
+        currentVersion,
+        channel: BUILD_CHANNEL,
+        platform: process.platform,
+        arch: process.arch,
+      });
+  return validateUpdateUrl(value, 'Bundle update URL')!;
 }
 
 function loadProviderDefinition(
@@ -439,14 +710,20 @@ function validateBundleManifest(value: unknown): BundleManifest {
   const plugins = validatePathArray(candidate.plugins, 'plugins', true);
   const locale = validateLocale(candidate.locale);
   const browserProfiles = validateBrowserProfiles(candidate.browserProfiles);
+  if (candidate.update !== undefined && candidate.updateUrl !== undefined) {
+    throw new Error('Bundle manifest must use either update or updateUrl, not both.');
+  }
+  const update = validateBundleUpdateManifest(candidate.update);
   return Object.freeze({
     schemaVersion: KAWAIKARA_MANIFEST_VERSION,
     id: requireId(candidate.id, 'Bundle id'),
     name: requireBoundedString(candidate.name, 'Bundle name', 100),
     description: optionalBoundedString(candidate.description, 'Bundle description', 500),
     version: requireVersion(candidate.version, 'Bundle version'),
+    update,
+    updateUrl: validateUpdateUrl(candidate.updateUrl, 'Bundle updateUrl'),
     apiVersion: KAWAIKARA_SITE_API_VERSION,
-    permissions: validatePermissions(candidate.permissions),
+    permissions: validatePermissions(candidate.permissions, true),
     providers: providers as [string, ...string[]],
     plugins,
     locale,
@@ -470,8 +747,41 @@ function validateProviderManifest(value: unknown): ProviderManifest {
     apiVersion: KAWAIKARA_SITE_API_VERSION,
     main: validateMain(candidate.main, 'Provider main'),
     permissions: validatePermissions(candidate.permissions),
+    contributes: validateProviderManifestContributions(candidate.contributes),
     plugins: validatePathArray(candidate.plugins, 'Provider plugins', true),
   });
+}
+
+function validateProviderManifestContributions(
+  value: unknown,
+): ProviderManifestContributions {
+  const candidate = requireObject(value, 'Provider contributes');
+  for (const forbidden of ['id', 'title', 'description', 'permissions']) {
+    if (candidate[forbidden] !== undefined) {
+      throw new Error(
+        `Provider contributes must not contain ${forbidden}; use the manifest field.`,
+      );
+    }
+  }
+  const allowed = new Set([
+    'address',
+    'menu',
+    'shortcut',
+    'settings',
+    'shortFormVideo',
+    'locale',
+    'isolation',
+    'pictureInPicture',
+  ]);
+  for (const key of Object.keys(candidate)) {
+    if (!allowed.has(key)) {
+      throw new Error(`Provider contributes contains unknown field ${key}.`);
+    }
+  }
+  if (candidate.menu === undefined) {
+    throw new Error('Provider contributes must contain menu metadata.');
+  }
+  return Object.freeze({ ...candidate }) as ProviderManifestContributions;
 }
 
 function validatePluginManifest(value: unknown): PluginManifest {
@@ -510,8 +820,52 @@ function validateMain(value: unknown, field: string): string {
   return main;
 }
 
-function validatePermissions(value: unknown): readonly SitePermission[] {
-  if (value === undefined) return [];
+function validateBundleUpdateManifest(
+  value: unknown,
+): BundleUpdateManifest | undefined {
+  if (value === undefined) return undefined;
+  const candidate = requireObject(value, 'Bundle update');
+  if (candidate.type === 'archive') {
+    return Object.freeze({
+      type: 'archive',
+      url: validateUpdateUrl(candidate.url, 'Bundle update URL')!,
+    });
+  }
+  if (candidate.type === 'resolver') {
+    return Object.freeze({
+      type: 'resolver',
+      main: validateMain(candidate.main, 'Bundle update resolver main'),
+    });
+  }
+  throw new Error('Bundle update type must be archive or resolver.');
+}
+
+function validateUpdateUrl(
+  value: unknown,
+  field = 'Bundle update URL',
+): string | undefined {
+  if (value === undefined) return undefined;
+  const raw = requireBoundedString(value, field, 2_048);
+  const url = new URL(raw);
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.port
+  ) {
+    throw new Error(`${field} must be a credential-free HTTPS URL.`);
+  }
+  return url.href;
+}
+
+function validatePermissions(
+  value: unknown,
+  required = false,
+): readonly SitePermission[] {
+  if (value === undefined) {
+    if (required) throw new Error('Provider permissions must be declared.');
+    return [];
+  }
   if (!Array.isArray(value)) throw new Error('Provider permissions must be an array.');
   const permissions = value.map((permission) => {
     if (
@@ -681,6 +1035,38 @@ async function validateExtractedTree(rootPath: string): Promise<void> {
   await visit(rootPath);
 }
 
+async function ensureSiteApiBridge(rootPath: string): Promise<void> {
+  const bridgePath = path.join(
+    rootPath,
+    'node_modules',
+    '@kawaikara',
+    'site-api',
+  );
+  await rm(bridgePath, { recursive: true, force: true });
+  await mkdir(bridgePath, { recursive: true });
+  await writeFile(
+    path.join(bridgePath, 'package.json'),
+    `${JSON.stringify({
+      name: '@kawaikara/site-api',
+      version: `${String(KAWAIKARA_SITE_API_VERSION)}.0.0`,
+      private: true,
+      main: 'index.cjs',
+    }, null, 2)}\n`,
+    { flag: 'wx' },
+  );
+  await writeFile(
+    path.join(bridgePath, 'index.cjs'),
+    [
+      `'use strict';`,
+      `const api = globalThis[${JSON.stringify(SITE_API_BRIDGE_KEY)}];`,
+      `if (!api) throw new Error('Kawaikara Site API bridge is unavailable.');`,
+      'module.exports = api;',
+      '',
+    ].join('\n'),
+    { flag: 'wx' },
+  );
+}
+
 function createBundleInfo(
   bundle: BundleDefinition,
   source: BundleInfo['source'],
@@ -692,6 +1078,8 @@ function createBundleInfo(
     name: bundle.name ?? bundle.id,
     description: bundle.description,
     version: bundle.version,
+    updatable: Boolean(bundle.update ?? bundle.updateUrl),
+    updateUrl: bundle.updateUrl,
     kind: 'bundle',
     source,
     status,
@@ -709,14 +1097,17 @@ function createBundleInfo(
 function createInspectedInfo(
   bundle: InspectedBundle,
   status: BundleInfo['status'],
+  source: BundleInfo['source'],
 ): BundleInfo {
   return {
     id: bundle.manifest.id,
     name: bundle.manifest.name,
     description: bundle.manifest.description,
     version: bundle.manifest.version,
+    updatable: Boolean(bundle.manifest.update ?? bundle.manifest.updateUrl),
+    updateUrl: bundle.manifest.updateUrl,
     kind: 'bundle',
-    source: 'user',
+    source,
     status,
     providerCount: bundle.providers.length,
     pluginCount:
@@ -754,6 +1145,52 @@ function requireVersion(value: unknown, field: string): string {
     throw new Error(`${field} ${version} is not valid SemVer.`);
   }
   return version;
+}
+
+function compareSemVer(left: string, right: string): number {
+  const parse = (value: string): {
+    readonly core: readonly number[];
+    readonly prerelease: readonly string[];
+  } => {
+    const [withoutBuild] = value.split('+', 1);
+    const separator = withoutBuild.indexOf('-');
+    const core = (separator < 0 ? withoutBuild : withoutBuild.slice(0, separator))
+      .split('.')
+      .map(Number);
+    const prerelease = separator < 0
+      ? []
+      : withoutBuild.slice(separator + 1).split('.');
+    return { core, prerelease };
+  };
+  const leftVersion = parse(left);
+  const rightVersion = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    const difference = leftVersion.core[index] - rightVersion.core[index];
+    if (difference) return Math.sign(difference);
+  }
+  if (!leftVersion.prerelease.length || !rightVersion.prerelease.length) {
+    return Number(!leftVersion.prerelease.length) -
+      Number(!rightVersion.prerelease.length);
+  }
+  const length = Math.max(
+    leftVersion.prerelease.length,
+    rightVersion.prerelease.length,
+  );
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftVersion.prerelease[index];
+    const rightPart = rightVersion.prerelease[index];
+    if (leftPart === undefined) return -1;
+    if (rightPart === undefined) return 1;
+    if (leftPart === rightPart) continue;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) {
+      return Math.sign(Number(leftPart) - Number(rightPart));
+    }
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return leftPart.localeCompare(rightPart);
+  }
+  return 0;
 }
 
 function requireBoundedString(
@@ -813,6 +1250,23 @@ async function pathExists(value: string): Promise<boolean> {
   }
 }
 
+async function downloadBundleArchive(url: string, destinationPath: string): Promise<void> {
+  const response = await net.fetch(validateUpdateUrl(url)!, { redirect: 'follow' });
+  const finalUrl = validateUpdateUrl(response.url);
+  if (!finalUrl || !response.ok) {
+    throw new Error(`Bundle update download failed with HTTP ${String(response.status)}.`);
+  }
+  const declaredSize = Number(response.headers.get('content-length') ?? 0);
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_ARCHIVE_BYTES) {
+    throw new Error('The Bundle update archive may not exceed 32 MB.');
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > MAX_ARCHIVE_BYTES) {
+    throw new Error('The Bundle update archive may not exceed 32 MB.');
+  }
+  await writeFile(destinationPath, bytes, { flag: 'wx' });
+}
+
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -864,5 +1318,52 @@ function getInstallCopy(locale: AppLocale): {
     noPermissions: 'No additional Provider permissions',
     deny: 'Deny',
     allowAndInstall: 'Allow and install',
+  };
+}
+
+function getBundleActionCopy(locale: AppLocale): {
+  readonly updateTitle: string;
+  readonly updateMessage: string;
+  readonly removeTitle: string;
+  readonly removeMessage: string;
+  readonly restartDetail: string;
+  readonly cancel: string;
+  readonly update: string;
+  readonly remove: string;
+} {
+  const language = locale === 'system' ? app.getLocale() : locale;
+  if (language.toLowerCase().startsWith('ko')) {
+    return {
+      updateTitle: 'Bundle 업데이트',
+      updateMessage: '“{name}” Bundle을 업데이트할까요?',
+      removeTitle: 'Bundle 삭제',
+      removeMessage: '“{name}” Bundle을 삭제할까요?',
+      restartDetail: '실행 중인 코드는 Kawaikara를 다시 시작한 뒤 변경됩니다.',
+      cancel: '취소',
+      update: '업데이트',
+      remove: '삭제',
+    };
+  }
+  if (language.toLowerCase().startsWith('ja')) {
+    return {
+      updateTitle: 'Bundleを更新',
+      updateMessage: '「{name}」Bundleを更新しますか？',
+      removeTitle: 'Bundleを削除',
+      removeMessage: '「{name}」Bundleを削除しますか？',
+      restartDetail: '実行中のコードへの変更はKawaikaraの再起動後に反映されます。',
+      cancel: 'キャンセル',
+      update: '更新',
+      remove: '削除',
+    };
+  }
+  return {
+    updateTitle: 'Update Bundle',
+    updateMessage: 'Update the “{name}” Bundle?',
+    removeTitle: 'Remove Bundle',
+    removeMessage: 'Remove the “{name}” Bundle?',
+    restartDetail: 'Changes to running code take effect after restarting Kawaikara.',
+    cancel: 'Cancel',
+    update: 'Update',
+    remove: 'Remove',
   };
 }

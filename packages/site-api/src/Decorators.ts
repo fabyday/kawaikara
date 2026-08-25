@@ -8,12 +8,8 @@ import type { PluginConstructor, PluginMetadata } from './Plugin';
 const PROVIDER_METADATA = Symbol.for('@kawaikara/site-api/provider-metadata');
 const PLUGIN_METADATA = Symbol.for('@kawaikara/site-api/plugin-metadata');
 
-export function provider(metadata: ProviderDecoratorMetadata) {
+export function provider(metadata: ProviderDecoratorMetadata = {}) {
   return <T extends ProviderConstructor>(target: T): T => {
-    if (metadata.id !== undefined && !metadata.id.trim()) {
-      throw new Error('A Provider decorator id must not be empty.');
-    }
-
     Object.defineProperty(target, PROVIDER_METADATA, {
       configurable: false,
       enumerable: false,

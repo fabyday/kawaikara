@@ -4,6 +4,10 @@
 
 All official Providers are exported by `kawaikara.builtin-sites`. Each integration owns a directory under `packages/builtin-sites/src/Providers` with `Provider.ts` and `manifest.json`, making selectors, compatibility hooks, permissions, and metadata independently maintainable while preserving one Bundle installation unit.
 
+The built-in Bundle and its child Provider/Plugin manifests start at version
+`1.0.0`. Their release version is independent from the Kawaikara application
+version, so an app channel build never rewrites Bundle metadata.
+
 The built-in Bundle currently contributes 18 Providers:
 
 | Category | Sites |
@@ -16,9 +20,20 @@ The built-in Bundle currently contributes 18 Providers:
 
 All built-in Providers advertise Korean, English, and Japanese locale support through their containing Bundle and Provider defaults. The Bundle-level `ProviderIdentityPlugin` exposes the active Provider ID as `data-kawaikara-provider` after each document becomes ready.
 
-## Shared Google profile
+## Shared account profiles
 
-YouTube and YouTube Music default to the Bundle-provided persistent `google` browser profile. They share Google authentication while keeping separate live `WebContentsView` instances. Users can override either assignment from Preferences.
+YouTube and YouTube Music default to the Bundle-provided persistent `google` Electron browser profile. They share Google authentication while keeping separate live `WebContentsView` instances. Users can override either assignment from Preferences.
+
+Apple TV+ and Apple Music likewise default to the persistent `apple` profile.
+Their Apple Account cookies, cache, and related Session data therefore stay in
+one Electron partition while each Provider retains its own viewer.
+
+YouTube authentication, account addition, and account switching stay inside the
+shared Electron Session. The Providers deliberately retain Electron/Chromium's
+native user agent and UA Client Hints. Standalone `BrowserWindow` and
+Kawaikara-equivalent `WebContentsView` validation showed that partially changing
+the identity to Chrome triggers Google's insecure-browser rejection, while the
+native identity signs in successfully.
 
 Other sites default to site-specific persistent isolation. Services marked as DRM integrations surface a warning if the user assigns them to shared state.
 
@@ -30,15 +45,29 @@ Other sites default to site-specific persistent isolation. Services marked as DR
   accessible-text fallback matching.
 - Blocks embedded `/login` navigation.
 - Launches external browser login and waits for `/browse`.
-- Copies cookies into the isolated Netflix Session and restores the viewer.
+- Clears stale Netflix cache, storage, service workers, and cookies in the
+  isolated Session before importing the completed external login, then restores
+  `/browse`. This avoids merging incompatible Windows device/session state.
 - Refreshes interception explicitly after external-login completion or
   cancellation so a replacement document always receives the hook.
 
 ### Coupang Play
 
+- Uses the main branch's `/home` or `/profile` completion contract, including
+  `/profiles...` variants, and then restores the original viewer URL.
+- Checks committed navigation, document requests, load events, and the current
+  page URL so a SPA redirect hand-off cannot leave the external-login wait
+  pending.
 - Intercepts embedded login and completes it in the external browser.
-- Removes Electron product tokens from the viewer user agent.
-- Applies a Chrome-compatible user agent and `Sec-CH-UA` header only to Coupang Play domains.
+- Replaces the isolated Session's stale cookie jar with the completed external
+  cookie jar, clears stale viewer cache/storage, and verifies the import without
+  logging cookie values.
+- Uses the main branch's Windows Chrome identity and HTTPS domain-scoped cookie
+  conversion on both Coupang Play and Coupang API requests for Akamai
+  compatibility.
+- Returns to the original root document and waits for the external browser and
+  temporary profile cleanup before the viewer resumes.
+- Preserves Video.js and Shaka subtitle overlays in unified PiP.
 - Blocks direct embedded `/login` navigation.
 
 ### Laftel
@@ -53,12 +82,18 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 - Uses a browser-style user agent and client hints for Apple requests while
   active, including the popup's first request, and restores the default on
   unload.
-- Remains isolated and DRM-marked.
+- Defaults to the shared Apple profile and remains DRM-marked.
+- Keeps display language and Apple storefront separate. Apple's own explicit
+  region selection (`/kr`, `/jp`, and so on) is stored in the persistent Apple
+  profile and reused at the next launch. Before the user selects a storefront,
+  the `geo` cookie corrects the root load without converting the app language
+  into a catalog country.
 
 ### Apple Music
 
 - Shares the Apple Account popup behavior and browser-identity header handling
   with Apple TV+.
+- Defaults to the same persistent Apple profile as Apple TV+.
 
 ### RIDI
 
@@ -71,6 +106,18 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 ### YouTube
 
 - Defaults to the shared Google profile.
+- Repairs only the incomplete regional Google authentication state left by the
+  retired external-login flow. Complete single- and multi-account Sessions are
+  preserved.
+- Keeps sign-in, add-account, and account switching inside the viewer so Google
+  updates the shared Session directly without a cookie-transfer round trip.
+- Preserves the native Electron user agent and UA Client Hints. No global
+  `webContents.setUserAgent()` call or Google request-header rewrite is applied.
+- Routes Google Account and YouTube-owned new windows back into the viewer while
+  advertising, redirect, and unrelated external destinations open in the
+  system browser.
+- Preserves YouTube's DOM-rendered caption window above the video in unified
+  PiP.
 - Restricts PiP to watch, Shorts, and live routes so home-page preview videos are ignored.
 - Injects Shorts auto-next behavior based on actual completion or a genuine loop wrap.
 - Invalidates Shorts progress samples during PiP transitions so toggling PiP never skips an unfinished Short.
@@ -104,6 +151,19 @@ Other sites default to site-specific persistent isolation. Services marked as DR
 - Tracks Clip detail routes independently from live playback, advances only a
   visible active Clip after real completion, and shares the short-form previous,
   next, toggle, status-overlay, and PiP-global shortcut behavior with YouTube.
+
+## OTT Picture in Picture
+
+Netflix, Laftel, Disney+, Prime Video, Wavve, Watcha, Coupang Play, TVING,
+Apple TV+, and Crunchyroll explicitly expose the unified PiP capability. The
+same playback document and DRM Session move into Kawaikara's PiP window, so the
+media pipeline is not reloaded or cloned.
+
+Their Providers share standard Video.js, Shaka, WebVTT, subtitle-container, and
+caption-container handling. Service-specific DOM caption layers are added where
+the player exposes a stable selector. PiP always supplies Kawaikara's Return and
+Play/Pause overlay; page-owned PiP controls remain suppressed so only one window
+lifecycle controls playback.
 
 ## Injection source layout
 
@@ -140,7 +200,8 @@ This helper is intentionally not exported as Provider API. It can evolve with bu
 ## Maintenance checklist
 
 - Keep one Provider per directory with `Provider.ts` and `manifest.json`, and export it from `Providers/Index.ts`.
-- Put new default shortcuts and icons in Provider metadata.
+- Put new permissions, default shortcuts, settings, addresses, profile defaults,
+  and other static contributions in the Provider manifest.
 - Mark DRM integrations accurately.
 - Use a Bundle profile only when shared authentication is intentional and tested.
 - Scope user-agent/header workarounds to exact domains and restore them on unload.

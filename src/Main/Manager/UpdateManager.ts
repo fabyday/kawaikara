@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from 'electron';
-import log from 'electron-log/main';
 import { autoUpdater } from 'electron-updater';
 import {
   BUILD_CHANNEL,
@@ -12,11 +11,10 @@ import type {
   ApplicationUpdateProgress,
   PreferenceState,
 } from '../../Common/IPC';
-import { createLogger } from '../Logging';
+import type { LoggingManager } from './LoggingManager';
 import type { WindowManager } from './WindowManager';
 
 const CHECK_TIMEOUT_MS = 60_000;
-const updateLog = createLogger('updates');
 
 interface UpdateSignal {
   readonly available: boolean;
@@ -25,14 +23,19 @@ interface UpdateSignal {
 }
 
 export class UpdateManager {
+  private readonly updateLog: ReturnType<LoggingManager['createLogger']>;
   private preferences?: PreferenceState;
   private checkRequest?: Promise<ApplicationUpdateCheckResult>;
   private downloadRequest?: Promise<ApplicationUpdatePanelState>;
   private currentState?: ApplicationUpdatePanelState;
   private installingUpdate = false;
 
-  constructor(private readonly windows: WindowManager) {
-    autoUpdater.logger = log;
+  constructor(
+    private readonly windows: WindowManager,
+    logging: LoggingManager,
+  ) {
+    this.updateLog = logging.createLogger('updates');
+    autoUpdater.logger = logging.updaterLogger;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
   }
@@ -189,7 +192,7 @@ export class UpdateManager {
       };
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
-      updateLog.error('Update check failed.', error);
+      this.updateLog.error('Update check failed.', error);
       const failedState: ApplicationUpdatePanelState = {
         phase: 'error',
         origin,
@@ -305,7 +308,7 @@ export class UpdateManager {
       return downloaded;
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
-      updateLog.error('Update download failed.', error);
+      this.updateLog.error('Update download failed.', error);
       const failed: ApplicationUpdatePanelState = {
         ...available,
         phase: 'error',

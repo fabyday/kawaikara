@@ -67,20 +67,17 @@ export const bundle = defineBundle({
 });
 ```
 
-Decorators attach behavior metadata to constructors; they do not register
-classes globally. `PluginHost` receives one explicit `BundleDefinition`, and
-`SiteManager` stages and validates all contributions before committing them.
+Decorators mark runtime constructors; they do not register classes globally.
+Static Provider metadata comes from that Provider's manifest. `PluginHost`
+receives one explicit `BundleDefinition`, and `SiteManager` stages and validates
+all contributions before committing them.
 
 ## Provider
 
 ```ts
 import { AbstractProvider, provider } from '@kawaikara/site-api';
 
-@provider({
-  menu: { category: 'OTT', order: 10 },
-  permissions: ['navigation'],
-  pictureInPicture: { enabled: true },
-})
+@provider()
 export default class ExampleProvider extends AbstractProvider {
   async load(): Promise<void> {
     await this.context.viewer.loadURL('https://example.com/');
@@ -92,9 +89,10 @@ export default class ExampleProvider extends AbstractProvider {
 }
 ```
 
-The Provider manifest owns `id`, `name`, `description`, and `version`. The
-decorator owns runtime capabilities. The top-level Bundle permission list must
-cover every permission declared by every Provider in the Bundle.
+The Provider manifest owns identity, permissions, and static contributions such
+as address hosts, menu placement, shortcuts, settings, locale, profile defaults,
+and PiP capability. The decorator is retained as a runtime class marker and for
+rare compatibility metadata that cannot reasonably be represented as JSON.
 
 ## Plugin scope
 
@@ -129,8 +127,8 @@ The loader validates these rules before registration:
 2. Bundle IDs, Provider IDs, Plugin IDs, and browser-profile IDs are unique.
 3. The Bundle declares at least one Provider directory.
 4. Every compiled JavaScript entry stays inside its owner.
-5. Manifest identity is canonical; an optional legacy decorator ID must match.
-6. Top-level Bundle permissions cover every Provider decorator requirement.
+5. Manifest identity and static contributions are canonical.
+6. Top-level Bundle permissions cover every Provider manifest permission.
 7. A Provider default browser profile exists in its Bundle.
 8. Provider-owned Plugin scope cannot exclude its owner.
 
@@ -144,9 +142,10 @@ versions remain in their child manifests for compatibility diagnostics, data
 migrations, and support logs, but Kawaikara does not update a child separately
 from its Bundle.
 
-Permissions belong only to the top-level Bundle manifest because the user
-installs and trusts one archive. Child permission arrays are accepted only as a
-legacy compatibility field and must be a subset of the Bundle permissions.
+The top-level Bundle permission list is the installation consent boundary. Each
+Provider manifest declares the smaller capability set used by that Provider,
+and it must be a subset of the Bundle list. Runtime contexts are constructed
+from the Provider manifest permissions, never from decorator code.
 
 ## Code ownership and attachment
 
@@ -174,6 +173,13 @@ root or inside one enclosing directory. Kawaikara validates compressed size,
 expanded size, entry count, path traversal, symbolic links, every nested
 manifest, compiled entry paths, IDs, SemVer, and API versions. A valid Bundle is
 moved to `KawaiData/Bundles/<bundle-id>` and becomes active after restart.
+
+An optional top-level `update` declaration enables the Update action for both
+built-in and user Bundles. It can contain a credential-free HTTPS archive URL
+or a compiled resolver entry that returns one for the current app channel,
+platform, and architecture. The downloaded archive is subject to the same
+limits and must keep the existing Bundle id. User Bundles can also be removed;
+built-in Bundles cannot. Changes to running code take effect after restart.
 
 Before moving the Bundle, Kawaikara shows every requested Provider permission
 and requires an explicit `Allow and install` choice. Denying the request cancels

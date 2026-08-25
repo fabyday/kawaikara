@@ -3,8 +3,12 @@
 Kawaikara initializes one `electron-log` pipeline at the beginning of the Main
 process. Existing `console.debug/info/warn/error` calls are routed through that
 pipeline, so managers and bundled plugins are persisted without each subsystem
-configuring its own file transport. New code can use `createLogger(scope)` from
-`src/Main/Logging.ts` when a stable subsystem label is useful.
+configuring its own file transport. `LoggingManager` owns initialization,
+runtime level changes, renderer attachment, diagnostic-directory access, and
+session shutdown. It is registered in the application manager container and
+injected into consumers that need a scoped logger or renderer capture. New code
+can use `logging.createLogger(scope)` from
+`src/Main/Manager/LoggingManager.ts` when a stable subsystem label is useful.
 
 ## Output and retention
 

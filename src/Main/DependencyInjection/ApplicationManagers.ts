@@ -4,6 +4,8 @@ import { DiscordPresenceManager } from '../Manager/DiscordPresenceManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
 import { ExternalDownloaderManager } from '../Manager/ExternalDownloaderManager';
 import { IpcManager } from '../Manager/IPCManager';
+import { LoggingManager } from '../Manager/LoggingManager';
+import { ApplicationDataManager } from '../Manager/ApplicationDataManager';
 import { PreferenceManager } from '../Manager/PreferenceManager';
 import { ShortcutManager } from '../Manager/ShortcutManager';
 import { SiteManager } from '../Manager/SiteManager';
@@ -24,6 +26,7 @@ import {
 
 export const MANAGER_TOKENS = {
   bundles: createManagerToken<BundleManager>('BundleManager'),
+  data: createManagerToken<ApplicationDataManager>('ApplicationDataManager'),
   developerLinks: createManagerToken<DeveloperLinkManager>(
     'DeveloperLinkManager',
   ),
@@ -37,6 +40,7 @@ export const MANAGER_TOKENS = {
     'ExternalBrowserManager',
   ),
   ipc: createManagerToken<IpcManager>('IpcManager'),
+  logging: createManagerToken<LoggingManager>('LoggingManager'),
   pictureInPictureFactory: createManagerToken<PictureInPictureManagerFactory>(
     'PictureInPictureManagerFactory',
   ),
@@ -50,6 +54,7 @@ export const MANAGER_TOKENS = {
 
 export interface ApplicationManagerOptions {
   readonly bundleDirectoryPath: string;
+  readonly logging: LoggingManager;
   readonly preferenceFilePath: string;
   readonly videoLibraryFilePath: string;
   readonly standardVideoLocations: readonly StandardVideoLocation[];
@@ -61,6 +66,7 @@ export function createApplicationManagerContainer(
   const managers = new ManagerContainer();
 
   managers
+    .registerValue(MANAGER_TOKENS.logging, options.logging)
     .registerSingleton(
       MANAGER_TOKENS.preferences,
       () => new PreferenceManager(options.preferenceFilePath),
@@ -87,6 +93,7 @@ export function createApplicationManagerContainer(
         new WindowManager(
           resolver.resolve(MANAGER_TOKENS.externalBrowser),
           resolver.resolve(MANAGER_TOKENS.pictureInPictureFactory),
+          resolver.resolve(MANAGER_TOKENS.logging),
         ),
     )
     .registerSingleton(
@@ -95,7 +102,7 @@ export function createApplicationManagerContainer(
         const windows = resolver.resolve(MANAGER_TOKENS.windows);
         const preferences = resolver.resolve(MANAGER_TOKENS.preferences);
         return new SiteManager(
-          (runtime) => windows.createSiteContext(runtime),
+          (runtime, permissions) => windows.createSiteContext(runtime, permissions),
           () => preferences.get(),
         );
       },
@@ -107,6 +114,11 @@ export function createApplicationManagerContainer(
           resolver.resolve(MANAGER_TOKENS.sites),
           options.bundleDirectoryPath,
         ),
+    )
+    .registerSingleton(
+      MANAGER_TOKENS.data,
+      (resolver) =>
+        new ApplicationDataManager(resolver.resolve(MANAGER_TOKENS.sites)),
     )
     .registerSingleton(
       MANAGER_TOKENS.shortcuts,
@@ -128,7 +140,10 @@ export function createApplicationManagerContainer(
     .registerSingleton(
       MANAGER_TOKENS.updates,
       (resolver) =>
-        new UpdateManager(resolver.resolve(MANAGER_TOKENS.windows)),
+        new UpdateManager(
+          resolver.resolve(MANAGER_TOKENS.windows),
+          resolver.resolve(MANAGER_TOKENS.logging),
+        ),
     )
     .registerSingleton(
       MANAGER_TOKENS.discordPresence,
@@ -147,6 +162,8 @@ export function createApplicationManagerContainer(
           resolver.resolve(MANAGER_TOKENS.updates),
           resolver.resolve(MANAGER_TOKENS.shortcuts),
           resolver.resolve(MANAGER_TOKENS.videoLibrary),
+          resolver.resolve(MANAGER_TOKENS.logging),
+          resolver.resolve(MANAGER_TOKENS.data),
         ),
     );
 

@@ -1,0 +1,27 @@
+{
+  "name": "kawaikara-youtube-testbed",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Isolated Electron testbed for comparing Google sign-in browser identity modes",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron . --mode=raw",
+    "start:raw": "electron . --mode=raw",
+    "start:view-raw": "electron . --mode=view-raw",
+    "start:ua": "electron . --mode=ua",
+    "start:legacy": "electron . --mode=legacy-exact",
+    "start:legacy-combined": "electron . --mode=legacy-combined",
+    "start:main-world": "electron . --mode=main-world",
+    "smoke": "electron . --mode=raw --url=https://www.youtube.com/ --smoke",
+    "reset": "node reset-profiles.cjs",
+    "check": "node --check main.cjs && node --check preload.cjs && node --check reset-profiles.cjs"
+  },
+  "devDependencies": {
+    "electron": "github:castlabs/electron-releases#v40.10.6+wvcus"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

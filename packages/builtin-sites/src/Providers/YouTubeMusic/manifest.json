@@ -1,1 +1,24 @@
-{"schemaVersion":1,"id":"kawaikara.youtube-music","name":"YouTube Music","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.youtube-music",
+  "name": "YouTube Music",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation", "cookies"],
+  "contributes": {
+    "address": { "hosts": ["music.youtube.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+U" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "defaultBrowserProfile": "google" },
+    "pictureInPicture": { "enabled": false },
+    "menu": {
+      "category": "Music",
+      "order": 30,
+      "icon": "https://music.youtube.com/favicon.ico"
+    }
+  }
+}

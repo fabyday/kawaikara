@@ -4,7 +4,6 @@ import {
   type SiteRequestDetails,
   type SiteRequestHeaders,
 } from '@kawaikara/site-api';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
 import {
   applyBrowserIdentityHeaders,
   createBrowserUserAgent,
@@ -13,16 +12,7 @@ import {
 } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
 
-@provider({
-  id: 'kawaikara.apple-music',
-  address: { hosts: ['music.apple.com'] },
-  title: 'Apple Music',
-  shortcut: { defaultKey: 'Control+Alt+M' },
-  locale: BUILTIN_SITE_LOCALE,
-  pictureInPicture: { enabled: false },
-  menu: { category: 'Music', order: 10, icon: 'https://music.apple.com/favicon.ico' },
-  permissions: ['navigation', 'network-interception'],
-})
+@provider()
 export class AppleMusicProvider extends UrlProvider {
   protected readonly url = 'https://music.apple.com/';
   private browserUserAgent?: string;

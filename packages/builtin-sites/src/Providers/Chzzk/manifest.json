@@ -1,1 +1,50 @@
-{"schemaVersion":1,"id":"kawaikara.chzzk","name":"CHZZK","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","network-interception","script-injection"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.chzzk",
+  "name": "CHZZK",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation", "network-interception", "script-injection"],
+  "contributes": {
+    "address": { "hosts": ["chzzk.naver.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+Z" },
+    "settings": {
+      "categories": [
+        {
+          "id": "clips",
+          "title": { "en-US": "Clips", "ko-KR": "클립", "ja-JP": "クリップ" },
+          "settings": [
+            {
+              "type": "boolean",
+              "key": "short-form-video.auto-advance",
+              "title": {
+                "en-US": "Play the next clip automatically",
+                "ko-KR": "다음 클립 자동 재생",
+                "ja-JP": "次のクリップを自動再生"
+              },
+              "defaultValue": true
+            }
+          ]
+        }
+      ]
+    },
+    "shortFormVideo": {
+      "previous": true,
+      "next": true,
+      "autoAdvance": {
+        "settingKey": "short-form-video.auto-advance",
+        "defaultValue": true
+      }
+    },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "menu": {
+      "category": "Streaming",
+      "order": 10,
+      "icon": "https://chzzk.naver.com/favicon.ico"
+    }
+  }
+}

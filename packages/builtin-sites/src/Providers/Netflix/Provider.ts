@@ -1,25 +1,21 @@
 import { provider } from '@kawaikara/site-api';
-import { BUILTIN_SITE_LOCALE } from '../../SiteDefaults';
+import { createVideoPictureInPicture } from '../../PictureInPicture';
 import {
   createLoginInterceptionScript,
   isLoginNavigation,
 } from '../../SiteUtilities';
 import { UrlProvider } from '../../UrlProvider';
 
+const NETFLIX_PIP_SUBTITLE_SELECTORS = [
+  '.player-timedtext',
+  '.player-timedtext-text-container',
+  '[data-uia="player-subtitle"]',
+] as const;
+
 @provider({
-  id: 'kawaikara.netflix',
-  address: { hosts: ['netflix.com'] },
-  title: 'Netflix',
-  shortcut: { defaultKey: 'Control+Alt+1' },
-  locale: BUILTIN_SITE_LOCALE,
-  isolation: { drm: true },
-  menu: { category: 'OTT', order: 10, icon: 'https://netflix.com/favicon.ico' },
-  permissions: [
-    'navigation',
-    'script-injection',
-    'external-browser',
-    'cookies',
-  ],
+  pictureInPicture: createVideoPictureInPicture(
+    NETFLIX_PIP_SUBTITLE_SELECTORS,
+  ),
 })
 export class NetflixProvider extends UrlProvider {
   protected readonly url = 'https://netflix.com/';
@@ -57,6 +53,11 @@ export class NetflixProvider extends UrlProvider {
       const result = await this.context.externalBrowser.login({
         startUrl: 'https://www.netflix.com/login',
         completionUrlPattern: '/browse(?:[/?#]|$)',
+        returnUrl: 'https://www.netflix.com/browse',
+        resetSessionOrigins: [
+          'https://netflix.com',
+          'https://www.netflix.com',
+        ],
         siteTitle: 'Netflix',
         locale: this.context.locale?.app,
       });

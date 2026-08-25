@@ -8,6 +8,7 @@ import {
   type SitePermission,
 } from '@kawaikara/site-api';
 import bundleManifest from './manifest.json';
+import { resolveBundleUpdate } from './Update';
 import { ProviderIdentityPlugin } from './Plugins/Index';
 import providerIdentityManifest from './Plugins/ProviderIdentity/manifest.json';
 import {
@@ -60,6 +61,7 @@ export const builtinBundle = defineBundle({
   name: bundleManifest.name,
   description: bundleManifest.description,
   version: bundleManifest.version,
+  update: { type: 'resolver', resolve: resolveBundleUpdate },
   apiVersion: 1,
   permissions: bundleManifest.permissions as SitePermission[],
   locale: bundleManifest.locale,

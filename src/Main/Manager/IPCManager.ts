@@ -1,4 +1,4 @@
-import { app, ipcMain, type IpcMainEvent } from 'electron';
+import { app, clipboard, ipcMain, type IpcMainEvent } from 'electron';
 import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
 import {
   IPC_CHANNELS,
@@ -18,7 +18,8 @@ import type { UpdateManager } from './UpdateManager';
 import type { ShortcutManager } from './ShortcutManager';
 import type { VideoLibraryManager } from './VideoLibraryManager';
 import type { BundleManager } from './BundleManager';
-import { configureLogLevel, openLogDirectory } from '../Logging';
+import type { LoggingManager } from './LoggingManager';
+import type { ApplicationDataManager } from './ApplicationDataManager';
 import { getRendererMessages } from '../Functional/RendererMessages';
 
 export class IpcManager {
@@ -47,6 +48,8 @@ export class IpcManager {
     private readonly updates: UpdateManager,
     private readonly shortcuts: ShortcutManager,
     private readonly videoLibrary: VideoLibraryManager,
+    private readonly logging: LoggingManager,
+    private readonly data: ApplicationDataManager,
   ) {}
 
   initialize(): void {
@@ -97,7 +100,7 @@ export class IpcManager {
     );
     ipcMain.handle(
       IPC_CHANNELS.application.openLogDirectory,
-      () => openLogDirectory(),
+      () => this.logging.openDirectory(),
     );
     ipcMain.handle(IPC_CHANNELS.application.developerYouTubeStatus, () =>
       this.developerLinks.getDeveloperYouTubeStatus(),
@@ -118,12 +121,35 @@ export class IpcManager {
       IPC_CHANNELS.application.installUpdate,
       () => this.updates.installUpdate(),
     );
+    ipcMain.handle(
+      IPC_CHANNELS.application.copyText,
+      (_event, value: unknown) => {
+        if (typeof value !== 'string' || value.length > 16_384) {
+          throw new TypeError('Clipboard text must be a valid string.');
+        }
+        clipboard.writeText(value);
+      },
+    );
     ipcMain.handle(IPC_CHANNELS.bundles.runtime, () => this.sites.listBundles());
     ipcMain.handle(IPC_CHANNELS.bundles.list, () => this.bundles.list());
     ipcMain.handle(
       IPC_CHANNELS.bundles.install,
       (_event, locale: unknown) =>
         this.bundles.installFromDialog(requireAppLocale(locale)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.bundles.update,
+      (_event, id: unknown, locale: unknown) => {
+        if (typeof id !== 'string') throw new TypeError('Bundle id must be a string.');
+        return this.bundles.update(id, requireAppLocale(locale));
+      },
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.bundles.remove,
+      (_event, id: unknown, locale: unknown) => {
+        if (typeof id !== 'string') throw new TypeError('Bundle id must be a string.');
+        return this.bundles.remove(id, requireAppLocale(locale));
+      },
     );
     ipcMain.handle(IPC_CHANNELS.media.togglePictureInPicture, () =>
       this.windows.togglePictureInPicture(),
@@ -132,6 +158,9 @@ export class IpcManager {
       this.windows.toggleGamePictureInPicture(),
     );
     ipcMain.handle(IPC_CHANNELS.sites.list, () => this.sites.listMenuItems());
+    ipcMain.handle(IPC_CHANNELS.sites.currentAddress, () =>
+      this.windows.getCurrentSiteAddress(),
+    );
     ipcMain.handle(IPC_CHANNELS.sites.open, async (_event, id: unknown) => {
       if (typeof id !== 'string') {
         throw new TypeError('Site id must be a string.');
@@ -315,6 +344,32 @@ export class IpcManager {
       this.downloads.openReleasePage(),
     );
     ipcMain.handle(IPC_CHANNELS.preferences.get, () => this.preferences.get());
+    ipcMain.handle(
+      IPC_CHANNELS.data.clearBrowserProfile,
+      (_event, profileId: unknown, locale: unknown) =>
+        this.data.clearBrowserProfile(
+          requireIdentifier(profileId, 'Browser profile'),
+          requireAppLocale(locale),
+        ),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.data.clearIsolatedSite,
+      (_event, siteId: unknown, locale: unknown) =>
+        this.data.clearIsolatedSite(
+          requireIdentifier(siteId, 'Site'),
+          requireAppLocale(locale),
+        ),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.data.clearApplicationCache,
+      (_event, locale: unknown) =>
+        this.data.clearApplicationCache(requireAppLocale(locale)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.data.resetApplication,
+      (_event, locale: unknown) =>
+        this.data.resetApplication(requireAppLocale(locale)),
+    );
     ipcMain.handle(IPC_CHANNELS.preferences.previewTheme, (_event, theme: unknown) => {
       this.windows.setAppTheme(requireAppTheme(theme));
     });
@@ -354,7 +409,7 @@ export class IpcManager {
       this.windows.setPictureInPicturePortraitSize(
         preferences.pictureInPicturePortraitSize,
       );
-      configureLogLevel(preferences.logLevel);
+      this.logging.configureLevel(preferences.logLevel);
       this.shortcuts.refreshGlobalShortcut();
       await this.sites.applyCurrentProviderSettings().catch((error: unknown) => {
         // The preference is already durable. A simultaneous site navigation
@@ -393,6 +448,7 @@ export class IpcManager {
 
 const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.sites.list,
+  IPC_CHANNELS.sites.currentAddress,
   IPC_CHANNELS.sites.openAddress,
   IPC_CHANNELS.application.info,
   IPC_CHANNELS.application.messages,
@@ -410,6 +466,8 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.bundles.runtime,
   IPC_CHANNELS.bundles.list,
   IPC_CHANNELS.bundles.install,
+  IPC_CHANNELS.bundles.update,
+  IPC_CHANNELS.bundles.remove,
   IPC_CHANNELS.media.togglePictureInPicture,
   IPC_CHANNELS.media.toggleGamePictureInPicture,
   IPC_CHANNELS.sites.open,
@@ -436,6 +494,10 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.downloads.open,
   IPC_CHANNELS.downloads.openReleasePage,
   IPC_CHANNELS.preferences.get,
+  IPC_CHANNELS.data.clearBrowserProfile,
+  IPC_CHANNELS.data.clearIsolatedSite,
+  IPC_CHANNELS.data.clearApplicationCache,
+  IPC_CHANNELS.data.resetApplication,
   IPC_CHANNELS.preferences.previewTheme,
   IPC_CHANNELS.preferences.update,
 ] as const satisfies readonly IpcChannel[];
@@ -479,6 +541,13 @@ function requirePathString(value: unknown): string {
 function requireSearchQuery(value: unknown): string {
   if (typeof value !== 'string' || value.length > 260) {
     throw new TypeError('A valid search query is required.');
+  }
+  return value;
+}
+
+function requireIdentifier(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value || value.length > 260) {
+    throw new TypeError(`${label} id must be a valid string.`);
   }
   return value;
 }

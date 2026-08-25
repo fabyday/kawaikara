@@ -1,1 +1,18 @@
-{"schemaVersion":1,"id":"kawaikara.laftel","name":"Laftel","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","network-interception"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.laftel",
+  "name": "Laftel",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation", "network-interception"],
+  "contributes": {
+    "address": { "hosts": ["laftel.net"] },
+    "shortcut": { "defaultKey": "Control+Alt+2" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "menu": { "category": "OTT", "order": 20 }
+  }
+}

@@ -281,6 +281,11 @@ jobs:
           KAWAIKARA_PUBLISH_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
           KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: pnpm run "dist:${CHANNEL}"
+      - name: Package built-in Provider Bundle
+        if: matrix.platform == 'mac'
+        run: >-
+          pnpm package:built-in-bundle --
+          "builds/${{ inputs.channel }}/${{ matrix.output_os }}/kawaikara.builtin-sites.kawai"
       - name: Collect release artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -293,6 +298,7 @@ jobs:
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.zip
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.yml
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.blockmap
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.kawai
 
   publish:
     name: Publish ${{ inputs.channel }} release

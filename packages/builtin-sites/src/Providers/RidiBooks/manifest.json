@@ -1,1 +1,23 @@
-{"schemaVersion":1,"id":"kawaikara.ridibooks","name":"RIDI","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","network-interception"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.ridibooks",
+  "name": "RIDI",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": ["navigation", "network-interception"],
+  "contributes": {
+    "address": { "hosts": ["ridibooks.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+R" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "pictureInPicture": { "enabled": false },
+    "menu": {
+      "category": "Books",
+      "order": 10,
+      "icon": "https://ridibooks.com/favicon.ico"
+    }
+  }
+}

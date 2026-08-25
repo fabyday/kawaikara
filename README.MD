@@ -1,6 +1,12 @@
 # *KAWAIKARA*
 
 <p align="center">
+  <a href="./README.en.md"><img alt="English" src="https://img.shields.io/badge/Language-English-2563EB?style=for-the-badge"></a>
+  <a href="./README.ko.md"><img alt="한국어" src="https://img.shields.io/badge/언어-한국어-EA580C?style=for-the-badge"></a>
+  <a href="./README.ja.md"><img alt="日本語" src="https://img.shields.io/badge/言語-日本語-DC2626?style=for-the-badge"></a>
+</p>
+
+<p align="center">
   <img src="./imgs/kawaikara_banner_title3.png" />
 </p>
 <p align="center">
@@ -126,6 +132,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 

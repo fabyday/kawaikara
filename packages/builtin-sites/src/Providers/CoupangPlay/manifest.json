@@ -1,1 +1,29 @@
-{"schemaVersion":1,"id":"kawaikara.coupang-play","name":"Coupang Play","version":"3.0.0-dev.0","apiVersion":1,"main":"Provider.js","permissions":["navigation","script-injection","external-browser","cookies","network-interception"]}
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.coupang-play",
+  "name": "Coupang Play",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Provider.js",
+  "permissions": [
+    "navigation",
+    "script-injection",
+    "external-browser",
+    "cookies",
+    "network-interception"
+  ],
+  "contributes": {
+    "address": { "hosts": ["coupangplay.com"] },
+    "shortcut": { "defaultKey": "Control+Alt+9" },
+    "locale": {
+      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "defaultLocale": "inherit"
+    },
+    "isolation": { "drm": true },
+    "menu": {
+      "category": "OTT",
+      "order": 70,
+      "icon": "https://www.coupangplay.com/favicon.ico"
+    }
+  }
+}
