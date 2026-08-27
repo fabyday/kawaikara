@@ -5,12 +5,12 @@ const { readFileSync, writeFileSync, appendFileSync } = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const supportedChannels = new Set(['staging', 'nightly']);
+const supportedChannels = new Set(['stable', 'staging', 'nightly']);
 const command = process.argv[2] || 'resolve';
 const channel = process.argv[3];
 
 if (!supportedChannels.has(channel)) {
-  fail('Channel must be staging or nightly.');
+  fail('Channel must be stable, staging, or nightly.');
 }
 
 if (command === 'resolve') {
@@ -20,7 +20,7 @@ if (command === 'resolve') {
 } else if (command === 'notes') {
   writeReleaseNotes(process.argv[4]);
 } else {
-  fail('Usage: channel-release.cjs <resolve|metadata|notes> <staging|nightly> [path]');
+  fail('Usage: channel-release.cjs <resolve|metadata|notes> <stable|staging|nightly> [path]');
 }
 
 function resolveRelease() {
@@ -40,10 +40,12 @@ function resolveRelease() {
     fail(`KAWAIKARA_RELEASE_DATE must use YYYYMMDD format. Got: ${date}`);
   }
 
-  const version = [
-    baseVersion,
-    `${channel}.${date}.${runNumber}.${runAttempt}.g${sourceShortSha}`,
-  ].join('-');
+  const version = channel === 'stable'
+    ? baseVersion
+    : [
+        baseVersion,
+        `${channel}.${date}.${runNumber}.${runAttempt}.g${sourceShortSha}`,
+      ].join('-');
   const tag = `v${version}`;
   const values = {
     channel,
@@ -52,7 +54,7 @@ function resolveRelease() {
     base_version: baseVersion,
     source_sha: sourceSha,
     source_short_sha: sourceShortSha,
-    source_branch: process.env.KAWAIKARA_SOURCE_BRANCH || 'dev',
+    source_branch: process.env.KAWAIKARA_SOURCE_BRANCH || defaultSourceBranch(),
     created_at: new Date().toISOString(),
   };
 
@@ -71,7 +73,7 @@ function writeMetadata(outputPath) {
     version,
     tag,
     sourceRepository: process.env.GITHUB_REPOSITORY || 'local',
-    sourceBranch: process.env.KAWAIKARA_SOURCE_BRANCH || 'dev',
+    sourceBranch: process.env.KAWAIKARA_SOURCE_BRANCH || defaultSourceBranch(),
     sourceCommit,
     sourceRunId: process.env.GITHUB_RUN_ID || null,
     sourceRunUrl:
@@ -113,7 +115,7 @@ function writeReleaseNotes(outputPath) {
     '',
     `Channel: ${channel}`,
     `Source repository: ${process.env.GITHUB_REPOSITORY || 'local'}`,
-    `Source branch: ${process.env.KAWAIKARA_SOURCE_BRANCH || 'dev'}`,
+    `Source branch: ${process.env.KAWAIKARA_SOURCE_BRANCH || defaultSourceBranch()}`,
     `Source commit: ${requireEnvironment('KAWAIKARA_SOURCE_SHA')}`,
   ];
   if (
@@ -163,6 +165,10 @@ function formatKoreanDate(date) {
   }).formatToParts(date);
   const part = (type) => parts.find((candidate) => candidate.type === type)?.value;
   return `${part('year')}${part('month')}${part('day')}`;
+}
+
+function defaultSourceBranch() {
+  return channel === 'stable' ? 'main' : 'dev';
 }
 
 function numericIdentifier(value, fallback) {

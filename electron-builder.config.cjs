@@ -55,6 +55,9 @@ if (!publishOwner || !publishRepo || unexpectedRepositoryParts.length > 0) {
 module.exports = {
   appId: channelIdentity.appId,
   productName: channelIdentity.productName,
+  // Release packages must never silently fall back to Electron's invalid
+  // linker-only ad-hoc signature. Local builds can still omit a certificate.
+  forceCodeSigning: process.env.KAWAIKARA_REQUIRE_CODE_SIGNING === '1',
   asar: true,
   // The in-app Bundle development host launches esbuild's platform binary.
   // Executables cannot run from inside app.asar.

@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import {
   BUILD_CHANNEL,
+  IS_DISTRIBUTION_BUILD,
   UPDATE_REPOSITORIES,
   toUpdaterChannel,
 } from '../../Common/BuildConfig';
@@ -164,7 +165,7 @@ export class UpdateManager {
       this.currentState = checkingState;
     }
 
-    if (!app.isPackaged) {
+    if (!app.isPackaged || !IS_DISTRIBUTION_BUILD) {
       const unsupported: ApplicationUpdatePanelState = {
         phase: 'unsupported',
         origin,

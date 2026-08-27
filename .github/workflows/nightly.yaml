@@ -10,10 +10,18 @@ on:
         description: Optional dev commit SHA; it must belong to dev
         required: false
         type: string
-      base_version:
-        description: Optional x.y.z base version
+      version:
+        description: Optional x.y.z base version; defaults to package.json
         required: false
         type: string
+      release_state:
+        description: Manual runs create a Draft by default; choose Published to update users immediately
+        required: true
+        default: draft
+        type: choice
+        options:
+          - draft
+          - published
       force:
         description: Publish even when this source commit already has a Nightly
         required: false
@@ -27,7 +35,8 @@ jobs:
       channel: nightly
       source_branch: dev
       source_sha: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.source_sha || '' }}
-      base_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.base_version || '' }}
+      base_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || '' }}
       use_kst_cutoff: ${{ github.event_name == 'schedule' }}
       force: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force == 'true' }}
+      draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_state == 'draft' }}
     secrets: inherit

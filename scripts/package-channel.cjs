@@ -42,6 +42,7 @@ const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const environment = {
   ...process.env,
   KAWAIKARA_BUILD_CHANNEL: channel,
+  KAWAIKARA_DISTRIBUTION_BUILD: '1',
   KAWAIKARA_VMP_SIGN: '1',
 };
 

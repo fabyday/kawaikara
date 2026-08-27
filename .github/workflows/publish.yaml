@@ -1,34 +1,111 @@
-name: Publish Stable
+name: Prepare Stable Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: SemVer without the v prefix (optional)
+        description: Stable x.y.z version; the workflow creates tag vX.Y.Z
+        required: true
+        type: string
+      source_sha:
+        description: Optional main commit SHA; defaults to the latest main commit
         required: false
         type: string
 
-permissions:
-  contents: write
+concurrency:
+  group: prepare-stable-${{ inputs.version }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
+  prepare:
+    name: Resolve Stable source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      version: ${{ steps.source.outputs.version }}
+      tag: ${{ steps.source.outputs.tag }}
+    steps:
+      - name: Checkout trusted Stable branch
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Resolve immutable main commit and version
+        id: source
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          REQUESTED_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Stable version must use x.y.z format. Got: $RELEASE_VERSION"
+            exit 1
+          fi
+
+          git fetch origin refs/heads/main:refs/remotes/origin/main --force
+          if [[ -n "$REQUESTED_SHA" ]]; then
+            source_sha="$(git rev-parse "${REQUESTED_SHA}^{commit}")"
+          else
+            source_sha="$(git rev-parse origin/main)"
+          fi
+          if ! git merge-base --is-ancestor "$source_sha" origin/main; then
+            echo "::error::Stable source $source_sha is not part of main."
+            exit 1
+          fi
+
+          for required in pnpm-lock.yaml scripts/package-channel.cjs electron-builder.config.cjs; do
+            if ! git cat-file -e "$source_sha:$required" 2>/dev/null; then
+              echo "::error::Stable source $source_sha does not contain the 3.x release file $required. Merge the release-ready dev source into main first."
+              exit 1
+            fi
+          done
+
+          tag="v$RELEASE_VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Stable tag $tag already exists."
+            exit 1
+          fi
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   package:
+    name: Package Stable (${{ matrix.platform }})
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-14
             platform: mac
+            output_os: mac
           - os: windows-latest
             platform: windows
+            output_os: win
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
       - name: Validate package credentials
-        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CODE_SIGN_CERT: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_APP_ID }}
+          WIDEVINE_ACCOUNT: ${{ secrets.ACCOUNT }}
+          WIDEVINE_PASSWORD: ${{ secrets.PASSWD }}
         run: |
           set -euo pipefail
           for variable in CODE_SIGN_CERT DISCORD_CLIENT_ID WIDEVINE_ACCOUNT WIDEVINE_PASSWORD; do
@@ -37,12 +114,6 @@ jobs:
               exit 1
             fi
           done
-        env:
-          PLATFORM: ${{ matrix.platform }}
-          CODE_SIGN_CERT: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
-          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_APP_ID }}
-          WIDEVINE_ACCOUNT: ${{ secrets.ACCOUNT }}
-          WIDEVINE_PASSWORD: ${{ secrets.PASSWD }}
       - uses: pnpm/action-setup@v5
         with:
           version: 10.33.0
@@ -50,57 +121,133 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
           cache: pip
       - name: Install Widevine signing client
         run: python -m pip install castlabs-evs==1.1.1
+      - name: Install libmpv on macOS
+        if: matrix.platform == 'mac'
+        run: brew install mpv
+      - name: Configure MSVC on Windows
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Install libmpv SDK on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/setup-windows-libmpv.ps1
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - name: Authenticate Widevine signing
-        run: pnpm widevine:auth
         env:
           KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
           KAWAIKARA_EVS_PASSWORD: ${{ secrets.PASSWD }}
-      - name: Publish tagged Stable release
-        if: startsWith(github.ref, 'refs/tags/')
-        run: pnpm release:stable
+        run: pnpm widevine:auth
+      - name: Build Stable package
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
           KAWAIKARA_EVS_NONINTERACTIVE: '1'
-      - name: Publish Stable release
-        if: github.event_name == 'workflow_dispatch'
-        run: pnpm release:stable
-        env:
-          KAWAIKARA_RELEASE_VERSION: ${{ inputs.version }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
-          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-          KAWAIKARA_EVS_NONINTERACTIVE: '1'
-      - name: Publish built-in Provider Bundle
+          KAWAIKARA_PUBLISH_REPOSITORY: ${{ github.repository }}
+          KAWAIKARA_REQUIRE_CODE_SIGNING: '1'
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: pnpm dist:stable
+      - name: Verify macOS update signature
         if: matrix.platform == 'mac'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            release_tag="$GITHUB_REF_NAME"
-            release_version="${release_tag#v}"
-          elif [[ -n "$REQUESTED_VERSION" ]]; then
-            release_version="$REQUESTED_VERSION"
-            release_tag="v${release_version}"
-          else
-            release_version="$(node -p "require('./package.json').version")"
-            release_tag="v${release_version}"
+          application_paths="$(find builds/stable/mac -type d -name '*.app' -prune)"
+          if [[ -z "$application_paths" ]]; then
+            echo "::error::No packaged macOS application was found for signature verification."
+            exit 1
           fi
-          pnpm package:built-in-bundle -- \
-            "builds/stable/kawaikara.builtin-sites.kawai"
-          gh release upload "$release_tag" \
-            "builds/stable/kawaikara.builtin-sites.kawai" --clobber
+          while IFS= read -r application_path; do
+            signature_info="$(codesign --display --verbose=4 "$application_path" 2>&1)"
+            if ! grep -Fxq 'Identifier=day.faby.kawaikara' <<< "$signature_info"; then
+              echo "::error::Unexpected or linker-only signature on $application_path."
+              echo "$signature_info"
+              exit 1
+            fi
+            codesign --verify --deep --strict --verbose=2 "$application_path"
+          done <<< "$application_paths"
+      - name: Package built-in Provider Bundle
+        if: matrix.platform == 'mac'
+        run: >-
+          pnpm package:built-in-bundle --
+          "builds/stable/${{ matrix.output_os }}/kawaikara.builtin-sites.kawai"
+      - name: Collect Stable artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: stable-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            builds/stable/${{ matrix.output_os }}/*.dmg
+            builds/stable/${{ matrix.output_os }}/*.exe
+            builds/stable/${{ matrix.output_os }}/*.zip
+            builds/stable/${{ matrix.output_os }}/*.yml
+            builds/stable/${{ matrix.output_os }}/*.blockmap
+            builds/stable/${{ matrix.output_os }}/*.kawai
+
+  draft:
+    name: Create Stable Draft
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: stable-*
+          path: release-assets
+          merge-multiple: true
+      - name: Write Stable source metadata
+        env:
+          KAWAIKARA_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: main
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs metadata stable release-assets/stable-source.json
+      - name: Build Stable release notes
+        env:
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: main
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs notes stable "$RUNNER_TEMP/release-notes.md"
+      - name: Create tag and unpublished Stable Draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' assets < <(find release-assets -maxdepth 1 -type f -print0 | sort -z)
+          if (( ${#assets[@]} == 0 )); then
+            echo "::error::No Stable release assets were downloaded."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "Kawaikara $RELEASE_VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --draft \
+            --latest=false
+          release_url="$(gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          {
+            echo "## Stable Draft created"
+            echo ""
+            echo "[$RELEASE_TAG]($release_url) targets \`$SOURCE_SHA\`."
+            echo "Run **Publish Release Draft** after validating its assets."
+          } >> "$GITHUB_STEP_SUMMARY"

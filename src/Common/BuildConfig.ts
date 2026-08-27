@@ -3,11 +3,15 @@ export type ReleaseChannel = 'stable' | 'staging' | 'nightly';
 
 /** Stores the Kawaikara build channel value. */
 declare const __KAWAIKARA_BUILD_CHANNEL__: ReleaseChannel;
+/** Stores whether this build is an installable release package. */
+declare const __KAWAIKARA_DISTRIBUTION_BUILD__: boolean;
 /** Stores the Kawaikara discord app ID value. */
 declare const __KAWAIKARA_DISCORD_APP_ID__: string;
 
 /** Defines the shared build channel constant. */
 export const BUILD_CHANNEL = __KAWAIKARA_BUILD_CHANNEL__;
+/** Whether the application was built by a Stable, Staging, or Nightly distribution packager. */
+export const IS_DISTRIBUTION_BUILD = __KAWAIKARA_DISTRIBUTION_BUILD__;
 /** Defines the shared discord app ID constant. */
 export const DISCORD_APP_ID = __KAWAIKARA_DISCORD_APP_ID__;
 

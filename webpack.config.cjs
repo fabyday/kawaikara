@@ -46,6 +46,9 @@ module.exports = (_environment, arguments_) => {
   const buildChannel = resolveBuildChannel();
   const buildDefinitions = new webpack.DefinePlugin({
     __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify(buildChannel),
+    __KAWAIKARA_DISTRIBUTION_BUILD__: JSON.stringify(
+      process.env.KAWAIKARA_DISTRIBUTION_BUILD === '1',
+    ),
     __KAWAIKARA_DISCORD_APP_ID__: JSON.stringify(
       process.env.DISCORD_APP_ID || '',
     ),
