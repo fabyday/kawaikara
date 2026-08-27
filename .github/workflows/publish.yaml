@@ -1,179 +1,253 @@
-name: Release
+name: Prepare Stable Release
 
 on:
-    push:
-        tags:
-            - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable x.y.z version; the workflow creates tag vX.Y.Z
+        required: true
+        type: string
+      source_sha:
+        description: Optional main commit SHA; defaults to the latest main commit
+        required: false
+        type: string
+
+concurrency:
+  group: prepare-stable-${{ inputs.version }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-    warm-up-cache-win:
-        runs-on: windows-2022
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            
-            - name: Enable Corepack
-              run: corepack enable
+  prepare:
+    name: Resolve Stable source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      version: ${{ steps.source.outputs.version }}
+      tag: ${{ steps.source.outputs.tag }}
+    steps:
+      - name: Checkout trusted Stable branch
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
 
-            - run: yarn install --immutable
+      - name: Resolve immutable main commit and version
+        id: source
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          REQUESTED_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Stable version must use x.y.z format. Got: $RELEASE_VERSION"
+            exit 1
+          fi
 
-    warm-up-cache-mac:
-        runs-on: macos-14
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            - name: Enable Corepack
-              run: corepack enable
+          git fetch origin refs/heads/main:refs/remotes/origin/main --force
+          if [[ -n "$REQUESTED_SHA" ]]; then
+            source_sha="$(git rev-parse "${REQUESTED_SHA}^{commit}")"
+          else
+            source_sha="$(git rev-parse origin/main)"
+          fi
+          if ! git merge-base --is-ancestor "$source_sha" origin/main; then
+            echo "::error::Stable source $source_sha is not part of main."
+            exit 1
+          fi
 
-            - run: yarn install --immutable
+          for required in pnpm-lock.yaml scripts/package-channel.cjs electron-builder.config.cjs; do
+            if ! git cat-file -e "$source_sha:$required" 2>/dev/null; then
+              echo "::error::Stable source $source_sha does not contain the 3.x release file $required. Merge the release-ready dev source into main first."
+              exit 1
+            fi
+          done
 
-    # GENERAL electron packaging
-    electron-package-mac:
-        needs: [warm-up-cache-mac]
-        runs-on: macos-14
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4 # v4 is the latest version as of June 2024
+          tag="v$RELEASE_VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Stable tag $tag already exists."
+            exit 1
+          fi
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-            
-            - name: Enable Corepack
-              run: corepack enable
+  package:
+    name: Package Stable (${{ matrix.platform }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+            output_os: mac
+          - os: windows-latest
+            platform: windows
+            output_os: win
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          persist-credentials: false
+      - name: Validate package credentials
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CODE_SIGN_CERT: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_APP_ID }}
+          WIDEVINE_ACCOUNT: ${{ secrets.ACCOUNT }}
+          WIDEVINE_PASSWORD: ${{ secrets.PASSWD }}
+        run: |
+          set -euo pipefail
+          for variable in CODE_SIGN_CERT DISCORD_CLIENT_ID WIDEVINE_ACCOUNT WIDEVINE_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Required ${variable} credential is missing for the Stable ${PLATFORM} package."
+              exit 1
+            fi
+          done
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+          cache: pip
+      - name: Install Widevine signing client
+        run: python -m pip install castlabs-evs==1.1.1
+      - name: Install libmpv on macOS
+        if: matrix.platform == 'mac'
+        run: brew install mpv
+      - name: Configure MSVC on Windows
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Install libmpv SDK on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/setup-windows-libmpv.ps1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - name: Authenticate Widevine signing
+        env:
+          KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
+          KAWAIKARA_EVS_PASSWORD: ${{ secrets.PASSWD }}
+        run: pnpm widevine:auth
+      - name: Build Stable package
+        env:
+          CSC_LINK: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD || '' }}
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          KAWAIKARA_EVS_NONINTERACTIVE: '1'
+          KAWAIKARA_PUBLISH_REPOSITORY: ${{ github.repository }}
+          KAWAIKARA_REQUIRE_CODE_SIGNING: '1'
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: pnpm dist:stable
+      - name: Verify macOS update signature
+        if: matrix.platform == 'mac'
+        run: |
+          set -euo pipefail
+          application_paths="$(find builds/stable/mac -type d -name '*.app' -prune)"
+          if [[ -z "$application_paths" ]]; then
+            echo "::error::No packaged macOS application was found for signature verification."
+            exit 1
+          fi
+          while IFS= read -r application_path; do
+            signature_info="$(codesign --display --verbose=4 "$application_path" 2>&1)"
+            if ! grep -Fxq 'Identifier=day.faby.kawaikara' <<< "$signature_info"; then
+              echo "::error::Unexpected or linker-only signature on $application_path."
+              echo "$signature_info"
+              exit 1
+            fi
+            codesign --verify --deep --strict --verbose=2 "$application_path"
+          done <<< "$application_paths"
+      - name: Package built-in Provider Bundle
+        if: matrix.platform == 'mac'
+        run: >-
+          pnpm package:built-in-bundle --
+          "builds/stable/${{ matrix.output_os }}/kawaikara.builtin-sites.kawai"
+      - name: Collect Stable artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: stable-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            builds/stable/${{ matrix.output_os }}/*.dmg
+            builds/stable/${{ matrix.output_os }}/*.exe
+            builds/stable/${{ matrix.output_os }}/*.zip
+            builds/stable/${{ matrix.output_os }}/*.yml
+            builds/stable/${{ matrix.output_os }}/*.blockmap
+            builds/stable/${{ matrix.output_os }}/*.kawai
 
-            - name: Setup Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: '3.10'
-                  cache: 'pip'
-
-            - name: Install Python dependencies
-              run: pip install -r requirements.txt
-
-            - name: Install JS dependencies
-              # cache: 'yarn' in setup-node should handle caching, so we can directly install here
-              run: yarn install --immutable
-
-            - name: Test (reauth)
-              run: sh ./scripts/reauth.sh
-              env:
-                  ACCOUNT: ${{ secrets.ACCOUNT }}
-                  PASSWORD: ${{ secrets.PASSWD }}
-
-            - name: Build electron package
-              run: yarn release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_LINK: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC }}
-                  CSC_KEY_PASSWORD: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD }}
-                  DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-                  DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
-
-    # GENERAL electron packaging
-    electron-package-win:
-        needs: [warm-up-cache-win]
-        runs-on: windows-2022
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4 # v4 is the latest version as of June 2024
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '22.21.1'
-
-            - name: Enable Corepack
-              run: corepack enable
-
-            - name: Setup Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: '3.10'
-                  cache: 'pip'
-            - name: Install Python dependencies
-              run: pip install -r requirements.txt
-
-            - name: Install JS dependencies
-
-              # cache: 'yarn' in setup-node should handle caching, so we can directly install here
-              run: yarn install --immutable
-
-            - name: Test (reauth)
-              # powersell script for windows
-              run: powershell.exe ./scripts/reauth.ps1
-              env:
-                  ACCOUNT: ${{ secrets.ACCOUNT }}
-                  PASSWORD: ${{ secrets.PASSWD }}
-
-            - name: Repackage Windows signing certificate
-              shell: pwsh
-              env:
-                  WINDOWS_CERTIFICATE: ${{ secrets.SELF_SIGNED_CERT }}
-              run: |
-                  $ErrorActionPreference = 'Stop'
-
-                  $sourcePfx = Join-Path $env:RUNNER_TEMP 'kawaikara-source.p12'
-                  $pemBundle = Join-Path $env:RUNNER_TEMP 'kawaikara-signing.pem'
-                  $repackedPfx = Join-Path $env:RUNNER_TEMP 'kawaikara-signing.p12'
-
-                  $certificateBase64 = $env:WINDOWS_CERTIFICATE.Trim()
-                  $dataUrlMarker = 'base64,'
-                  $dataUrlIndex = $certificateBase64.IndexOf($dataUrlMarker)
-                  if ($dataUrlIndex -ge 0) {
-                      $certificateBase64 = $certificateBase64.Substring($dataUrlIndex + $dataUrlMarker.Length)
-                  }
-
-                  try {
-                      $certificateBytes = [Convert]::FromBase64String($certificateBase64)
-                  } catch {
-                      throw 'SELF_SIGNED_CERT is not a valid base64-encoded PKCS#12 file.'
-                  }
-                  if ($certificateBytes.Length -eq 0) {
-                      throw 'SELF_SIGNED_CERT decoded to an empty file.'
-                  }
-                  [IO.File]::WriteAllBytes($sourcePfx, $certificateBytes)
-
-                  $openSslCommand = Get-Command openssl -ErrorAction SilentlyContinue
-                  if ($null -ne $openSslCommand) {
-                      $openSsl = $openSslCommand.Source
-                  } else {
-                      $openSsl = 'C:\Program Files\Git\usr\bin\openssl.exe'
-                      if (-not (Test-Path -LiteralPath $openSsl -PathType Leaf)) {
-                          throw 'OpenSSL was not found on the Windows runner.'
-                      }
-                  }
-
-                  & $openSsl pkcs12 -in $sourcePfx -passin 'pass:' -nodes -out $pemBundle
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'OpenSSL could not open SELF_SIGNED_CERT with an empty password.'
-                  }
-
-                  & $openSsl pkey -in $pemBundle -noout
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'SELF_SIGNED_CERT does not contain an accessible private key.'
-                  }
-
-                  $passwordBytes = [byte[]]::new(32)
-                  [Security.Cryptography.RandomNumberGenerator]::Fill($passwordBytes)
-                  $repackedPassword = [Convert]::ToBase64String($passwordBytes)
-                  Write-Output "::add-mask::$repackedPassword"
-
-                  & $openSsl pkcs12 -export -in $pemBundle -out $repackedPfx -passout "pass:$repackedPassword" -name 'fabyday'
-                  if ($LASTEXITCODE -ne 0) {
-                      throw 'Failed to repackage the Windows signing certificate.'
-                  }
-
-                  "WIN_CSC_LINK=$repackedPfx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-                  "WIN_CSC_KEY_PASSWORD=$repackedPassword" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-            - name: Build electron package
-              run: yarn release
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
-                  DISCORD_PUB_KEY: ${{ secrets.DISCORD_PUB_KEY }}
+  draft:
+    name: Create Stable Draft
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: stable-*
+          path: release-assets
+          merge-multiple: true
+      - name: Write Stable source metadata
+        env:
+          KAWAIKARA_RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: main
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs metadata stable release-assets/stable-source.json
+      - name: Build Stable release notes
+        env:
+          KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          KAWAIKARA_SOURCE_BRANCH: main
+          KAWAIKARA_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: node scripts/channel-release.cjs notes stable "$RUNNER_TEMP/release-notes.md"
+      - name: Create tag and unpublished Stable Draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' assets < <(find release-assets -maxdepth 1 -type f -print0 | sort -z)
+          if (( ${#assets[@]} == 0 )); then
+            echo "::error::No Stable release assets were downloaded."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "Kawaikara $RELEASE_VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --draft \
+            --latest=false
+          release_url="$(gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          {
+            echo "## Stable Draft created"
+            echo ""
+            echo "[$RELEASE_TAG]($release_url) targets \`$SOURCE_SHA\`."
+            echo "Run **Publish Release Draft** after validating its assets."
+          } >> "$GITHUB_STEP_SUMMARY"

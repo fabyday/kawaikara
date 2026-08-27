@@ -1,0 +1,202 @@
+name: Publish Release Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel containing the Draft
+        required: true
+        default: staging
+        type: choice
+        options:
+          - nightly
+          - staging
+          - stable
+      tag:
+        description: Exact Draft tag, including the v prefix
+        required: true
+        type: string
+
+concurrency:
+  group: publish-draft-${{ inputs.channel }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.channel }} ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Resolve release repository
+        id: target
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          case "$CHANNEL" in
+            nightly) repository="Kawaikara/kawaikara-nightly" ;;
+            staging) repository="Kawaikara/kawaikara-staging" ;;
+            stable) repository="$GITHUB_REPOSITORY" ;;
+            *)
+              echo "::error::Unsupported release channel: $CHANNEL"
+              exit 1
+              ;;
+          esac
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve channel release credential
+        id: credential
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          RELEASE_APP_CLIENT_ID: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+          STABLE_RELEASE_TOKEN: ${{ secrets.STABLE_RELEASE_TOKEN }}
+          STAGING_RELEASE_TOKEN: ${{ secrets.STAGING_RELEASE_TOKEN }}
+          SOURCE_REPOSITORY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          case "$CHANNEL" in
+            nightly) release_token="$NIGHTLY_RELEASE_TOKEN" ;;
+            staging) release_token="$STAGING_RELEASE_TOKEN" ;;
+            stable) release_token="${STABLE_RELEASE_TOKEN:-$SOURCE_REPOSITORY_TOKEN}" ;;
+          esac
+          if [[ "$CHANNEL" == "stable" ]]; then
+            echo "::add-mask::$release_token"
+            echo "CHANNEL_RELEASE_TOKEN=$release_token" >> "$GITHUB_ENV"
+            echo "use_release_app=false" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$RELEASE_APP_CLIENT_ID" && -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "use_release_app=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$RELEASE_APP_CLIENT_ID" || -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "::error::Both KAWAIKARA_RELEASE_APP_CLIENT_ID and KAWAIKARA_RELEASE_APP_PRIVATE_KEY are required when using the release App."
+            exit 1
+          elif [[ -n "$release_token" ]]; then
+            echo "::add-mask::$release_token"
+            echo "CHANNEL_RELEASE_TOKEN=$release_token" >> "$GITHUB_ENV"
+            echo "use_release_app=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Configure the release App or the channel-specific release token for $CHANNEL."
+            exit 1
+          fi
+
+      - name: Create release App token
+        id: release-app
+        if: steps.credential.outputs.use_release_app == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kawaikara
+          repositories: ${{ inputs.channel == 'nightly' && 'kawaikara-nightly' || 'kawaikara-staging' }}
+          permission-contents: write
+
+      - name: Configure writable release credential
+        env:
+          RELEASE_APP_TOKEN: ${{ steps.release-app.outputs.token }}
+        run: |
+          set -euo pipefail
+          release_token="${CHANNEL_RELEASE_TOKEN:-$RELEASE_APP_TOKEN}"
+          [[ -n "$release_token" ]] || {
+            echo "::error::No release credential is available for ${{ inputs.channel }}."
+            exit 1
+          }
+          echo "::add-mask::$release_token"
+          echo "GH_TOKEN=$release_token" >> "$GITHUB_ENV"
+
+      - name: Validate unpublished Draft
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
+        run: |
+          set -euo pipefail
+          case "$CHANNEL" in
+            stable) tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$' ;;
+            staging) tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-staging\.[0-9]{8}\.[0-9]+\.[0-9]+\.g[0-9a-f]+$' ;;
+            nightly) tag_pattern='^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}\.[0-9]+\.[0-9]+\.g[0-9a-f]+$' ;;
+          esac
+          if [[ ! "$RELEASE_TAG" =~ $tag_pattern ]]; then
+            echo "::error::Release tag does not match the generated $CHANNEL format. Got: $RELEASE_TAG"
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" \
+            --repo "$TARGET_REPOSITORY" \
+            --json tagName,isDraft,isPrerelease,targetCommitish,url,assets \
+            > "$RUNNER_TEMP/release.json"
+          CHANNEL="$CHANNEL" RELEASE_TAG="$RELEASE_TAG" node <<'NODE'
+          const fs = require('node:fs');
+          const release = JSON.parse(fs.readFileSync(
+            process.env.RUNNER_TEMP + '/release.json',
+            'utf8',
+          ));
+          const expectedPrerelease = process.env.CHANNEL !== 'stable';
+          if (release.tagName !== process.env.RELEASE_TAG) {
+            throw new Error(`Draft tag mismatch: ${release.tagName}`);
+          }
+          if (!release.isDraft) {
+            throw new Error(`${release.tagName} is already published.`);
+          }
+          if (release.isPrerelease !== expectedPrerelease) {
+            throw new Error(
+              `${release.tagName} prerelease state does not match ${process.env.CHANNEL}.`,
+            );
+          }
+          if (
+            process.env.CHANNEL !== 'stable' &&
+            release.targetCommitish !== process.env.CHANNEL
+          ) {
+            throw new Error(
+              `${release.tagName} targets ${release.targetCommitish}, not the ${process.env.CHANNEL} anchor.`,
+            );
+          }
+          const updaterChannel = process.env.CHANNEL === 'stable'
+            ? 'latest'
+            : process.env.CHANNEL;
+          const assetNames = new Set(release.assets.map((asset) => asset.name));
+          for (const requiredAsset of [
+            `${updaterChannel}-mac.yml`,
+            `${updaterChannel}.yml`,
+          ]) {
+            if (!assetNames.has(requiredAsset)) {
+              throw new Error(`${release.tagName} is missing ${requiredAsset}.`);
+            }
+          }
+          NODE
+
+      - name: Publish verified Draft
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
+        run: |
+          set -euo pipefail
+          publish_args=(--draft=false)
+          if [[ "$CHANNEL" == "stable" ]]; then
+            publish_args+=(--latest)
+          else
+            publish_args+=(--latest=false)
+          fi
+          gh release edit "$RELEASE_TAG" \
+            --repo "$TARGET_REPOSITORY" \
+            "${publish_args[@]}"
+
+          expected_prerelease="$([[ "$CHANNEL" == "stable" ]] && echo false || echo true)"
+          release_state="$(gh release view "$RELEASE_TAG" \
+            --repo "$TARGET_REPOSITORY" \
+            --json isDraft,isPrerelease,url \
+            --jq '[.isDraft, .isPrerelease, .url] | @tsv')"
+          IFS=$'\t' read -r is_draft is_prerelease release_url <<< "$release_state"
+          if [[ "$is_draft" != "false" || "$is_prerelease" != "$expected_prerelease" ]]; then
+            echo "::error::Release did not publish in the expected $CHANNEL state."
+            exit 1
+          fi
+          {
+            echo "## Release published"
+            echo ""
+            echo "[$RELEASE_TAG]($release_url) is now available on the $CHANNEL channel."
+          } >> "$GITHUB_STEP_SUMMARY"

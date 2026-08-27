@@ -25,9 +25,29 @@ on:
         required: false
         default: false
         type: boolean
+      draft:
+        required: false
+        default: false
+        type: boolean
     secrets:
       KAWAIKARA_RELEASE_APP_PRIVATE_KEY:
+        required: false
+      NIGHTLY_RELEASE_TOKEN:
+        required: false
+      STAGING_RELEASE_TOKEN:
+        required: false
+      ACCOUNT:
         required: true
+      PASSWD:
+        required: true
+      DISCORD_APP_ID:
+        required: true
+      SELF_SIGNED_CERT:
+        required: true
+      SELF_SIGNED_CERT_FOR_MAC:
+        required: true
+      SELF_SIGNED_CERT_FOR_MAC_PASSWD:
+        required: false
 
 concurrency:
   group: publish-${{ inputs.channel }}
@@ -115,8 +135,38 @@ jobs:
           fi
           echo "repository=$repository" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve channel release credential
+        id: credential
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          RELEASE_APP_CLIENT_ID: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+          STAGING_RELEASE_TOKEN: ${{ secrets.STAGING_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANNEL" == "nightly" ]]; then
+            release_token="$NIGHTLY_RELEASE_TOKEN"
+          else
+            release_token="$STAGING_RELEASE_TOKEN"
+          fi
+          if [[ -n "$RELEASE_APP_CLIENT_ID" && -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "use_release_app=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$RELEASE_APP_CLIENT_ID" || -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "::error::Both KAWAIKARA_RELEASE_APP_CLIENT_ID and KAWAIKARA_RELEASE_APP_PRIVATE_KEY are required when using the release App."
+            exit 1
+          elif [[ -n "$release_token" ]]; then
+            echo "::add-mask::$release_token"
+            echo "CHANNEL_RELEASE_TOKEN=$release_token" >> "$GITHUB_ENV"
+            echo "use_release_app=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Configure the release App or the channel-specific release token for $CHANNEL."
+            exit 1
+          fi
+
       - name: Create read-only release App token
         id: release-app
+        if: steps.credential.outputs.use_release_app == 'true'
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
@@ -125,9 +175,21 @@ jobs:
           repositories: ${{ inputs.channel == 'nightly' && 'kawaikara-nightly' || 'kawaikara-staging' }}
           permission-contents: read
 
+      - name: Configure read-only release credential
+        env:
+          RELEASE_APP_TOKEN: ${{ steps.release-app.outputs.token }}
+        run: |
+          set -euo pipefail
+          release_token="${CHANNEL_RELEASE_TOKEN:-$RELEASE_APP_TOKEN}"
+          [[ -n "$release_token" ]] || {
+            echo "::error::No release credential is available for ${{ inputs.channel }}."
+            exit 1
+          }
+          echo "::add-mask::$release_token"
+          echo "GH_TOKEN=$release_token" >> "$GITHUB_ENV"
+
       - name: Validate target repository
         env:
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
           TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
         run: |
           set -euo pipefail
@@ -149,7 +211,6 @@ jobs:
         id: duplicate
         env:
           FORCE_BUILD: ${{ inputs.force }}
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
           SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
           TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
         run: |
@@ -196,6 +257,22 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
+      - name: Validate package credentials
+        run: |
+          set -euo pipefail
+          for variable in CODE_SIGN_CERT DISCORD_CLIENT_ID WIDEVINE_ACCOUNT WIDEVINE_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Required ${variable} credential is missing for the ${CHANNEL} ${PLATFORM} package."
+              exit 1
+            fi
+          done
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          PLATFORM: ${{ matrix.platform }}
+          CODE_SIGN_CERT: ${{ matrix.platform == 'mac' && secrets.SELF_SIGNED_CERT_FOR_MAC || secrets.SELF_SIGNED_CERT }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_APP_ID }}
+          WIDEVINE_ACCOUNT: ${{ secrets.ACCOUNT }}
+          WIDEVINE_PASSWORD: ${{ secrets.PASSWD }}
       - uses: pnpm/action-setup@v5
         with:
           version: 10.33.0
@@ -203,7 +280,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.10'
           cache: pip
@@ -236,10 +313,40 @@ jobs:
           DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
           KAWAIKARA_EVS_NONINTERACTIVE: '1'
           KAWAIKARA_PUBLISH_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
+          KAWAIKARA_REQUIRE_CODE_SIGNING: '1'
           KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: pnpm run "dist:${CHANNEL}"
+      - name: Verify macOS update signature
+        if: matrix.platform == 'mac'
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          case "$CHANNEL" in
+            nightly) expected_identifier="day.faby.kawaikara.nightly" ;;
+            staging) expected_identifier="day.faby.kawaikara.staging" ;;
+          esac
+          application_paths="$(find "builds/$CHANNEL/mac" -type d -name '*.app' -prune)"
+          if [[ -z "$application_paths" ]]; then
+            echo "::error::No packaged macOS application was found for signature verification."
+            exit 1
+          fi
+          while IFS= read -r application_path; do
+            signature_info="$(codesign --display --verbose=4 "$application_path" 2>&1)"
+            if ! grep -Fxq "Identifier=$expected_identifier" <<< "$signature_info"; then
+              echo "::error::Unexpected or linker-only signature on $application_path."
+              echo "$signature_info"
+              exit 1
+            fi
+            codesign --verify --deep --strict --verbose=2 "$application_path"
+          done <<< "$application_paths"
+      - name: Package built-in Provider Bundle
+        if: matrix.platform == 'mac'
+        run: >-
+          pnpm package:built-in-bundle --
+          "builds/${{ inputs.channel }}/${{ matrix.output_os }}/kawaikara.builtin-sites.kawai"
       - name: Collect release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.channel }}-${{ matrix.platform }}
           if-no-files-found: error
@@ -250,9 +357,10 @@ jobs:
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.zip
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.yml
             builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.blockmap
+            builds/${{ inputs.channel }}/${{ matrix.output_os }}/*.kawai
 
   publish:
-    name: Publish ${{ inputs.channel }} release
+    name: ${{ inputs.draft && 'Create' || 'Publish' }} ${{ inputs.channel }} release
     needs: [prepare, package]
     runs-on: ubuntu-latest
     permissions:
@@ -262,13 +370,42 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: ${{ inputs.channel }}-*
           path: release-assets
           merge-multiple: true
+      - name: Resolve channel release credential
+        id: credential
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          RELEASE_APP_CLIENT_ID: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.KAWAIKARA_RELEASE_APP_PRIVATE_KEY }}
+          NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+          STAGING_RELEASE_TOKEN: ${{ secrets.STAGING_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANNEL" == "nightly" ]]; then
+            release_token="$NIGHTLY_RELEASE_TOKEN"
+          else
+            release_token="$STAGING_RELEASE_TOKEN"
+          fi
+          if [[ -n "$RELEASE_APP_CLIENT_ID" && -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "use_release_app=true" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$RELEASE_APP_CLIENT_ID" || -n "$RELEASE_APP_PRIVATE_KEY" ]]; then
+            echo "::error::Both KAWAIKARA_RELEASE_APP_CLIENT_ID and KAWAIKARA_RELEASE_APP_PRIVATE_KEY are required when using the release App."
+            exit 1
+          elif [[ -n "$release_token" ]]; then
+            echo "::add-mask::$release_token"
+            echo "CHANNEL_RELEASE_TOKEN=$release_token" >> "$GITHUB_ENV"
+            echo "use_release_app=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Configure the release App or the channel-specific release token for $CHANNEL."
+            exit 1
+          fi
       - name: Create release App token
         id: release-app
+        if: steps.credential.outputs.use_release_app == 'true'
         uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.KAWAIKARA_RELEASE_APP_CLIENT_ID }}
@@ -276,17 +413,34 @@ jobs:
           owner: Kawaikara
           repositories: ${{ inputs.channel == 'nightly' && 'kawaikara-nightly' || 'kawaikara-staging' }}
           permission-contents: write
+      - name: Configure writable release credential
+        env:
+          RELEASE_APP_TOKEN: ${{ steps.release-app.outputs.token }}
+        run: |
+          set -euo pipefail
+          release_token="${CHANNEL_RELEASE_TOKEN:-$RELEASE_APP_TOKEN}"
+          [[ -n "$release_token" ]] || {
+            echo "::error::No release credential is available for ${{ inputs.channel }}."
+            exit 1
+          }
+          echo "::add-mask::$release_token"
+          echo "GH_TOKEN=$release_token" >> "$GITHUB_ENV"
       - name: Resolve release App bot identity
         id: release-app-user
         env:
           APP_SLUG: ${{ steps.release-app.outputs.app-slug }}
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
         run: |
           set -euo pipefail
-          app_user="${APP_SLUG}[bot]"
-          app_user_id="$(gh api "/users/${app_user}" --jq .id)"
+          if [[ -n "$APP_SLUG" ]]; then
+            app_user="${APP_SLUG}[bot]"
+            app_user_id="$(gh api "/users/${app_user}" --jq .id)"
+            app_email="${app_user_id}+${app_user}@users.noreply.github.com"
+          else
+            app_user="github-actions[bot]"
+            app_email="41898282+github-actions[bot]@users.noreply.github.com"
+          fi
           echo "name=$app_user" >> "$GITHUB_OUTPUT"
-          echo "email=${app_user_id}+${app_user}@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+          echo "email=$app_email" >> "$GITHUB_OUTPUT"
       - name: Write source metadata
         env:
           KAWAIKARA_CREATED_AT: ${{ needs.prepare.outputs.created_at }}
@@ -300,7 +454,6 @@ jobs:
           CHANNEL: ${{ inputs.channel }}
           APP_BOT_EMAIL: ${{ steps.release-app-user.outputs.email }}
           APP_BOT_NAME: ${{ steps.release-app-user.outputs.name }}
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           SOURCE_METADATA: ${{ runner.temp }}/channel-source.json
           TARGET_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
@@ -336,7 +489,7 @@ jobs:
       - name: Publish GitHub Release
         env:
           CHANNEL: ${{ inputs.channel }}
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
+          CREATE_DRAFT: ${{ inputs.draft }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           SOURCE_BRANCH: ${{ needs.prepare.outputs.source_branch }}
@@ -351,16 +504,19 @@ jobs:
             echo "::error::No release assets were downloaded."
             exit 1
           fi
+          release_args=(--prerelease)
+          if [[ "$CREATE_DRAFT" == "true" ]]; then
+            release_args+=(--draft)
+          fi
           gh release create "$RELEASE_TAG" "${assets[@]}" \
             --repo "$TARGET_REPOSITORY" \
             --target "$CHANNEL" \
             --title "Kawaikara ${CHANNEL^} ${RELEASE_VERSION}" \
             --notes-file "$notes" \
-            --prerelease
+            "${release_args[@]}"
       - name: Retain the newest ten Nightly releases
-        if: inputs.channel == 'nightly'
+        if: inputs.channel == 'nightly' && !inputs.draft
         env:
-          GH_TOKEN: ${{ steps.release-app.outputs.token }}
           TARGET_REPOSITORY: ${{ needs.prepare.outputs.target_repository }}
         run: |
           set -euo pipefail

@@ -1,75 +1,84 @@
-name : update Home brew 
+name: Update Homebrew
+
 on:
-  release: 
+  release:
     types: [published]
 
+permissions:
+  contents: read
 
 jobs:
   update:
+    name: Update Stable cask
+    if: github.event.release.draft == false && github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name : "Extract Version and SHA"
-        id: kawai_meta
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Resolve Stable downloads and checksums
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-            VERSION="${GITHUB_REF#refs/tags/v}"
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-            ARM_URL="https://github.com/fabyday/kawaikara/releases/download/v$VERSION/kawaikara-$VERSION-arm64-mac.zip"
-            INTEL_URL="https://github.com/fabyday/kawaikara/releases/download/v$VERSION/kawaikara-$VERSION-mac.zip"
-            
-            echo "arm_url=$ARM_URL" >> $GITHUB_OUTPUT
-            echo "intel_url=$INTEL_URL" >> $GITHUB_OUTPUT
-            
-            
-            curl -L -o arm64.zip $ARM_URL
-            curl -L -o intel.zip $INTEL_URL
-            echo "arm_sha=$(shasum -a 256 arm64.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
-            echo "intel_sha=$(shasum -a 256 intel.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Stable release tag must use vX.Y.Z format. Got: $RELEASE_TAG"
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          arm_url="https://github.com/fabyday/kawaikara/releases/download/$RELEASE_TAG/Kawaikara-mac-arm64.zip"
+          intel_url="https://github.com/fabyday/kawaikara/releases/download/$RELEASE_TAG/Kawaikara-mac-x64.zip"
 
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/kawaikara-arm64.zip" "$arm_url"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/kawaikara-x64.zip" "$intel_url"
 
+          {
+            echo "version=$version"
+            echo "arm_url=$arm_url"
+            echo "intel_url=$intel_url"
+            echo "arm_sha=$(shasum -a 256 "$RUNNER_TEMP/kawaikara-arm64.zip" | awk '{print $1}')"
+            echo "intel_sha=$(shasum -a 256 "$RUNNER_TEMP/kawaikara-x64.zip" | awk '{print $1}')"
+          } >> "$GITHUB_OUTPUT"
 
-
-      - name: Checkout Tap 
-        uses: actions/checkout@v4
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6
         with:
-            repository: fabyday/homebrew-kawaikara
-            token: ${{ secrets.HOMEBREW_KAWAIKARA_REPO_TOKEN }}
-            path: tap
-        
+          repository: fabyday/homebrew-kawaikara
+          token: ${{ secrets.HOMEBREW_KAWAIKARA_REPO_TOKEN }}
+          path: tap
 
-      - name: Update Cask file
+      - name: Render cask
+        working-directory: tap
+        env:
+          ARM_SHA: ${{ steps.release.outputs.arm_sha }}
+          ARM_URL: ${{ steps.release.outputs.arm_url }}
+          INTEL_SHA: ${{ steps.release.outputs.intel_sha }}
+          INTEL_URL: ${{ steps.release.outputs.intel_url }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-            cd tap
+          set -euo pipefail
+          cp .github/templates/kawaikara.rb.template Casks/kawaikara.rb
+          sed -i "s#__ARM_SHA__#${ARM_SHA}#g" Casks/kawaikara.rb
+          sed -i "s#__ARM_URL__#${ARM_URL}#g" Casks/kawaikara.rb
+          sed -i "s#__INTEL_SHA__#${INTEL_SHA}#g" Casks/kawaikara.rb
+          sed -i "s#__INTEL_URL__#${INTEL_URL}#g" Casks/kawaikara.rb
+          sed -i "s#__VERSION__#${VERSION}#g" Casks/kawaikara.rb
+          sed -i 's#__VERIFIED__#github.com/fabyday/kawaikara/#g' Casks/kawaikara.rb
+          cp Casks/kawaikara.rb "Casks/kawaikara@${VERSION}.rb"
 
-            cp .github/templates/kawaikara.rb.template Casks/kawaikara.rb
-
-
-            VERSION=${{steps.kawai_meta.outputs.version}}
-            VERIFIED="github.com/fabyday/kawaikara/"
-            INTEL_SHA=${{steps.kawai_meta.outputs.intel_sha}}
-            INTEL_URL=${{steps.kawai_meta.outputs.intel_url}}
-            ARM_SHA=${{steps.kawai_meta.outputs.arm_sha}}
-            ARM_URL=${{steps.kawai_meta.outputs.arm_url}}
-
-            sed -i "s#__ARM_SHA__#${ARM_SHA}#g" Casks/kawaikara.rb
-            sed -i "s#__ARM_URL__#${ARM_URL}#g" Casks/kawaikara.rb
-            sed -i "s#__INTEL_SHA__#${INTEL_SHA}#g" Casks/kawaikara.rb
-            sed -i "s#__INTEL_URL__#${INTEL_URL}#g" Casks/kawaikara.rb
-
-            sed -i "s#__VERSION__#${VERSION}#g" Casks/kawaikara.rb
-            sed -i "s#__VERIFIED__#${VERIFIED}#g" Casks/kawaikara.rb
-            
-            cp Casks/kawaikara.rb Casks/kawaikara@${VERSION}.rb
-
-
-      - name: "Commit and Push changes"
+      - name: Commit Homebrew update
+        working-directory: tap
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-            cd tap
-            git config user.name "github-actions[bot]"
-            git config user.email "actions@github.com"
-            git add Casks/kawaikara.rb Casks/kawaikara@${{steps.kawai_meta.outputs.version}}.rb
-            git commit -m "Update cask to version ${{steps.kawai_meta.outputs.version}}"
-            git push origin main
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/kawaikara.rb "Casks/kawaikara@${VERSION}.rb"
+          if git diff --cached --quiet; then
+            echo "Homebrew cask is already up to date for $VERSION." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "Update cask to version $VERSION"
+          git push origin HEAD:main

@@ -7,9 +7,9 @@ on:
         description: Optional dev commit SHA; defaults to the latest dev commit
         required: false
         type: string
-      base_version:
-        description: Optional x.y.z base version
-        required: false
+      version:
+        description: Required x.y.z base version for the Staging release
+        required: true
         type: string
       force:
         description: Publish another Staging build from an already-published commit
@@ -24,7 +24,8 @@ jobs:
       channel: staging
       source_branch: dev
       source_sha: ${{ github.event.inputs.source_sha }}
-      base_version: ${{ github.event.inputs.base_version }}
+      base_version: ${{ github.event.inputs.version }}
       use_kst_cutoff: false
       force: ${{ github.event.inputs.force == 'true' }}
+      draft: true
     secrets: inherit
