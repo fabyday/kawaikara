@@ -9,50 +9,6 @@
   "contributes": {
     "address": { "hosts": ["youtube.com", "youtu.be"] },
     "shortcut": { "defaultKey": "Control+Alt+5" },
-    "settings": {
-      "categories": [
-        {
-          "id": "shorts",
-          "title": { "en-US": "Shorts", "ko-KR": "쇼츠", "ja-JP": "Shorts" },
-          "description": {
-            "en-US": "Control Shorts playback and publishers hidden from the feed.",
-            "ko-KR": "쇼츠 재생과 피드에서 숨길 게시자를 관리합니다.",
-            "ja-JP": "Shorts の再生とフィードから非表示にする投稿者を管理します。"
-          },
-          "settings": [
-            {
-              "type": "boolean",
-              "key": "short-form-video.auto-advance",
-              "title": {
-                "en-US": "Play the next Short automatically",
-                "ko-KR": "다음 쇼츠 자동 재생",
-                "ja-JP": "次の Shorts を自動再生"
-              },
-              "defaultValue": true
-            },
-            {
-              "type": "item-list",
-              "key": "short-form-video.banned-publishers",
-              "title": {
-                "en-US": "Banned publishers",
-                "ko-KR": "차단한 게시자",
-                "ja-JP": "ブロックした投稿者"
-              },
-              "description": {
-                "en-US": "Shorts from these publishers are skipped automatically.",
-                "ko-KR": "이 게시자의 쇼츠는 자동으로 건너뜁니다.",
-                "ja-JP": "これらの投稿者の Shorts は自動的にスキップされます。"
-              },
-              "emptyText": {
-                "en-US": "No publishers are banned.",
-                "ko-KR": "차단한 게시자가 없습니다.",
-                "ja-JP": "ブロックした投稿者はいません。"
-              }
-            }
-          ]
-        }
-      ]
-    },
     "shortFormVideo": {
       "previous": true,
       "next": true,
@@ -64,7 +20,9 @@
         "settingKey": "short-form-video.banned-publishers"
       }
     },
+    "pictureInPicture": { "enabled": true },
     "locale": {
+      "resource": "locale.json",
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },

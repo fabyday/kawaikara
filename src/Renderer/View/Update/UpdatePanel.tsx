@@ -15,18 +15,29 @@ import type {
 } from '../../../Common/IPC';
 import kawaikaraImage from '../../../../imgs/kawaikara_banner2.png';
 
+/** Describes the update panel props contract. */
 export interface UpdatePanelProps {
+  /** The state value. */
   readonly state: ApplicationUpdatePanelState;
+  /** The locale value. */
   readonly locale?: AppLocale | string;
+  /** Callback used to handle on dismiss. */
   readonly onDismiss: () => void;
+  /** Callback used to handle on download. */
   readonly onDownload: () => void | Promise<void>;
+  /** Callback used to handle on install. */
   readonly onInstall: () => void | Promise<void>;
+  /** Callback used to handle on retry. */
   readonly onRetry: () => void | Promise<void>;
+  /** The initial view value. */
   readonly initialView?: 'status' | 'release-notes';
+  /** The view value. */
   readonly view?: 'status' | 'release-notes';
+  /** Callback used to handle on view change. */
   readonly onViewChange?: (view: 'status' | 'release-notes') => void;
 }
 
+/** Updates the panel. */
 export function UpdatePanel({
   state,
   locale = 'en-US',
@@ -56,6 +67,7 @@ export function UpdatePanel({
     if (controlledView === undefined) setInternalView(initialView);
   }, [controlledView, initialView, releaseIdentity]);
 
+  /** Sets the view. */
   const setView = (nextView: 'status' | 'release-notes') => {
     if (controlledView === undefined) setInternalView(nextView);
     onViewChange?.(nextView);
@@ -139,50 +151,87 @@ export function UpdatePanel({
   );
 }
 
+/** Describes the update panel labels contract. */
 interface UpdatePanelLabels {
+  /** The channel value. */
   readonly channel: string;
+  /** The stable value. */
   readonly stable: string;
+  /** The staging value. */
   readonly staging: string;
+  /** The nightly value. */
   readonly nightly: string;
+  /** The checking title value. */
   readonly checkingTitle: string;
+  /** The checking description value. */
   readonly checkingDescription: string;
+  /** Whether the available title option is enabled. */
   readonly availableTitle: string;
+  /** Whether the available description option is enabled. */
   readonly availableDescription: string;
+  /** The downloading title value. */
   readonly downloadingTitle: string;
+  /** The downloading description value. */
   readonly downloadingDescription: string;
+  /** The downloaded title value. */
   readonly downloadedTitle: string;
+  /** The downloaded description value. */
   readonly downloadedDescription: string;
+  /** The automatic restart description value. */
   readonly automaticRestartDescription: string;
+  /** The current title value. */
   readonly currentTitle: string;
+  /** The current description value. */
   readonly currentDescription: string;
+  /** The unsupported title value. */
   readonly unsupportedTitle: string;
+  /** The unsupported description value. */
   readonly unsupportedDescription: string;
+  /** The error title value. */
   readonly errorTitle: string;
+  /** The error description value. */
   readonly errorDescription: string;
+  /** The release notes value. */
   readonly releaseNotes: string;
+  /** The no release notes value. */
   readonly noReleaseNotes: string;
+  /** The current version value. */
   readonly currentVersion: string;
+  /** The next version value. */
   readonly nextVersion: string;
+  /** The download value. */
   readonly download: string;
+  /** The restart value. */
   readonly restart: string;
+  /** The retry value. */
   readonly retry: string;
+  /** The close value. */
   readonly close: string;
+  /** The later value. */
   readonly later: string;
+  /** The back value. */
   readonly back: string;
+  /** The release notes description value. */
   readonly releaseNotesDescription: string;
 }
 
+/** Updates the release notes view. */
 function UpdateReleaseNotesView({
   labels,
   notes,
   state,
   onBack,
 }: {
+  /** The labels value. */
   readonly labels: UpdatePanelLabels;
+  /** The notes value. */
   readonly notes: string;
+  /** The state value. */
   readonly state: ApplicationUpdatePanelState;
+  /** Callback used to handle on back. */
   readonly onBack: () => void;
-}) {
+}
+) {
   return (
     <main className={`update-shell is-${state.origin}`}>
       <Panel
@@ -224,7 +273,12 @@ function UpdateReleaseNotesView({
   );
 }
 
-function ReleaseNotesContent({ notes }: { readonly notes: string }) {
+/** Performs the release notes content operation. */
+function ReleaseNotesContent({ notes }: {
+  /** The notes value. */
+  readonly notes: string;
+}
+) {
   return (
     <div className="update-release-notes-copy">
       {notes.split(/\r?\n/).map((line, index) => {
@@ -249,6 +303,7 @@ function ReleaseNotesContent({ notes }: { readonly notes: string }) {
   );
 }
 
+/** Updates the actions. */
 function UpdateActions({
   labels,
   origin,
@@ -258,14 +313,22 @@ function UpdateActions({
   onInstall,
   onRetry,
 }: {
+  /** The labels value. */
   readonly labels: UpdatePanelLabels;
+  /** The origin value. */
   readonly origin: ApplicationUpdatePanelState['origin'];
+  /** The phase value. */
   readonly phase: ApplicationUpdatePanelState['phase'];
+  /** Callback used to handle on dismiss. */
   readonly onDismiss: () => void;
+  /** Callback used to handle on download. */
   readonly onDownload: () => void | Promise<void>;
+  /** Callback used to handle on install. */
   readonly onInstall: () => void | Promise<void>;
+  /** Callback used to handle on retry. */
   readonly onRetry: () => void | Promise<void>;
-}) {
+}
+) {
   if (phase === 'available') {
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
@@ -306,6 +369,7 @@ function UpdateActions({
   );
 }
 
+/** Returns the progress value. */
 function getProgressValue(state: ApplicationUpdatePanelState): number | null {
   if (state.phase === 'checking') return null;
   if (state.phase === 'downloading') return state.progress?.percent ?? 0;
@@ -313,33 +377,67 @@ function getProgressValue(state: ApplicationUpdatePanelState): number | null {
   return 0;
 }
 
+/** Returns the phase copy. */
 function getPhaseCopy(
   state: ApplicationUpdatePanelState,
   labels: UpdatePanelLabels,
 ) {
   switch (state.phase) {
     case 'checking':
-      return { title: labels.checkingTitle, description: labels.checkingDescription };
+      return {
+        /** The title value. */
+        title: labels.checkingTitle,
+        /** The description value. */
+        description: labels.checkingDescription,
+      };
     case 'available':
-      return { title: labels.availableTitle, description: labels.availableDescription };
+      return {
+        /** The title value. */
+        title: labels.availableTitle,
+        /** The description value. */
+        description: labels.availableDescription,
+      };
     case 'downloading':
-      return { title: labels.downloadingTitle, description: labels.downloadingDescription };
+      return {
+        /** The title value. */
+        title: labels.downloadingTitle,
+        /** The description value. */
+        description: labels.downloadingDescription,
+      };
     case 'downloaded':
       return {
+        /** The title value. */
         title: labels.downloadedTitle,
+        /** The description value. */
         description: state.origin === 'automatic'
           ? labels.automaticRestartDescription
           : labels.downloadedDescription,
       };
     case 'up-to-date':
-      return { title: labels.currentTitle, description: labels.currentDescription };
+      return {
+        /** The title value. */
+        title: labels.currentTitle,
+        /** The description value. */
+        description: labels.currentDescription,
+      };
     case 'unsupported':
-      return { title: labels.unsupportedTitle, description: labels.unsupportedDescription };
+      return {
+        /** The title value. */
+        title: labels.unsupportedTitle,
+        /** The description value. */
+        description: labels.unsupportedDescription,
+      };
     case 'error':
-      return { title: labels.errorTitle, description: labels.errorDescription };
+      return {
+        /** The title value. */
+        title: labels.errorTitle,
+        /** The description value. */
+        description: labels.errorDescription,
+      };
   }
 }
 
+/** Performs the version summary operation. */
 function versionSummary(
   state: ApplicationUpdatePanelState,
   labels: UpdatePanelLabels,
@@ -350,6 +448,7 @@ function versionSummary(
     : current;
 }
 
+/** Formats the channel. */
 function formatChannel(
   channel: ApplicationUpdatePanelState['channel'],
   labels: UpdatePanelLabels,
@@ -357,10 +456,12 @@ function formatChannel(
   return labels[channel];
 }
 
+/** Formats the progress. */
 function formatProgress(value: number): string {
   return `${Math.round(Math.max(0, Math.min(100, value)))}%`;
 }
 
+/** Formats the bytes. */
 function formatBytes(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -369,6 +470,7 @@ function formatBytes(value: number): string {
   return `${amount >= 10 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
 }
 
+/** Selects the localized release notes. */
 function selectLocalizedReleaseNotes(
   value: string | undefined,
   locale: AppLocale | string,
@@ -391,6 +493,7 @@ function selectLocalizedReleaseNotes(
     : normalizedLocale.startsWith('ja')
       ? '日本語'
       : 'English';
+  /** Collects the operation. */
   const collect = (language: string) => sections.flatMap((section, index) => {
     if (section[1].trim().toLowerCase() !== language.toLowerCase()) return [];
     const start = (section.index ?? 0) + section[0].length;
@@ -403,6 +506,7 @@ function selectLocalizedReleaseNotes(
   return selected.join('\n\n').trim() || notes;
 }
 
+/** Performs the plain markdown operation. */
 function plainMarkdown(value: string): string {
   return value
     .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
@@ -410,58 +514,197 @@ function plainMarkdown(value: string): string {
     .trim();
 }
 
+/** Returns the update panel labels. */
 function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
   const normalized = locale.toLowerCase();
   if (normalized.startsWith('ko')) {
     return {
-      channel: '채널', stable: 'Stable', staging: 'Staging', nightly: 'Nightly',
-      checkingTitle: '업데이트 확인 중', checkingDescription: 'Kawaikara의 새 버전을 확인하고 있습니다.',
-      availableTitle: '새 업데이트가 있습니다', availableDescription: '준비가 되면 업데이트를 다운로드할 수 있습니다.',
-      downloadingTitle: '업데이트 다운로드 중', downloadingDescription: 'Kawaikara를 계속 사용해도 됩니다.',
-      downloadedTitle: '업데이트 준비 완료', downloadedDescription: '앱을 다시 시작하면 업데이트가 적용됩니다.',
+      /** The channel value. */
+      channel: '채널',
+        /** The stable value. */
+        stable: 'Stable',
+        /** The staging value. */
+        staging: 'Staging',
+        /** The nightly value. */
+        nightly: 'Nightly',
+      /** The checking title value. */
+      checkingTitle: '업데이트 확인 중',
+        /** The checking description value. */
+        checkingDescription: 'Kawaikara의 새 버전을 확인하고 있습니다.',
+      /** Whether the available title option is enabled. */
+      availableTitle: '새 업데이트가 있습니다',
+        /** Whether the available description option is enabled. */
+        availableDescription: '준비가 되면 업데이트를 다운로드할 수 있습니다.',
+      /** The downloading title value. */
+      downloadingTitle: '업데이트 다운로드 중',
+        /** The downloading description value. */
+        downloadingDescription: 'Kawaikara를 계속 사용해도 됩니다.',
+      /** The downloaded title value. */
+      downloadedTitle: '업데이트 준비 완료',
+        /** The downloaded description value. */
+        downloadedDescription: '앱을 다시 시작하면 업데이트가 적용됩니다.',
+      /** The automatic restart description value. */
       automaticRestartDescription: '업데이트를 적용하기 위해 Kawaikara를 다시 시작합니다.',
-      currentTitle: '최신 버전입니다', currentDescription: '현재 채널에 설치할 업데이트가 없습니다.',
-      unsupportedTitle: '개발 빌드에서는 확인할 수 없습니다', unsupportedDescription: '패키징된 Kawaikara에서 업데이트를 확인해 주세요.',
-      errorTitle: '업데이트를 확인하지 못했습니다', errorDescription: '네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
-      releaseNotes: '업데이트 내역', noReleaseNotes: '제공된 업데이트 내역이 없습니다.',
-      currentVersion: '현재', nextVersion: '업데이트', download: '업데이트 다운로드',
-      restart: '다시 시작하고 업데이트', retry: '다시 확인', close: '닫기', later: '나중에',
+      /** The current title value. */
+      currentTitle: '최신 버전입니다',
+        /** The current description value. */
+        currentDescription: '현재 채널에 설치할 업데이트가 없습니다.',
+      /** The unsupported title value. */
+      unsupportedTitle: '개발 빌드에서는 확인할 수 없습니다',
+        /** The unsupported description value. */
+        unsupportedDescription: '패키징된 Kawaikara에서 업데이트를 확인해 주세요.',
+      /** The error title value. */
+      errorTitle: '업데이트를 확인하지 못했습니다',
+        /** The error description value. */
+        errorDescription: '네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+      /** The release notes value. */
+      releaseNotes: '업데이트 내역',
+        /** The no release notes value. */
+        noReleaseNotes: '제공된 업데이트 내역이 없습니다.',
+      /** The current version value. */
+      currentVersion: '현재',
+        /** The next version value. */
+        nextVersion: '업데이트',
+        /** The download value. */
+        download: '업데이트 다운로드',
+      /** The restart value. */
+      restart: '다시 시작하고 업데이트',
+        /** The retry value. */
+        retry: '다시 확인',
+        /** The close value. */
+        close: '닫기',
+        /** The later value. */
+        later: '나중에',
+      /** The back value. */
       back: '업데이트 화면으로 돌아가기',
+      /** The release notes description value. */
       releaseNotesDescription: '새 버전에 포함된 변경 사항을 확인합니다.',
     };
   }
   if (normalized.startsWith('ja')) {
     return {
-      channel: 'チャンネル', stable: 'Stable', staging: 'Staging', nightly: 'Nightly',
-      checkingTitle: 'アップデートを確認中', checkingDescription: 'Kawaikaraの新しいバージョンを確認しています。',
-      availableTitle: '新しいアップデートがあります', availableDescription: '準備ができたらアップデートをダウンロードできます。',
-      downloadingTitle: 'アップデートをダウンロード中', downloadingDescription: 'ダウンロード中もKawaikaraを使用できます。',
-      downloadedTitle: 'アップデートの準備完了', downloadedDescription: '再起動するとアップデートが適用されます。',
+      /** The channel value. */
+      channel: 'チャンネル',
+        /** The stable value. */
+        stable: 'Stable',
+        /** The staging value. */
+        staging: 'Staging',
+        /** The nightly value. */
+        nightly: 'Nightly',
+      /** The checking title value. */
+      checkingTitle: 'アップデートを確認中',
+        /** The checking description value. */
+        checkingDescription: 'Kawaikaraの新しいバージョンを確認しています。',
+      /** Whether the available title option is enabled. */
+      availableTitle: '新しいアップデートがあります',
+        /** Whether the available description option is enabled. */
+        availableDescription: '準備ができたらアップデートをダウンロードできます。',
+      /** The downloading title value. */
+      downloadingTitle: 'アップデートをダウンロード中',
+        /** The downloading description value. */
+        downloadingDescription: 'ダウンロード中もKawaikaraを使用できます。',
+      /** The downloaded title value. */
+      downloadedTitle: 'アップデートの準備完了',
+        /** The downloaded description value. */
+        downloadedDescription: '再起動するとアップデートが適用されます。',
+      /** The automatic restart description value. */
       automaticRestartDescription: 'アップデートを適用するためKawaikaraを再起動します。',
-      currentTitle: '最新バージョンです', currentDescription: '現在のチャンネルに利用可能なアップデートはありません。',
-      unsupportedTitle: '開発ビルドでは確認できません', unsupportedDescription: 'パッケージ版のKawaikaraで確認してください。',
-      errorTitle: 'アップデートを確認できませんでした', errorDescription: '接続を確認してもう一度お試しください。',
-      releaseNotes: '更新内容', noReleaseNotes: '更新内容はありません。',
-      currentVersion: '現在', nextVersion: '更新', download: 'アップデートをダウンロード',
-      restart: '再起動して更新', retry: '再確認', close: '閉じる', later: '後で',
+      /** The current title value. */
+      currentTitle: '最新バージョンです',
+        /** The current description value. */
+        currentDescription: '現在のチャンネルに利用可能なアップデートはありません。',
+      /** The unsupported title value. */
+      unsupportedTitle: '開発ビルドでは確認できません',
+        /** The unsupported description value. */
+        unsupportedDescription: 'パッケージ版のKawaikaraで確認してください。',
+      /** The error title value. */
+      errorTitle: 'アップデートを確認できませんでした',
+        /** The error description value. */
+        errorDescription: '接続を確認してもう一度お試しください。',
+      /** The release notes value. */
+      releaseNotes: '更新内容',
+        /** The no release notes value. */
+        noReleaseNotes: '更新内容はありません。',
+      /** The current version value. */
+      currentVersion: '現在',
+        /** The next version value. */
+        nextVersion: '更新',
+        /** The download value. */
+        download: 'アップデートをダウンロード',
+      /** The restart value. */
+      restart: '再起動して更新',
+        /** The retry value. */
+        retry: '再確認',
+        /** The close value. */
+        close: '閉じる',
+        /** The later value. */
+        later: '後で',
+      /** The back value. */
       back: 'アップデート画面に戻る',
+      /** The release notes description value. */
       releaseNotesDescription: '新しいバージョンに含まれる変更を確認します。',
     };
   }
   return {
-    channel: 'Channel', stable: 'Stable', staging: 'Staging', nightly: 'Nightly',
-    checkingTitle: 'Checking for updates', checkingDescription: 'Looking for a newer Kawaikara release.',
-    availableTitle: 'An update is available', availableDescription: 'Download the update whenever you are ready.',
-    downloadingTitle: 'Downloading the update', downloadingDescription: 'You can continue using Kawaikara while it downloads.',
-    downloadedTitle: 'Update ready', downloadedDescription: 'Restart Kawaikara to finish installing the update.',
+    /** The channel value. */
+    channel: 'Channel',
+      /** The stable value. */
+      stable: 'Stable',
+      /** The staging value. */
+      staging: 'Staging',
+      /** The nightly value. */
+      nightly: 'Nightly',
+    /** The checking title value. */
+    checkingTitle: 'Checking for updates',
+      /** The checking description value. */
+      checkingDescription: 'Looking for a newer Kawaikara release.',
+    /** Whether the available title option is enabled. */
+    availableTitle: 'An update is available',
+      /** Whether the available description option is enabled. */
+      availableDescription: 'Download the update whenever you are ready.',
+    /** The downloading title value. */
+    downloadingTitle: 'Downloading the update',
+      /** The downloading description value. */
+      downloadingDescription: 'You can continue using Kawaikara while it downloads.',
+    /** The downloaded title value. */
+    downloadedTitle: 'Update ready',
+      /** The downloaded description value. */
+      downloadedDescription: 'Restart Kawaikara to finish installing the update.',
+    /** The automatic restart description value. */
     automaticRestartDescription: 'Restarting Kawaikara to finish the update.',
-    currentTitle: 'Kawaikara is up to date', currentDescription: 'There are no updates for the current channel.',
-    unsupportedTitle: 'Updates are unavailable in development', unsupportedDescription: 'Check again from a packaged Kawaikara build.',
-    errorTitle: 'Unable to check for updates', errorDescription: 'Check your connection and try again.',
-    releaseNotes: 'What is new', noReleaseNotes: 'No release notes were provided.',
-    currentVersion: 'Current', nextVersion: 'Update', download: 'Download update',
-    restart: 'Restart and update', retry: 'Check again', close: 'Close', later: 'Later',
+    /** The current title value. */
+    currentTitle: 'Kawaikara is up to date',
+      /** The current description value. */
+      currentDescription: 'There are no updates for the current channel.',
+    /** The unsupported title value. */
+    unsupportedTitle: 'Updates are unavailable in development',
+      /** The unsupported description value. */
+      unsupportedDescription: 'Check again from a packaged Kawaikara build.',
+    /** The error title value. */
+    errorTitle: 'Unable to check for updates',
+      /** The error description value. */
+      errorDescription: 'Check your connection and try again.',
+    /** The release notes value. */
+    releaseNotes: 'What is new',
+      /** The no release notes value. */
+      noReleaseNotes: 'No release notes were provided.',
+    /** The current version value. */
+    currentVersion: 'Current',
+      /** The next version value. */
+      nextVersion: 'Update',
+      /** The download value. */
+      download: 'Download update',
+    /** The restart value. */
+    restart: 'Restart and update',
+      /** The retry value. */
+      retry: 'Check again',
+      /** The close value. */
+      close: 'Close',
+      /** The later value. */
+      later: 'Later',
+    /** The back value. */
     back: 'Back to update',
+    /** The release notes description value. */
     releaseNotesDescription: 'Review the changes included in the new version.',
   };
 }

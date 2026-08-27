@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import {
   mkdir,
   readFile,
@@ -19,64 +18,56 @@ import type {
   VideoOpenRequest,
   VideoPathOpenResult,
 } from '../../Common/IPC';
+import {
+  compareVideoDirectoryEntries,
+  createLocalVideoRequest,
+  createVideoEntry,
+  EMPTY_VIDEO_LIBRARY_STATE,
+  filterExistingFolders,
+  filterExistingVideos,
+  getDirectoryDisplayName,
+  getParentDirectory,
+  isDirectory,
+  isVideoPath,
+  isVisibleVideoDirectoryEntry,
+  listDriveLocations,
+  MAX_RECENT_VIDEOS,
+  normalizeVideoPathKey,
+  requireAbsoluteVideoPath,
+  trimVideoLibraryFolders,
+  validateStoredVideoLibraryState,
+  type StandardVideoLocation,
+  type StoredVideoLibraryState,
+} from '../Functional/VideoLibrary';
 
-const MAX_RECENT_FOLDERS = 8;
-const MAX_PINNED_FOLDERS = 32;
-const MAX_RECENT_VIDEOS = 12;
+/** Defines the shared max directory entries constant. */
 const MAX_DIRECTORY_ENTRIES = 2_000;
+/** Defines the shared max search results constant. */
 const MAX_SEARCH_RESULTS = 200;
+/** Defines the shared max search directories constant. */
 const MAX_SEARCH_DIRECTORIES = 800;
+/** Defines the shared max search entries constant. */
 const MAX_SEARCH_ENTRIES = 25_000;
-const MAX_PATH_LENGTH = 4_096;
-const VIDEO_FILE_EXTENSIONS = new Set([
-  '.3gp',
-  '.avi',
-  '.flv',
-  '.m2ts',
-  '.m4v',
-  '.mkv',
-  '.mov',
-  '.mp4',
-  '.mpeg',
-  '.mpg',
-  '.mts',
-  '.ogv',
-  '.ts',
-  '.webm',
-  '.wmv',
-]);
-
-interface StoredVideoLibraryState {
-  readonly version: 1;
-  readonly lastDirectory?: string;
-  readonly recentFolders: readonly VideoLibraryFolder[];
-  readonly recentVideos: readonly VideoLibraryVideo[];
-}
-
-export interface StandardVideoLocation {
-  readonly name: string;
-  readonly path: string;
-}
-
-const EMPTY_STATE: StoredVideoLibraryState = {
-  version: 1,
-  recentFolders: [],
-  recentVideos: [],
-};
-
+/** Coordinates video library behavior. */
 export class VideoLibraryManager {
-  private state: StoredVideoLibraryState = EMPTY_STATE;
+  /** The state value. */
+  private state: StoredVideoLibraryState = EMPTY_VIDEO_LIBRARY_STATE;
+  /** The thumbnail cache value. */
   private readonly thumbnailCache = new Map<string, string | undefined>();
 
+  /** Creates an instance of VideoLibraryManager. */
   constructor(
+    /** The file path value. */
     private readonly filePath: string,
+    /** The standard locations value. */
     private readonly standardLocations: readonly StandardVideoLocation[],
   ) {}
 
+  /** Loads the operation. */
   async load(): Promise<void> {
     try {
       const raw = JSON.parse(await readFile(this.filePath, 'utf8')) as unknown;
-      this.state = validateStoredState(raw);
+      this.state = validateStoredVideoLibraryState(raw);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.warn('Video library state could not be loaded.', error);
@@ -84,6 +75,7 @@ export class VideoLibraryManager {
     }
   }
 
+  /** Returns the snapshot. */
   async getSnapshot(): Promise<VideoLibrarySnapshot> {
     const [locations, recentFolders, recentVideos] = await Promise.all([
       this.collectLocations(),
@@ -92,45 +84,62 @@ export class VideoLibraryManager {
     ]);
     const favoriteFolders = recentFolders.filter((folder) => folder.pinned);
     return {
+      /** The last directory value. */
       lastDirectory: await isDirectory(this.state.lastDirectory)
         ? this.state.lastDirectory
         : undefined,
+      /** The locations value. */
       locations,
+      /** The favorite folders value. */
       favoriteFolders,
+      /** The recent folders value. */
       recentFolders,
+      /** The recent videos value. */
       recentVideos,
     };
   }
 
+  /** Lists the directory. */
   async listDirectory(value: string): Promise<VideoDirectoryListing> {
-    const directory = requireAbsolutePath(value);
+    const directory = requireAbsoluteVideoPath(value);
     const directoryStat = await stat(directory);
     if (!directoryStat.isDirectory()) {
       throw new Error('The selected path is not a directory.');
     }
 
-    const dirents = await readdir(directory, { withFileTypes: true });
+    const dirents = await readdir(directory, { withFileTypes: true
+    });
     const visible = dirents
-      .filter((entry) => isVisibleDirectoryEntry(entry))
+      .filter((entry) => isVisibleVideoDirectoryEntry(entry))
       .slice(0, MAX_DIRECTORY_ENTRIES);
     const entries = await Promise.all(
       visible.map((entry) => this.createDirectoryEntry(directory, entry)),
     );
-    entries.sort(compareDirectoryEntries);
+    entries.sort(compareVideoDirectoryEntries);
     await this.recordDirectory(directory);
     return {
+      /** The directory value. */
       directory,
+      /** The display name value. */
       displayName: getDirectoryDisplayName(directory),
+      /** The parent value. */
       parent: getParentDirectory(directory),
+      /** The entries value. */
       entries,
     };
   }
 
+  /** Opens the path. */
   async openPath(value: string): Promise<VideoPathOpenResult> {
-    const target = requireAbsolutePath(value);
+    const target = requireAbsoluteVideoPath(value);
     const targetStat = await stat(target);
     if (targetStat.isDirectory()) {
-      return { kind: 'directory', listing: await this.listDirectory(target) };
+      return {
+        /** The kind value. */
+        kind: 'directory',
+        /** The listing value. */
+        listing: await this.listDirectory(target),
+      };
     }
     if (!targetStat.isFile() || !isVideoPath(target)) {
       throw new Error('The selected path is not a supported video file.');
@@ -138,14 +147,22 @@ export class VideoLibraryManager {
     const directory = path.dirname(target);
     const request = createLocalVideoRequest(target);
     await this.recordVideo(request);
-    return { kind: 'video', directory, request };
+    return {
+      /** The kind value. */
+      kind: 'video',
+      /** The directory value. */
+      directory,
+      /** The request value. */
+      request,
+    };
   }
 
+  /** Performs the search directory operation. */
   async searchDirectory(
     directoryValue: string,
     queryValue: string,
   ): Promise<VideoDirectoryEntry[]> {
-    const root = requireAbsolutePath(directoryValue);
+    const root = requireAbsoluteVideoPath(directoryValue);
     if (!(await stat(root)).isDirectory()) {
       throw new Error('The search root is not a directory.');
     }
@@ -167,7 +184,8 @@ export class VideoLibraryManager {
       visitedDirectories += 1;
       let entries: Dirent[];
       try {
-        entries = await readdir(directory, { withFileTypes: true });
+        entries = await readdir(directory, { withFileTypes: true
+        });
       } catch {
         continue;
       }
@@ -193,13 +211,17 @@ export class VideoLibraryManager {
     return results.sort((left, right) => left.name.localeCompare(right.name));
   }
 
+  /** Performs the record video operation. */
   async recordVideo(
-    request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
+    request: Extract<VideoOpenRequest, {
+      /** The kind value. */
+      readonly kind: 'local';
+    }>,
   ): Promise<void> {
-    const filePath = requireAbsolutePath(request.path);
+    const filePath = requireAbsoluteVideoPath(request.path);
     const directory = path.dirname(filePath);
     const now = new Date().toISOString();
-    const key = normalizePathKey(filePath);
+    const key = normalizeVideoPathKey(filePath);
     const recentVideos = [
       {
         name: request.displayName,
@@ -208,7 +230,7 @@ export class VideoLibraryManager {
         lastOpenedAt: now,
       },
       ...this.state.recentVideos.filter(
-        (item) => normalizePathKey(item.path) !== key,
+        (item) => normalizeVideoPathKey(item.path) !== key,
       ),
     ].slice(0, MAX_RECENT_VIDEOS);
     this.state = {
@@ -219,17 +241,18 @@ export class VideoLibraryManager {
     await this.recordDirectory(directory);
   }
 
+  /** Sets the folder pinned. */
   async setFolderPinned(
     value: string,
     pinned: boolean,
   ): Promise<VideoLibrarySnapshot> {
-    const folderPath = requireAbsolutePath(value);
+    const folderPath = requireAbsoluteVideoPath(value);
     if (!(await stat(folderPath)).isDirectory()) {
       throw new Error('The selected folder is unavailable.');
     }
-    const key = normalizePathKey(folderPath);
+    const key = normalizeVideoPathKey(folderPath);
     const current = this.state.recentFolders.find(
-      (item) => normalizePathKey(item.path) === key,
+      (item) => normalizeVideoPathKey(item.path) === key,
     );
     const next: VideoLibraryFolder = {
       name: current?.name ?? getDirectoryDisplayName(folderPath),
@@ -239,10 +262,10 @@ export class VideoLibraryManager {
     };
     this.state = {
       ...this.state,
-      recentFolders: trimFolders([
+      recentFolders: trimVideoLibraryFolders([
         next,
         ...this.state.recentFolders.filter(
-          (item) => normalizePathKey(item.path) !== key,
+          (item) => normalizeVideoPathKey(item.path) !== key,
         ),
       ]),
     };
@@ -250,26 +273,28 @@ export class VideoLibraryManager {
     return this.getSnapshot();
   }
 
+  /** Removes the folder. */
   async removeFolder(value: string): Promise<VideoLibrarySnapshot> {
-    const folderPath = requireAbsolutePath(value);
-    const key = normalizePathKey(folderPath);
+    const folderPath = requireAbsoluteVideoPath(value);
+    const key = normalizeVideoPathKey(folderPath);
     this.state = {
       ...this.state,
       lastDirectory:
         this.state.lastDirectory &&
-        normalizePathKey(this.state.lastDirectory) === key
+        normalizeVideoPathKey(this.state.lastDirectory) === key
           ? undefined
           : this.state.lastDirectory,
       recentFolders: this.state.recentFolders.filter(
-        (item) => normalizePathKey(item.path) !== key,
+        (item) => normalizeVideoPathKey(item.path) !== key,
       ),
     };
     await this.persist();
     return this.getSnapshot();
   }
 
+  /** Returns the thumbnail. */
   async getThumbnail(value: string): Promise<string | undefined> {
-    const filePath = requireAbsolutePath(value);
+    const filePath = requireAbsoluteVideoPath(value);
     if (!isVideoPath(filePath)) return undefined;
     const cached = this.thumbnailCache.get(filePath);
     if (cached !== undefined || this.thumbnailCache.has(filePath)) return cached;
@@ -294,40 +319,60 @@ export class VideoLibraryManager {
     }
   }
 
+  /** Creates the folder request. */
   createFolderRequest(value: string): Extract<
     VideoOpenRequest,
-    { readonly kind: 'folder' }
+    {
+      /** The kind value. */
+      readonly kind: 'folder';
+    }
   > {
-    const folderPath = requireAbsolutePath(value);
+    const folderPath = requireAbsoluteVideoPath(value);
     return {
+      /** The kind value. */
       kind: 'folder',
+      /** The display name value. */
       displayName: getDirectoryDisplayName(folderPath),
+      /** The path value. */
       path: folderPath,
     };
   }
 
+  /** Creates the local request. */
   createLocalRequest(value: string): Extract<
     VideoOpenRequest,
-    { readonly kind: 'local' }
+    {
+      /** The kind value. */
+      readonly kind: 'local';
+    }
   > {
-    return createLocalVideoRequest(requireAbsolutePath(value));
+    return createLocalVideoRequest(requireAbsoluteVideoPath(value));
   }
 
+  /** Creates the directory entry. */
   private async createDirectoryEntry(
     directory: string,
     entry: Dirent,
   ): Promise<VideoDirectoryEntry> {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      return { kind: 'directory', name: entry.name, path: entryPath };
+      return {
+        /** The kind value. */
+        kind: 'directory',
+        /** The name value. */
+        name: entry.name,
+        /** The path value. */
+        path: entryPath,
+      };
     }
     return createVideoEntry(entryPath, entry.name);
   }
 
+  /** Performs the record directory operation. */
   private async recordDirectory(directory: string): Promise<void> {
-    const key = normalizePathKey(directory);
+    const key = normalizeVideoPathKey(directory);
     const current = this.state.recentFolders.find(
-      (item) => normalizePathKey(item.path) === key,
+      (item) => normalizeVideoPathKey(item.path) === key,
     );
     const next: VideoLibraryFolder = {
       name: getDirectoryDisplayName(directory),
@@ -338,16 +383,17 @@ export class VideoLibraryManager {
     this.state = {
       ...this.state,
       lastDirectory: directory,
-      recentFolders: trimFolders([
+      recentFolders: trimVideoLibraryFolders([
         next,
         ...this.state.recentFolders.filter(
-          (item) => normalizePathKey(item.path) !== key,
+          (item) => normalizeVideoPathKey(item.path) !== key,
         ),
       ]),
     };
     await this.persist();
   }
 
+  /** Collects the locations. */
   private async collectLocations(): Promise<VideoLibraryLocation[]> {
     const candidates: VideoLibraryLocation[] = [
       ...(await listDriveLocations()),
@@ -359,7 +405,7 @@ export class VideoLibraryManager {
     const seen = new Set<string>();
     const available: VideoLibraryLocation[] = [];
     for (const location of candidates) {
-      const key = normalizePathKey(location.path);
+      const key = normalizeVideoPathKey(location.path);
       if (seen.has(key) || !(await isDirectory(location.path))) continue;
       seen.add(key);
       available.push(location);
@@ -367,231 +413,14 @@ export class VideoLibraryManager {
     return available;
   }
 
+  /** Performs the persist operation. */
   private async persist(): Promise<void> {
-    await mkdir(path.dirname(this.filePath), { recursive: true });
+    await mkdir(path.dirname(this.filePath), { recursive: true
+    });
     await writeFile(
       this.filePath,
       `${JSON.stringify(this.state, null, 2)}\n`,
       'utf8',
     );
   }
-}
-
-function validateStoredState(value: unknown): StoredVideoLibraryState {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return EMPTY_STATE;
-  }
-  const candidate = value as Record<string, unknown>;
-  return {
-    version: 1,
-    lastDirectory: validateStoredPath(candidate.lastDirectory),
-    recentFolders: trimFolders(validateStoredFolders(candidate.recentFolders)),
-    recentVideos: validateStoredVideos(candidate.recentVideos).slice(
-      0,
-      MAX_RECENT_VIDEOS,
-    ),
-  };
-}
-
-function validateStoredFolders(value: unknown): VideoLibraryFolder[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-    const candidate = item as Record<string, unknown>;
-    const folderPath = validateStoredPath(candidate.path);
-    const name = validateStoredName(candidate.name);
-    const lastOpenedAt = validateStoredDate(candidate.lastOpenedAt);
-    if (!folderPath || !name || !lastOpenedAt) return [];
-    const key = normalizePathKey(folderPath);
-    if (seen.has(key)) return [];
-    seen.add(key);
-    return [{
-      name,
-      path: folderPath,
-      pinned: candidate.pinned === true,
-      lastOpenedAt,
-    }];
-  });
-}
-
-function validateStoredVideos(value: unknown): VideoLibraryVideo[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-    const candidate = item as Record<string, unknown>;
-    const filePath = validateStoredPath(candidate.path);
-    const directory = validateStoredPath(candidate.directory);
-    const name = validateStoredName(candidate.name);
-    const lastOpenedAt = validateStoredDate(candidate.lastOpenedAt);
-    if (!filePath || !directory || !name || !lastOpenedAt || !isVideoPath(filePath)) {
-      return [];
-    }
-    const key = normalizePathKey(filePath);
-    if (seen.has(key)) return [];
-    seen.add(key);
-    return [{ name, path: filePath, directory, lastOpenedAt }];
-  });
-}
-
-function validateStoredPath(value: unknown): string | undefined {
-  if (typeof value !== 'string' || value.length > MAX_PATH_LENGTH) return undefined;
-  return path.isAbsolute(value) ? path.normalize(value) : undefined;
-}
-
-function validateStoredName(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const name = value.trim();
-  return name && name.length <= 260 ? name : undefined;
-}
-
-function validateStoredDate(value: unknown): string | undefined {
-  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) {
-    return undefined;
-  }
-  return value;
-}
-
-function trimFolders(folders: readonly VideoLibraryFolder[]): VideoLibraryFolder[] {
-  const pinned = folders.filter((folder) => folder.pinned).slice(0, MAX_PINNED_FOLDERS);
-  const recent = folders.filter((folder) => !folder.pinned).slice(0, MAX_RECENT_FOLDERS);
-  return [...pinned, ...recent].sort(
-    (left, right) => Date.parse(right.lastOpenedAt) - Date.parse(left.lastOpenedAt),
-  );
-}
-
-function requireAbsolutePath(value: string): string {
-  if (typeof value !== 'string' || !value.trim() || value.length > MAX_PATH_LENGTH) {
-    throw new TypeError('An absolute local path is required.');
-  }
-  const normalized = path.normalize(value.trim());
-  if (!path.isAbsolute(normalized)) {
-    throw new TypeError('An absolute local path is required.');
-  }
-  return normalized;
-}
-
-function isVideoPath(value: string): boolean {
-  return VIDEO_FILE_EXTENSIONS.has(path.extname(value).toLowerCase());
-}
-
-function isVisibleDirectoryEntry(entry: Dirent): boolean {
-  if (entry.isSymbolicLink()) return false;
-  return entry.isDirectory() || (entry.isFile() && isVideoPath(entry.name));
-}
-
-function compareDirectoryEntries(
-  left: VideoDirectoryEntry,
-  right: VideoDirectoryEntry,
-): number {
-  if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
-  return left.name.localeCompare(right.name, undefined, { numeric: true });
-}
-
-async function createVideoEntry(
-  filePath: string,
-  name: string,
-): Promise<VideoDirectoryEntry> {
-  try {
-    const fileStat = await stat(filePath);
-    return {
-      kind: 'video',
-      name,
-      path: filePath,
-      size: fileStat.size,
-      modifiedAt: fileStat.mtime.toISOString(),
-    };
-  } catch {
-    return { kind: 'video', name, path: filePath };
-  }
-}
-
-function createLocalVideoRequest(
-  filePath: string,
-): Extract<VideoOpenRequest, { readonly kind: 'local' }> {
-  if (!isVideoPath(filePath)) {
-    throw new Error('The selected file is not a supported video.');
-  }
-  return {
-    kind: 'local',
-    displayName: path.basename(filePath),
-    directory: path.dirname(filePath),
-    path: filePath,
-    url: pathToFileURL(filePath).href,
-  };
-}
-
-function getDirectoryDisplayName(directory: string): string {
-  const root = path.parse(directory).root;
-  if (normalizePathKey(root) === normalizePathKey(directory)) {
-    return process.platform === 'win32'
-      ? root.replace(/[\\/]$/, '')
-      : root;
-  }
-  return path.basename(directory) || directory;
-}
-
-function getParentDirectory(directory: string): string | undefined {
-  const parent = path.dirname(directory);
-  return normalizePathKey(parent) === normalizePathKey(directory)
-    ? undefined
-    : parent;
-}
-
-function normalizePathKey(value: string): string {
-  const normalized = path.normalize(value);
-  return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
-}
-
-async function isDirectory(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
-  try {
-    return (await stat(value)).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-async function filterExistingFolders(
-  folders: readonly VideoLibraryFolder[],
-): Promise<VideoLibraryFolder[]> {
-  const available = await Promise.all(
-    folders.map(async (folder) => ((await isDirectory(folder.path)) ? folder : undefined)),
-  );
-  return available.filter((folder): folder is VideoLibraryFolder => Boolean(folder));
-}
-
-async function filterExistingVideos(
-  videos: readonly VideoLibraryVideo[],
-): Promise<VideoLibraryVideo[]> {
-  const available = await Promise.all(
-    videos.map(async (video) => {
-      try {
-        return (await stat(video.path)).isFile() ? video : undefined;
-      } catch {
-        return undefined;
-      }
-    }),
-  );
-  return available.filter((video): video is VideoLibraryVideo => Boolean(video));
-}
-
-async function listDriveLocations(): Promise<VideoLibraryLocation[]> {
-  if (process.platform !== 'win32') {
-    return [{ kind: 'drive', name: '/', path: '/' }];
-  }
-  const candidates = Array.from({ length: 26 }, (_, index) =>
-    `${String.fromCharCode(65 + index)}:\\`,
-  );
-  const available = await Promise.all(
-    candidates.map(async (drive) =>
-      (await isDirectory(drive))
-        ? { kind: 'drive' as const, name: drive.slice(0, 2), path: drive }
-        : undefined,
-    ),
-  );
-  return available.filter(
-    (location): location is NonNullable<typeof location> => Boolean(location),
-  );
 }

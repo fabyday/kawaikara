@@ -3,6 +3,7 @@ const {
   lstatSync,
   mkdirSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
 } = require('node:fs');
@@ -48,6 +49,7 @@ if (!platformFlag || !architectureFlag) {
   );
 }
 
+assertInvocationDirectoryIsSafe();
 ensureDevelopmentAppIsStopped();
 authenticateWidevineFromEnvironment();
 run(['build:dev']);
@@ -72,6 +74,48 @@ if (process.platform === 'darwin') {
 
 function run(arguments_, environment = process.env) {
   runCommand(pnpm, arguments_, environment);
+}
+
+function assertInvocationDirectoryIsSafe() {
+  const initialDirectory = resolveExistingPath(
+    process.env.INIT_CWD || process.cwd(),
+  );
+  const managedDirectories = [
+    outputDirectory,
+    previousOutputDirectory,
+    stagingOutputDirectory,
+    legacyOutputDirectory,
+  ];
+  const containingDirectory = managedDirectories.find((directory) =>
+    isPathSameOrInside(resolveExistingPath(directory), initialDirectory),
+  );
+  if (!containingDirectory) return;
+  throw new Error(
+    [
+      'The terminal that invoked package:dev is inside a managed build output.',
+      `Current terminal directory: ${initialDirectory}`,
+      `Managed output: ${containingDirectory}`,
+      `Change directory to ${root}, then run pnpm package:dev again.`,
+    ].join('\n'),
+  );
+}
+
+function resolveExistingPath(value) {
+  const resolved = path.resolve(value);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+function isPathSameOrInside(rootPath, candidatePath) {
+  const relation = path.relative(rootPath, candidatePath);
+  return relation === '' || (
+    relation !== '..' &&
+    !relation.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relation)
+  );
 }
 
 function authenticateWidevineFromEnvironment() {

@@ -8,6 +8,11 @@
   "permissions": ["navigation", "network-interception"],
   "contributes": {
     "address": { "hosts": ["music.apple.com"] },
+    "browserIdentity": {
+      "userAgent": "chromium",
+      "clientHints": "auto",
+      "requestHosts": ["apple.com"]
+    },
     "shortcut": { "defaultKey": "Control+Alt+M" },
     "locale": {
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],

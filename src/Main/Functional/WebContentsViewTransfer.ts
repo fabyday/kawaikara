@@ -1,10 +1,15 @@
 import type { BrowserWindow, Rectangle, WebContentsView } from 'electron';
 import { WAIT_FOR_VISIBLE_RENDERER_FRAMES_SCRIPT } from '../Inject/RendererFrames';
+/** Defines the shared renderer frame wait timeout ms constant. */
 const RENDERER_FRAME_WAIT_TIMEOUT_MS = 250;
 
+/** Describes the web contents view transfer options contract. */
 export interface WebContentsViewTransferOptions {
+  /** The source window value. */
   readonly sourceWindow?: BrowserWindow;
+  /** The target window value. */
   readonly targetWindow: BrowserWindow;
+  /** The view value. */
   readonly view: WebContentsView;
 }
 
@@ -38,11 +43,22 @@ export async function transferWebContentsView({
   await waitForVisibleRendererFrames(view);
 }
 
+/** Returns the window content view bounds. */
 export function getWindowContentViewBounds(window: BrowserWindow): Rectangle {
   const [width, height] = window.getContentSize();
-  return { x: 0, y: 0, width, height };
+  return {
+    /** The x value. */
+    x: 0,
+    /** The y value. */
+    y: 0,
+    /** The width value. */
+    width,
+    /** The height value. */
+    height,
+  };
 }
 
+/** Waits for the for visible renderer frames. */
 async function waitForVisibleRendererFrames(
   view: WebContentsView,
 ): Promise<void> {
@@ -50,6 +66,7 @@ async function waitForVisibleRendererFrames(
 
   await new Promise<void>((resolve) => {
     let settled = false;
+    /** Performs the finish operation. */
     const finish = (): void => {
       if (settled) return;
       settled = true;

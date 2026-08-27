@@ -9,11 +9,17 @@ import { serializePageInjection } from './Serialize';
  * result in the `dark` attribute on `<html>`, so this bridge keeps that cached
  * presentation state synchronized with Electron's media-query change event.
  * Keeping the bridge in Main means Providers do not own application theming.
+ * WindowManager.installRemoteThemeBridge() is the sole caller; it executes the
+ * serialized factory for site views and their Session-sharing popup windows.
  */
 function installRemoteThemeBridge(): void {
+  /** Describes the remote theme state contract. */
   interface RemoteThemeState {
+    /** Applies the operation. */
     apply(): void;
+    /** The observer value. */
     observer: MutationObserver;
+    /** The query value. */
     query: MediaQueryList;
   }
 
@@ -32,6 +38,7 @@ function installRemoteThemeBridge(): void {
   let applying = false;
   const query = matchMedia('(prefers-color-scheme: dark)');
   const state: RemoteThemeState = {
+    /** Applies the operation. */
     apply() {
       const root = document.documentElement;
       if (!root || applying) return;
@@ -71,5 +78,6 @@ function installRemoteThemeBridge(): void {
   state.apply();
 }
 
+/** Creates the remote theme bridge injection script. */
 export const createRemoteThemeBridgeInjectionScript = (): string =>
   serializePageInjection(installRemoteThemeBridge);

@@ -3,6 +3,7 @@ import type {
   SiteCookieMetadata,
 } from '@kawaikara/site-api';
 
+/** Defines the shared google session domains constant. */
 const GOOGLE_SESSION_DOMAINS = [
   'google.com',
   'google.co.kr',
@@ -10,6 +11,7 @@ const GOOGLE_SESSION_DOMAINS = [
   'youtube.com',
 ] as const;
 
+/** Defines the shared google auth cookie names constant. */
 const GOOGLE_AUTH_COOKIE_NAMES = [
   'ACCOUNT_CHOOSER',
   'LSID',
@@ -47,7 +49,8 @@ export async function repairIncompleteGoogleSession(
 ): Promise<void> {
   if (!context.cookies) return;
 
-  const cookies = await context.cookies.list({ domains: GOOGLE_SESSION_DOMAINS });
+  const cookies = await context.cookies.list({ domains: GOOGLE_SESSION_DOMAINS
+  });
   const hasAccountsSession = hasCookie(cookies, 'accounts.google.com', 'LSID');
   const hasPrimarySession = hasCookie(cookies, 'google.com', 'SID');
   const hasYouTubeSession = hasCookie(cookies, 'youtube.com', 'LOGIN_INFO');
@@ -76,6 +79,7 @@ export async function repairIncompleteGoogleSession(
   );
 }
 
+/** Determines whether the cookie condition applies. */
 function hasCookie(
   cookies: readonly SiteCookieMetadata[],
   domain: string,
@@ -86,6 +90,7 @@ function hasCookie(
   );
 }
 
+/** Normalizes the cookie domain. */
 function normalizeCookieDomain(domain: string): string {
   return domain.replace(/^\./, '').toLowerCase();
 }

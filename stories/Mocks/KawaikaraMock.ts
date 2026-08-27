@@ -14,8 +14,10 @@ import {
 } from '../../src/Common/PictureInPicture';
 import { getRendererMessages } from '../../src/Main/Functional/RendererMessages';
 
+/** Defines the shared story messages constant. */
 export const STORY_MESSAGES = getRendererMessages('system', 'en-US');
 
+/** Performs the svg icon operation. */
 const svgIcon = (label: string, color: string) =>
   `data:image/svg+xml,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -24,164 +26,343 @@ const svgIcon = (label: string, color: string) =>
     </svg>
   `)}`;
 
+/** Defines the shared story sites constant. */
 export const STORY_SITES: SiteMenuItem[] = [
   {
+    /** The ID value. */
     id: 'kawaikara.netflix',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'Netflix',
+    /** The address hosts value. */
     addressHosts: ['netflix.com'],
+    /** The category value. */
     category: 'OTT',
+    /** The icon value. */
     icon: svgIcon('N', '#e50914'),
+    /** The panels value. */
     panels: [],
+    /** The order value. */
     order: 10,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+1',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The DRM value. */
     drm: true,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: true,
+    /** Whether the current option is enabled. */
     isCurrent: false,
   },
   {
+    /** The ID value. */
     id: 'kawaikara.laftel',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'Laftel',
+    /** The address hosts value. */
     addressHosts: ['laftel.net'],
+    /** The category value. */
     category: 'OTT',
+    /** The icon value. */
     icon: svgIcon('L', '#6d5dfc'),
+    /** The panels value. */
     panels: [],
+    /** The order value. */
     order: 20,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+2',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The DRM value. */
     drm: false,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: true,
+    /** Whether the current option is enabled. */
     isCurrent: false,
   },
   {
+    /** The ID value. */
     id: 'kawaikara.coupang-play',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'Coupang Play',
+    /** The address hosts value. */
     addressHosts: ['coupangplay.com'],
+    /** The category value. */
     category: 'OTT',
+    /** The icon value. */
     icon: svgIcon('C', '#00a8ff'),
+    /** The panels value. */
     panels: [],
+    /** The order value. */
     order: 30,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+9',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The DRM value. */
     drm: true,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: true,
+    /** Whether the current option is enabled. */
     isCurrent: false,
   },
   {
+    /** The ID value. */
     id: 'kawaikara.video',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'Video',
+    /** The address hosts value. */
     addressHosts: [],
+    /** The category value. */
     category: 'Video',
+    /** The panels value. */
     panels: [{
+      /** The ID value. */
       id: 'provider:kawaikara.video:library',
+      /** The title value. */
       title: 'Library',
+      /** The order value. */
       order: 0,
-      content: { kind: 'internal', viewId: 'video-library' },
+      /** The content value. */
+      content: {
+        /** The kind value. */
+        kind: 'internal',
+        /** The view ID value. */
+        viewId: 'video-library' },
     }],
+    /** The order value. */
     order: 0,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+4',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The DRM value. */
     drm: false,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: true,
+    /** Whether the current option is enabled. */
     isCurrent: false,
   },
   {
+    /** The ID value. */
     id: 'kawaikara.youtube',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'YouTube',
+    /** The address hosts value. */
     addressHosts: ['youtube.com'],
+    /** The category value. */
     category: 'Video',
+    /** The icon value. */
     icon: svgIcon('▶', '#ff0033'),
+    /** The panels value. */
     panels: [],
+    /** The order value. */
     order: 10,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+5',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The default browser profile ID value. */
     defaultBrowserProfileId: 'plugin:kawaikara.builtin-sites:google-v2',
+    /** The DRM value. */
     drm: false,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: true,
+    /** Whether the current option is enabled. */
     isCurrent: true,
   },
   {
+    /** The ID value. */
     id: 'kawaikara.spotify',
+    /** The bundle ID value. */
     bundleId: 'kawaikara.builtin-sites',
+    /** The title value. */
     title: 'Spotify',
+    /** The address hosts value. */
     addressHosts: ['spotify.com'],
+    /** The category value. */
     category: 'Music',
+    /** The icon value. */
     icon: svgIcon('S', '#1db954'),
+    /** The panels value. */
     panels: [],
+    /** The order value. */
     order: 10,
+    /** The default shortcut value. */
     defaultShortcut: 'Control+Alt+S',
+    /** The action shortcuts value. */
     actionShortcuts: [],
+    /** The supported locales value. */
     supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
+    /** The default locale value. */
     defaultLocale: 'inherit',
+    /** The DRM value. */
     drm: false,
+    /** The picture in picture enabled value. */
     pictureInPictureEnabled: false,
+    /** Whether the current option is enabled. */
     isCurrent: false,
   },
 ];
 
+/** Defines the shared default preferences constant. */
 const DEFAULT_PREFERENCES: PreferenceState = {
+  /** The always on top value. */
   alwaysOnTop: false,
+  /** The graphics mode value. */
   graphicsMode: 'capture',
+  /** The open menu on startup value. */
   openMenuOnStartup: true,
+  /** The close menu on escape value. */
   closeMenuOnEscape: true,
+  /** The close menu on outside click value. */
   closeMenuOnOutsideClick: true,
+  /** The automatic updates value. */
   automaticUpdates: false,
+  /** The update channel value. */
   updateChannel: 'staging',
+  /** The default site ID value. */
   defaultSiteId: 'kawaikara.youtube',
+  /** The dev tools mode value. */
   devToolsMode: 'detach',
+  /** The open dev tools automatically value. */
+  openDevToolsAutomatically: false,
+  /** The development mode value. */
+  developmentMode: true,
+  /** The development inspector enabled value. */
+  developmentInspectorEnabled: true,
+  /** The development inspector port value. */
+  developmentInspectorPort: 9230,
+  /** The app locale value. */
   appLocale: 'system',
+  /** The app theme value. */
   appTheme: 'dark',
+  /** The picture in picture placement value. */
   pictureInPicturePlacement: DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
+  /** The picture in picture portrait size value. */
   pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
+  /** The picture in picture size value. */
   pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
+  /** The plugin locales value. */
   pluginLocales: {},
+  /** The site locales value. */
   siteLocales: {},
+  /** The browser profiles value. */
   browserProfiles: [],
+  /** The site browser profiles value. */
   siteBrowserProfiles: {},
+  /** The provider settings value. */
   providerSettings: {
+    /** The Kawaikara YouTube value. */
     'kawaikara.youtube': {
+      /** The short form video auto advance value. */
       'short-form-video.auto-advance': true,
+      /** The short form video banned publishers value. */
       'short-form-video.banned-publishers': [
-        { id: 'UC-demo-publisher-1', label: 'Demo Publisher', description: '@demo-publisher' },
-        { id: 'UC-demo-publisher-2', label: 'Animation Archive', description: '@animation-archive' },
-        { id: 'UC-demo-publisher-3', label: 'Night Radio', description: '@night-radio' },
-        { id: 'UC-demo-publisher-4', label: 'Cooking Shorts', description: '@cooking-shorts' },
-        { id: 'UC-demo-publisher-5', label: 'Indie Studio', description: '@indie-studio' },
-        { id: 'UC-demo-publisher-6', label: 'Travel Log', description: '@travel-log' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-1',
+          /** The label value. */
+          label: 'Demo Publisher',
+          /** The description value. */
+          description: '@demo-publisher' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-2',
+          /** The label value. */
+          label: 'Animation Archive',
+          /** The description value. */
+          description: '@animation-archive' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-3',
+          /** The label value. */
+          label: 'Night Radio',
+          /** The description value. */
+          description: '@night-radio' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-4',
+          /** The label value. */
+          label: 'Cooking Shorts',
+          /** The description value. */
+          description: '@cooking-shorts' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-5',
+          /** The label value. */
+          label: 'Indie Studio',
+          /** The description value. */
+          description: '@indie-studio' },
+        {
+          /** The ID value. */
+          id: 'UC-demo-publisher-6',
+          /** The label value. */
+          label: 'Travel Log',
+          /** The description value. */
+          description: '@travel-log' },
       ],
     },
   },
+  /** The menu category order value. */
   menuCategoryOrder: [],
+  /** The menu site order value. */
   menuSiteOrder: [],
+  /** The video seek seconds value. */
   videoSeekSeconds: 10,
+  /** The video overlay hide seconds value. */
   videoOverlayHideSeconds: 1.8,
+  /** The video controls layout value. */
   videoControlsLayout: 'inline',
+  /** The video volume value. */
   videoVolume: 100,
+  /** The log level value. */
   logLevel: 'info',
+  /** The shortcuts value. */
   shortcuts: {},
 };
 
+/** Describes the Kawaikara mock options contract. */
 export interface KawaikaraMockOptions {
+  /** The build channel value. */
   readonly buildChannel?: ReleaseChannel;
+  /** The current site ID value. */
   readonly currentSiteId?: string;
+  /** Whether the update available option is enabled. */
   readonly updateAvailable?: boolean;
 }
 
+/** Installs the Kawaikara mock. */
 export function installKawaikaraMock(
   options: KawaikaraMockOptions = {},
 ): KawaikaraRendererApi {
@@ -210,13 +391,19 @@ export function installKawaikaraMock(
   const updateStateHandlers = new Set<
     (state: ApplicationUpdatePanelState) => void
   >();
+  const developmentStateHandlers = new Set<
+    (state: ReturnType<KawaikaraRendererApi['development']['getState']> extends
+      Promise<infer T> ? T : never) => void
+  >();
   let updateState: ApplicationUpdatePanelState | undefined;
 
+  /** Performs the emit hidden operation. */
   const emitHidden = () => {
     overlayVisible = false;
     hiddenHandlers.forEach((handler) => handler());
   };
 
+  /** Performs the emit menu operation. */
   const emitMenu = () => {
     overlayVisible = true;
     menuHandlers.forEach((handler) => handler());
@@ -468,6 +655,40 @@ export function installKawaikaraMock(
       update: async () => ({ status: 'cancelled' }),
       remove: async () => ({ status: 'cancelled' }),
     },
+    development: {
+      getState: async () => ({
+        enabled: preferences.developmentMode,
+        debugger: {
+          enabled: preferences.developmentInspectorEnabled,
+          active: preferences.developmentInspectorEnabled,
+          address: '127.0.0.1',
+          port: preferences.developmentInspectorPort,
+          url: preferences.developmentInspectorEnabled
+            ? 'ws://127.0.0.1:9230/storybook'
+            : undefined,
+        },
+        projects: [{
+          id: 'storybook-bundle-project',
+          name: 'kawaikara-bundle-template',
+          projectPath: '/Users/developer/KawaiBundleTemplate',
+          outputDirectory: '.kawaikara/development',
+          bundleId: 'example.kawaikara-bundle',
+          hotReload: true,
+          status: 'active',
+          revision: '1787685295820-41ba7c1d',
+          lastBuiltAt: new Date().toISOString(),
+        }],
+      }),
+      attach: async () => ({ status: 'cancelled' }),
+      rebuild: async () => api.development.getState(),
+      setHotReload: async () => api.development.getState(),
+      detach: async () => api.development.getState(),
+      getVsCodeConfiguration: async () => '{}\n',
+      onStateChanged: (handler) => {
+        developmentStateHandlers.add(handler);
+        return () => developmentStateHandlers.delete(handler);
+      },
+    },
     sites: {
       list: async () =>
         STORY_SITES.map((site) => ({
@@ -475,6 +696,8 @@ export function installKawaikaraMock(
           isCurrent: site.id === currentSiteId,
         })),
       currentAddress: async () => 'https://www.youtube.com/',
+      goBack: async () => true,
+      goForward: async () => true,
       open: async (id) => {
         currentSiteId = id;
         emitHidden();
@@ -500,6 +723,7 @@ export function installKawaikaraMock(
       },
       onShowMenu: (handler) => {
         menuHandlers.add(handler);
+        /** Handles the key down. */
         const handleKeyDown = (event: KeyboardEvent) => {
           if (event.key !== 'Tab') return;
           event.preventDefault();
@@ -555,6 +779,7 @@ export function installKawaikaraMock(
     data: {
       clearBrowserProfile: async () => ({ status: 'cleared' }),
       clearIsolatedSite: async () => ({ status: 'cleared' }),
+      clearAllBrowserProfiles: async () => ({ status: 'cleared' }),
       clearApplicationCache: async () => ({ status: 'cancelled' }),
       resetApplication: async () => ({ status: 'cancelled' }),
     },

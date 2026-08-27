@@ -65,6 +65,8 @@ import type {
   AppTheme,
   BrowserProfileInfo,
   BundleInfo,
+  DevelopmentBundleProjectInfo,
+  DevelopmentState,
   DeveloperYouTubeStatus,
   DevToolsMode,
   DisplayInfo,
@@ -85,6 +87,7 @@ import { AutoHideScrollArea } from '../../Component/AutoHideScrollArea';
 import { DescriptiveSelect } from '../../Component/DescriptiveSelect';
 import { PictureInPictureSizeControl } from '../../Component/PictureInPictureSizeControl';
 import { PictureInPicturePlacementControl } from '../../Component/PictureInPicturePlacementControl';
+import { NumberInput } from '../../Component/NumberInput';
 import { SiteIcon } from '../../Component/SiteIcon';
 import {
   createOrderedSiteGroups,
@@ -94,29 +97,92 @@ import {
 } from '../../Domain/MenuOrder';
 import kawaikaraIcon from '../../../../resources/icons/app-kawaikara.png';
 
+/** Describes the preference view props contract. */
 export interface PreferenceViewProps {
+  /** The initial messages value. */
   readonly initialMessages: AppMessages;
+  /** The sites value. */
   readonly sites: readonly SiteMenuItem[];
+  /** Callback used to handle on back. */
   readonly onBack: () => void;
+  /** Callback used to handle on back handler change. */
   readonly onBackHandlerChange?: (handler: (() => void) | undefined) => void;
+  /** Callback used to handle on messages change. */
   readonly onMessagesChange?: (messages: AppMessages) => void;
+  /** Callback used to handle on preferences change. */
   readonly onPreferencesChange?: (preferences: PreferenceState) => void;
+  /** Callback used to handle on theme preview. */
   readonly onThemePreview?: (theme: AppTheme) => void;
 }
 
+/** Describes the shortcut item contract. */
 interface ShortcutItem {
+  /** The ID value. */
   readonly id: string;
+  /** The title value. */
   readonly title: string;
+  /** The description value. */
   readonly description?: string;
+  /** The default key value. */
   readonly defaultKey: string;
 }
 
+/** Describes the shortcut conflict contract. */
 interface ShortcutConflict {
+  /** The target ID value. */
   readonly targetId: string;
+  /** The conflicting IDs value. */
   readonly conflictingIds: readonly string[];
+  /** The previous shortcuts value. */
   readonly previousShortcuts: Readonly<Record<string, string>>;
 }
 
+/** Defines the preference action save policy type. */
+type PreferenceActionSavePolicy = 'none' | 'before';
+/** Defines the preference action completion type. */
+type PreferenceActionCompletion = 'keep-open' | 'close-preferences';
+
+/** Describes the preference action policy contract. */
+interface PreferenceActionPolicy {
+  /** The save value. */
+  readonly save: PreferenceActionSavePolicy;
+  /** The completion value. */
+  readonly completion: PreferenceActionCompletion;
+}
+
+/** Defines the shared preference action policies constant. */
+const PREFERENCE_ACTION_POLICIES = {
+  /** The application link value. */
+  applicationLink: {
+    /** The save value. */
+    save: 'none',
+    /** The completion value. */
+    completion: 'keep-open',
+  },
+  /** The check for updates value. */
+  checkForUpdates: {
+    /** The save value. */
+    save: 'none',
+    /** The completion value. */
+    completion: 'keep-open',
+  },
+  /** The open log directory value. */
+  openLogDirectory: {
+    /** The save value. */
+    save: 'none',
+    /** The completion value. */
+    completion: 'keep-open',
+  },
+  /** The open dev tools value. */
+  openDevTools: {
+    /** The save value. */
+    save: 'before',
+    /** The completion value. */
+    completion: 'keep-open',
+  },
+} as const satisfies Record<string, PreferenceActionPolicy>;
+
+/** Performs the preference view operation. */
 export function PreferenceView({
   initialMessages,
   sites,
@@ -134,6 +200,9 @@ export function PreferenceView({
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [developerYouTubeStatus, setDeveloperYouTubeStatus] =
     useState<DeveloperYouTubeStatus>();
+  const [developmentState, setDevelopmentState] = useState<DevelopmentState>();
+  const [developmentActionId, setDevelopmentActionId] = useState<string>();
+  const [developmentNotice, setDevelopmentNotice] = useState<string>();
   const [updateCheckResult, setUpdateCheckResult] =
     useState<ApplicationUpdateCheckResult>();
   const [checkingUpdates, setCheckingUpdates] = useState(false);
@@ -160,6 +229,7 @@ export function PreferenceView({
       window.kawaikara.bundles.list(),
       window.kawaikara.application.getInfo(),
       window.kawaikara.application.listDisplays(),
+      window.kawaikara.development.getState(),
     ])
       .then(([
         nextPreferences,
@@ -167,6 +237,7 @@ export function PreferenceView({
         nextBundles,
         nextAppInfo,
         nextDisplays,
+        nextDevelopmentState,
       ]) => {
         setSavedPreferences(nextPreferences);
         setDraftPreferences(nextPreferences);
@@ -174,11 +245,17 @@ export function PreferenceView({
         setBundles(nextBundles);
         setAppInfo(nextAppInfo);
         setDisplays(nextDisplays);
+        setDevelopmentState(nextDevelopmentState);
       })
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : String(reason));
       });
   }, []);
+
+  useEffect(
+    () => window.kawaikara.development.onStateChanged(setDevelopmentState),
+    [],
+  );
 
   useEffect(() => {
     const locale = draftPreferences?.appLocale;
@@ -203,6 +280,7 @@ export function PreferenceView({
 
   useEffect(() => {
     if (!menuOrderEditorOpen) return;
+    /** Handles the key down. */
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -214,6 +292,7 @@ export function PreferenceView({
 
   useEffect(() => {
     let active = true;
+    /** Performs the refresh operation. */
     const refresh = () => {
       void window.kawaikara.application
         .getDeveloperYouTubeStatus()
@@ -238,7 +317,8 @@ export function PreferenceView({
   }, []);
 
   const siteOptions = useMemo(
-    () => sites.map((site) => ({ label: site.title, value: site.id })),
+    () => sites.map((site) => ({ label: site.title, value: site.id
+    })),
     [sites],
   );
   const appShortcutItems = useMemo<ShortcutItem[]>(
@@ -335,6 +415,7 @@ export function PreferenceView({
       !preferencesEqual(savedPreferences, draftPreferences),
   );
 
+  /** Updates the draft. */
   const updateDraft = (patch: PreferencePatch) => {
     if (patch.appTheme) {
       onThemePreview?.(patch.appTheme);
@@ -345,7 +426,8 @@ export function PreferenceView({
       );
     }
     setDraftPreferences((current) =>
-      current ? { ...current, ...patch } : current,
+      current ? { ...current, ...patch
+      } : current,
     );
     setError(undefined);
   };
@@ -374,30 +456,7 @@ export function PreferenceView({
     return () => onBackHandlerChange?.(undefined);
   }, [onBackHandlerChange, requestBack]);
 
-  const openApplicationLink = async (id: ApplicationLinkId) => {
-    setError(undefined);
-    try {
-      await window.kawaikara.application.openLink(id);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
-  };
-
-  const checkForUpdates = async () => {
-    setCheckingUpdates(true);
-    setUpdateCheckResult(undefined);
-    setError(undefined);
-    try {
-      setUpdateCheckResult(
-        await window.kawaikara.application.checkForUpdates(),
-      );
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setCheckingUpdates(false);
-    }
-  };
-
+  /** Saves the operation. */
   const save = async (): Promise<PreferenceState | undefined> => {
     if (!draftPreferences) return undefined;
     if (!hasChanges) return draftPreferences;
@@ -423,6 +482,49 @@ export function PreferenceView({
     }
   };
 
+  /** Runs the preference action. */
+  const runPreferenceAction = async <Result,>(
+    policy: PreferenceActionPolicy,
+    action: () => Promise<Result>,
+  ): Promise<Result | undefined> => {
+    if (policy.save === 'before' && !(await save())) return undefined;
+    setError(undefined);
+    try {
+      const result = await action();
+      if (policy.completion === 'close-preferences') {
+        await window.kawaikara.overlay.close();
+      }
+      return result;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return undefined;
+    }
+  };
+
+  /** Opens the application link. */
+  const openApplicationLink = async (id: ApplicationLinkId) => {
+    await runPreferenceAction(
+      PREFERENCE_ACTION_POLICIES.applicationLink,
+      () => window.kawaikara.application.openLink(id),
+    );
+  };
+
+  /** Performs the check for updates operation. */
+  const checkForUpdates = async () => {
+    setCheckingUpdates(true);
+    setUpdateCheckResult(undefined);
+    try {
+      const result = await runPreferenceAction(
+        PREFERENCE_ACTION_POLICIES.checkForUpdates,
+        () => window.kawaikara.application.checkForUpdates(),
+      );
+      if (result) setUpdateCheckResult(result);
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  /** Requests the graphics mode change. */
   const requestGraphicsModeChange = (graphicsMode: GraphicsMode) => {
     if (!draftPreferences || graphicsMode === draftPreferences.graphicsMode) {
       return;
@@ -431,6 +533,7 @@ export function PreferenceView({
     setError(undefined);
   };
 
+  /** Applies the graphics mode change. */
   const applyGraphicsModeChange = async () => {
     if (graphicsRestartRequest === undefined || !draftPreferences) return;
     const nextDraft = {
@@ -456,27 +559,113 @@ export function PreferenceView({
     }
   };
 
+  /** Opens the log directory. */
   const openLogDirectory = async () => {
-    setError(undefined);
-    try {
-      await window.kawaikara.application.openLogDirectory();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-    }
+    await runPreferenceAction(
+      PREFERENCE_ACTION_POLICIES.openLogDirectory,
+      () => window.kawaikara.application.openLogDirectory(),
+    );
   };
 
+  /** Opens the dev tools. */
   const openDevTools = async (mode: DevToolsMode) => {
+    await runPreferenceAction(
+      PREFERENCE_ACTION_POLICIES.openDevTools,
+      () => window.kawaikara.application.openDevTools(mode),
+    );
+  };
+
+  /** Performs the refresh bundle state operation. */
+  const refreshBundleState = async () => {
+    const [nextBundles, nextRuntimeBundles] = await Promise.all([
+      window.kawaikara.bundles.list(),
+      window.kawaikara.bundles.runtime(),
+    ]);
+    setBundles(nextBundles);
+    setRuntimeBundles(nextRuntimeBundles);
+  };
+
+  /** Attaches the development project. */
+  const attachDevelopmentProject = async () => {
     const saved = await save();
-    if (!saved) return;
+    if (!saved?.developmentMode) return;
+    setDevelopmentActionId('attach');
+    setDevelopmentNotice(undefined);
     setError(undefined);
     try {
-      await window.kawaikara.application.openDevTools(mode);
-      await window.kawaikara.overlay.close();
+      const result = await window.kawaikara.development.attach(saved.appLocale);
+      if (result.status === 'cancelled') return;
+      setDevelopmentState(await window.kawaikara.development.getState());
+      await refreshBundleState();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDevelopmentActionId(undefined);
+    }
+  };
+
+  /** Performs the rebuild development project operation. */
+  const rebuildDevelopmentProject = async (projectId: string) => {
+    setDevelopmentActionId(`rebuild:${projectId}`);
+    setDevelopmentNotice(undefined);
+    setError(undefined);
+    try {
+      setDevelopmentState(await window.kawaikara.development.rebuild(projectId));
+      await refreshBundleState();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDevelopmentActionId(undefined);
+    }
+  };
+
+  /** Sets the development hot reload. */
+  const setDevelopmentHotReload = async (
+    projectId: string,
+    enabled: boolean,
+  ) => {
+    setError(undefined);
+    try {
+      setDevelopmentState(
+        await window.kawaikara.development.setHotReload(projectId, enabled),
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
+  /** Detaches the development project. */
+  const detachDevelopmentProject = async (projectId: string) => {
+    setDevelopmentActionId(`detach:${projectId}`);
+    setDevelopmentNotice(undefined);
+    setError(undefined);
+    try {
+      setDevelopmentState(await window.kawaikara.development.detach(projectId));
+      await refreshBundleState();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDevelopmentActionId(undefined);
+    }
+  };
+
+  /** Copies the vs code configuration. */
+  const copyVsCodeConfiguration = async () => {
+    setDevelopmentActionId('copy-vscode');
+    setError(undefined);
+    try {
+      const configuration =
+        await window.kawaikara.development.getVsCodeConfiguration();
+      await window.kawaikara.application.copyText(configuration);
+      setDevelopmentNotice(messages.vsCodeConfigurationCopied);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDevelopmentActionId(undefined);
+    }
+  };
+
+  /** Installs the bundle. */
   const installBundle = async () => {
     if (!draftPreferences) return;
     setInstallingBundle(true);
@@ -498,6 +687,7 @@ export function PreferenceView({
     }
   };
 
+  /** Updates the bundle. */
   const updateBundle = async (bundle: BundleInfo) => {
     if (!draftPreferences || !bundle.updatable) return;
     setBundleActionId(bundle.id);
@@ -520,6 +710,7 @@ export function PreferenceView({
     }
   };
 
+  /** Removes the bundle. */
   const removeBundle = async (bundle: BundleInfo) => {
     if (!draftPreferences) return;
     setBundleActionId(bundle.id);
@@ -542,6 +733,7 @@ export function PreferenceView({
     }
   };
 
+  /** Clears the browser profile data. */
   const clearBrowserProfileData = async (profile: BrowserProfileInfo) => {
     if (!draftPreferences) return;
     const actionId = `profile:${profile.id}`;
@@ -565,6 +757,7 @@ export function PreferenceView({
     }
   };
 
+  /** Clears the isolated site data. */
   const clearIsolatedSiteData = async (site: SiteMenuItem) => {
     if (!draftPreferences) return;
     const actionId = `site:${site.id}`;
@@ -588,6 +781,7 @@ export function PreferenceView({
     }
   };
 
+  /** Clears the application cache. */
   const clearApplicationCache = async () => {
     if (!draftPreferences) return;
     setDataActionId('application-cache');
@@ -604,6 +798,27 @@ export function PreferenceView({
     }
   };
 
+  /** Clears the all browser profiles. */
+  const clearAllBrowserProfiles = async () => {
+    if (!draftPreferences) return;
+    setDataActionId('all-browser-profiles');
+    setDataNotice(undefined);
+    setError(undefined);
+    try {
+      const result = await window.kawaikara.data.clearAllBrowserProfiles(
+        draftPreferences.appLocale,
+      );
+      if (result.status === 'cleared') {
+        setDataNotice(messages.allProfileDataClearSuccess);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setDataActionId(undefined);
+    }
+  };
+
+  /** Resets the application. */
   const resetApplication = async () => {
     if (!draftPreferences) return;
     setDataActionId('application-reset');
@@ -620,15 +835,18 @@ export function PreferenceView({
     }
   };
 
+  /** Updates the shortcut. */
   const updateShortcut = (item: ShortcutItem, accelerator: string) => {
     if (!draftPreferences) return;
-    const previousShortcuts = { ...draftPreferences.shortcuts };
+    const previousShortcuts = { ...draftPreferences.shortcuts
+    };
     const shortcuts = writeShortcutOverride(
       previousShortcuts,
       item,
       accelerator,
     );
-    const nextPreferences = { ...draftPreferences, shortcuts };
+    const nextPreferences = { ...draftPreferences, shortcuts
+    };
     setDraftPreferences(nextPreferences);
     setError(undefined);
 
@@ -646,19 +864,24 @@ export function PreferenceView({
     }
   };
 
+  /** Determines whether the cel shortcut overwrite condition applies. */
   const cancelShortcutOverwrite = () => {
     if (!shortcutConflict) return;
-    updateDraft({ shortcuts: shortcutConflict.previousShortcuts });
+    updateDraft({ shortcuts: shortcutConflict.previousShortcuts
+    });
     setShortcutConflict(undefined);
   };
 
+  /** Performs the confirm shortcut overwrite operation. */
   const confirmShortcutOverwrite = () => {
     if (!shortcutConflict) return;
     setDraftPreferences((current) => {
       if (!current) return current;
-      const shortcuts = { ...current.shortcuts };
+      const shortcuts = { ...current.shortcuts
+      };
       for (const id of shortcutConflict.conflictingIds) shortcuts[id] = '';
-      return { ...current, shortcuts };
+      return { ...current, shortcuts
+      };
     });
     setShortcutConflict(undefined);
   };
@@ -766,6 +989,7 @@ export function PreferenceView({
                     preferences={draftPreferences}
                     saving={saving}
                     sites={sites}
+                    onClearAllBrowserProfiles={clearAllBrowserProfiles}
                     onClearIsolatedSiteData={clearIsolatedSiteData}
                     onClearProfileData={clearBrowserProfileData}
                     onUpdate={updateDraft}
@@ -860,10 +1084,18 @@ export function PreferenceView({
               <TabPanel className="preference-tab-panel" value="developer">
                 <PreferenceTabScroll label={messages.developer}>
                   <DeveloperTab
+                    actionId={developmentActionId}
+                    developmentState={developmentState}
                     messages={messages}
+                    notice={developmentNotice}
                     preferences={draftPreferences}
                     saving={saving}
+                    onAddProject={attachDevelopmentProject}
+                    onCopyVsCodeConfiguration={copyVsCodeConfiguration}
+                    onDetachProject={detachDevelopmentProject}
                     onOpenDevTools={openDevTools}
+                    onRebuildProject={rebuildDevelopmentProject}
+                    onSetHotReload={setDevelopmentHotReload}
                     onUpdate={updateDraft}
                   />
                 </PreferenceTabScroll>
@@ -910,10 +1142,14 @@ export function PreferenceView({
           {hasChanges ? (
             <motion.div
               className="preference-save-bar"
-              initial={{ opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 28 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+              initial={{ opacity: 0, y: 28
+              }}
+              animate={{ opacity: 1, y: 0
+              }}
+              exit={{ opacity: 0, y: 28
+              }}
+              transition={{ type: 'spring', stiffness: 420, damping: 32
+              }}
             >
               <div>
                 <Text weight="semibold">{messages.unsavedChanges}</Text>
@@ -945,9 +1181,12 @@ export function PreferenceView({
         {graphicsRestartRequest !== undefined ? (
           <motion.div
             className="preference-dialog-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0
+            }}
+            animate={{ opacity: 1
+            }}
+            exit={{ opacity: 0
+            }}
           >
             <motion.div
               aria-describedby="graphics-restart-description"
@@ -955,9 +1194,12 @@ export function PreferenceView({
               aria-modal="true"
               className="preference-dialog"
               role="dialog"
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              initial={{ opacity: 0, scale: 0.96, y: 12
+              }}
+              animate={{ opacity: 1, scale: 1, y: 0
+              }}
+              exit={{ opacity: 0, scale: 0.96, y: 12
+              }}
             >
               <Head id="graphics-restart-title" level={2} size="sm">
                 {messages.graphicsRestartTitle}
@@ -989,9 +1231,12 @@ export function PreferenceView({
         {shortcutConflict ? (
           <motion.div
             className="preference-dialog-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0
+            }}
+            animate={{ opacity: 1
+            }}
+            exit={{ opacity: 0
+            }}
           >
             <motion.div
               aria-describedby="shortcut-conflict-description"
@@ -999,9 +1244,12 @@ export function PreferenceView({
               aria-modal="true"
               className="preference-dialog"
               role="dialog"
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              initial={{ opacity: 0, scale: 0.96, y: 12
+              }}
+              animate={{ opacity: 1, scale: 1, y: 0
+              }}
+              exit={{ opacity: 0, scale: 0.96, y: 12
+              }}
             >
               <Head id="shortcut-conflict-title" level={2} size="sm">
                 {messages.shortcutConflict}
@@ -1029,9 +1277,12 @@ export function PreferenceView({
         {discardConfirmationOpen ? (
           <motion.div
             className="preference-dialog-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0
+            }}
+            animate={{ opacity: 1
+            }}
+            exit={{ opacity: 0
+            }}
             onPointerDown={(event) => {
               if (event.target === event.currentTarget) {
                 setDiscardConfirmationOpen(false);
@@ -1044,9 +1295,12 @@ export function PreferenceView({
               aria-modal="true"
               className="preference-dialog"
               role="dialog"
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              initial={{ opacity: 0, scale: 0.96, y: 12
+              }}
+              animate={{ opacity: 1, scale: 1, y: 0
+              }}
+              exit={{ opacity: 0, scale: 0.96, y: 12
+              }}
               onPointerDown={(event) => event.stopPropagation()}
             >
               <Head id="discard-changes-title" level={2} size="sm">
@@ -1074,13 +1328,17 @@ export function PreferenceView({
   );
 }
 
+/** Performs the preference tab scroll operation. */
 function PreferenceTabScroll({
   children,
   label,
 }: {
+  /** The children value. */
   readonly children: ReactNode;
+  /** The label value. */
   readonly label: string;
-}) {
+}
+) {
   return (
     <AutoHideScrollArea className="preference-tab-scroll" label={label}>
       <div className="preference-tab-content">{children}</div>
@@ -1088,21 +1346,58 @@ function PreferenceTabScroll({
   );
 }
 
+/** Performs the developer tab operation. */
 function DeveloperTab({
+  actionId,
+  developmentState,
   messages,
+  notice,
   preferences,
   saving,
+  onAddProject,
+  onCopyVsCodeConfiguration,
+  onDetachProject,
   onOpenDevTools,
+  onRebuildProject,
+  onSetHotReload,
   onUpdate,
 }: {
+  /** The action ID value. */
+  readonly actionId?: string;
+  /** The development state value. */
+  readonly developmentState?: DevelopmentState;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The notice value. */
+  readonly notice?: string;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** Callback used to handle on add project. */
+  readonly onAddProject: () => Promise<void>;
+  /** Callback used to handle on copy vs code configuration. */
+  readonly onCopyVsCodeConfiguration: () => Promise<void>;
+  /** Callback used to handle on detach project. */
+  readonly onDetachProject: (projectId: string) => Promise<void>;
+  /** Callback used to handle on open dev tools. */
   readonly onOpenDevTools: (mode: DevToolsMode) => Promise<void>;
+  /** Callback used to handle on rebuild project. */
+  readonly onRebuildProject: (projectId: string) => Promise<void>;
+  /** Callback used to handle on set hot reload. */
+  readonly onSetHotReload: (
+    projectId: string,
+    enabled: boolean,
+  ) => Promise<void>;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   const [opening, setOpening] = useState(false);
+  const debuggerState = developmentState?.debugger;
+  const developmentBusy = saving || Boolean(actionId);
 
+  /** Opens the operation. */
   const open = async () => {
     setOpening(true);
     try {
@@ -1114,6 +1409,143 @@ function DeveloperTab({
 
   return (
     <Stack gap="lg">
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.developmentMode}
+        </Text>
+        <div className="developer-tools-card">
+          <Stack gap="md">
+            <Switch
+              checked={preferences.developmentMode}
+              disabled={saving}
+              label={messages.developmentMode}
+              description={messages.developmentModeDescription}
+              onCheckedChange={(developmentMode) =>
+                onUpdate({ developmentMode
+                })
+              }
+            />
+            <Text className="development-trust-warning" size="xs">
+              {messages.developmentTrustWarning}
+            </Text>
+          </Stack>
+        </div>
+      </section>
+
+      <section>
+        <Text className="preference-section-title" weight="semibold">
+          {messages.mainProcessDebugger}
+        </Text>
+        <div className="developer-tools-card">
+          <Stack gap="md">
+            <Switch
+              checked={preferences.developmentInspectorEnabled}
+              disabled={saving || !preferences.developmentMode}
+              label={messages.mainProcessDebugger}
+              description={messages.mainProcessDebuggerDescription}
+              onCheckedChange={(developmentInspectorEnabled) =>
+                onUpdate({ developmentInspectorEnabled
+                })
+              }
+            />
+            <NumberInput
+              description={messages.inspectorPortDescription}
+              disabled={
+                saving ||
+                !preferences.developmentMode ||
+                !preferences.developmentInspectorEnabled
+              }
+              label={messages.inspectorPort}
+              min={1024}
+              max={65535}
+              step={1}
+              value={preferences.developmentInspectorPort}
+              onValueChange={(developmentInspectorPort) =>
+                onUpdate({ developmentInspectorPort
+                })
+              }
+            />
+            <Text
+              className={`development-debugger-status${
+                debuggerState?.active ? ' is-active' : ''
+              }`}
+              size="xs"
+              tone={debuggerState?.error ? 'danger' : 'muted'}
+            >
+              {debuggerState?.error ?? (
+                debuggerState?.active
+                  ? messages.debuggerActive
+                      .replace('{address}', debuggerState.address)
+                      .replace('{port}', String(debuggerState.port))
+                  : messages.debuggerInactive
+              )}
+            </Text>
+            <Flex justify="end">
+              <Button
+                disabled={developmentBusy || !preferences.developmentMode}
+                isLoading={actionId === 'copy-vscode'}
+                size="sm"
+                variant="secondary"
+                onClick={() => void onCopyVsCodeConfiguration()}
+              >
+                {messages.copyVsCodeConfiguration}
+              </Button>
+            </Flex>
+            {notice ? (
+              <Text className="development-notice" size="xs">
+                {notice}
+              </Text>
+            ) : null}
+          </Stack>
+        </div>
+      </section>
+
+      <section>
+        <Flex
+          className="development-project-heading"
+          align="center"
+          justify="between"
+          gap="md"
+        >
+          <div>
+            <Text className="preference-section-title" weight="semibold">
+              {messages.developmentBundles}
+            </Text>
+            <Text size="xs" tone="muted">
+              {messages.developmentBundlesDescription}
+            </Text>
+          </div>
+          <Button
+            disabled={developmentBusy || !preferences.developmentMode}
+            isLoading={actionId === 'attach'}
+            size="sm"
+            onClick={() => void onAddProject()}
+          >
+            {messages.addDevelopmentBundle}
+          </Button>
+        </Flex>
+        <Stack className="development-project-list" gap="sm">
+          {developmentState?.projects.length ? (
+            developmentState.projects.map((project) => (
+              <DevelopmentProjectCard
+                actionId={actionId}
+                disabled={developmentBusy || !preferences.developmentMode}
+                key={project.id}
+                messages={messages}
+                project={project}
+                onDetach={onDetachProject}
+                onRebuild={onRebuildProject}
+                onSetHotReload={onSetHotReload}
+              />
+            ))
+          ) : (
+            <Text size="sm" tone="muted">
+              {messages.noDevelopmentBundles}
+            </Text>
+          )}
+        </Stack>
+      </section>
+
       <section>
         <Text className="preference-section-title" weight="semibold">
           {messages.developerTools}
@@ -1129,10 +1561,25 @@ function DeveloperTab({
               options={devToolsModeOptions(messages)}
               value={preferences.devToolsMode}
               onValueChange={(devToolsMode) =>
-                onUpdate({ devToolsMode: devToolsMode as DevToolsMode })
+                onUpdate({ devToolsMode: devToolsMode as DevToolsMode
+                })
               }
             />
-            <Flex justify="end">
+            <Flex
+              className="developer-tools-actions"
+              align="center"
+              justify="between"
+              gap="md"
+            >
+              <Switch
+                checked={preferences.openDevToolsAutomatically}
+                disabled={saving}
+                label={messages.openDevToolsAutomatically}
+                onCheckedChange={(openDevToolsAutomatically) =>
+                  onUpdate({ openDevToolsAutomatically
+                  })
+                }
+              />
               <Button
                 disabled={saving}
                 isLoading={opening}
@@ -1148,17 +1595,128 @@ function DeveloperTab({
   );
 }
 
+/** Performs the development project card operation. */
+function DevelopmentProjectCard({
+  actionId,
+  disabled,
+  messages,
+  project,
+  onDetach,
+  onRebuild,
+  onSetHotReload,
+}: {
+  /** The action ID value. */
+  readonly actionId?: string;
+  /** Whether the disabled option is enabled. */
+  readonly disabled: boolean;
+  /** The messages value. */
+  readonly messages: AppMessages;
+  /** The project value. */
+  readonly project: DevelopmentBundleProjectInfo;
+  /** Callback used to handle on detach. */
+  readonly onDetach: (projectId: string) => Promise<void>;
+  /** Callback used to handle on rebuild. */
+  readonly onRebuild: (projectId: string) => Promise<void>;
+  /** Callback used to handle on set hot reload. */
+  readonly onSetHotReload: (projectId: string, enabled: boolean) => Promise<void>;
+}
+) {
+  const busy = project.status === 'building' || project.status === 'reloading';
+  return (
+    <div className={`development-project-card is-${project.status}`}>
+      <Flex align="start" justify="between" gap="md">
+        <div className="development-project-copy">
+          <Text weight="semibold">{project.name}</Text>
+          <Text size="xs" tone="muted">{project.projectPath}</Text>
+          <Flex className="development-project-metadata" gap="sm">
+            <span>{developmentStatusLabel(messages, project.status)}</span>
+            {project.revision ? (
+              <span>
+                {messages.developmentRevision.replace(
+                  '{revision}',
+                  project.revision,
+                )}
+              </span>
+            ) : null}
+            <span>
+              {messages.developmentOutputDirectory.replace(
+                '{path}',
+                project.outputDirectory,
+              )}
+            </span>
+          </Flex>
+        </div>
+        <Switch
+          checked={project.hotReload}
+          disabled={disabled || busy}
+          label={messages.hotReload}
+          onCheckedChange={(enabled) =>
+            void onSetHotReload(project.id, enabled)
+          }
+        />
+      </Flex>
+      {project.error ? (
+        <Text className="development-project-error" size="xs" tone="danger">
+          {project.error}
+        </Text>
+      ) : null}
+      <Flex className="development-project-actions" justify="end" gap="sm">
+        <Button
+          disabled={disabled || busy}
+          isLoading={actionId === `rebuild:${project.id}` || busy}
+          size="sm"
+          variant="secondary"
+          onClick={() => void onRebuild(project.id)}
+        >
+          {messages.rebuildBundle}
+        </Button>
+        <Button
+          disabled={disabled || busy}
+          isLoading={actionId === `detach:${project.id}`}
+          size="sm"
+          variant="secondary"
+          onClick={() => void onDetach(project.id)}
+        >
+          {messages.detachDevelopmentBundle}
+        </Button>
+      </Flex>
+    </div>
+  );
+}
+
+/** Performs the development status label operation. */
+function developmentStatusLabel(
+  messages: AppMessages,
+  status: DevelopmentBundleProjectInfo['status'],
+): string {
+  const labels: Record<DevelopmentBundleProjectInfo['status'], string> = {
+    stopped: messages.developmentStatusStopped,
+    watching: messages.developmentStatusWatching,
+    building: messages.developmentStatusBuilding,
+    reloading: messages.developmentStatusReloading,
+    active: messages.developmentStatusActive,
+    failed: messages.developmentStatusFailed,
+  };
+  return labels[status];
+}
+
+/** Performs the video tab operation. */
 function VideoTab({
   messages,
   preferences,
   saving,
   onUpdate,
 }: {
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   return (
     <Stack gap="lg">
       <section>
@@ -1192,7 +1750,7 @@ function VideoTab({
               value="overlay"
             />
           </RadioGroup>
-          <NumberPreferenceControl
+          <NumberInput
             disabled={saving}
             label={messages.videoSeekSeconds}
             max={MAX_VIDEO_SEEK_SECONDS}
@@ -1201,9 +1759,10 @@ function VideoTab({
             unit={messages.seconds}
             value={preferences.videoSeekSeconds}
             description={messages.videoSeekSecondsDescription}
-            onChange={(videoSeekSeconds) => onUpdate({ videoSeekSeconds })}
+            onValueChange={(videoSeekSeconds) => onUpdate({ videoSeekSeconds
+            })}
           />
-          <NumberPreferenceControl
+          <NumberInput
             disabled={saving || preferences.videoControlsLayout !== 'overlay'}
             label={messages.videoOverlayHideSeconds}
             max={30}
@@ -1212,8 +1771,9 @@ function VideoTab({
             unit={messages.seconds}
             value={preferences.videoOverlayHideSeconds}
             description={messages.videoOverlayHideSecondsDescription}
-            onChange={(videoOverlayHideSeconds) =>
-              onUpdate({ videoOverlayHideSeconds })
+            onValueChange={(videoOverlayHideSeconds) =>
+              onUpdate({ videoOverlayHideSeconds
+              })
             }
           />
         </Stack>
@@ -1222,96 +1782,7 @@ function VideoTab({
   );
 }
 
-function NumberPreferenceControl({
-  description,
-  disabled,
-  label,
-  max,
-  min,
-  step,
-  unit,
-  value,
-  onChange,
-}: {
-  readonly description: string;
-  readonly disabled: boolean;
-  readonly label: string;
-  readonly max: number;
-  readonly min: number;
-  readonly step: number;
-  readonly unit: string;
-  readonly value: number;
-  readonly onChange: (value: number) => void;
-}) {
-  const [draft, setDraft] = useState(String(value));
-
-  useEffect(() => setDraft(String(value)), [value]);
-
-  const commit = (candidate: number) => {
-    const precision = Math.max(0, (String(step).split('.')[1] ?? '').length);
-    const rounded = Math.round(candidate / step) * step;
-    const next = Number.isFinite(candidate)
-      ? Number(Math.min(max, Math.max(min, rounded)).toFixed(precision))
-      : value;
-    setDraft(String(next));
-    onChange(next);
-  };
-
-  return (
-    <label
-      aria-disabled={disabled}
-      className={`number-preference-control${disabled ? ' is-disabled' : ''}`}
-    >
-      <span className="number-preference-copy">
-        <strong>{label}</strong>
-        <small>{description}</small>
-      </span>
-      <span className="number-preference-field">
-        <span className="number-preference-input-group">
-          <input
-            disabled={disabled}
-            inputMode="decimal"
-            pattern="[0-9]*[.]?[0-9]*"
-            type="text"
-            value={draft}
-            onBlur={() => commit(Number(draft))}
-            onChange={(event) => {
-              const next = event.currentTarget.value;
-              if (/^(?:\d+(?:\.\d*)?|\.\d*)?$/.test(next)) setDraft(next);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur();
-            }}
-          />
-          <span className="number-preference-steppers">
-            <button
-              aria-label={`${label} +`}
-              disabled={disabled || value >= max}
-              tabIndex={-1}
-              type="button"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => commit(value + step)}
-            >
-              +
-            </button>
-            <button
-              aria-label={`${label} −`}
-              disabled={disabled || value <= min}
-              tabIndex={-1}
-              type="button"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => commit(value - step)}
-            >
-              −
-            </button>
-          </span>
-        </span>
-        <span className="number-preference-unit">{unit}</span>
-      </span>
-    </label>
-  );
-}
-
+/** Performs the general tab operation. */
 function GeneralTab({
   dataActionId,
   dataActionsDisabled,
@@ -1328,21 +1799,41 @@ function GeneralTab({
   onResetApplication,
   onUpdate,
 }: {
+  /** The data action ID value. */
   readonly dataActionId?: string;
+  /** Whether the data actions disabled option is enabled. */
   readonly dataActionsDisabled: boolean;
+  /** The displays value. */
   readonly displays: readonly DisplayInfo[];
+  /** The graphics mode value. */
   readonly graphicsMode: GraphicsMode;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
-  readonly siteOptions: readonly { label: string; value: string }[];
+  /** The site options value. */
+  readonly siteOptions: readonly {
+    /** The label value. */
+    label: string;
+    /** The value value. */
+    value: string;
+  }[];
+  /** The sites value. */
   readonly sites: readonly SiteMenuItem[];
+  /** Callback used to handle on edit menu order. */
   readonly onEditMenuOrder: () => void;
+  /** Callback used to handle on clear application cache. */
   readonly onClearApplicationCache: () => void | Promise<void>;
+  /** Callback used to handle on graphics mode change. */
   readonly onGraphicsModeChange: (graphicsMode: GraphicsMode) => void;
+  /** Callback used to handle on reset application. */
   readonly onResetApplication: () => void | Promise<void>;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   return (
     <Stack gap="lg">
       <section>
@@ -1376,7 +1867,8 @@ function GeneralTab({
           value={preferences.appTheme}
           description={messages.appThemeDescription}
           onValueChange={(appTheme) =>
-            onUpdate({ appTheme: appTheme as AppTheme })
+            onUpdate({ appTheme: appTheme as AppTheme
+            })
           }
         />
       </section>
@@ -1388,7 +1880,8 @@ function GeneralTab({
           options={siteOptions}
           value={preferences.defaultSiteId}
           description={messages.defaultSiteDescription}
-          onValueChange={(defaultSiteId) => onUpdate({ defaultSiteId })}
+          onValueChange={(defaultSiteId) => onUpdate({ defaultSiteId
+          })}
         />
       </section>
 
@@ -1426,7 +1919,8 @@ function GeneralTab({
             }}
             value={preferences.pictureInPictureSize}
             onChange={(pictureInPictureSize) =>
-              onUpdate({ pictureInPictureSize })
+              onUpdate({ pictureInPictureSize
+              })
             }
           />
           <PictureInPictureSizeControl
@@ -1446,7 +1940,8 @@ function GeneralTab({
             }}
             value={preferences.pictureInPicturePortraitSize}
             onChange={(pictureInPicturePortraitSize) =>
-              onUpdate({ pictureInPicturePortraitSize })
+              onUpdate({ pictureInPicturePortraitSize
+              })
             }
           />
           <div className="pip-preference-placement">
@@ -1472,7 +1967,8 @@ function GeneralTab({
               }}
               value={preferences.pictureInPicturePlacement}
               onChange={(pictureInPicturePlacement) =>
-                onUpdate({ pictureInPicturePlacement })
+                onUpdate({ pictureInPicturePlacement
+                })
               }
             />
           </div>
@@ -1521,7 +2017,8 @@ function GeneralTab({
           value={preferences.logLevel}
           description={messages.logLevelDescription}
           onValueChange={(logLevel) =>
-            onUpdate({ logLevel: logLevel as PreferenceState['logLevel'] })
+            onUpdate({ logLevel: logLevel as PreferenceState['logLevel']
+            })
           }
         />
       </section>
@@ -1536,7 +2033,8 @@ function GeneralTab({
             disabled={saving}
             label={messages.alwaysOnTop}
             description={messages.alwaysOnTopDescription}
-            onCheckedChange={(alwaysOnTop) => onUpdate({ alwaysOnTop })}
+            onCheckedChange={(alwaysOnTop) => onUpdate({ alwaysOnTop
+            })}
           />
           <Switch
             checked={preferences.openMenuOnStartup}
@@ -1544,7 +2042,8 @@ function GeneralTab({
             label={messages.openMenuOnStartup}
             description={messages.openMenuOnStartupDescription}
             onCheckedChange={(openMenuOnStartup) =>
-              onUpdate({ openMenuOnStartup })
+              onUpdate({ openMenuOnStartup
+              })
             }
           />
           <Switch
@@ -1553,7 +2052,8 @@ function GeneralTab({
             label={messages.closeMenuOnEscape}
             description={messages.closeMenuOnEscapeDescription}
             onCheckedChange={(closeMenuOnEscape) =>
-              onUpdate({ closeMenuOnEscape })
+              onUpdate({ closeMenuOnEscape
+              })
             }
           />
           <Switch
@@ -1562,7 +2062,8 @@ function GeneralTab({
             label={messages.closeMenuOnOutsideClick}
             description={messages.closeMenuOnOutsideClickDescription}
             onCheckedChange={(closeMenuOnOutsideClick) =>
-              onUpdate({ closeMenuOnOutsideClick })
+              onUpdate({ closeMenuOnOutsideClick
+              })
             }
           />
         </Stack>
@@ -1625,17 +2126,23 @@ function GeneralTab({
   );
 }
 
+/** Performs the graphics mode control operation. */
 function GraphicsModeControl({
   disabled,
   messages,
   value,
   onChange,
 }: {
+  /** Whether the disabled option is enabled. */
   readonly disabled: boolean;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The value value. */
   readonly value: GraphicsMode;
+  /** Callback used to handle on change. */
   readonly onChange: (value: GraphicsMode) => void;
-}) {
+}
+) {
   const options: readonly {
     readonly label: string;
     readonly description: string;
@@ -1693,6 +2200,7 @@ function GraphicsModeControl({
   );
 }
 
+/** Performs the menu order editor operation. */
 function MenuOrderEditor({
   messages,
   preferences,
@@ -1700,32 +2208,44 @@ function MenuOrderEditor({
   onClose,
   onUpdate,
 }: {
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** The sites value. */
   readonly sites: readonly SiteMenuItem[];
+  /** Callback used to handle on close. */
   readonly onClose: () => void;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   const [mode, setMode] = useState<'categories' | 'sites'>('categories');
   const groups = createOrderedSiteGroups(sites, preferences);
   const categories = groups.map(([category]) => category);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6
+    }
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates
+    }),
   );
 
+  /** Moves the category. */
   const moveCategory = (index: number, direction: -1 | 1) => {
     onUpdate({
       menuCategoryOrder: moveOrderedItem(categories, index, direction),
     });
   };
 
+  /** Moves the site. */
   const moveSite = (category: string, index: number, direction: -1 | 1) => {
     const group = groups.find(([candidate]) => candidate === category);
     if (!group) return;
     writeSiteOrder(category, moveOrderedItem(group[1], index, direction));
   };
 
+  /** Performs the write site order operation. */
   const writeSiteOrder = (
     category: string,
     orderedCategorySites: readonly SiteMenuItem[],
@@ -1736,9 +2256,11 @@ function MenuOrderEditor({
         : groupSites;
       return orderedSites.map((site) => site.id);
     });
-    onUpdate({ menuSiteOrder: nextOrder });
+    onUpdate({ menuSiteOrder: nextOrder
+    });
   };
 
+  /** Handles the drag end. */
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const activeId = String(active.id);
@@ -1747,7 +2269,8 @@ function MenuOrderEditor({
       const oldIndex = categories.indexOf(activeId);
       const newIndex = categories.indexOf(overId);
       if (oldIndex < 0 || newIndex < 0) return;
-      onUpdate({ menuCategoryOrder: arrayMove(categories, oldIndex, newIndex) });
+      onUpdate({ menuCategoryOrder: arrayMove(categories, oldIndex, newIndex)
+      });
       return;
     }
 
@@ -1763,9 +2286,12 @@ function MenuOrderEditor({
   return (
     <motion.div
       className="preference-dialog-backdrop menu-order-editor-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0
+      }}
+      animate={{ opacity: 1
+      }}
+      exit={{ opacity: 0
+      }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1777,9 +2303,12 @@ function MenuOrderEditor({
         className="menu-order-editor"
         layout
         role="dialog"
-        initial={{ opacity: 0, scale: 0.95, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 14 }}
+        initial={{ opacity: 0, scale: 0.95, y: 14
+        }}
+        animate={{ opacity: 1, scale: 1, y: 0
+        }}
+        exit={{ opacity: 0, scale: 0.95, y: 14
+        }}
       >
         <Flex align="center" justify="between" gap="md">
           <div>
@@ -1794,7 +2323,8 @@ function MenuOrderEditor({
             size="sm"
             variant="ghost"
             onClick={() =>
-              onUpdate({ menuCategoryOrder: [], menuSiteOrder: [] })
+              onUpdate({ menuCategoryOrder: [], menuSiteOrder: []
+              })
             }
           >
             {messages.resetMenuOrder}
@@ -1822,12 +2352,16 @@ function MenuOrderEditor({
 
         <AnimatePresence initial={false} mode="wait">
           <motion.div
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0
+            }}
             className="menu-order-mode-content"
-            exit={{ opacity: 0, y: mode === 'categories' ? -8 : 8 }}
-            initial={{ opacity: 0, y: mode === 'categories' ? 8 : -8 }}
+            exit={{ opacity: 0, y: mode === 'categories' ? -8 : 8
+            }}
+            initial={{ opacity: 0, y: mode === 'categories' ? 8 : -8
+            }}
             key={mode}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            transition={{ duration: 0.18, ease: 'easeOut'
+            }}
           >
           <DndContext
             collisionDetection={closestCenter}
@@ -1900,6 +2434,7 @@ function MenuOrderEditor({
   );
 }
 
+/** Performs the sortable category row operation. */
 function SortableCategoryRow({
   category,
   count,
@@ -1908,15 +2443,23 @@ function SortableCategoryRow({
   messages,
   onMove,
 }: {
+  /** The category value. */
   readonly category: string;
+  /** The count value. */
   readonly count: number;
+  /** The index value. */
   readonly index: number;
+  /** The length value. */
   readonly length: number;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** Callback used to handle on move. */
   readonly onMove: (direction: -1 | 1) => void;
-}) {
+}
+) {
   const label = messages.categoryLabels[category] ?? category;
-  const sortable = useSortable({ id: category });
+  const sortable = useSortable({ id: category
+  });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
@@ -1946,6 +2489,7 @@ function SortableCategoryRow({
   );
 }
 
+/** Performs the sortable site row operation. */
 function SortableSiteRow({
   index,
   length,
@@ -1953,13 +2497,20 @@ function SortableSiteRow({
   site,
   onMove,
 }: {
+  /** The index value. */
   readonly index: number;
+  /** The length value. */
   readonly length: number;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The site value. */
   readonly site: SiteMenuItem;
+  /** Callback used to handle on move. */
   readonly onMove: (direction: -1 | 1) => void;
-}) {
-  const sortable = useSortable({ id: site.id });
+}
+) {
+  const sortable = useSortable({ id: site.id
+  });
   const style: CSSProperties = {
     transform: CSS.Transform.toString(sortable.transform),
     transition: sortable.transition,
@@ -1989,13 +2540,17 @@ function SortableSiteRow({
   );
 }
 
+/** Performs the drag handle operation. */
 function DragHandle({
   label,
   sortable,
 }: {
+  /** The label value. */
   readonly label: string;
+  /** The sortable value. */
   readonly sortable: ReturnType<typeof useSortable>;
-}) {
+}
+) {
   return (
     <button
       aria-label={label}
@@ -2010,6 +2565,7 @@ function DragHandle({
   );
 }
 
+/** Performs the order buttons operation. */
 function OrderButtons({
   index,
   itemLabel,
@@ -2017,12 +2573,18 @@ function OrderButtons({
   messages,
   onMove,
 }: {
+  /** The index value. */
   readonly index: number;
+  /** The item label value. */
   readonly itemLabel: string;
+  /** The length value. */
   readonly length: number;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** Callback used to handle on move. */
   readonly onMove: (direction: -1 | 1) => void;
-}) {
+}
+) {
   return (
     <Flex className="menu-order-actions" gap="xs">
       <Button
@@ -2047,6 +2609,7 @@ function OrderButtons({
   );
 }
 
+/** Performs the browser profiles tab operation. */
 function BrowserProfilesTab({
   bundles,
   dataActionId,
@@ -2055,21 +2618,35 @@ function BrowserProfilesTab({
   preferences,
   saving,
   sites,
+  onClearAllBrowserProfiles,
   onClearIsolatedSiteData,
   onClearProfileData,
   onUpdate,
 }: {
+  /** The bundles value. */
   readonly bundles: readonly BundleRuntimeInfo[];
+  /** The data action ID value. */
   readonly dataActionId?: string;
+  /** Whether the data actions disabled option is enabled. */
   readonly dataActionsDisabled: boolean;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** The sites value. */
   readonly sites: readonly SiteMenuItem[];
+  /** Callback used to handle on clear all browser profiles. */
+  readonly onClearAllBrowserProfiles: () => void | Promise<void>;
+  /** Callback used to handle on clear isolated site data. */
   readonly onClearIsolatedSiteData: (site: SiteMenuItem) => void | Promise<void>;
+  /** Callback used to handle on clear profile data. */
   readonly onClearProfileData: (profile: BrowserProfileInfo) => void | Promise<void>;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   const [newProfileName, setNewProfileName] = useState('');
   const pluginProfiles = bundles.flatMap((bundle) => bundle.browserProfiles);
   const userProfiles: BrowserProfileInfo[] = preferences.browserProfiles.map(
@@ -2082,6 +2659,7 @@ function BrowserProfilesTab({
   );
   const allProfiles = [...pluginProfiles, ...userProfiles];
 
+  /** Performs the add profile operation. */
   const addProfile = () => {
     const name = newProfileName.trim();
     if (!name) return;
@@ -2090,10 +2668,12 @@ function BrowserProfilesTab({
       name,
       persistent: true,
     };
-    onUpdate({ browserProfiles: [...preferences.browserProfiles, profile] });
+    onUpdate({ browserProfiles: [...preferences.browserProfiles, profile]
+    });
     setNewProfileName('');
   };
 
+  /** Removes the profile. */
   const removeProfile = (profile: UserBrowserProfile) => {
     const removedId = `user:${profile.id}`;
     onUpdate({
@@ -2196,16 +2776,32 @@ function BrowserProfilesTab({
         <Stack className="profile-site-list" gap="sm">
           {sites.map((site) => {
             const explicit = preferences.siteBrowserProfiles[site.id];
+            const defaultProfileId = site.defaultBrowserProfileId;
             const effective =
-              explicit ?? site.defaultBrowserProfileId ?? 'isolated';
-            const sharedDrm = site.drm && effective !== 'isolated';
+              explicit ?? defaultProfileId ?? 'isolated';
+            const defaultProfileMismatch =
+              defaultProfileId !== undefined &&
+              effective !== 'isolated' &&
+              effective !== defaultProfileId;
+            const unsafeSharedDrm =
+              site.drm &&
+              defaultProfileId === undefined &&
+              effective !== 'isolated';
+            const profileWarning = defaultProfileMismatch
+              ? messages.defaultProfileMismatchWarning.replace(
+                  '{profile}',
+                  profileName(defaultProfileId, allProfiles),
+                )
+              : unsafeSharedDrm
+                ? messages.drmProfileWarning
+                : undefined;
             return (
               <div className="profile-site-row" key={site.id}>
                 <div className="profile-site-copy">
                   <Text weight="semibold">{site.title}</Text>
-                  <Text size="xs" tone={sharedDrm ? 'danger' : 'muted'}>
-                    {sharedDrm
-                      ? messages.drmProfileWarning
+                  <Text size="xs" tone={profileWarning ? 'danger' : 'muted'}>
+                    {profileWarning
+                      ? profileWarning
                       : profileAssignmentDescription(
                           messages,
                           effective,
@@ -2220,19 +2816,22 @@ function BrowserProfilesTab({
                     options={profileOptions(messages, allProfiles)}
                     value={effective}
                     onValueChange={(browserProfileId) => {
-                      const assignments = { ...preferences.siteBrowserProfiles };
-                      const defaultValue = site.defaultBrowserProfileId ?? 'isolated';
+                      const assignments = { ...preferences.siteBrowserProfiles
+                      };
+                      const defaultValue = defaultProfileId ?? 'isolated';
                       if (browserProfileId === defaultValue) delete assignments[site.id];
                       else assignments[site.id] = browserProfileId;
-                      onUpdate({ siteBrowserProfiles: assignments });
+                      onUpdate({ siteBrowserProfiles: assignments
+                      });
                     }}
                   />
                   {effective === 'isolated' ? (
                     <Button
+                      className="profile-clear-data-button"
                       disabled={saving || dataActionsDisabled || Boolean(dataActionId)}
                       isLoading={dataActionId === `site:${site.id}`}
                       size="sm"
-                      variant="ghost"
+                      variant="secondary"
                       onClick={() => void onClearIsolatedSiteData(site)}
                     >
                       {messages.clearSiteData}
@@ -2244,10 +2843,53 @@ function BrowserProfilesTab({
           })}
         </Stack>
       </section>
+
+      <section>
+        <Stack gap="sm">
+          <div className="application-data-row">
+            <div className="application-data-copy">
+              <Text weight="semibold">{messages.restoreDefaultProfiles}</Text>
+              <Text size="xs" tone="muted">
+                {messages.restoreDefaultProfilesDescription}
+              </Text>
+            </div>
+            <Button
+              disabled={
+                saving ||
+                Object.keys(preferences.siteBrowserProfiles).length === 0
+              }
+              size="sm"
+              variant="secondary"
+              onClick={() => onUpdate({ siteBrowserProfiles: {}
+              })}
+            >
+              {messages.restoreDefaultProfiles}
+            </Button>
+          </div>
+          <div className="application-data-row is-danger">
+            <div className="application-data-copy">
+              <Text weight="semibold">{messages.allProfileDataClear}</Text>
+              <Text size="xs" tone="muted">
+                {messages.allProfileDataClearDescription}
+              </Text>
+            </div>
+            <Button
+              disabled={saving || dataActionsDisabled || Boolean(dataActionId)}
+              isLoading={dataActionId === 'all-browser-profiles'}
+              size="sm"
+              variant="danger"
+              onClick={() => void onClearAllBrowserProfiles()}
+            >
+              {messages.allProfileDataClear}
+            </Button>
+          </div>
+        </Stack>
+      </section>
     </Stack>
   );
 }
 
+/** Performs the browser profile card operation. */
 function BrowserProfileCard({
   clearDisabled,
   clearLoading,
@@ -2257,14 +2899,22 @@ function BrowserProfileCard({
   onClear,
   onRemove,
 }: {
+  /** Whether the clear disabled option is enabled. */
   readonly clearDisabled?: boolean;
+  /** Whether the clear loading option is enabled. */
   readonly clearLoading?: boolean;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The profile value. */
   readonly profile: BrowserProfileInfo;
+  /** Whether the remove disabled option is enabled. */
   readonly removeDisabled?: boolean;
+  /** Callback used to handle on clear. */
   readonly onClear: () => void;
+  /** Callback used to handle on remove. */
   readonly onRemove?: () => void;
-}) {
+}
+) {
   return (
     <div className="browser-profile-card">
       <div>
@@ -2282,10 +2932,11 @@ function BrowserProfileCard({
       </div>
       <div className="profile-card-actions">
         <Button
+          className="profile-clear-data-button"
           disabled={clearDisabled}
           isLoading={clearLoading}
           size="sm"
-          variant="ghost"
+          variant="secondary"
           onClick={onClear}
         >
           {messages.clearProfileData}
@@ -2300,12 +2951,18 @@ function BrowserProfileCard({
   );
 }
 
+/** Performs the profile options operation. */
 function profileOptions(
   messages: AppMessages,
   profiles: readonly BrowserProfileInfo[],
 ) {
   return [
-    { label: messages.isolatedProfile, value: 'isolated' },
+    {
+      /** The label value. */
+      label: messages.isolatedProfile,
+      /** The value value. */
+      value: 'isolated',
+    },
     ...profiles.map((profile) => ({
       label: `${profile.name} · ${
         profile.source === 'plugin' ? messages.pluginProfile : messages.userProfile
@@ -2315,6 +2972,7 @@ function profileOptions(
   ];
 }
 
+/** Performs the profile assignment description operation. */
 function profileAssignmentDescription(
   messages: AppMessages,
   profileId: string,
@@ -2327,11 +2985,21 @@ function profileAssignmentDescription(
     : messages.isolatedProfileDescription;
 }
 
+/** Performs the profile name operation. */
+function profileName(
+  profileId: string,
+  profiles: readonly BrowserProfileInfo[],
+): string {
+  return profiles.find((profile) => profile.id === profileId)?.name ?? profileId;
+}
+
+/** Creates the user browser profile ID. */
 function createUserBrowserProfileId(): string {
   return globalThis.crypto?.randomUUID?.() ??
     `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Performs the shortcut section operation. */
 function ShortcutSection({
   description,
   duplicateIds,
@@ -2342,15 +3010,24 @@ function ShortcutSection({
   title,
   onChange,
 }: {
+  /** The description value. */
   readonly description?: string;
+  /** The duplicate IDs value. */
   readonly duplicateIds: ReadonlySet<string>;
+  /** The items value. */
   readonly items: readonly ShortcutItem[];
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** The title value. */
   readonly title: string;
+  /** Callback used to handle on change. */
   readonly onChange: (item: ShortcutItem, value: string) => void;
-}) {
+}
+) {
   return (
     <section className="shortcut-section">
       <Text className="preference-section-title" weight="semibold">
@@ -2392,12 +3069,15 @@ function ShortcutSection({
                 onChange={(accelerator) => onChange(item, accelerator)}
               />
               <Button
+                aria-label={messages.reset}
+                className="shortcut-reset-button"
                 disabled={saving || value === item.defaultKey}
                 size="sm"
+                title={messages.reset}
                 variant="ghost"
                 onClick={() => onChange(item, item.defaultKey)}
               >
-                {messages.reset}
+                <ResetShortcutIcon />
               </Button>
               {isDuplicate ? (
                 <Text className="shortcut-duplicate" size="xs" tone="danger">
@@ -2415,6 +3095,35 @@ function ShortcutSection({
   );
 }
 
+/** Resets the shortcut icon. */
+function ResetShortcutIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="18"
+      viewBox="0 0 24 24"
+      width="18"
+    >
+      <path
+        d="M4.9 8.1A8 8 0 1 1 4 12"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M4.9 3.9v4.2H9"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+/** Performs the shortcut recorder operation. */
 function ShortcutRecorder({
   disabled,
   emptyLabel,
@@ -2422,16 +3131,23 @@ function ShortcutRecorder({
   value,
   onChange,
 }: {
+  /** Whether the disabled option is enabled. */
   readonly disabled: boolean;
+  /** The empty label value. */
   readonly emptyLabel: string;
+  /** The label value. */
   readonly label: string;
+  /** The value value. */
   readonly value: string;
+  /** Callback used to handle on change. */
   readonly onChange: (value: string) => void;
-}) {
+}
+) {
   const [preview, setPreview] = useState<string>();
   const displayValue = preview ?? value;
   const parts = formatAccelerator(displayValue);
 
+  /** Handles the key down. */
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -2453,6 +3169,7 @@ function ShortcutRecorder({
     if (!isModifierKey(event.key) && accelerator) onChange(accelerator);
   };
 
+  /** Handles the key up. */
   const handleKeyUp = (event: KeyboardEvent<HTMLInputElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -2490,6 +3207,7 @@ function ShortcutRecorder({
   );
 }
 
+/** Performs the bundles tab operation. */
 function BundlesTab({
   actionBundleId,
   activationToken,
@@ -2505,20 +3223,34 @@ function BundlesTab({
   onUpdateBundle,
   onUpdate,
 }: {
+  /** The action bundle ID value. */
   readonly actionBundleId?: string;
+  /** The activation token value. */
   readonly activationToken: number;
+  /** The bundles value. */
   readonly bundles: readonly BundleInfo[];
+  /** Whether the installing option is enabled. */
   readonly installing: boolean;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The notice value. */
   readonly notice?: string;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** The runtime bundles value. */
   readonly runtimeBundles: readonly BundleRuntimeInfo[];
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** Callback used to handle on install. */
   readonly onInstall: () => void | Promise<void>;
+  /** Callback used to handle on remove bundle. */
   readonly onRemoveBundle: (bundle: BundleInfo) => void | Promise<void>;
+  /** Callback used to handle on update bundle. */
   readonly onUpdateBundle: (bundle: BundleInfo) => void | Promise<void>;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   const [selectedBundleId, setSelectedBundleId] = useState<string>();
   const selectedBundle = bundles.find(({ id }) => id === selectedBundleId);
   const selectedRuntime = runtimeBundles.find(({ id }) => id === selectedBundleId);
@@ -2710,7 +3442,9 @@ function BundlesTab({
                       <span className={`bundle-source-badge is-${bundle.source}`}>
                         {bundle.source === 'built-in'
                           ? messages.builtInBundle
-                          : messages.userBundle}
+                          : bundle.source === 'development'
+                            ? messages.developmentBundle
+                            : messages.userBundle}
                       </span>
                     </Flex>
                     <Text size="xs" tone="muted">
@@ -2784,6 +3518,7 @@ function BundlesTab({
   );
 }
 
+/** Performs the provider item list setting operation. */
 function ProviderItemListSetting({
   description,
   disabled,
@@ -2794,19 +3529,29 @@ function ProviderItemListSetting({
   title,
   onChange,
 }: {
+  /** The description value. */
   readonly description?: string;
+  /** Whether the disabled option is enabled. */
   readonly disabled: boolean;
+  /** The empty text value. */
   readonly emptyText: string;
+  /** The items value. */
   readonly items: readonly ProviderSettingListItem[];
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The theme value. */
   readonly theme: AppTheme;
+  /** The title value. */
   readonly title: string;
+  /** Callback used to handle on change. */
   readonly onChange: (items: readonly ProviderSettingListItem[]) => void;
-}) {
+}
+) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const visibleItems = items.slice(0, 5);
   const selected = new Set(selectedIds);
+  /** Removes the IDs. */
   const removeIds = (ids: ReadonlySet<string>) => {
     onChange(items.filter((item) => !ids.has(item.id)));
     setSelectedIds([]);
@@ -2940,9 +3685,12 @@ function ProviderItemListSetting({
   );
 }
 
+/** Performs the provider list item identity operation. */
 function ProviderListItemIdentity({ item }: {
+  /** The item value. */
   readonly item: ProviderSettingListItem;
-}) {
+}
+) {
   const secondary = item.description ?? (item.label !== item.id ? item.id : undefined);
   return (
     <div className="bundle-list-identity">
@@ -2961,6 +3709,7 @@ function ProviderListItemIdentity({ item }: {
   );
 }
 
+/** Returns the bundle status label. */
 function getBundleStatusLabel(
   messages: AppMessages,
   bundle: BundleInfo,
@@ -2972,6 +3721,7 @@ function getBundleStatusLabel(
   return messages.bundleFailed;
 }
 
+/** Formats the bundle contributions. */
 function formatBundleContributions(
   messages: AppMessages,
   bundle: BundleInfo,
@@ -2986,6 +3736,7 @@ function formatBundleContributions(
   return contributions.join(' · ') || messages.emptyBundle;
 }
 
+/** Performs the app info tab operation. */
 function AppInfoTab({
   appInfo,
   checkingUpdates,
@@ -2999,18 +3750,30 @@ function AppInfoTab({
   onOpenLink,
   onUpdate,
 }: {
+  /** The app info value. */
   readonly appInfo?: ApplicationInfo;
+  /** Whether the checking updates option is enabled. */
   readonly checkingUpdates: boolean;
+  /** The developer you tube status value. */
   readonly developerYouTubeStatus?: DeveloperYouTubeStatus;
+  /** The messages value. */
   readonly messages: AppMessages;
+  /** The preferences value. */
   readonly preferences: PreferenceState;
+  /** Whether the saving option is enabled. */
   readonly saving: boolean;
+  /** The update check result value. */
   readonly updateCheckResult?: ApplicationUpdateCheckResult;
+  /** Callback used to handle on check for updates. */
   readonly onCheckForUpdates: () => void | Promise<void>;
+  /** Callback used to handle on open log directory. */
   readonly onOpenLogDirectory: () => void | Promise<void>;
+  /** Callback used to handle on open link. */
   readonly onOpenLink: (id: ApplicationLinkId) => void | Promise<void>;
+  /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
-}) {
+}
+) {
   const updateStatus = getUpdateStatusMessage(messages, updateCheckResult);
   return (
     <Stack gap="lg">
@@ -3044,7 +3807,8 @@ function AppInfoTab({
               label={messages.automaticUpdates}
               title={messages.automaticUpdatesDescription}
               onCheckedChange={(automaticUpdates) =>
-                onUpdate({ automaticUpdates })
+                onUpdate({ automaticUpdates
+                })
               }
             />
           </Flex>
@@ -3113,6 +3877,7 @@ function AppInfoTab({
   );
 }
 
+/** Returns the channel label. */
 function getChannelLabel(messages: AppMessages, channel: ReleaseChannel): string {
   return {
     stable: messages.stableChannel,
@@ -3121,6 +3886,7 @@ function getChannelLabel(messages: AppMessages, channel: ReleaseChannel): string
   }[channel];
 }
 
+/** Returns the update status message. */
 function getUpdateStatusMessage(
   messages: AppMessages,
   result?: ApplicationUpdateCheckResult,
@@ -3135,7 +3901,14 @@ function getUpdateStatusMessage(
   );
 }
 
-function InfoRow({ label, value }: { readonly label: string; readonly value: string }) {
+/** Performs the info row operation. */
+function InfoRow({ label, value }: {
+  /** The label value. */
+  readonly label: string;
+  /** The value value. */
+  readonly value: string;
+}
+) {
   return (
     <Flex className="app-info-row" align="center" justify="between" gap="md">
       <Text size="sm" tone="muted">{label}</Text>
@@ -3144,32 +3917,91 @@ function InfoRow({ label, value }: { readonly label: string; readonly value: str
   );
 }
 
+/** Performs the app locale options operation. */
 function appLocaleOptions(messages: AppMessages) {
   return [
-    { label: messages.system, value: 'system' },
-    { label: messages.korean, value: 'ko-KR' },
-    { label: messages.english, value: 'en-US' },
-    { label: messages.japanese, value: 'ja-JP' },
+    {
+      /** The label value. */
+      label: messages.system,
+      /** The value value. */
+      value: 'system',
+    },
+    {
+      /** The label value. */
+      label: messages.korean,
+      /** The value value. */
+      value: 'ko-KR',
+    },
+    {
+      /** The label value. */
+      label: messages.english,
+      /** The value value. */
+      value: 'en-US',
+    },
+    {
+      /** The label value. */
+      label: messages.japanese,
+      /** The value value. */
+      value: 'ja-JP',
+    },
   ];
 }
 
+/** Performs the app theme options operation. */
 function appThemeOptions(messages: AppMessages) {
   return [
-    { label: messages.darkTheme, value: 'dark' },
-    { label: messages.lightTheme, value: 'light' },
+    {
+      /** The label value. */
+      label: messages.darkTheme,
+      /** The value value. */
+      value: 'dark',
+    },
+    {
+      /** The label value. */
+      label: messages.lightTheme,
+      /** The value value. */
+      value: 'light',
+    },
   ];
 }
 
+/** Performs the dev tools mode options operation. */
 function devToolsModeOptions(messages: AppMessages) {
   return [
-    { label: messages.devToolsPlacementDetach, value: 'detach' },
-    { label: messages.devToolsPlacementUndocked, value: 'undocked' },
-    { label: messages.devToolsPlacementRight, value: 'right' },
-    { label: messages.devToolsPlacementBottom, value: 'bottom' },
-    { label: messages.devToolsPlacementLeft, value: 'left' },
+    {
+      /** The label value. */
+      label: messages.devToolsPlacementDetach,
+      /** The value value. */
+      value: 'detach',
+    },
+    {
+      /** The label value. */
+      label: messages.devToolsPlacementUndocked,
+      /** The value value. */
+      value: 'undocked',
+    },
+    {
+      /** The label value. */
+      label: messages.devToolsPlacementRight,
+      /** The value value. */
+      value: 'right',
+    },
+    {
+      /** The label value. */
+      label: messages.devToolsPlacementBottom,
+      /** The value value. */
+      value: 'bottom',
+    },
+    {
+      /** The label value. */
+      label: messages.devToolsPlacementLeft,
+      /** The value value. */
+      value: 'left',
+    },
   ];
 }
 
+/** Performs the preferences equal operation. */
 function preferencesEqual(
   left: PreferenceState,
   right: PreferenceState,
@@ -3177,6 +4009,7 @@ function preferencesEqual(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/** Returns the effective shortcut. */
 function getEffectiveShortcut(
   item: ShortcutItem,
   shortcuts: Readonly<Record<string, string>>,
@@ -3186,6 +4019,7 @@ function getEffectiveShortcut(
     : item.defaultKey;
 }
 
+/** Returns the provider boolean setting. */
 function getProviderBooleanSetting(
   preferences: PreferenceState,
   providerId: string,
@@ -3196,6 +4030,7 @@ function getProviderBooleanSetting(
   return typeof value === 'boolean' ? value : fallback;
 }
 
+/** Handles the update provider setting. */
 function onUpdateProviderSetting(
   preferences: PreferenceState,
   providerId: string,
@@ -3214,6 +4049,7 @@ function onUpdateProviderSetting(
   });
 }
 
+/** Resolves the provider text. */
 function resolveProviderText(
   value: ProviderLocalizedText,
   locale: AppLocale,
@@ -3229,17 +4065,20 @@ function resolveProviderText(
   return match ?? value.default ?? value['en-US'] ?? Object.values(value)[0] ?? '';
 }
 
+/** Performs the write shortcut override operation. */
 function writeShortcutOverride(
   current: Readonly<Record<string, string>>,
   item: ShortcutItem,
   accelerator: string,
 ): Record<string, string> {
-  const shortcuts = { ...current };
+  const shortcuts = { ...current
+  };
   if (accelerator === item.defaultKey) delete shortcuts[item.id];
   else shortcuts[item.id] = accelerator;
   return shortcuts;
 }
 
+/** Finds the shortcut conflicts. */
 function findShortcutConflicts(
   targetId: string,
   items: readonly ShortcutItem[],
@@ -3258,6 +4097,7 @@ function findShortcutConflicts(
     .map((item) => item.id);
 }
 
+/** Finds the duplicate shortcut IDs. */
 function findDuplicateShortcutIds(
   items: readonly ShortcutItem[],
   shortcuts: Readonly<Record<string, string>>,
@@ -3277,6 +4117,7 @@ function findDuplicateShortcutIds(
   );
 }
 
+/** Normalizes the accelerator. */
 function normalizeAccelerator(accelerator: string): string {
   const isMac = isMacPlatform();
   const parts = accelerator
@@ -3313,6 +4154,7 @@ function normalizeAccelerator(accelerator: string): string {
   return [...modifiers, key].join('+');
 }
 
+/** Creates the accelerator. */
 function createAccelerator(event: KeyboardEvent<HTMLInputElement>): string {
   const isMac = isMacPlatform();
   const modifiers: string[] = [];
@@ -3340,6 +4182,7 @@ function createAccelerator(event: KeyboardEvent<HTMLInputElement>): string {
   return [...modifiers, key].join('+');
 }
 
+/** Formats the accelerator. */
 function formatAccelerator(accelerator: string): string[] {
   const isMac = isMacPlatform();
   return accelerator
@@ -3381,10 +4224,12 @@ function formatAccelerator(accelerator: string): string[] {
     });
 }
 
+/** Determines whether the modifier key condition applies. */
 function isModifierKey(key: string): boolean {
   return ['Meta', 'Control', 'Alt', 'Shift'].includes(key);
 }
 
+/** Determines whether the mac platform condition applies. */
 function isMacPlatform(): boolean {
   return /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 }

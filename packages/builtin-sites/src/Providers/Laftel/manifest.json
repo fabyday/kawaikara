@@ -8,11 +8,17 @@
   "permissions": ["navigation", "network-interception"],
   "contributes": {
     "address": { "hosts": ["laftel.net"] },
+    "browserIdentity": {
+      "userAgent": "chromium",
+      "clientHints": "auto",
+      "requestHosts": ["laftel.net", "apple.com"]
+    },
     "shortcut": { "defaultKey": "Control+Alt+2" },
     "locale": {
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },
+    "pictureInPicture": { "enabled": true },
     "menu": { "category": "OTT", "order": 20 }
   }
 }

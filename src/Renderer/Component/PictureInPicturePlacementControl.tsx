@@ -6,32 +6,55 @@ import type {
   PictureInPicturePosition,
 } from '../../Common/PictureInPicture';
 
+/** Describes the picture in picture placement control messages contract. */
 export interface PictureInPicturePlacementControlMessages {
+  /** The bottom left value. */
   readonly bottomLeft: string;
+  /** The bottom right value. */
   readonly bottomRight: string;
+  /** The current display value. */
   readonly currentDisplay: string;
+  /** The display value. */
   readonly display: string;
+  /** The last display value. */
   readonly lastDisplay: string;
+  /** The last position value. */
   readonly lastPosition: string;
+  /** The monitor value. */
   readonly monitor: string;
+  /** The monitor description value. */
   readonly monitorDescription: string;
+  /** The position value. */
   readonly position: string;
+  /** The position description value. */
   readonly positionDescription: string;
+  /** The primary value. */
   readonly primary: string;
+  /** The top left value. */
   readonly topLeft: string;
+  /** The top right value. */
   readonly topRight: string;
+  /** The unavailable display value. */
   readonly unavailableDisplay: string;
+  /** The video display value. */
   readonly videoDisplay: string;
 }
 
+/** Describes the picture in picture placement control props contract. */
 export interface PictureInPicturePlacementControlProps {
+  /** Whether the disabled option is enabled. */
   readonly disabled?: boolean;
+  /** The displays value. */
   readonly displays: readonly DisplayInfo[];
+  /** The messages value. */
   readonly messages: PictureInPicturePlacementControlMessages;
+  /** The value value. */
   readonly value: PictureInPicturePlacementPreference;
+  /** Callback used to handle on change. */
   readonly onChange: (value: PictureInPicturePlacementPreference) => void;
 }
 
+/** Performs the picture in picture placement control operation. */
 export function PictureInPicturePlacementControl({
   disabled = false,
   displays,
@@ -44,9 +67,12 @@ export function PictureInPicturePlacementControl({
       ? `display:${value.monitor.displayId}`
       : value.monitor.mode;
   const monitorOptions = [
-    { label: messages.currentDisplay, value: 'current' },
-    { label: messages.videoDisplay, value: 'video' },
-    { label: messages.lastDisplay, value: 'last' },
+    { label: messages.currentDisplay, value: 'current'
+    },
+    { label: messages.videoDisplay, value: 'video'
+    },
+    { label: messages.lastDisplay, value: 'last'
+    },
     ...displays.map((display, index) => ({
       label: displayLabel(display, index, messages),
       value: `display:${display.id}`,
@@ -97,7 +123,8 @@ export function PictureInPicturePlacementControl({
           }
           onChange({
             ...value,
-            monitor: { mode: monitor as PictureInPictureMonitorMode },
+            monitor: { mode: monitor as PictureInPictureMonitorMode
+            },
           });
         }}
       />
@@ -105,18 +132,50 @@ export function PictureInPicturePlacementControl({
   );
 }
 
+/** Performs the position options operation. */
 function positionOptions(
   messages: PictureInPicturePlacementControlMessages,
-): Array<{ label: string; value: PictureInPicturePosition }> {
+): Array<{
+  /** The label value. */
+  label: string;
+  /** The value value. */
+  value: PictureInPicturePosition;
+}> {
   return [
-    { label: messages.topLeft, value: 'top-left' },
-    { label: messages.topRight, value: 'top-right' },
-    { label: messages.bottomLeft, value: 'bottom-left' },
-    { label: messages.bottomRight, value: 'bottom-right' },
-    { label: messages.lastPosition, value: 'last' },
+    {
+      /** The label value. */
+      label: messages.topLeft,
+      /** The value value. */
+      value: 'top-left',
+    },
+    {
+      /** The label value. */
+      label: messages.topRight,
+      /** The value value. */
+      value: 'top-right',
+    },
+    {
+      /** The label value. */
+      label: messages.bottomLeft,
+      /** The value value. */
+      value: 'bottom-left',
+    },
+    {
+      /** The label value. */
+      label: messages.bottomRight,
+      /** The value value. */
+      value: 'bottom-right',
+    },
+    {
+      /** The label value. */
+      label: messages.lastPosition,
+      /** The value value. */
+      value: 'last',
+    },
   ];
 }
 
+/** Performs the display label operation. */
 function displayLabel(
   display: DisplayInfo,
   index: number,

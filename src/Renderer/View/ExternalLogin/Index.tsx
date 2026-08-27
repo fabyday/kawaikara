@@ -4,6 +4,7 @@ import '@kawaikara/kawai-ui/styles.css';
 import '../../Styles/ExternalLogin.css';
 import { ExternalLoginView } from './App';
 
+/** Stores the root value. */
 const root = document.getElementById('root');
 if (!root) {
   throw new Error('External login renderer root element was not found.');

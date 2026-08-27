@@ -5,15 +5,21 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
-  "permissions": ["navigation", "network-interception"],
+  "permissions": ["navigation", "network-interception", "script-injection"],
   "contributes": {
     "address": { "hosts": ["tv.apple.com"] },
+    "browserIdentity": {
+      "userAgent": "chromium",
+      "clientHints": "auto",
+      "requestHosts": ["apple.com"]
+    },
     "shortcut": { "defaultKey": "Control+Alt+A" },
     "locale": {
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },
     "isolation": { "drm": true, "defaultBrowserProfile": "apple" },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "OTT",
       "order": 90,

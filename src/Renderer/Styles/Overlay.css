@@ -130,6 +130,8 @@ img {
 }
 
 .menu-address-section {
+  position: relative;
+  z-index: 20;
   flex: 0 0 auto;
   margin: 10px 10px 0;
   padding: 10px 10px 8px;
@@ -142,9 +144,31 @@ img {
 .menu-address-form {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px 42px;
+  grid-template-columns: 58px minmax(180px, 1fr) 42px 42px;
   gap: 6px;
   animation: none;
+}
+
+.menu-address-navigation {
+  display: flex;
+  width: 58px;
+  height: 42px;
+}
+
+.menu-address-form .menu-address-navigation > button {
+  width: 30px;
+  min-width: 0;
+  border-radius: 0;
+  font-size: 16px;
+}
+
+.menu-address-form .menu-address-navigation > button:first-child {
+  border-radius: 12px 0 0 12px;
+}
+
+.menu-address-form .menu-address-navigation > button:last-child {
+  margin-left: -1px;
+  border-radius: 0 12px 12px 0;
 }
 
 .menu-address-form input {
@@ -188,6 +212,7 @@ img {
 }
 
 .menu-address-form > button:not(:disabled):hover,
+.menu-address-navigation > button:not(:disabled):hover,
 .menu-address-form > button.is-copied {
   border-color: rgb(168 85 247 / 42%);
   background: #303037;
@@ -210,9 +235,9 @@ img {
 .menu-address-suggestions {
   position: absolute;
   z-index: 60;
-  top: calc(100% + 8px);
-  right: 0;
-  left: 0;
+  top: calc(100% + 3px);
+  right: 10px;
+  left: 10px;
   display: grid;
   max-height: min(390px, calc(100vh - 124px));
   gap: 4px;
@@ -226,7 +251,7 @@ img {
   backdrop-filter: blur(18px);
 }
 
-.menu-address-form .menu-address-suggestions > button {
+.menu-address-suggestions > button {
   display: flex;
   width: 100%;
   height: auto;
@@ -235,17 +260,18 @@ img {
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  border-color: transparent;
+  border: 1px solid transparent;
   border-radius: 11px;
   padding: 9px 12px;
   background: transparent;
   color: var(--kawai-color-foreground);
+  cursor: pointer;
   font: inherit;
   text-align: left;
 }
 
-.menu-address-form .menu-address-suggestions > button:hover,
-.menu-address-form .menu-address-suggestions > button.is-active {
+.menu-address-suggestions > button:hover,
+.menu-address-suggestions > button.is-active {
   border-color: rgb(168 85 247 / 22%);
   background: rgb(168 85 247 / 13%);
 }
@@ -1564,6 +1590,96 @@ img {
   background: #242429;
 }
 
+.developer-tools-actions {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.developer-tools-actions > :first-child {
+  min-width: 0;
+}
+
+.developer-tools-actions > button {
+  flex: 0 0 auto;
+}
+
+.development-trust-warning {
+  display: block;
+  border: 1px solid rgb(251 113 133 / 28%);
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: rgb(127 29 29 / 18%);
+  color: #fda4af;
+}
+
+.development-debugger-status,
+.development-notice {
+  display: block;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.development-debugger-status.is-active,
+.development-notice {
+  background: rgb(34 197 94 / 12%);
+  color: #86efac;
+}
+
+.development-project-list {
+  margin-top: 14px;
+}
+
+.development-project-heading > :first-child {
+  min-width: 0;
+}
+
+.development-project-heading > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.development-project-card {
+  min-width: 0;
+  border: 1px solid var(--kawai-color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #242429;
+}
+
+.development-project-card.is-failed {
+  border-color: rgb(251 113 133 / 42%);
+}
+
+.development-project-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.development-project-metadata {
+  flex-wrap: wrap;
+  margin-top: 7px;
+  color: var(--kawai-color-muted-foreground);
+  font-size: 11px;
+}
+
+.development-project-metadata span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgb(255 255 255 / 5%);
+}
+
+.development-project-error {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.development-project-actions {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
 .preference-subsection {
   padding-top: 4px;
 }
@@ -1608,6 +1724,47 @@ img {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.profile-clear-data-button {
+  border-color: color-mix(
+    in srgb,
+    var(--kawai-color-primary) 52%,
+    var(--kawai-color-border)
+  );
+  background: color-mix(
+    in srgb,
+    var(--kawai-color-primary) 14%,
+    transparent
+  );
+  color: color-mix(
+    in srgb,
+    var(--kawai-color-primary) 72%,
+    var(--kawai-color-foreground)
+  );
+  font-weight: 650;
+}
+
+.profile-clear-data-button:hover:not(:disabled) {
+  border-color: color-mix(
+    in srgb,
+    var(--kawai-color-primary) 76%,
+    var(--kawai-color-border)
+  );
+  background: color-mix(
+    in srgb,
+    var(--kawai-color-primary) 22%,
+    transparent
+  );
+}
+
+.profile-clear-data-button:focus-visible {
+  outline: 2px solid color-mix(
+    in srgb,
+    var(--kawai-color-primary) 72%,
+    transparent
+  );
+  outline-offset: 2px;
 }
 
 .profile-source-badge {
@@ -1706,21 +1863,25 @@ img {
   gap: 8px;
 }
 
-.pip-dimension-field {
+.pip-dimension-field.number-preference-control {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(48px, auto) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
-.pip-dimension-label {
+.pip-dimension-field .number-preference-copy strong {
   color: var(--kawai-color-muted-foreground);
   font-size: 11px;
   font-weight: 650;
 }
 
-.pip-dimension-value {
+.pip-dimension-field .number-preference-field {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(84px, 126px) auto;
@@ -1728,7 +1889,7 @@ img {
   gap: 7px;
 }
 
-.pip-dimension-value .number-preference-input-group > input {
+.pip-dimension-field .number-preference-input-group > input {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -1816,14 +1977,14 @@ img {
   box-shadow: 0 22px 55px rgb(50 38 74 / 20%);
 }
 
-.kawai-theme-light .menu-address-form .menu-address-suggestions > button {
+.kawai-theme-light .menu-address-suggestions > button {
   border-color: transparent;
   background: transparent;
   color: #27232e;
 }
 
-.kawai-theme-light .menu-address-form .menu-address-suggestions > button:hover,
-.kawai-theme-light .menu-address-form .menu-address-suggestions > button.is-active {
+.kawai-theme-light .menu-address-suggestions > button:hover,
+.kawai-theme-light .menu-address-suggestions > button.is-active {
   border-color: rgb(126 34 206 / 18%);
   background: rgb(126 34 206 / 9%);
 }
@@ -1974,6 +2135,29 @@ img {
 
 .shortcut-row.is-duplicate .shortcut-recorder {
   border-color: var(--kawai-color-danger);
+}
+
+.shortcut-row:focus-within {
+  border-color: var(--kawai-color-primary);
+  background: rgb(139 92 246 / 9%);
+  box-shadow: 0 0 0 1px rgb(139 92 246 / 18%) inset;
+}
+
+.shortcut-row.is-duplicate:focus-within {
+  border-color: var(--kawai-color-danger);
+  background: rgb(127 29 29 / 22%);
+  box-shadow: none;
+}
+
+.shortcut-reset-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+}
+
+.shortcut-reset-button svg {
+  display: block;
 }
 
 .shortcut-duplicate {
@@ -2233,6 +2417,12 @@ img {
   color: #93c5fd;
 }
 
+.bundle-source-badge.is-development {
+  border-color: rgb(52 211 153 / 30%);
+  background: rgb(16 185 129 / 12%);
+  color: #6ee7b7;
+}
+
 .bundle-contributions,
 .bundle-error {
   display: block;
@@ -2436,6 +2626,29 @@ img {
   border-color: rgb(45 35 65 / 14%);
   background: #fff;
   color: #27232e;
+}
+
+.kawai-theme-light .development-project-card {
+  border-color: rgb(45 35 65 / 14%);
+  background: #fff;
+  color: #27232e;
+}
+
+.kawai-theme-light .development-trust-warning {
+  border-color: rgb(190 24 93 / 24%);
+  background: rgb(190 24 93 / 8%);
+  color: #9f1239;
+}
+
+.kawai-theme-light .development-debugger-status,
+.kawai-theme-light .development-project-metadata span {
+  background: rgb(45 35 65 / 6%);
+}
+
+.kawai-theme-light .development-debugger-status.is-active,
+.kawai-theme-light .development-notice {
+  background: rgb(22 163 74 / 12%);
+  color: #166534;
 }
 
 .kawai-theme-light .application-data-row.is-danger {

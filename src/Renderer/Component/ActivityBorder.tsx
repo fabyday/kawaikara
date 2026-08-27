@@ -1,16 +1,25 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 
+/** Defines the shared activity border inset constant. */
 const ACTIVITY_BORDER_INSET = 3;
+/** Defines the shared activity border stroke width constant. */
 const ACTIVITY_BORDER_STROKE_WIDTH = 2;
 
+/** Describes the activity border geometry contract. */
 interface ActivityBorderGeometry {
+  /** The width value. */
   readonly width: number;
+  /** The height value. */
   readonly height: number;
+  /** The radius value. */
   readonly radius: number;
 }
 
+/** Describes the activity border props contract. */
 export interface ActivityBorderProps {
+  /** The class name value. */
   readonly className?: string;
+  /** Whether the running option is enabled. */
   readonly running: boolean;
 }
 
@@ -28,6 +37,7 @@ export function ActivityBorder({ className, running }: ActivityBorderProps) {
     const parent = svg?.parentElement;
     if (!svg || !parent) return;
 
+    /** Updates the geometry. */
     const updateGeometry = () => {
       const bounds = svg.getBoundingClientRect();
       const parsedRadius = Number.parseFloat(
@@ -52,7 +62,8 @@ export function ActivityBorder({ className, running }: ActivityBorderProps) {
         ) {
           return current;
         }
-        return { width, height, radius };
+        return { width, height, radius
+        };
       });
     };
 

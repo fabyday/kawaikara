@@ -30,34 +30,63 @@ import { installMpvSoftwareRenderSizeLimit } from '../../Domain/MpvVideoPerforma
 import { YouTubeDownloaderPanel } from './YouTubeDownloaderPanel';
 import { VideoBrowser } from './VideoBrowser';
 
+/** Defines the shared default frame rate constant. */
 const DEFAULT_FRAME_RATE = 30;
+/** Defines the shared video volume step constant. */
 const VIDEO_VOLUME_STEP = 5;
+/** Defines the shared video scrub preview interval ms constant. */
 const VIDEO_SCRUB_PREVIEW_INTERVAL_MS = 100;
+/** Defines the shared video long scrub preview interval ms constant. */
 const VIDEO_LONG_SCRUB_PREVIEW_INTERVAL_MS = 180;
+/** Defines the shared video long duration seconds constant. */
 const VIDEO_LONG_DURATION_SECONDS = 2 * 60 * 60;
+/** Defines the shared player UI update interval ms constant. */
 const PLAYER_UI_UPDATE_INTERVAL_MS = 100;
 
+/** Describes the player source contract. */
 interface PlayerSource {
+  /** The native value value. */
   readonly nativeValue: string;
+  /** The chromium value value. */
   readonly chromiumValue: string;
+  /** The label value. */
   readonly label: string;
+  /** The kind value. */
   readonly kind: 'local' | 'hls';
 }
 
+/** Describes the chromium source handle contract. */
 interface ChromiumSourceHandle {
+  /** The hls value. */
   readonly hls: Hls | null;
+  /** Whether the ready option is enabled. */
   readonly ready: Promise<void>;
 }
 
+/** Describes the pending MPV seek contract. */
 interface PendingMpvSeek {
+  /** Whether the report error option is enabled. */
   readonly reportError: boolean;
+  /** The seconds value. */
   readonly seconds: number;
 }
 
+/** Describes the video seek range contract. */
+interface VideoSeekRange {
+  /** The start value. */
+  readonly start: number;
+  /** The end value. */
+  readonly end: number;
+}
+
+/** Defines the playback backend type. */
 type PlaybackBackend = 'detecting' | 'libmpv' | 'chromium';
+/** Defines the fallback reason type. */
 type FallbackReason = 'intel-mac' | 'unavailable' | 'native-error';
 
+/** Defines the shared MPV initialization timeout ms constant. */
 const MPV_INITIALIZATION_TIMEOUT_MS = 8_000;
+/** Defines the video preferences type. */
 type VideoPreferences = Pick<
   PreferenceState,
   | 'appTheme'
@@ -68,22 +97,34 @@ type VideoPreferences = Pick<
   | 'videoVolume'
 >;
 
+/** Defines the shared initial player state constant. */
 const INITIAL_PLAYER_STATE: MpvVideoState = {
+  /** The player ID value. */
   playerId: '',
+  /** The status value. */
   status: 'Idle',
+  /** The render mode value. */
   renderMode: 'webgl',
+  /** The renderer name value. */
   rendererName: '-',
+  /** The time value. */
   time: 0,
+  /** The duration value. */
   duration: 0,
+  /** The width value. */
   width: 0,
+  /** The height value. */
   height: 0,
+  /** The codec value. */
   codec: '-',
+  /** The fps value. */
   fps: 0,
 };
 
 installMpvSoftwareRenderSizeLimit();
 defineMpvVideoElement();
 
+/** Performs the video view operation. */
 export function VideoView() {
   const playerHostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<MpvVideoElement | null>(null);
@@ -137,6 +178,8 @@ export function VideoView() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(false);
   const [scrubTime, setScrubTime] = useState<number>();
+  const [hlsSeekRange, setHlsSeekRange] = useState<VideoSeekRange>();
+  const [followingLive, setFollowingLive] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [volume, setVolume] = useState(100);
   const [localization, setLocalization] = useState<RendererMessages>();
@@ -171,11 +214,24 @@ export function VideoView() {
   const labels = localization?.video as VideoMessages;
   if (labels) labelsRef.current = labels;
   const isPlaying = playerState.status === 'Playing';
-  const hasTimeline = Number.isFinite(playerState.duration) && playerState.duration > 0;
+  const isHls = source?.kind === 'hls';
+  const timelineRange = isHls
+    ? hlsSeekRange ?? finiteSeekRange(playerState.duration)
+    : finiteSeekRange(playerState.duration);
+  const hasTimeline = timelineRange !== undefined;
   const displayedTime = scrubTime ?? playerState.time;
-  const timelineProgress = hasTimeline
-    ? Math.min(100, Math.max(0, (displayedTime / playerState.duration) * 100))
-    : 0;
+  const timelineProgress = isHls && followingLive
+    ? 100
+    : timelineRange
+    ? Math.min(100, Math.max(
+        0,
+        ((displayedTime - timelineRange.start) /
+          (timelineRange.end - timelineRange.start)) * 100,
+      ))
+    : isHls
+      ? 100
+      : 0;
+  const behindLiveEdge = Boolean(isHls && !followingLive);
 
   useEffect(() => clearMpvStateUiTimer, [clearMpvStateUiTimer]);
 
@@ -367,8 +423,19 @@ export function VideoView() {
     player.className = 'video-player';
     player.setAttribute('render-mode', mpvRenderMode);
     player.setAttribute('volume', String(volume));
+    /** Handles the state. */
     const handleState = (event: Event) => {
-      const next = (event as CustomEvent<MpvVideoState>).detail;
+      const received = (event as CustomEvent<MpvVideoState>).detail;
+      // libmpv reports eof-reached separately from time-pos, so its final
+      // position commonly remains just short of duration. Chromium's ended
+      // event already normalizes this value. Keep both backends consistent.
+      const next =
+        received.status === 'Ended' &&
+        Number.isFinite(received.duration) &&
+        received.duration > 0
+          ? { ...received, time: received.duration
+          }
+          : received;
       const previous = playerStateRef.current;
       const statusChanged = next.status !== previous.status;
       const presentationChanged =
@@ -426,6 +493,7 @@ export function VideoView() {
         revealControlsRef.current();
       }
     };
+    /** Handles the error. */
     const handleError = (event: Event) => {
       setLoading(false);
       const reason = (event as CustomEvent<unknown>).detail;
@@ -477,6 +545,8 @@ export function VideoView() {
     scrubbingRef.current = false;
     scrubPointerIdRef.current = undefined;
     setScrubTime(undefined);
+    setHlsSeekRange(undefined);
+    setFollowingLive(source.kind === 'hls');
     setError(undefined);
     setLoading(true);
     clearMpvStateUiTimer();
@@ -491,6 +561,7 @@ export function VideoView() {
       fps: 0,
     }));
 
+    /** Opens the operation. */
     const open = async () => {
       if (backend === 'libmpv') {
         const player = playerRef.current;
@@ -573,6 +644,15 @@ export function VideoView() {
     const video = fallbackVideoRef.current;
     if (!video || backend !== 'chromium') return;
 
+    /** Updates the hls seek range. */
+    const updateHlsSeekRange = () => {
+      const next = sourceRef.current?.kind === 'hls'
+        ? readVideoSeekRange(video, hlsRef.current)
+        : undefined;
+      setHlsSeekRange((current) => sameSeekRange(current, next) ? current : next);
+    };
+
+    /** Updates the metadata. */
     const updateMetadata = () => {
       const duration = Number.isFinite(video.duration) ? video.duration : 0;
       updatePlayerState((current) => ({
@@ -585,23 +665,31 @@ export function VideoView() {
         width: video.videoWidth,
         height: video.videoHeight,
       }));
+      updateHlsSeekRange();
     };
+    /** Updates the time. */
     const updateTime = () => {
       updatePlayerState((current) => ({
         ...current,
         time: video.currentTime || 0,
       }));
+      updateHlsSeekRange();
     };
+    /** Handles the play. */
     const handlePlay = () => {
       setLoading(false);
-      updatePlayerState((current) => ({ ...current, status: 'Playing' }));
+      updatePlayerState((current) => ({ ...current, status: 'Playing'
+      }));
       revealControlsRef.current();
     };
+    /** Handles the pause. */
     const handlePause = () => {
       if (video.ended) return;
-      updatePlayerState((current) => ({ ...current, status: 'Paused' }));
+      updatePlayerState((current) => ({ ...current, status: 'Paused'
+      }));
       revealControlsRef.current();
     };
+    /** Handles the ended. */
     const handleEnded = () => {
       updatePlayerState((current) => ({
         ...current,
@@ -610,6 +698,7 @@ export function VideoView() {
       }));
       revealControlsRef.current();
     };
+    /** Handles the error. */
     const handleError = () => {
       if (!video.currentSrc || !sourceRef.current) return;
       console.error('[video] Chromium media element error.', video.error);
@@ -625,6 +714,7 @@ export function VideoView() {
     video.addEventListener('loadedmetadata', updateMetadata);
     video.addEventListener('durationchange', updateMetadata);
     video.addEventListener('timeupdate', updateTime);
+    video.addEventListener('progress', updateHlsSeekRange);
     video.addEventListener('seeked', updateTime);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
@@ -634,6 +724,7 @@ export function VideoView() {
       video.removeEventListener('loadedmetadata', updateMetadata);
       video.removeEventListener('durationchange', updateMetadata);
       video.removeEventListener('timeupdate', updateTime);
+      video.removeEventListener('progress', updateHlsSeekRange);
       video.removeEventListener('seeked', updateTime);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
@@ -659,6 +750,7 @@ export function VideoView() {
     let active = true;
     let callbackId = 0;
     let previousMediaTime: number | undefined;
+    /** Performs the observe frame operation. */
     const observeFrame: VideoFrameRequestCallback = (_now, metadata) => {
       if (!active) return;
       if (previousMediaTime !== undefined) {
@@ -669,7 +761,8 @@ export function VideoView() {
           if (samples.length >= 12) {
             const fps = samples.reduce((sum, value) => sum + value, 0) / samples.length;
             samples.length = 0;
-            updatePlayerState((current) => ({ ...current, fps }));
+            updatePlayerState((current) => ({ ...current, fps
+            }));
           }
         }
       }
@@ -721,7 +814,8 @@ export function VideoView() {
   }, []);
 
   const openLocalRequest = useCallback(async (
-    request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
+    request: Extract<VideoOpenRequest, { readonly kind: 'local'
+    }>,
     directory: string,
   ) => {
     try {
@@ -782,6 +876,7 @@ export function VideoView() {
 
   useEffect(() => {
     let active = true;
+    /** Performs the refresh preferences operation. */
     const refreshPreferences = () => {
       void Promise.all([
         window.kawaikaraVideo.preferences.get(),
@@ -839,6 +934,7 @@ export function VideoView() {
     if (mpvSeekInFlightRef.current) return;
     mpvSeekInFlightRef.current = true;
 
+    /** Performs the drain operation. */
     const drain = async () => {
       try {
         while (pendingMpvSeekRef.current) {
@@ -899,21 +995,34 @@ export function VideoView() {
       .catch((reason: unknown) => setError(getMpvErrorMessage(reason, labels)));
   }, [labels]);
 
-  const seekTo = useCallback((seconds: number, reportError = true) => {
+  const seekTo = useCallback((
+    seconds: number,
+    reportError = true,
+    followLive = false,
+  ) => {
     if (!Number.isFinite(seconds)) return;
     const state = playerStateRef.current;
+    const range = resolveVideoSeekRange(
+      state.duration,
+      sourceRef.current,
+      backendRef.current,
+      fallbackVideoRef.current,
+      hlsRef.current,
+    );
     if (
       !sourceRef.current ||
-      !Number.isFinite(state.duration) ||
-      state.duration <= 0 ||
+      !range ||
       state.status === 'Idle' ||
       state.status === 'Opening'
     ) {
       return;
     }
-    const target = clampSeekableVideoTime(seconds, state.duration);
-    playerStateRef.current = { ...state, time: target };
-    updatePlayerState((current) => ({ ...current, time: target }));
+    const target = clampSeekableVideoTime(seconds, range);
+    setFollowingLive(sourceRef.current.kind === 'hls' && followLive);
+    playerStateRef.current = { ...state, time: target
+    };
+    updatePlayerState((current) => ({ ...current, time: target
+    }));
     if (backendRef.current === 'chromium') {
       const video = fallbackVideoRef.current;
       if (video) video.currentTime = target;
@@ -921,8 +1030,34 @@ export function VideoView() {
     }
     const player = playerRef.current;
     if (!player) return;
-    queueMpvSeek({ reportError, seconds: target });
+    queueMpvSeek({ reportError, seconds: target
+    });
   }, [queueMpvSeek, updatePlayerState]);
+
+  const goToLiveEdge = useCallback(() => {
+    if (sourceRef.current?.kind !== 'hls') return;
+    setFollowingLive(true);
+    if (backendRef.current === 'libmpv') {
+      // electron-mpv-video exposes only absolute second seeking. For live HLS,
+      // mpv's duration can be an accumulating timeline rather than its current
+      // live edge, so reopening is the reliable way to join the latest segment.
+      setLoading(true);
+      setSourceRevision((current) => current + 1);
+      revealControls();
+      return;
+    }
+    const state = playerStateRef.current;
+    const range = resolveVideoSeekRange(
+      state.duration,
+      sourceRef.current,
+      backendRef.current,
+      fallbackVideoRef.current,
+      hlsRef.current,
+    );
+    if (!range) return;
+    seekTo(range.end, true, true);
+    revealControls();
+  }, [revealControls, seekTo]);
 
   const previewTimelineScrub = useCallback((seconds: number) => {
     const now = performance.now();
@@ -985,6 +1120,7 @@ export function VideoView() {
   }, [preferences.videoVolume, updateVolume]);
 
   useEffect(() => {
+    /** Performs the flush pending volume operation. */
     const flushPendingVolume = () => flushVolumePersistence();
     window.addEventListener('pagehide', flushPendingVolume);
     return () => {
@@ -1031,9 +1167,11 @@ export function VideoView() {
   }, []);
 
   useEffect(() => {
+    /** Performs the finish pointer scrub operation. */
     const finishPointerScrub = (event: PointerEvent) => {
       finishTimelineScrub(event.pointerId);
     };
+    /** Determines whether the cel pointer scrub condition applies. */
     const cancelPointerScrub = (event: PointerEvent) => {
       cancelTimelineScrub(event.pointerId);
     };
@@ -1046,6 +1184,7 @@ export function VideoView() {
   }, [cancelTimelineScrub, finishTimelineScrub]);
 
   useEffect(() => {
+    /** Handles the shortcut. */
     const handleShortcut = (event: KeyboardEvent) => {
       if (
         event.key === 'Escape' &&
@@ -1163,6 +1302,7 @@ export function VideoView() {
     updateVolume,
   ]);
 
+  /** Selects the local file. */
   const selectLocalFile = async (): Promise<VideoOpenRequest | null> => {
     try {
       return await window.kawaikaraVideo.source.selectLocalFile();
@@ -1173,6 +1313,7 @@ export function VideoView() {
     }
   };
 
+  /** Opens the hls stream. */
   const openHlsStream = (event?: FormEvent) => {
     event?.preventDefault();
     const value = hlsUrl.trim();
@@ -1425,20 +1566,30 @@ export function VideoView() {
             <span className="video-time">{formatDuration(displayedTime)}</span>
             <input
               ref={timelineRef}
-              className="video-progress"
+              className={`video-progress${isHls ? ' is-hls' : ''}`}
               type="range"
               tabIndex={-1}
               aria-label={labels.timeline}
-              min={0}
-              max={hasTimeline ? playerState.duration : 1}
+              min={timelineRange?.start ?? 0}
+              max={timelineRange?.end ?? 1}
               step="any"
-              value={hasTimeline ? Math.min(displayedTime, playerState.duration) : 0}
+              value={timelineRange
+                ? isHls && followingLive
+                  ? timelineRange.end
+                  : Math.min(
+                      timelineRange.end,
+                      Math.max(timelineRange.start, displayedTime),
+                    )
+                : isHls
+                  ? 1
+                  : 0}
               style={{
                 '--video-range-progress': `${String(timelineProgress)}%`,
               } as CSSProperties}
               disabled={!hasTimeline}
               onFocus={blurVideoControl}
               onPointerDown={(event) => {
+                if (isHls) setFollowingLive(false);
                 scrubbingRef.current = true;
                 scrubPointerIdRef.current = event.pointerId;
                 scrubTargetRef.current = displayedTime;
@@ -1456,9 +1607,25 @@ export function VideoView() {
                 previewTimelineScrub(next);
               }}
             />
-            <span className="video-time video-duration-value">
-              {hasTimeline ? formatDuration(playerState.duration) : labels.live}
-            </span>
+            {isHls ? (
+              <button
+                aria-label={labels.goLive}
+                className={`video-live-button${behindLiveEdge ? ' is-behind' : ''}`}
+                disabled={!behindLiveEdge}
+                tabIndex={-1}
+                type="button"
+                onFocus={blurVideoControl}
+                onPointerUp={(event) => event.currentTarget.blur()}
+                onClick={goToLiveEdge}
+              >
+                <span aria-hidden="true" className="video-live-dot" />
+                {labels.live}
+              </button>
+            ) : (
+              <span className="video-time video-duration-value">
+                {hasTimeline ? formatDuration(playerState.duration) : labels.live}
+              </span>
+            )}
             <label className="video-volume-control">
               <span>{labels.volume}</span>
               <input
@@ -1487,6 +1654,7 @@ export function VideoView() {
   );
 }
 
+/** Runs the video shortcut. */
 async function runVideoShortcut(
   player: MpvVideoElement | null,
   fallbackVideo: HTMLVideoElement | null,
@@ -1524,6 +1692,7 @@ async function runVideoShortcut(
   seekTo(target);
 }
 
+/** Opens the chromium source. */
 function openChromiumSource(
   video: HTMLVideoElement,
   source: PlayerSource,
@@ -1541,12 +1710,19 @@ function openChromiumSource(
   ) {
     video.src = source.chromiumValue;
     video.load();
-    return { hls: null, ready: Promise.resolve() };
+    return {
+      /** The hls value. */
+      hls: null,
+      /** Whether the ready option is enabled. */
+      ready: Promise.resolve(),
+    };
   }
 
   if (!Hls.isSupported()) {
     return {
+      /** The hls value. */
       hls: null,
+      /** Whether the ready option is enabled. */
       ready: Promise.reject(
         new Error('HLS playback is unavailable in this Chromium runtime.'),
       ),
@@ -1578,9 +1754,15 @@ function openChromiumSource(
   });
   hls.loadSource(source.chromiumValue);
   hls.attachMedia(video);
-  return { hls, ready };
+  return {
+    /** The hls value. */
+    hls,
+    /** Whether the ready option is enabled. */
+    ready,
+  };
 }
 
+/** Performs the clamp video time operation. */
 function clampVideoTime(value: number, duration: number): number {
   const maximum = Number.isFinite(duration) && duration > 0
     ? duration
@@ -1588,12 +1770,85 @@ function clampVideoTime(value: number, duration: number): number {
   return Math.min(maximum, Math.max(0, value));
 }
 
-function clampSeekableVideoTime(value: number, duration: number): number {
-  const maximum = Math.max(0, duration - Math.min(0.05, duration / 2));
-  return Math.min(maximum, Math.max(0, value));
+/** Performs the clamp seekable video time operation. */
+function clampSeekableVideoTime(
+  value: number,
+  range: VideoSeekRange,
+): number {
+  const length = range.end - range.start;
+  const maximum = Math.max(
+    range.start,
+    range.end - Math.min(0.05, length / 2),
+  );
+  return Math.min(maximum, Math.max(range.start, value));
 }
 
-function PlaybackIcon({ playing }: { readonly playing: boolean }) {
+/** Performs the finite seek range operation. */
+function finiteSeekRange(duration: number): VideoSeekRange | undefined {
+  return Number.isFinite(duration) && duration > 0
+    ? {
+      /** The start value. */
+      start: 0,
+      /** The end value. */
+      end: duration,
+    }
+    : undefined;
+}
+
+/** Reads the video seek range. */
+function readVideoSeekRange(
+  video: HTMLVideoElement,
+  hls?: Hls | null,
+): VideoSeekRange | undefined {
+  if (video.seekable.length === 0) return undefined;
+  const start = video.seekable.start(0);
+  const seekableEnd = video.seekable.end(video.seekable.length - 1);
+  const liveSyncPosition = hls?.liveSyncPosition;
+  const end = typeof liveSyncPosition === 'number' &&
+    Number.isFinite(liveSyncPosition) &&
+    liveSyncPosition > start
+      ? Math.min(seekableEnd, liveSyncPosition)
+      : seekableEnd;
+  return Number.isFinite(start) && Number.isFinite(end) && end > start
+    ? {
+      /** The start value. */
+      start,
+      /** The end value. */
+      end,
+    }
+    : undefined;
+}
+
+/** Resolves the video seek range. */
+function resolveVideoSeekRange(
+  duration: number,
+  source: PlayerSource | undefined,
+  backend: PlaybackBackend,
+  video: HTMLVideoElement | null,
+  hls: Hls | null,
+): VideoSeekRange | undefined {
+  if (source?.kind === 'hls' && backend === 'chromium' && video) {
+    return readVideoSeekRange(video, hls);
+  }
+  return finiteSeekRange(duration);
+}
+
+/** Performs the same seek range operation. */
+function sameSeekRange(
+  left: VideoSeekRange | undefined,
+  right: VideoSeekRange | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  return Math.abs(left.start - right.start) < 0.01 &&
+    Math.abs(left.end - right.end) < 0.01;
+}
+
+/** Performs the playback icon operation. */
+function PlaybackIcon({ playing }: {
+  /** Whether the playing option is enabled. */
+  readonly playing: boolean;
+}
+) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
       {playing ? (
@@ -1608,6 +1863,7 @@ function PlaybackIcon({ playing }: { readonly playing: boolean }) {
   );
 }
 
+/** Restores the window icon. */
 function RestoreWindowIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -1618,17 +1874,28 @@ function RestoreWindowIcon() {
   );
 }
 
+/** Performs the match video accelerator operation. */
 function matchVideoAccelerator(
   event: KeyboardEvent,
   accelerator: string,
   allowPrecisionModifiers: boolean,
-): { readonly matched: boolean; readonly precision: number } {
+): {
+  /** Whether the matched option is enabled. */
+  readonly matched: boolean;
+  /** The precision value. */
+  readonly precision: number;
+} {
   const parts = accelerator
     .split('+')
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean);
   const key = parts.pop();
-  if (!key) return { matched: false, precision: 1 };
+  if (!key) return {
+    /** The matched value. */
+    matched: false,
+    /** The precision value. */
+    precision: 1,
+  };
 
   const isMac = /mac/i.test(navigator.platform);
   let needsControl = false;
@@ -1659,7 +1926,12 @@ function matchVideoAccelerator(
         needsShift = true;
         break;
       default:
-        return { matched: false, precision: 1 };
+        return {
+          /** The matched value. */
+          matched: false,
+          /** The precision value. */
+          precision: 1,
+        };
     }
   }
 
@@ -1671,20 +1943,29 @@ function matchVideoAccelerator(
     (event.ctrlKey === needsControl || extraControl) &&
     (event.altKey === needsAlt || extraAlt);
   if (!modifiersMatch || normalizeKeyboardEventKey(event) !== normalizeKey(key)) {
-    return { matched: false, precision: 1 };
+    return {
+      /** The matched value. */
+      matched: false,
+      /** The precision value. */
+      precision: 1,
+    };
   }
   return {
+    /** The matched value. */
     matched: true,
+    /** The precision value. */
     precision: (extraControl ? 0.5 : 1) * (extraAlt ? 0.25 : 1),
   };
 }
 
+/** Normalizes the keyboard event key. */
 function normalizeKeyboardEventKey(event: KeyboardEvent): string {
   if (event.code === 'Comma') return ',';
   if (event.code === 'Period') return '.';
   return normalizeKey(event.key);
 }
 
+/** Normalizes the key. */
 function normalizeKey(key: string): string {
   const normalized = key.toLowerCase();
   const aliases: Record<string, string> = {
@@ -1702,6 +1983,7 @@ function normalizeKey(key: string): string {
   return aliases[normalized] ?? normalized;
 }
 
+/** Determines whether the editable target condition applies. */
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const editable = target.closest<HTMLElement>(
@@ -1711,10 +1993,12 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return !(editable instanceof HTMLInputElement && editable.type === 'range');
 }
 
+/** Performs the blur video control operation. */
 function blurVideoControl(event: FocusEvent<HTMLElement>): void {
   event.currentTarget.blur();
 }
 
+/** Formats the duration. */
 function formatDuration(value: number): string {
   if (!Number.isFinite(value) || value < 0) return '--:--';
   const totalSeconds = Math.floor(value);
@@ -1728,6 +2012,7 @@ function formatDuration(value: number): string {
     : `${minuteText}:${secondText}`;
 }
 
+/** Returns the metadata label. */
 function getMetadataLabel(
   state: MpvVideoState,
   hasTimeline: boolean,
@@ -1741,6 +2026,7 @@ function getMetadataLabel(
   return parts.join(' · ');
 }
 
+/** Determines whether the HTTP URL condition applies. */
 function isHttpUrl(value: string): boolean {
   try {
     return ['http:', 'https:'].includes(new URL(value).protocol);
@@ -1749,6 +2035,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+/** Returns the stream label. */
 function getStreamLabel(value: string): string {
   try {
     const url = new URL(value);
@@ -1759,6 +2046,7 @@ function getStreamLabel(value: string): string {
   }
 }
 
+/** Determines whether the MPV runtime error condition applies. */
 function isMpvRuntimeError(reason: unknown): boolean {
   const message = getErrorText(reason);
   return /mpv_addon|libmpv|native module|unsupported platform|sharedTexture API|module could not be found|was compiled against|specified module could not be found/i.test(
@@ -1766,6 +2054,7 @@ function isMpvRuntimeError(reason: unknown): boolean {
   );
 }
 
+/** Returns the chromium error message. */
 function getChromiumErrorMessage(
   reason: unknown,
   labels: VideoMessages,
@@ -1776,6 +2065,7 @@ function getChromiumErrorMessage(
     : labels.chromiumPlaybackFailed;
 }
 
+/** Returns the MPV error message. */
 function getMpvErrorMessage(reason: unknown, labels: VideoMessages): string {
   const message = getErrorText(reason);
   if (/mpv_addon|libmpv|dll|module could not be found|was compiled against/i.test(message)) {
@@ -1784,10 +2074,12 @@ function getMpvErrorMessage(reason: unknown, labels: VideoMessages): string {
   return message.trim() ? `${labels.playbackFailed} ${message}` : labels.playbackFailed;
 }
 
+/** Returns the error text. */
 function getErrorText(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason ?? '');
 }
 
+/** Determines whether the same player source condition applies. */
 function isSamePlayerSource(
   current: PlayerSource | undefined,
   next: PlayerSource,
@@ -1800,6 +2092,7 @@ function isSamePlayerSource(
   );
 }
 
+/** Performs the are video preferences equal operation. */
 function areVideoPreferencesEqual(
   current: VideoPreferences,
   next: VideoPreferences,
@@ -1814,6 +2107,7 @@ function areVideoPreferencesEqual(
   );
 }
 
+/** Performs the are shortcut records equal operation. */
 function areShortcutRecordsEqual(
   current: VideoPreferences['shortcuts'],
   next: VideoPreferences['shortcuts'],

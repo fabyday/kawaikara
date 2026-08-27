@@ -5,7 +5,12 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
-  "permissions": ["navigation"],
+  "permissions": [
+    "navigation",
+    "script-injection",
+    "external-browser",
+    "cookies"
+  ],
   "contributes": {
     "address": { "hosts": ["watcha.com"] },
     "shortcut": { "defaultKey": "Control+Alt+8" },
@@ -14,6 +19,7 @@
       "defaultLocale": "inherit"
     },
     "isolation": { "drm": true },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "OTT",
       "order": 60,

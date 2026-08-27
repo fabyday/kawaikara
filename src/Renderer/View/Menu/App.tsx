@@ -47,6 +47,7 @@ import { PreferenceView } from '../Preference/App';
 import { UpdatePanel } from '../Update/UpdatePanel';
 import { PluginViewHost } from './PluginViewHost';
 
+/** Performs the app operation. */
 export function App() {
   const [sites, setSites] = useState<SiteMenuItem[]>([]);
   const [preferences, setPreferences] = useState<PreferenceState>();
@@ -282,7 +283,8 @@ export function App() {
   const handlePreferenceMessagesChange = useCallback(
     (nextMessages: AppMessages) => {
       setLocalization((current) => current
-        ? { ...current, app: nextMessages }
+        ? { ...current, app: nextMessages
+        }
         : current);
     },
     [],
@@ -290,6 +292,7 @@ export function App() {
 
   useEffect(() => {
     if (!menuVisible || view !== 'menu' || !preferences) return;
+    /** Handles the category shortcut. */
     const handleCategoryShortcut = (event: KeyboardEvent) => {
       // This listener runs in the capture phase, before the address input's
       // own key handler. Check the event target directly instead of waiting
@@ -324,6 +327,7 @@ export function App() {
 
   useEffect(() => {
     if (!menuVisible || view !== 'menu') return;
+    /** Performs the focus address operation. */
     const focusAddress = (event: KeyboardEvent) => {
       if (
         event.key.toLowerCase() !== 'l' ||
@@ -342,6 +346,7 @@ export function App() {
     return () => window.removeEventListener('keydown', focusAddress, true);
   }, [menuVisible, view]);
 
+  /** Opens the site. */
   const openSite = async (id: string) => {
     const previousId = selectedId;
     setSelectedId(id);
@@ -354,6 +359,7 @@ export function App() {
     }
   };
 
+  /** Performs the begin menu close operation. */
   const beginMenuClose = () => {
     if (closeTimer.current !== undefined) return;
     setMenuVisible(false);
@@ -367,6 +373,7 @@ export function App() {
     );
   };
 
+  /** Closes the overlay. */
   const closeOverlay = () => {
     if (view === 'menu') {
       beginMenuClose();
@@ -376,6 +383,7 @@ export function App() {
     void window.kawaikara.overlay.close();
   };
 
+  /** Toggles the picture in picture. */
   const togglePictureInPicture = async () => {
     setPipLoading(true);
     setError(undefined);
@@ -400,20 +408,29 @@ export function App() {
     }
   };
 
+  /** Toggles the always on top. */
   const toggleAlwaysOnTop = async () => {
     if (!preferences) return;
+    const previous = preferences;
+    const alwaysOnTop = !previous.alwaysOnTop;
     setError(undefined);
+    // Reflect the press immediately so the activity border never waits for a
+    // disk-backed preference round trip before starting its animation.
+    setPreferences({ ...previous, alwaysOnTop
+    });
     try {
       setPreferences(
         await window.kawaikara.preferences.update({
-          alwaysOnTop: !preferences.alwaysOnTop,
+          alwaysOnTop,
         }),
       );
     } catch (reason) {
+      setPreferences(previous);
       setError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
+  /** Opens the address value. */
   const openAddressValue = async (value: string) => {
     if (addressLoading) return;
     setAddressLoading(true);
@@ -433,11 +450,13 @@ export function App() {
     }
   };
 
+  /** Opens the address. */
   const openAddress = async (event: FormEvent) => {
     event.preventDefault();
     await openAddressValue(address);
   };
 
+  /** Copies the address. */
   const copyAddress = async () => {
     const value = address.trim();
     if (!value) return;
@@ -456,6 +475,25 @@ export function App() {
     }
   };
 
+  /** Performs the navigate address history operation. */
+  const navigateAddressHistory = async (direction: 'back' | 'forward') => {
+    try {
+      const moved = direction === 'back'
+        ? await window.kawaikara.sites.goBack()
+        : await window.kawaikara.sites.goForward();
+      if (!moved) return;
+      setAddressSuggestionsDismissed(true);
+      // NavigationHistory updates immediately, while the committed URL follows
+      // asynchronously. Read it after the next renderer turn.
+      window.setTimeout(() => {
+        void window.kawaikara.sites.currentAddress().then(setAddress);
+      }, 120);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  /** Performs the choose address suggestion operation. */
   const chooseAddressSuggestion = (suggestion: AddressSuggestion) => {
     setAddress(suggestion.host);
     setAddressError(false);
@@ -464,6 +502,7 @@ export function App() {
     addressInputRef.current?.focus();
   };
 
+  /** Sets the overlay view. */
   const setOverlayView = (nextView: OverlayView) => {
     if (nextView === 'preference' && document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
@@ -480,6 +519,7 @@ export function App() {
     });
   };
 
+  /** Performs the dismiss update operation. */
   const dismissUpdate = () => {
     if (updateStateRef.current?.origin === 'manual') {
       setOverlayView('preference');
@@ -488,6 +528,7 @@ export function App() {
     }
   };
 
+  /** Performs the retry update operation. */
   const retryUpdate = async () => {
     await window.kawaikara.application.checkForUpdates();
   };
@@ -510,7 +551,8 @@ export function App() {
         view === 'preference' ||
         manualUpdateVisible ? (
           <motion.main
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 1
+            }}
             className={`kawai-theme ${
               (previewTheme ?? preferences?.appTheme ?? 'dark') === 'dark'
                 ? 'kawai-theme-dark'
@@ -525,15 +567,19 @@ export function App() {
             exit={{
               opacity: 0,
               transition: reduceMotion
-                ? { duration: 0 }
-                : { duration: 0.2, ease: [0.4, 0, 1, 1] },
+                ? { duration: 0
+                }
+                : { duration: 0.2, ease: [0.4, 0, 1, 1]
+                },
             }}
             initial={false}
             transition={
               reduceMotion
-                ? { duration: 0 }
+                ? { duration: 0
+                }
                 : {
-                    opacity: { duration: 0.24, ease: 'easeOut' },
+                    opacity: { duration: 0.24, ease: 'easeOut'
+                    },
                   }
             }
           >
@@ -544,7 +590,8 @@ export function App() {
           }}
         >
         <motion.div
-          animate={{ opacity: 1, x: 0 }}
+          animate={{ opacity: 1, x: 0
+          }}
           className="menu-rail-motion"
           exit={{
             opacity: reduceMotion ? 0 : 1,
@@ -560,10 +607,13 @@ export function App() {
           }
           transition={
             reduceMotion
-              ? { duration: 0 }
+              ? { duration: 0
+              }
               : {
-                  x: { type: 'spring', stiffness: 390, damping: 38, mass: 0.82 },
-                  opacity: { duration: 0.14 },
+                  x: { type: 'spring', stiffness: 390, damping: 38, mass: 0.82
+                  },
+                  opacity: { duration: 0.14
+                  },
                 }
           }
         >
@@ -688,15 +738,18 @@ export function App() {
         </Panel>
         </motion.div>
         <motion.div
-          animate={{ opacity: 1 }}
+          animate={{ opacity: 1
+          }}
           className={`menu-context-area${
             selectedSite?.panels.length ? ' has-site-panel' : ''
           }`}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0
+          }}
           initial={
             skipMenuEntryAnimation || view === 'preference' || reduceMotion
               ? false
-              : { opacity: 0 }
+              : { opacity: 0
+              }
           }
           key={selectedSite?.id ?? 'empty-site-panel'}
           onPointerDown={(event) => {
@@ -704,8 +757,10 @@ export function App() {
           }}
           transition={
             reduceMotion
-              ? { duration: 0 }
-              : { duration: 0.28, delay: 0.07, ease: 'easeOut' }
+              ? { duration: 0
+              }
+              : { duration: 0.28, delay: 0.07, ease: 'easeOut'
+              }
           }
         >
           <section className="menu-address-section">
@@ -714,6 +769,24 @@ export function App() {
               key={addressFailureKey}
               onSubmit={(event) => void openAddress(event)}
             >
+              <div className="menu-address-navigation">
+                <button
+                  aria-label={messages.goBack}
+                  title={messages.goBack}
+                  type="button"
+                  onClick={() => void navigateAddressHistory('back')}
+                >
+                  <span aria-hidden="true">←</span>
+                </button>
+                <button
+                  aria-label={messages.goForward}
+                  title={messages.goForward}
+                  type="button"
+                  onClick={() => void navigateAddressHistory('forward')}
+                >
+                  <span aria-hidden="true">→</span>
+                </button>
+              </div>
               <input
                 aria-activedescendant={
                   addressSuggestionsVisible
@@ -759,10 +832,18 @@ export function App() {
                     });
                     return;
                   }
-                  if (event.key === 'Escape' && addressSuggestionsVisible) {
+                  if (event.key === 'Escape') {
                     event.preventDefault();
                     event.stopPropagation();
                     setAddressSuggestionsDismissed(true);
+                    const input = event.currentTarget;
+                    if (
+                      input.selectionStart === 0 &&
+                      input.selectionEnd === input.value.length
+                    ) {
+                      const caret = input.value.length;
+                      input.setSelectionRange(caret, caret);
+                    }
                     return;
                   }
                   if (event.key !== 'Enter') return;
@@ -784,7 +865,7 @@ export function App() {
                 title={messages.addressGo}
                 type="submit"
               >
-                <span aria-hidden="true">→</span>
+                <span aria-hidden="true">↗</span>
               </button>
               <button
                 aria-label={messages.copyAddress}
@@ -796,39 +877,6 @@ export function App() {
               >
                 {addressCopied ? <CheckIcon /> : <CopyIcon />}
               </button>
-              {addressSuggestionsVisible ? (
-                <div
-                  aria-label={messages.addressPlaceholder}
-                  className="menu-address-suggestions"
-                  id="kawaikara-address-suggestions"
-                  role="listbox"
-                >
-                  {addressSuggestions.map((suggestion, index) => (
-                    <button
-                      aria-selected={index === activeAddressSuggestion}
-                      className={
-                        index === activeAddressSuggestion ? 'is-active' : undefined
-                      }
-                      id={`kawaikara-address-suggestion-${index}`}
-                      key={`${suggestion.site.id}:${suggestion.host}`}
-                      role="option"
-                      type="button"
-                      onClick={() => chooseAddressSuggestion(suggestion)}
-                      onMouseEnter={() => setActiveAddressSuggestion(index)}
-                      onPointerDown={(event) => event.preventDefault()}
-                    >
-                      <SiteIcon site={suggestion.site} />
-                      <span className="menu-address-suggestion-copy">
-                        <strong>{suggestion.site.title}</strong>
-                        <small>{suggestion.host}</small>
-                      </span>
-                      <span aria-hidden="true" className="menu-address-suggestion-arrow">
-                        ↗
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </form>
             <p className={addressError ? 'is-error' : ''}>
               {addressError
@@ -837,6 +885,39 @@ export function App() {
                   ? messages.addressCopied
                   : addressHelp}
             </p>
+            {addressSuggestionsVisible ? (
+              <div
+                aria-label={messages.addressPlaceholder}
+                className="menu-address-suggestions"
+                id="kawaikara-address-suggestions"
+                role="listbox"
+              >
+                {addressSuggestions.map((suggestion, index) => (
+                  <button
+                    aria-selected={index === activeAddressSuggestion}
+                    className={
+                      index === activeAddressSuggestion ? 'is-active' : undefined
+                    }
+                    id={`kawaikara-address-suggestion-${index}`}
+                    key={`${suggestion.site.id}:${suggestion.host}`}
+                    role="option"
+                    type="button"
+                    onClick={() => chooseAddressSuggestion(suggestion)}
+                    onMouseEnter={() => setActiveAddressSuggestion(index)}
+                    onPointerDown={(event) => event.preventDefault()}
+                  >
+                    <SiteIcon site={suggestion.site} />
+                    <span className="menu-address-suggestion-copy">
+                      <strong>{suggestion.site.title}</strong>
+                      <small>{suggestion.host}</small>
+                    </span>
+                    <span aria-hidden="true" className="menu-address-suggestion-arrow">
+                      ↗
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </section>
           <div
             className="menu-plugin-host"
@@ -863,20 +944,25 @@ export function App() {
       <AnimatePresence initial={false}>
         {view === 'preference' || manualUpdateVisible ? (
           <motion.div
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0
+            }}
             className="preference-motion-shell"
             inert={manualUpdateVisible ? true : undefined}
-            exit={{ opacity: 1, y: reduceMotion ? 0 : '-100%' }}
+            exit={{ opacity: 1, y: reduceMotion ? 0 : '-100%'
+            }}
             initial={{
               opacity: 1,
               y: reduceMotion ? 0 : '-100%',
             }}
             transition={
               reduceMotion
-                ? { duration: 0 }
+                ? { duration: 0
+                }
                 : {
-                    y: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
-                    opacity: { duration: 0.32, ease: 'easeOut' },
+                    y: { duration: 0.42, ease: [0.22, 1, 0.36, 1]
+                    },
+                    opacity: { duration: 0.32, ease: 'easeOut'
+                    },
                   }
             }
           >
@@ -901,15 +987,19 @@ export function App() {
       <AnimatePresence initial={false}>
         {view === 'update' && updateState ? (
           <motion.div
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 1
+            }}
             className={`kawai-theme ${
               (previewTheme ?? preferences?.appTheme ?? 'dark') === 'dark'
                 ? 'kawai-theme-dark'
                 : 'kawai-theme-light'
             } update-motion-shell`}
-            exit={{ opacity: 0 }}
-            initial={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2 }}
+            exit={{ opacity: 0
+            }}
+            initial={{ opacity: 0
+            }}
+            transition={{ duration: reduceMotion ? 0 : 0.2
+            }}
           >
             <UpdatePanel
               locale={localization.locale}
@@ -933,6 +1023,7 @@ export function App() {
   );
 }
 
+/** Returns the picture in picture error. */
 function getPictureInPictureError(
   status: PictureInPictureStatus,
   messages: AppMessages,
@@ -954,6 +1045,7 @@ function getPictureInPictureError(
   }
 }
 
+/** Formats the address for display. */
 function formatAddressForDisplay(value: string): string {
   try {
     const url = new URL(value);
@@ -966,11 +1058,15 @@ function formatAddressForDisplay(value: string): string {
   }
 }
 
+/** Describes the address suggestion contract. */
 interface AddressSuggestion {
+  /** The host value. */
   readonly host: string;
+  /** The site value. */
   readonly site: SiteMenuItem;
 }
 
+/** Creates the address suggestions. */
 function createAddressSuggestions(
   sites: readonly SiteMenuItem[],
   value: string,
@@ -1002,6 +1098,7 @@ function createAddressSuggestions(
     .slice(0, 8);
 }
 
+/** Normalizes the address suggestion query. */
 function normalizeAddressSuggestionQuery(value: string): string {
   const trimmed = value.trim().toLowerCase();
   if (!trimmed) return '';
@@ -1022,6 +1119,7 @@ function normalizeAddressSuggestionQuery(value: string): string {
   }
 }
 
+/** Performs the address suggestion score operation. */
 function addressSuggestionScore(
   suggestion: AddressSuggestion,
   query: string,
@@ -1033,6 +1131,7 @@ function addressSuggestionScore(
   return 3;
 }
 
+/** Determines whether the editable keyboard target condition applies. */
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return Boolean(target.closest([
@@ -1047,6 +1146,7 @@ function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   ].join(',')));
 }
 
+/** Copies the icon. */
 function CopyIcon() {
   return (
     <svg aria-hidden="true" className="menu-address-action-icon" viewBox="0 0 24 24">
@@ -1056,6 +1156,7 @@ function CopyIcon() {
   );
 }
 
+/** Performs the check icon operation. */
 function CheckIcon() {
   return (
     <svg aria-hidden="true" className="menu-address-action-icon" viewBox="0 0 24 24">
@@ -1064,6 +1165,7 @@ function CheckIcon() {
   );
 }
 
+/** Performs the always on top icon operation. */
 function AlwaysOnTopIcon() {
   return (
     <svg className="always-on-top-icon" aria-hidden="true" viewBox="0 0 24 24">

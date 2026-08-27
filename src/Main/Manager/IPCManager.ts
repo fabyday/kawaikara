@@ -2,10 +2,6 @@ import { app, clipboard, ipcMain, type IpcMainEvent } from 'electron';
 import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
 import {
   IPC_CHANNELS,
-  type ApplicationLinkId,
-  type AppLocale,
-  type AppTheme,
-  type DevToolsMode,
   type IpcChannel,
 } from '../../Common/IPC';
 import { BUILD_CHANNEL } from '../../Common/BuildConfig';
@@ -20,10 +16,30 @@ import type { VideoLibraryManager } from './VideoLibraryManager';
 import type { BundleManager } from './BundleManager';
 import type { LoggingManager } from './LoggingManager';
 import type { ApplicationDataManager } from './ApplicationDataManager';
+import type { BundleDevelopmentManager } from './BundleDevelopmentManager';
+import { requireDevelopmentProjectId } from '../Functional/DevelopmentValidation';
+import {
+  isApplicationLinkId,
+  isDevToolsMode,
+  isGraphicsRestartConfirmed,
+  isYouTubeUrl,
+  readRequestedGraphicsMode,
+  removeIpcHandlers,
+  requireAppLocale,
+  requireAppTheme,
+  requireIdentifier,
+  requirePathString,
+  requireSearchQuery,
+} from '../Functional/IPCValidation';
 import { getRendererMessages } from '../Functional/RendererMessages';
 
+/** Coordinates IPC behavior. */
 export class IpcManager {
+  /** The relaunch scheduled value. */
   private relaunchScheduled = false;
+  /** Callback used to handle dispose development subscription. */
+  private disposeDevelopmentSubscription?: () => void;
+  /** The handle editing changed value. */
   private readonly handleEditingChanged = (
     event: IpcMainEvent,
     editing: unknown,
@@ -31,6 +47,7 @@ export class IpcManager {
     if (typeof editing !== 'boolean') return;
     this.windows.setEditingState(event.sender.id, editing);
   };
+  /** The handle video presentation changed value. */
   private readonly handleVideoPresentationChanged = (
     event: IpcMainEvent,
     state: unknown,
@@ -38,21 +55,39 @@ export class IpcManager {
     this.windows.setInternalVideoPresentation(event.sender.id, state);
   };
 
+  /** Creates an instance of IpcManager. */
   constructor(
+    /** The bundles value. */
     private readonly bundles: BundleManager,
+    /** The sites value. */
     private readonly sites: SiteManager,
+    /** The Windows value. */
     private readonly windows: WindowManager,
+    /** The preferences value. */
     private readonly preferences: PreferenceManager,
+    /** The downloads value. */
     private readonly downloads: ExternalDownloaderManager,
+    /** The developer links value. */
     private readonly developerLinks: DeveloperLinkManager,
+    /** The updates value. */
     private readonly updates: UpdateManager,
+    /** The shortcuts value. */
     private readonly shortcuts: ShortcutManager,
+    /** The video library value. */
     private readonly videoLibrary: VideoLibraryManager,
+    /** The logging value. */
     private readonly logging: LoggingManager,
+    /** The data value. */
     private readonly data: ApplicationDataManager,
+    /** The development value. */
+    private readonly development: BundleDevelopmentManager,
   ) {}
 
+  /** Initializes the operation. */
   initialize(): void {
+    this.disposeDevelopmentSubscription = this.development.subscribe((state) =>
+      this.windows.notifyDevelopmentStateChanged(state),
+    );
     ipcMain.on(
       IPC_CHANNELS.overlay.editingChanged,
       this.handleEditingChanged,
@@ -151,6 +186,39 @@ export class IpcManager {
         return this.bundles.remove(id, requireAppLocale(locale));
       },
     );
+    ipcMain.handle(IPC_CHANNELS.development.state, () =>
+      this.development.getState(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.development.attach,
+      (_event, locale: unknown) =>
+        this.development.attachFromDialog(requireAppLocale(locale)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.development.rebuild,
+      (_event, projectId: unknown) =>
+        this.development.rebuild(requireDevelopmentProjectId(projectId)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.development.setHotReload,
+      (_event, projectId: unknown, enabled: unknown) => {
+        if (typeof enabled !== 'boolean') {
+          throw new TypeError('Hot reload state must be a boolean.');
+        }
+        return this.development.setHotReload(
+          requireDevelopmentProjectId(projectId),
+          enabled,
+        );
+      },
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.development.detach,
+      (_event, projectId: unknown) =>
+        this.development.detach(requireDevelopmentProjectId(projectId)),
+    );
+    ipcMain.handle(IPC_CHANNELS.development.vscodeConfiguration, () =>
+      this.development.createVsCodeConfiguration(),
+    );
     ipcMain.handle(IPC_CHANNELS.media.togglePictureInPicture, () =>
       this.windows.togglePictureInPicture(),
     );
@@ -161,6 +229,8 @@ export class IpcManager {
     ipcMain.handle(IPC_CHANNELS.sites.currentAddress, () =>
       this.windows.getCurrentSiteAddress(),
     );
+    ipcMain.handle(IPC_CHANNELS.sites.goBack, () => this.windows.goBack());
+    ipcMain.handle(IPC_CHANNELS.sites.goForward, () => this.windows.goForward());
     ipcMain.handle(IPC_CHANNELS.sites.open, async (_event, id: unknown) => {
       if (typeof id !== 'string') {
         throw new TypeError('Site id must be a string.');
@@ -221,10 +291,12 @@ export class IpcManager {
           throw new TypeError('Site address must be a string.');
         }
         const resolved = this.sites.resolveAddress(value);
-        if (!resolved) return { status: 'unsupported' as const };
+        if (!resolved) return { status: 'unsupported' as const
+        };
         this.windows.hideOverlay();
         await this.sites.openUrl(resolved.siteId, resolved.url);
-        return { status: 'opened' as const, siteId: resolved.siteId };
+        return { status: 'opened' as const, siteId: resolved.siteId
+        };
       },
     );
     ipcMain.handle(IPC_CHANNELS.video.getPlaybackCapabilities, () =>
@@ -312,7 +384,8 @@ export class IpcManager {
         if (typeof value !== 'number' || !Number.isFinite(value)) {
           throw new TypeError('Video volume must be a finite number.');
         }
-        const next = await this.preferences.update({ videoVolume: value });
+        const next = await this.preferences.update({ videoVolume: value
+        });
         return next.videoVolume;
       },
     );
@@ -366,6 +439,11 @@ export class IpcManager {
         this.data.clearApplicationCache(requireAppLocale(locale)),
     );
     ipcMain.handle(
+      IPC_CHANNELS.data.clearAllBrowserProfiles,
+      (_event, locale: unknown) =>
+        this.data.clearAllBrowserProfiles(requireAppLocale(locale)),
+    );
+    ipcMain.handle(
       IPC_CHANNELS.data.resetApplication,
       (_event, locale: unknown) =>
         this.data.resetApplication(requireAppLocale(locale)),
@@ -402,6 +480,9 @@ export class IpcManager {
         preferences.closeMenuOnEscape,
         preferences.closeMenuOnOutsideClick,
       );
+      // The startup checkbox is persisted for the next app launch. Saving it
+      // must not unexpectedly open DevTools in the current session.
+      this.windows.setDevToolsMode(preferences.devToolsMode);
       this.windows.setPictureInPicturePlacement(
         preferences.pictureInPicturePlacement,
       );
@@ -418,11 +499,13 @@ export class IpcManager {
         console.debug('Live Provider settings refresh was skipped.', error);
       });
       this.updates.configure(preferences);
+      await this.development.configure(preferences);
       await this.sites.refreshCurrentBrowserProfile();
       return preferences;
     });
   }
 
+  /** Schedules the application relaunch. */
   private scheduleApplicationRelaunch(): void {
     if (this.relaunchScheduled) return;
     this.relaunchScheduled = true;
@@ -433,7 +516,10 @@ export class IpcManager {
     }, 200);
   }
 
+  /** Releases the operation. */
   dispose(): void {
+    this.disposeDevelopmentSubscription?.();
+    this.disposeDevelopmentSubscription = undefined;
     ipcMain.off(
       IPC_CHANNELS.overlay.editingChanged,
       this.handleEditingChanged,
@@ -446,9 +532,12 @@ export class IpcManager {
   }
 }
 
+/** Defines the shared IPC handler channels constant. */
 const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.sites.list,
   IPC_CHANNELS.sites.currentAddress,
+  IPC_CHANNELS.sites.goBack,
+  IPC_CHANNELS.sites.goForward,
   IPC_CHANNELS.sites.openAddress,
   IPC_CHANNELS.application.info,
   IPC_CHANNELS.application.messages,
@@ -468,6 +557,12 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.bundles.install,
   IPC_CHANNELS.bundles.update,
   IPC_CHANNELS.bundles.remove,
+  IPC_CHANNELS.development.state,
+  IPC_CHANNELS.development.attach,
+  IPC_CHANNELS.development.rebuild,
+  IPC_CHANNELS.development.setHotReload,
+  IPC_CHANNELS.development.detach,
+  IPC_CHANNELS.development.vscodeConfiguration,
   IPC_CHANNELS.media.togglePictureInPicture,
   IPC_CHANNELS.media.toggleGamePictureInPicture,
   IPC_CHANNELS.sites.open,
@@ -496,99 +591,9 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.preferences.get,
   IPC_CHANNELS.data.clearBrowserProfile,
   IPC_CHANNELS.data.clearIsolatedSite,
+  IPC_CHANNELS.data.clearAllBrowserProfiles,
   IPC_CHANNELS.data.clearApplicationCache,
   IPC_CHANNELS.data.resetApplication,
   IPC_CHANNELS.preferences.previewTheme,
   IPC_CHANNELS.preferences.update,
 ] as const satisfies readonly IpcChannel[];
-
-function removeIpcHandlers(channels: readonly IpcChannel[]): void {
-  for (const channel of channels) ipcMain.removeHandler(channel);
-}
-
-function isApplicationLinkId(value: unknown): value is ApplicationLinkId {
-  return (
-    typeof value === 'string' &&
-    ['website', 'github', 'discord', 'developerYouTube'].includes(value)
-  );
-}
-
-function isDevToolsMode(value: unknown): value is DevToolsMode {
-  return (
-    typeof value === 'string' &&
-    ['left', 'right', 'bottom', 'undocked', 'detach'].includes(value)
-  );
-}
-
-function isYouTubeUrl(value: string): boolean {
-  try {
-    const host = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
-    return ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(
-      host,
-    );
-  } catch {
-    return false;
-  }
-}
-
-function requirePathString(value: unknown): string {
-  if (typeof value !== 'string') {
-    throw new TypeError('A local path is required.');
-  }
-  return value;
-}
-
-function requireSearchQuery(value: unknown): string {
-  if (typeof value !== 'string' || value.length > 260) {
-    throw new TypeError('A valid search query is required.');
-  }
-  return value;
-}
-
-function requireIdentifier(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !value || value.length > 260) {
-    throw new TypeError(`${label} id must be a valid string.`);
-  }
-  return value;
-}
-
-function requireAppLocale(value: unknown): AppLocale {
-  if (
-    value !== 'system' &&
-    value !== 'ko-KR' &&
-    value !== 'en-US' &&
-    value !== 'ja-JP'
-  ) {
-    throw new TypeError('A supported app locale is required.');
-  }
-  return value;
-}
-
-function requireAppTheme(value: unknown): AppTheme {
-  if (value !== 'dark' && value !== 'light') {
-    throw new TypeError('A supported app theme is required.');
-  }
-  return value;
-}
-
-function readRequestedGraphicsMode(
-  patch: unknown,
-): 'native' | 'capture' | 'software' | undefined {
-  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-    return undefined;
-  }
-  const value = (patch as { readonly graphicsMode?: unknown }).graphicsMode;
-  return value === 'native' || value === 'capture' || value === 'software'
-    ? value
-    : undefined;
-}
-
-function isGraphicsRestartConfirmed(options: unknown): boolean {
-  return Boolean(
-    options &&
-      typeof options === 'object' &&
-      !Array.isArray(options) &&
-      (options as { readonly restartForGraphicsChange?: unknown })
-        .restartForGraphicsChange === true,
-  );
-}

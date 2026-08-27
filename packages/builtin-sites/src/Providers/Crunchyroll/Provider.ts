@@ -1,14 +1,15 @@
-import { provider } from '@kawaikara/site-api';
+import { AbstractUrlProvider, provider } from '@kawaikara/site-api';
 import { CRUNCHYROLL_ICON } from '../../Icons';
-import { createVideoPictureInPicture } from '../../PictureInPicture';
-import { UrlProvider } from '../../UrlProvider';
 
+/** Implements the crunchyroll site provider. */
 @provider({
-  pictureInPicture: createVideoPictureInPicture([
-    '[class*="erc-subtitle" i]',
-  ]),
-  menu: { category: 'OTT', order: 100, icon: CRUNCHYROLL_ICON },
+  menu: { category: 'OTT', order: 100, icon: CRUNCHYROLL_ICON
+  },
+  pictureInPicture: {
+    contentOverlaySelectors: ['[class*="erc-subtitle" i]'],
+  },
 })
-export class CrunchyrollProvider extends UrlProvider {
+export class CrunchyrollProvider extends AbstractUrlProvider {
+  /** The URL value. */
   protected readonly url = 'https://www.crunchyroll.com/';
 }

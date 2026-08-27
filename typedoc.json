@@ -1,0 +1,23 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Kawaikara Source Reference",
+  "entryPoints": [
+    "src",
+    "packages/site-api/src",
+    "packages/builtin-sites/src"
+  ],
+  "entryPointStrategy": "expand",
+  "plugin": ["typedoc-plugin-missing-exports"],
+  "tsconfig": "tsconfig.docs.json",
+  "out": "docs/Reference",
+  "readme": "none",
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "cleanOutputDir": true,
+  "validation": true,
+  "treatValidationWarningsAsErrors": true
+}

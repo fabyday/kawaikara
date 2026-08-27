@@ -19,6 +19,7 @@
       "defaultLocale": "inherit"
     },
     "isolation": { "drm": true },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "OTT",
       "order": 10,

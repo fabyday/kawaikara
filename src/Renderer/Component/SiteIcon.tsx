@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import type { SiteMenuItem } from '../../Common/IPC';
 
+/** Describes the site icon props contract. */
 export interface SiteIconProps {
+  /** The site value. */
   readonly site: Pick<SiteMenuItem, 'title' | 'icon'>;
 }
 
+/** Describes the site icon cache props contract. */
 export interface SiteIconCacheProps {
+  /** The sites value. */
   readonly sites: readonly Pick<SiteMenuItem, 'id' | 'title' | 'icon'>[];
 }
 
@@ -35,6 +39,7 @@ export function SiteIconCache({ sites }: SiteIconCacheProps) {
   );
 }
 
+/** Performs the site icon operation. */
 export function SiteIcon({ site }: SiteIconProps) {
   const [failed, setFailed] = useState(false);
 

@@ -1,10 +1,24 @@
 export { DisposableStore, type Disposable } from './Disposable';
 export {
+  createGitHubReleaseBundleUpdateResolver,
+  type GitHubReleaseBundleUpdateOptions,
+} from './BundleUpdates';
+export {
+  createExternalLoginFlow,
+  type SiteExternalLoginFlow,
+  type SiteExternalLoginFlowOptions,
+} from './ExternalLoginFlow';
+export {
   getPluginMetadata,
   getProviderMetadata,
   plugin,
   provider,
 } from './Decorators';
+export {
+  defineProviderLocale,
+  type ProviderLocale,
+  type ProviderLocaleResource,
+} from './Locale';
 export {
   AbstractPlugin,
   KAWAIKARA_MANIFEST_VERSION,
@@ -33,6 +47,7 @@ export {
 } from './Plugin';
 export {
   AbstractProvider,
+  AbstractUrlProvider,
   type ProviderConstructor,
   type ProviderDecoratorMetadata,
   type ProviderBooleanSettingContribution,
@@ -63,8 +78,13 @@ export {
   SHORT_FORM_VIDEO_ACTIONS,
   SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
   SHORT_FORM_VIDEO_BANNED_PUBLISHERS_SETTING,
+  normalizeShortFormVideoPublisher,
+  readShortFormVideoAutoAdvance,
+  readShortFormVideoBannedPublishers,
+  resolveShortFormVideoCommand,
   type ShortFormVideoContribution,
   type ShortFormVideoAction,
+  type ShortFormVideoCommand,
   type ShortFormVideoPublisher,
 } from './ShortFormVideo';
 export {
@@ -72,6 +92,8 @@ export {
   type ExternalLoginResult,
   type NewWindowPolicy,
   type SiteActions,
+  type SiteBrowser,
+  type SiteBrowserIdentityOptions,
   type SiteCookieClearOptions,
   type SiteCookieMetadata,
   type SiteCookieQuery,
@@ -80,5 +102,23 @@ export {
   type SiteExternalBrowser,
   type SiteLogger,
   type SiteLocaleContext,
+  type SitePageFrameScope,
+  type SitePageInjection,
+  type SitePagePhase,
+  type SitePagePipeline,
   type SiteViewer,
 } from './SiteContext';
+export {
+  createChromiumClientHints,
+  createChromiumUserAgent,
+  createLoginControlInjection,
+  isSiteLoginNavigation,
+  matchesSiteUrlHost,
+  resolveLocaleVariant,
+  serializePageInjection,
+  serializePageInjectionWithOptions,
+  setRequestHeader,
+  webAuthenticationPolicy,
+  webPopupPolicy,
+  type SiteLoginControlInjectionOptions,
+} from './SiteUtilities';

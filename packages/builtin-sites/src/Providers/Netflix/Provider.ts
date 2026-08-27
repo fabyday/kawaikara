@@ -1,56 +1,33 @@
-import { provider } from '@kawaikara/site-api';
-import { createVideoPictureInPicture } from '../../PictureInPicture';
 import {
-  createLoginInterceptionScript,
-  isLoginNavigation,
-} from '../../SiteUtilities';
-import { UrlProvider } from '../../UrlProvider';
-
-const NETFLIX_PIP_SUBTITLE_SELECTORS = [
-  '.player-timedtext',
-  '.player-timedtext-text-container',
-  '[data-uia="player-subtitle"]',
-] as const;
-
+  AbstractUrlProvider,
+  createExternalLoginFlow,
+  isSiteLoginNavigation,
+  provider,
+  type SiteExternalLoginFlow,
+} from '@kawaikara/site-api';
+/** Implements the Netflix site provider. */
 @provider({
-  pictureInPicture: createVideoPictureInPicture(
-    NETFLIX_PIP_SUBTITLE_SELECTORS,
-  ),
+  pictureInPicture: {
+    contentOverlaySelectors: [
+      '.player-timedtext',
+      '.player-timedtext-text-container',
+      '[data-uia="player-subtitle"]',
+    ],
+  },
 })
-export class NetflixProvider extends UrlProvider {
+export class NetflixProvider extends AbstractUrlProvider {
+  /** The URL value. */
   protected readonly url = 'https://netflix.com/';
-  private loginPending = false;
-  private loginInjectionReady = false;
+  /** The login flow value. */
+  private loginFlow?: SiteExternalLoginFlow;
 
-  protected async afterLoad(): Promise<void> {
-    const result = await this.context.viewer.executeJavaScript<{
-      readonly installed?: boolean;
-      readonly ready?: boolean;
-    }>(
-      createLoginInterceptionScript(
-        '__kawaikaraNetflixLogin',
-        '[data-uia*="login" i], a[href*="/login" i], button[aria-label*="login" i], button[aria-label*="sign in" i]',
-        this.context.actions.createUrl('login'),
-        ['sign in', 'log in', 'login', '로그인', 'ログイン'],
-      ),
-    );
-    this.loginInjectionReady = result.installed === true && result.ready === true;
-  }
-
-  async onAction(action: string): Promise<boolean> {
-    if (action !== 'login') return false;
-    if (this.loginPending) return true;
-    if (!this.loginInjectionReady) {
-      await this.afterLoad();
-      if (!this.loginInjectionReady) {
-        this.context.logger.warn('Netflix login was blocked until injection is ready.');
-        return true;
-      }
-    }
-
-    this.loginPending = true;
-    try {
-      const result = await this.context.externalBrowser.login({
+  /** Performs the before load operation. */
+  protected async beforeLoad(): Promise<void> {
+    this.loginFlow = createExternalLoginFlow(this.context, {
+      id: 'netflix',
+      selector: '[data-uia*="login" i], a[href*="/login" i], button[aria-label*="login" i], button[aria-label*="sign in" i]',
+      fallbackLabels: ['sign in', 'log in', 'login', '로그인', 'ログイン'],
+      login: () => ({
         startUrl: 'https://www.netflix.com/login',
         completionUrlPattern: '/browse(?:[/?#]|$)',
         returnUrl: 'https://www.netflix.com/browse',
@@ -60,24 +37,29 @@ export class NetflixProvider extends UrlProvider {
         ],
         siteTitle: 'Netflix',
         locale: this.context.locale?.app,
-      });
-      this.context.logger.info(`Netflix external login ${result}.`);
-      await this.afterLoad().catch((error: unknown) => {
-        this.context.logger.debug('Netflix login interception refresh was skipped.', error);
-      });
-    } finally {
-      this.loginPending = false;
-    }
-    return true;
+      }),
+    });
+    this.subscriptions.add(this.loginFlow);
   }
 
-  async unload(): Promise<void> {
-    this.loginInjectionReady = false;
-    await this.context.externalBrowser.close();
-    await super.unload();
+  /** Handles the action. */
+  async onAction(action: string): Promise<boolean> {
+    return this.loginFlow?.handleAction(action) ?? false;
   }
 
+  /** Performs the allow navigation operation. */
   allowNavigation(url: string): boolean {
-    return !isLoginNavigation(url, ['netflix.com'], ['/login']);
+    return !isSiteLoginNavigation(url, ['netflix.com'], ['/login']);
+  }
+
+  /** Performs the allow picture in picture operation. */
+  allowPictureInPicture(value: string): boolean {
+    try {
+      const url = new URL(value);
+      return /(^|\.)netflix\.com$/i.test(url.hostname) &&
+        /^\/watch\/[^/]+/.test(url.pathname);
+    } catch {
+      return false;
+    }
   }
 }

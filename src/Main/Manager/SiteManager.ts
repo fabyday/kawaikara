@@ -18,6 +18,8 @@ import {
   type ShortFormVideoPublisher,
   type SiteContext,
   type SiteLocaleContext,
+  type SitePagePipeline,
+  type SitePermission,
   type SiteRequestDetails,
   type SiteRequestHeaders,
   type SiteRequestRedirect,
@@ -33,68 +35,69 @@ import {
   createPagePictureInPicturePolicyScript,
   shouldSuppressPagePictureInPicture,
 } from '../Functional/PagePictureInPicturePolicy';
+import { resolvePictureInPictureOverlaySelectors } from '../Functional/PictureInPictureOverlays';
+import {
+  resolveGlobalLocale,
+  resolveProviderLocaleContributions,
+} from '../Functional/ProviderLocale';
+import {
+  cloneLocalizedText,
+  createAcceptLanguage,
+  createIsolatedRuntime,
+  createPluginBrowserProfileId,
+  createSharedRuntime,
+  isNavigationAborted,
+  normalizeAddressInput,
+  setHeader,
+  validatePanelContributions,
+  validateProviderContributions,
+  type BrowserDataTarget,
+  type RegisteredBundle,
+  type RegisteredProvider,
+  type RegisteredRuntimePlugin,
+  type ResolvedSiteAddress,
+  type SiteContextFactory,
+  type SiteRuntimeProfile,
+} from '../Functional/SiteRuntime';
 
-interface RegisteredProvider {
-  readonly bundleId: string;
-  readonly constructor: ProviderConstructor;
-  readonly metadata: ProviderMetadata;
-}
-
-interface RegisteredBundle {
-  readonly definition: BundleDefinition;
-  readonly browserProfiles: readonly BrowserProfileInfo[];
-  readonly providerCount: number;
-  readonly pluginCount: number;
-}
-
-interface RegisteredRuntimePlugin {
-  readonly bundleId: string;
-  readonly constructor: PluginConstructor;
-  readonly metadata: NonNullable<ReturnType<typeof getPluginMetadata>>;
-  readonly scopedProviderId?: string;
-}
-
-export interface SiteRuntimeProfile {
-  readonly id: string;
-  readonly name: string;
-  readonly partition: string;
-  readonly persistent: boolean;
-  readonly siteId: string;
-}
-
-export interface BrowserDataTarget {
-  readonly id: string;
-  readonly name: string;
-  readonly partition: string;
-}
-
-export interface ResolvedSiteAddress {
-  readonly siteId: string;
-  readonly url: string;
-}
-
-type SiteContextFactory = (
-  runtime: SiteRuntimeProfile,
-  permissions: ReadonlySet<string>,
-) => Promise<SiteContext>;
-
+/** Coordinates site behavior. */
 export class SiteManager {
+  /** The sites value. */
   private readonly sites = new Map<string, RegisteredProvider>();
+  /** The bundles value. */
   private readonly bundles = new Map<string, RegisteredBundle>();
+  /** The runtime plugins value. */
   private readonly runtimePlugins = new Map<string, RegisteredRuntimePlugin>();
+  /** The current provider value. */
   private currentProvider?: AbstractProvider;
+  /** The current plugins value. */
   private readonly currentPlugins: AbstractPlugin[] = [];
+  /** The current site ID value. */
   private currentSiteId?: string;
+  /** The current locale value. */
   private currentLocale?: SiteLocaleContext;
+  /** The current runtime value. */
   private currentRuntime?: SiteRuntimeProfile;
+  /** The current page pipeline value. */
+  private currentPagePipeline?: SitePagePipeline;
+  /** The current runtime disposables value. */
+  private readonly currentRuntimeDisposables: Disposable[] = [];
+  /** The current page policy disposables value. */
   private readonly currentPagePolicyDisposables: Disposable[] = [];
+  /** The plugin browser profiles value. */
   private readonly pluginBrowserProfiles = new Map<string, BrowserProfileInfo>();
 
+  /** Creates an instance of SiteManager. */
   constructor(
+    /** The create context value. */
     private readonly createContext: SiteContextFactory,
+    /** Callback used to handle get preferences. */
     private readonly getPreferences: () => PreferenceState,
+    /** Callback used to handle get current address. */
+    private readonly getCurrentAddress: () => string,
   ) {}
 
+  /** Registers the bundle. */
   registerBundle(bundle: BundleDefinition): void {
     this.assertBundleIdAvailable(bundle.id);
     if (bundle.providers.length === 0) {
@@ -186,7 +189,7 @@ export class SiteManager {
     });
   }
 
-  /** Used only to roll back a Bundle that failed during its initial install. */
+  /** Removes staged registrations after an install failure or safe unload. */
   rollbackBundleRegistration(bundleId: string): void {
     const registered = this.bundles.get(bundleId);
     if (!registered) return;
@@ -202,6 +205,37 @@ export class SiteManager {
     this.bundles.delete(bundleId);
   }
 
+  /**
+   * Removes a registered Bundle and tears down its active Provider first.
+   * Browser Session data is intentionally preserved across development reloads.
+   */
+  async unregisterBundle(bundleId: string): Promise<{
+    /** Whether the active site ID option is enabled. */
+    activeSiteId?: string;
+    /** Whether the active URL option is enabled. */
+    activeUrl?: string;
+  }> {
+    const activeSiteId = this.currentSiteId;
+    const activeRegistration = activeSiteId
+      ? this.sites.get(activeSiteId)
+      : undefined;
+    const ownedActiveSiteId = activeRegistration?.bundleId === bundleId
+      ? activeSiteId
+      : undefined;
+    const activeUrl = ownedActiveSiteId
+      ? this.getCurrentAddress() || undefined
+      : undefined;
+    if (ownedActiveSiteId) await this.unloadCurrent();
+    this.rollbackBundleRegistration(bundleId);
+    return {
+      /** Whether the active site ID option is enabled. */
+      activeSiteId: ownedActiveSiteId,
+      /** Whether the active URL option is enabled. */
+      activeUrl,
+    };
+  }
+
+  /** Lists the menu items. */
   listMenuItems(): SiteMenuItem[] {
     return [...this.sites.values()]
       .map(({ metadata, bundleId }) => ({
@@ -233,7 +267,7 @@ export class SiteManager {
           : undefined,
         drm: metadata.isolation?.drm === true,
         pictureInPictureEnabled:
-          metadata.pictureInPicture?.enabled !== false,
+          metadata.pictureInPicture?.enabled === true,
         isCurrent: metadata.id === this.currentSiteId,
       }))
       .sort(
@@ -244,6 +278,7 @@ export class SiteManager {
       );
   }
 
+  /** Lists the bundles. */
   listBundles(): BundleRuntimeInfo[] {
     return [...this.bundles.values()]
       .map(({ browserProfiles, definition, pluginCount, providerCount }) => ({
@@ -296,10 +331,12 @@ export class SiteManager {
                   previous: metadata.shortFormVideo.previous === true,
                   next: metadata.shortFormVideo.next === true,
                   autoAdvance: metadata.shortFormVideo.autoAdvance
-                    ? { ...metadata.shortFormVideo.autoAdvance }
+                    ? { ...metadata.shortFormVideo.autoAdvance
+                    }
                     : undefined,
                   publisherBan: metadata.shortFormVideo.publisherBan
-                    ? { ...metadata.shortFormVideo.publisherBan }
+                    ? { ...metadata.shortFormVideo.publisherBan
+                    }
                     : undefined,
                 }
               : undefined,
@@ -309,10 +346,12 @@ export class SiteManager {
       .sort((left, right) => left.name.localeCompare(right.name));
   }
 
+  /** Determines whether the current site condition applies. */
   isCurrentSite(id: string): boolean {
     return this.currentSiteId === id;
   }
 
+  /** Loads the operation. */
   async load(id: string): Promise<void> {
     const registration = this.sites.get(id);
     if (!registration) {
@@ -323,14 +362,17 @@ export class SiteManager {
 
     const locale = this.resolveLocales(registration);
     const runtime = this.resolveBrowserProfile(registration);
+    const permissions = new Set(registration.metadata.permissions ?? []);
     const context = await this.createContext(
       runtime,
-      new Set(registration.metadata.permissions ?? []),
+      permissions,
     );
     const providerContext: SiteContext = {
       ...context,
+      page: permissions.has('script-injection') ? context.page : undefined,
       locale,
     };
+    this.currentPagePipeline = context.page;
     this.activeContext = providerContext;
     const provider = new registration.constructor(providerContext);
     this.currentProvider = provider;
@@ -339,10 +381,11 @@ export class SiteManager {
     this.currentRuntime = runtime;
     const refreshPagePictureInPicturePolicy =
       this.installPagePictureInPicturePolicy(
-        providerContext,
+        context,
         registration.metadata,
       );
     try {
+      this.installBrowserIdentity(providerContext, registration.metadata);
       await provider.onSettingsChanged(this.getProviderSettings(id));
       await this.activatePlugins(registration, providerContext);
       await provider.load();
@@ -351,6 +394,10 @@ export class SiteManager {
       this.disposeCurrentPagePolicy();
       await this.deactivateCurrentPlugins();
       await provider.unload();
+      await providerContext.externalBrowser.close();
+      this.currentPagePipeline?.dispose();
+      this.currentPagePipeline = undefined;
+      this.disposeCurrentRuntimeServices();
       this.currentProvider = undefined;
       this.currentSiteId = undefined;
       this.currentLocale = undefined;
@@ -360,6 +407,7 @@ export class SiteManager {
     }
   }
 
+  /** Opens the URL. */
   async openUrl(id: string, url: string): Promise<void> {
     await this.load(id);
     try {
@@ -373,10 +421,12 @@ export class SiteManager {
     }
   }
 
+  /** Returns the current site ID. */
   getCurrentSiteId(): string | undefined {
     return this.currentSiteId;
   }
 
+  /** Returns the current short form video contribution. */
   getCurrentShortFormVideoContribution():
     | ShortFormVideoContribution
     | undefined {
@@ -386,6 +436,7 @@ export class SiteManager {
     return registration?.metadata.shortFormVideo;
   }
 
+  /** Returns the current short form video publisher. */
   async getCurrentShortFormVideoPublisher(): Promise<
     ShortFormVideoPublisher | undefined
   > {
@@ -400,6 +451,7 @@ export class SiteManager {
     await provider.onSettingsChanged(this.getProviderSettings(siteId));
   }
 
+  /** Performs the refresh current browser profile operation. */
   async refreshCurrentBrowserProfile(): Promise<boolean> {
     const siteId = this.currentSiteId;
     if (!siteId) return false;
@@ -411,29 +463,38 @@ export class SiteManager {
     return true;
   }
 
+  /** Resolves the browser profile data target. */
   resolveBrowserProfileDataTarget(profileId: string): BrowserDataTarget | undefined {
     const profile = this.findBrowserProfile(profileId, this.getPreferences());
     if (!profile) return undefined;
     const runtime = createSharedRuntime('', profile);
     return {
+      /** The ID value. */
       id: profile.id,
+      /** The name value. */
       name: profile.name,
+      /** The partition value. */
       partition: runtime.partition,
     };
   }
 
+  /** Resolves the isolated site data target. */
   resolveIsolatedSiteDataTarget(siteId: string): BrowserDataTarget | undefined {
     const registration = this.sites.get(siteId);
     if (!registration) return undefined;
     const runtime = this.resolveBrowserProfile(registration);
     if (runtime.id !== `isolated:${siteId}`) return undefined;
     return {
+      /** The ID value. */
       id: siteId,
+      /** The name value. */
       name: registration.metadata.title,
+      /** The partition value. */
       partition: runtime.partition,
     };
   }
 
+  /** Lists the browser data partitions. */
   listBrowserDataPartitions(): string[] {
     const preferences = this.getPreferences();
     const partitions = new Set<string>();
@@ -451,6 +512,7 @@ export class SiteManager {
     return [...partitions];
   }
 
+  /** Performs the with partition suspended operation. */
   async withPartitionSuspended<T>(
     partition: string,
     operation: () => Promise<T>,
@@ -466,22 +528,30 @@ export class SiteManager {
     }
   }
 
+  /** Resolves the new window policy. */
   resolveNewWindowPolicy(url: string): NewWindowPolicy {
+    if (!this.currentProviderHasPermission('navigation')) return 'deny';
     return this.currentProvider?.onNewWindow(url) ?? 'deny';
   }
 
+  /** Handles the action. */
   async handleAction(action: string): Promise<boolean> {
     return (await this.currentProvider?.onAction(action)) ?? false;
   }
 
+  /** Returns the provider settings. */
   private getProviderSettings(providerId: string): ProviderSettings {
-    return { ...(this.getPreferences().providerSettings[providerId] ?? {}) };
+    return { ...(this.getPreferences().providerSettings[providerId] ?? {})
+    };
   }
 
+  /** Performs the allow navigation operation. */
   allowNavigation(url: string): boolean {
+    if (!this.currentProviderHasPermission('navigation')) return false;
     return this.currentProvider?.allowNavigation(url) ?? false;
   }
 
+  /** Resolves the address. */
   resolveAddress(value: string): ResolvedSiteAddress | undefined {
     const trimmed = value.trim();
     if (!trimmed || trimmed.length > 16_384) return undefined;
@@ -528,52 +598,75 @@ export class SiteManager {
       )
       .sort((left, right) => right.host.length - left.host.length)[0];
     return match
-      ? { siteId: match.registration.metadata.id, url: target.href }
+      ? {
+        /** The site ID value. */
+        siteId: match.registration.metadata.id,
+        /** The URL value. */
+        url: target.href,
+      }
       : undefined;
   }
 
+  /** Performs the transform request operation. */
   transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined {
+    if (!this.currentProviderHasPermission('network-interception')) return undefined;
     return this.currentProvider?.onBeforeRequest(details);
   }
 
+  /** Performs the allow picture in picture operation. */
   allowPictureInPicture(url: string): boolean {
     const registration = this.currentSiteId
       ? this.sites.get(this.currentSiteId)
       : undefined;
-    if (registration?.metadata.pictureInPicture?.enabled === false) return false;
+    if (registration?.metadata.pictureInPicture?.enabled !== true) return false;
     return this.currentProvider?.allowPictureInPicture(url) ?? false;
   }
 
+  /** Returns the picture in picture content overlay selectors. */
   getPictureInPictureContentOverlaySelectors(): readonly string[] {
     if (!this.currentSiteId) return [];
-    return (
+    return resolvePictureInPictureOverlaySelectors(
       this.sites.get(this.currentSiteId)?.metadata.pictureInPicture
         ?.contentOverlaySelectors ?? []
     );
   }
 
+  /** Performs the transform request headers operation. */
   transformRequestHeaders(
     details: SiteRequestDetails,
   ): SiteRequestHeaders | undefined {
-    const transformed = this.currentProvider?.onBeforeSendHeaders(details);
+    const transformed = this.currentProviderHasPermission('network-interception')
+      ? this.currentProvider?.onBeforeSendHeaders(details)
+      : undefined;
     const locale = this.currentLocale?.site;
     if (!locale || locale === 'system' || locale === 'inherit') {
       return transformed;
     }
 
-    const headers = { ...(transformed ?? details.requestHeaders) };
+    const headers = { ...(transformed ?? details.requestHeaders)
+    };
     setHeader(headers, 'Accept-Language', createAcceptLanguage(locale));
     return headers;
   }
 
+  /** Determines whether the unnamed declaration condition applies. */
   has(id: string): boolean {
     return this.sites.has(id);
   }
 
+  /** Performs the current provider has permission operation. */
+  private currentProviderHasPermission(permission: SitePermission): boolean {
+    if (!this.currentSiteId) return false;
+    return this.sites.get(this.currentSiteId)?.metadata.permissions
+      ?.includes(permission) === true;
+  }
+
+  /** Releases the operation. */
   async dispose(): Promise<void> {
     await this.unloadCurrent();
   }
 
+  /** Creates the registration. */
   private createRegistration(
     bundleId: string,
     definition: ProviderDefinition,
@@ -598,7 +691,7 @@ export class SiteManager {
       }
     }
     const contributions = manifest.contributes;
-    const effectiveMetadata: ProviderMetadata = {
+    const unresolvedMetadata = {
       ...metadata,
       ...contributions,
       id: manifest.id,
@@ -608,8 +701,20 @@ export class SiteManager {
         ...metadata.menu,
         ...contributions.menu,
       },
+      pictureInPicture:
+        metadata.pictureInPicture || contributions.pictureInPicture
+          ? {
+              ...metadata.pictureInPicture,
+              ...contributions.pictureInPicture,
+            }
+          : undefined,
       permissions: manifest.permissions,
-    } as ProviderMetadata;
+    };
+    const effectiveMetadata = resolveProviderLocaleContributions(
+      unresolvedMetadata,
+      definition.localization,
+      manifest.id,
+    );
     const defaultProfile = effectiveMetadata.isolation?.defaultBrowserProfile;
     if (defaultProfile && !localProfileIds.has(defaultProfile)) {
       throw new Error(
@@ -618,9 +723,17 @@ export class SiteManager {
     }
     validateProviderContributions(effectiveMetadata);
 
-    return { bundleId, constructor, metadata: effectiveMetadata };
+    return {
+      /** The bundle ID value. */
+      bundleId,
+      /** The function Object() { [native code] } value. */
+      constructor,
+      /** The metadata value. */
+      metadata: effectiveMetadata,
+    };
   }
 
+  /** Creates the plugin registration. */
   private createPluginRegistration(
     bundleId: string,
     definition: PluginDefinition,
@@ -660,18 +773,30 @@ export class SiteManager {
     }
     const effectiveMetadata = scopedProviderId
       ? metadata
-      : { ...metadata, providerIds: manifest.providerIds };
+      : { ...metadata, providerIds: manifest.providerIds
+      };
     validatePanelContributions(
       effectiveMetadata.panels ?? [],
       `Plugin ${manifest.id}`,
     );
-    return { bundleId, constructor, metadata: effectiveMetadata, scopedProviderId };
+    return {
+      /** The bundle ID value. */
+      bundleId,
+      /** The function Object() { [native code] } value. */
+      constructor,
+      /** The metadata value. */
+      metadata: effectiveMetadata,
+      /** The scoped provider ID value. */
+      scopedProviderId,
+    };
   }
 
+  /** Lists the plugin view panels. */
   private listPluginViewPanels(
     provider: ProviderMetadata,
   ): PluginViewPanelInfo[] {
     const panels: PluginViewPanelInfo[] = [];
+    /** Performs the append operation. */
     const append = (
       ownerId: string,
       contributions: readonly PluginViewPanelContribution[],
@@ -682,8 +807,10 @@ export class SiteManager {
           title: cloneLocalizedText(contribution.title),
           order: contribution.order ?? 0,
           content: contribution.content.kind === 'internal'
-            ? { kind: 'internal', viewId: contribution.content.viewId }
-            : { kind: 'html', html: contribution.content.html },
+            ? { kind: 'internal', viewId: contribution.content.viewId
+            }
+            : { kind: 'html', html: contribution.content.html
+            },
         });
       }
     };
@@ -693,7 +820,8 @@ export class SiteManager {
       append(`provider:${provider.id}`, [{
         id: provider.menu.panel,
         title: provider.title,
-        content: { kind: 'internal', viewId: provider.menu.panel },
+        content: { kind: 'internal', viewId: provider.menu.panel
+        },
       }]);
     }
     for (const plugin of this.runtimePlugins.values()) {
@@ -710,6 +838,7 @@ export class SiteManager {
       left.order - right.order || left.id.localeCompare(right.id));
   }
 
+  /** Creates the bundle browser profiles. */
   private createBundleBrowserProfiles(
     bundle: BundleDefinition,
   ): BrowserProfileInfo[] {
@@ -736,6 +865,7 @@ export class SiteManager {
     });
   }
 
+  /** Asserts the bundle ID available. */
   private assertBundleIdAvailable(id: string): void {
     if (!id.trim()) throw new Error('A Bundle must have a non-empty id.');
     if (this.bundles.has(id)) {
@@ -743,6 +873,7 @@ export class SiteManager {
     }
   }
 
+  /** Performs the activate plugins operation. */
   private async activatePlugins(
     registration: RegisteredProvider,
     context: SiteContext,
@@ -759,13 +890,15 @@ export class SiteManager {
         continue;
       }
       const instance = new plugin.constructor({
-        provider: { ...context, metadata: registration.metadata },
+        provider: { ...context, metadata: registration.metadata
+        },
       });
       this.currentPlugins.push(instance);
       await instance.activate();
     }
   }
 
+  /** Performs the deactivate current plugins operation. */
   private async deactivateCurrentPlugins(): Promise<void> {
     for (const plugin of this.currentPlugins.splice(0).reverse()) {
       try {
@@ -776,10 +909,15 @@ export class SiteManager {
     }
   }
 
+  /** Performs the unload current operation. */
   private async unloadCurrent(): Promise<void> {
     await this.deactivateCurrentPlugins();
     this.disposeCurrentPagePolicy();
     await this.currentProvider?.unload();
+    await this.activeContext?.externalBrowser.close();
+    this.disposeCurrentRuntimeServices();
+    this.currentPagePipeline?.dispose();
+    this.currentPagePipeline = undefined;
     this.currentProvider = undefined;
     this.currentSiteId = undefined;
     this.currentLocale = undefined;
@@ -787,6 +925,29 @@ export class SiteManager {
     this.activeContext = undefined;
   }
 
+  /** Installs the browser identity. */
+  private installBrowserIdentity(
+    context: SiteContext,
+    metadata: ProviderMetadata,
+  ): void {
+    const identity = metadata.browserIdentity;
+    if (!identity) return;
+    if (!context.browser) {
+      throw new Error(
+        `Provider ${metadata.id} browserIdentity requires network-interception.`,
+      );
+    }
+    this.currentRuntimeDisposables.push(context.browser.useIdentity(identity));
+  }
+
+  /** Releases the current runtime services. */
+  private disposeCurrentRuntimeServices(): void {
+    for (const disposable of this.currentRuntimeDisposables.splice(0).reverse()) {
+      disposable.dispose();
+    }
+  }
+
+  /** Installs the page picture in picture policy. */
   private installPagePictureInPicturePolicy(
     context: SiteContext,
     metadata: ProviderMetadata,
@@ -797,33 +958,32 @@ export class SiteManager {
       return async () => undefined;
     }
 
+    const page = context.page;
+    if (!page) {
+      context.logger.warn(
+        'The application page pipeline is unavailable for the PiP policy.',
+      );
+      return async () => undefined;
+    }
     const script = createPagePictureInPicturePolicyScript({
       pageRequestPolicy: contribution?.pageRequestPolicy,
       providerSelectors: contribution?.pageControlSelectors,
     });
-    const refresh = async (): Promise<void> => {
-      try {
-        await context.viewer.executeJavaScript(script);
-      } catch (error) {
-        context.logger.debug(
-          'The page Picture in Picture controls could not be suppressed.',
-          error,
-        );
-      }
-    };
-    this.currentPagePolicyDisposables.push(
-      context.viewer.onDomReady(refresh),
-      context.viewer.onDidFinishLoad(refresh),
-    );
-    return refresh;
+    this.currentPagePolicyDisposables.push(page.register({
+      id: 'kawaikara.core.picture-in-picture-policy',
+      source: script,
+    }));
+    return () => page.refresh('kawaikara.core.picture-in-picture-policy');
   }
 
+  /** Releases the current page policy. */
   private disposeCurrentPagePolicy(): void {
     for (const disposable of this.currentPagePolicyDisposables.splice(0)) {
       disposable.dispose();
     }
   }
 
+  /** Resolves the browser profile. */
   private resolveBrowserProfile(
     registration: RegisteredProvider,
   ): SiteRuntimeProfile {
@@ -846,6 +1006,7 @@ export class SiteManager {
     return createIsolatedRuntime(registration.metadata.id);
   }
 
+  /** Finds the browser profile. */
   private findBrowserProfile(
     id: string,
     preferences: PreferenceState,
@@ -856,21 +1017,28 @@ export class SiteManager {
     const profile = preferences.browserProfiles.find((item) => item.id === userId);
     return profile
       ? {
+          /** The ID value. */
           id,
+          /** The name value. */
           name: profile.name,
+          /** The persistent value. */
           persistent: profile.persistent,
+          /** The source value. */
           source: 'user',
         }
       : undefined;
   }
 
+  /** Whether the active context option is enabled. */
   private activeContext?: SiteContext;
 
+  /** Performs the current provider context operation. */
   private currentProviderContext(): SiteContext {
     if (!this.activeContext) throw new Error('No active site context.');
     return this.activeContext;
   }
 
+  /** Resolves the locales. */
   private resolveLocales(registration: RegisteredProvider): SiteLocaleContext {
     const preferences = this.getPreferences();
     const bundle = this.bundles.get(registration.bundleId)?.definition;
@@ -885,406 +1053,13 @@ export class SiteManager {
       registration.metadata.locale?.supportedLocales,
       registration.metadata.locale?.defaultLocale,
     );
-    return { app: appLocale, plugin: pluginLocale, site: siteLocale };
+    return {
+      /** The app value. */
+      app: appLocale,
+      /** The plugin value. */
+      plugin: pluginLocale,
+      /** The site value. */
+      site: siteLocale,
+    };
   }
-}
-
-function resolveGlobalLocale(
-  appLocale: string,
-  supportedLocales: readonly string[] | undefined,
-  defaultLocale: string | undefined,
-): string {
-  if (appLocale === 'system' || !supportedLocales?.length) {
-    return appLocale;
-  }
-
-  const exact = supportedLocales.find(
-    (locale) => locale.toLowerCase() === appLocale.toLowerCase(),
-  );
-  if (exact) return exact;
-
-  const language = appLocale.split('-')[0]?.toLowerCase();
-  const languageMatch = supportedLocales.find(
-    (locale) => locale.split('-')[0]?.toLowerCase() === language,
-  );
-  if (languageMatch) return languageMatch;
-
-  return defaultLocale && defaultLocale !== 'inherit'
-    ? defaultLocale
-    : appLocale;
-}
-
-const CONTRIBUTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
-
-function validateProviderContributions(metadata: ProviderMetadata): void {
-  if (
-    !metadata.menu ||
-    typeof metadata.menu.category !== 'string' ||
-    !metadata.menu.category.trim() ||
-    metadata.menu.category.length > 80 ||
-    (metadata.menu.order !== undefined && !Number.isFinite(metadata.menu.order)) ||
-    (metadata.menu.icon !== undefined &&
-      (typeof metadata.menu.icon !== 'string' || metadata.menu.icon.length > 262_144))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid menu metadata.`);
-  }
-  if (metadata.menu.panels !== undefined && !Array.isArray(metadata.menu.panels)) {
-    throw new Error(`Provider ${metadata.id} has invalid PluginView panels.`);
-  }
-  validatePanelContributions(metadata.menu.panels ?? [], `Provider ${metadata.id}`);
-  if (
-    metadata.menu.panels?.length &&
-    !metadata.permissions?.includes('plugin-view')
-  ) {
-    throw new Error(`Provider ${metadata.id} must declare plugin-view permission.`);
-  }
-  if (
-    metadata.address &&
-    (!Array.isArray(metadata.address.hosts) ||
-      metadata.address.hosts.length === 0 ||
-      metadata.address.hosts.length > 40 ||
-      metadata.address.hosts.some(
-        (host) =>
-          typeof host !== 'string' ||
-          !/^[A-Za-z0-9.-]+$/.test(host) ||
-          host.startsWith('.') ||
-          host.endsWith('.'),
-      ))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid address hosts.`);
-  }
-  if (
-    metadata.shortcut?.defaultKey !== undefined &&
-    (typeof metadata.shortcut.defaultKey !== 'string' ||
-      metadata.shortcut.defaultKey.length > 100)
-  ) {
-    throw new Error(`Provider ${metadata.id} has an invalid default shortcut.`);
-  }
-  if (
-    metadata.shortcut?.actions !== undefined &&
-    !Array.isArray(metadata.shortcut.actions)
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid action shortcuts.`);
-  }
-  if (
-    metadata.locale &&
-    ((metadata.locale.supportedLocales !== undefined &&
-      (!Array.isArray(metadata.locale.supportedLocales) ||
-        metadata.locale.supportedLocales.length > 40 ||
-        metadata.locale.supportedLocales.some(
-          (locale) => typeof locale !== 'string' || !locale.trim() || locale.length > 40,
-        ))) ||
-      (metadata.locale.defaultLocale !== undefined &&
-        (typeof metadata.locale.defaultLocale !== 'string' ||
-          !metadata.locale.defaultLocale.trim() ||
-          metadata.locale.defaultLocale.length > 40)))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid locale metadata.`);
-  }
-  if (
-    metadata.isolation &&
-    ((metadata.isolation.drm !== undefined &&
-      typeof metadata.isolation.drm !== 'boolean') ||
-      (metadata.isolation.defaultBrowserProfile !== undefined &&
-        (typeof metadata.isolation.defaultBrowserProfile !== 'string' ||
-          !metadata.isolation.defaultBrowserProfile.trim())))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid isolation metadata.`);
-  }
-  const pip = metadata.pictureInPicture;
-  if (
-    pip &&
-    ((pip.enabled !== undefined && typeof pip.enabled !== 'boolean') ||
-      (pip.suppressPageControls !== undefined &&
-        typeof pip.suppressPageControls !== 'boolean') ||
-      (pip.pageRequestPolicy !== undefined &&
-        !['block', 'transient', 'allow'].includes(pip.pageRequestPolicy)) ||
-      !isOptionalBoundedStringArray(pip.pageControlSelectors, 100, 1_000) ||
-      !isOptionalBoundedStringArray(pip.contentOverlaySelectors, 100, 1_000))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid Picture in Picture metadata.`);
-  }
-
-  const settingTypes = new Map<string, 'boolean' | 'item-list'>();
-  if (
-    metadata.settings?.categories !== undefined &&
-    !Array.isArray(metadata.settings.categories)
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid setting categories.`);
-  }
-  const categories = metadata.settings?.categories ?? [];
-  if (categories.length > 32) {
-    throw new Error(`Provider ${metadata.id} declares too many setting categories.`);
-  }
-  const categoryIds = new Set<string>();
-  for (const category of categories) {
-    if (
-      !category ||
-      typeof category !== 'object' ||
-      typeof category.id !== 'string' ||
-      !Array.isArray(category.settings) ||
-      category.settings.length > 64
-    ) {
-      throw new Error(`Provider ${metadata.id} has an invalid setting category.`);
-    }
-    requireContributionId(category.id, `${metadata.id} setting category`);
-    if (categoryIds.has(category.id)) {
-      throw new Error(`Provider ${metadata.id} repeats setting category ${category.id}.`);
-    }
-    categoryIds.add(category.id);
-    validateLocalizedText(category.title, `${metadata.id} setting category title`);
-    if (category.description) {
-      validateLocalizedText(category.description, `${metadata.id} setting category description`);
-    }
-    for (const setting of category.settings) {
-      if (
-        !setting ||
-        typeof setting !== 'object' ||
-        typeof setting.key !== 'string'
-      ) {
-        throw new Error(`Provider ${metadata.id} has an invalid setting.`);
-      }
-      requireContributionId(setting.key, `${metadata.id} setting`);
-      if (settingTypes.has(setting.key)) {
-        throw new Error(`Provider ${metadata.id} repeats setting key ${setting.key}.`);
-      }
-      if (setting.type !== 'boolean' && setting.type !== 'item-list') {
-        throw new Error(`Provider ${metadata.id} uses an unsupported setting control.`);
-      }
-      if (setting.type === 'boolean' && typeof setting.defaultValue !== 'boolean') {
-        throw new Error(`Provider ${metadata.id} setting ${setting.key} needs a boolean default.`);
-      }
-      validateLocalizedText(setting.title, `${metadata.id} setting title`);
-      if (setting.description) {
-        validateLocalizedText(setting.description, `${metadata.id} setting description`);
-      }
-      if (setting.type === 'item-list' && setting.emptyText) {
-        validateLocalizedText(setting.emptyText, `${metadata.id} empty-list text`);
-      }
-      settingTypes.set(setting.key, setting.type);
-    }
-  }
-
-  const shortForm = metadata.shortFormVideo;
-  if (
-    shortForm &&
-    ((shortForm.previous !== undefined && typeof shortForm.previous !== 'boolean') ||
-      (shortForm.next !== undefined && typeof shortForm.next !== 'boolean') ||
-      (shortForm.autoAdvance !== undefined &&
-        (!shortForm.autoAdvance ||
-          typeof shortForm.autoAdvance !== 'object' ||
-          typeof shortForm.autoAdvance.settingKey !== 'string' ||
-          typeof shortForm.autoAdvance.defaultValue !== 'boolean')) ||
-      (shortForm.publisherBan !== undefined &&
-        (!shortForm.publisherBan ||
-          typeof shortForm.publisherBan !== 'object' ||
-          typeof shortForm.publisherBan.settingKey !== 'string')))
-  ) {
-    throw new Error(`Provider ${metadata.id} has invalid short-form metadata.`);
-  }
-  if (shortForm?.autoAdvance) {
-    requireSettingType(
-      metadata.id,
-      shortForm.autoAdvance.settingKey,
-      'boolean',
-      settingTypes,
-    );
-  }
-  if (shortForm?.publisherBan) {
-    requireSettingType(
-      metadata.id,
-      shortForm.publisherBan.settingKey,
-      'item-list',
-      settingTypes,
-    );
-  }
-
-  const localShortcutIds = new Set<string>();
-  for (const shortcut of metadata.shortcut?.actions ?? []) {
-    if (
-      !shortcut ||
-      typeof shortcut !== 'object' ||
-      typeof shortcut.id !== 'string' ||
-      typeof shortcut.defaultKey !== 'string' ||
-      typeof shortcut.action !== 'string'
-    ) {
-      throw new Error(`Provider ${metadata.id} has an invalid action shortcut.`);
-    }
-    requireContributionId(shortcut.id, `${metadata.id} action shortcut`);
-    if (localShortcutIds.has(shortcut.id)) {
-      throw new Error(`Provider ${metadata.id} repeats action shortcut ${shortcut.id}.`);
-    }
-    localShortcutIds.add(shortcut.id);
-    validateLocalizedText(shortcut.title, `${metadata.id} action shortcut title`);
-    if (shortcut.description) {
-      validateLocalizedText(shortcut.description, `${metadata.id} action shortcut description`);
-    }
-    if (!shortcut.defaultKey.trim() || !shortcut.action.trim()) {
-      throw new Error(`Provider ${metadata.id} has an incomplete action shortcut.`);
-    }
-  }
-}
-
-function isOptionalBoundedStringArray(
-  value: readonly string[] | undefined,
-  maximumItems: number,
-  maximumItemLength: number,
-): boolean {
-  return value === undefined || (
-    Array.isArray(value) &&
-    value.length <= maximumItems &&
-    value.every(
-      (item) =>
-        typeof item === 'string' &&
-        item.length > 0 &&
-        item.length <= maximumItemLength,
-    )
-  );
-}
-
-function validatePanelContributions(
-  panels: readonly PluginViewPanelContribution[],
-  owner: string,
-): void {
-  if (panels.length > 16) throw new Error(`${owner} declares too many PluginView panels.`);
-  const ids = new Set<string>();
-  for (const panel of panels) {
-    if (
-      !panel ||
-      typeof panel !== 'object' ||
-      typeof panel.id !== 'string' ||
-      !panel.content ||
-      typeof panel.content !== 'object'
-    ) {
-      throw new Error(`${owner} has an invalid PluginView panel.`);
-    }
-    requireContributionId(panel.id, `${owner} PluginView panel`);
-    if (ids.has(panel.id)) throw new Error(`${owner} repeats PluginView panel ${panel.id}.`);
-    ids.add(panel.id);
-    validateLocalizedText(panel.title, `${owner} PluginView panel title`);
-    if (
-      panel.content.kind === 'internal' &&
-      typeof panel.content.viewId === 'string'
-    ) {
-      requireContributionId(panel.content.viewId, `${owner} internal view`);
-    } else if (
-      panel.content.kind !== 'html' ||
-      typeof panel.content.html !== 'string' ||
-      !panel.content.html.trim() ||
-      panel.content.html.length > 262_144
-    ) {
-      throw new Error(`${owner} has an invalid sandboxed PluginView document.`);
-    }
-  }
-}
-
-function requireSettingType(
-  providerId: string,
-  key: string,
-  expected: 'boolean' | 'item-list',
-  settingTypes: ReadonlyMap<string, 'boolean' | 'item-list'>,
-): void {
-  if (settingTypes.get(key) !== expected) {
-    throw new Error(
-      `Provider ${providerId} short-form capability requires ${expected} setting ${key}.`,
-    );
-  }
-}
-
-function requireContributionId(value: string, label: string): void {
-  if (typeof value !== 'string' || !CONTRIBUTION_ID_PATTERN.test(value)) {
-    throw new Error(`${label} has invalid id ${value}.`);
-  }
-}
-
-function validateLocalizedText(value: ProviderLocalizedText, label: string): void {
-  if (typeof value === 'string') {
-    if (!value.trim() || value.length > 500) throw new Error(`${label} is invalid.`);
-    return;
-  }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} is invalid.`);
-  }
-  const entries = Object.entries(value);
-  if (
-    entries.length === 0 ||
-    entries.length > 20 ||
-    entries.some(([locale, text]) =>
-      !locale.trim() ||
-      typeof text !== 'string' ||
-      !text.trim() ||
-      text.length > 500,
-    )
-  ) {
-    throw new Error(`${label} is invalid.`);
-  }
-}
-
-function cloneLocalizedText(value: ProviderLocalizedText): ProviderLocalizedText {
-  return typeof value === 'string' ? value : { ...value };
-}
-
-function createAcceptLanguage(locale: string): string {
-  const language = locale.split('-')[0];
-  return language && language !== locale
-    ? `${locale},${language};q=0.9`
-    : locale;
-}
-
-function setHeader(
-  headers: Record<string, string>,
-  name: string,
-  value: string,
-): void {
-  const existing = Object.keys(headers).find(
-    (header) => header.toLowerCase() === name.toLowerCase(),
-  );
-  headers[existing ?? name] = value;
-}
-
-function isNavigationAborted(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === 'ERR_ABORTED'
-  );
-}
-
-function normalizeAddressInput(value: string): string {
-  if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)) return value;
-  if (value.startsWith('//')) return `https:${value}`;
-  return `https://${value}`;
-}
-
-function createPluginBrowserProfileId(pluginId: string, profileId: string): string {
-  return `plugin:${pluginId}:${profileId}`;
-}
-
-function createIsolatedRuntime(siteId: string): SiteRuntimeProfile {
-  return {
-    id: `isolated:${siteId}`,
-    name: siteId,
-    partition: createPartition(`site.${siteId}`, true),
-    persistent: true,
-    siteId,
-  };
-}
-
-function createSharedRuntime(
-  siteId: string,
-  profile: BrowserProfileInfo,
-): SiteRuntimeProfile {
-  return {
-    id: profile.id,
-    name: profile.name,
-    partition: createPartition(`profile.${profile.id}`, profile.persistent),
-    persistent: profile.persistent,
-    siteId,
-  };
-}
-
-function createPartition(key: string, persistent: boolean): string {
-  const safeKey = key.replace(/[^A-Za-z0-9._-]+/g, '_');
-  return `${persistent ? 'persist:' : ''}kawaikara.${safeKey}`;
 }

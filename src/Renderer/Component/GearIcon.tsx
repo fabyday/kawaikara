@@ -1,3 +1,4 @@
+/** Performs the gear icon operation. */
 export function GearIcon() {
   return (
     <svg

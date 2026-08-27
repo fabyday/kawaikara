@@ -1,14 +1,22 @@
 import { Button } from '@kawaikara/kawai-ui';
 
+/** Describes the picture in picture button props contract. */
 export interface PictureInPictureButtonProps {
+  /** Whether the active option is enabled. */
   readonly active?: boolean;
+  /** The failure key value. */
   readonly failureKey?: number;
+  /** Whether the loading option is enabled. */
   readonly isLoading?: boolean;
+  /** The label value. */
   readonly label: string;
+  /** Callback used to handle on press. */
   readonly onPress: () => void;
+  /** The short label value. */
   readonly shortLabel?: string;
 }
 
+/** Performs the picture in picture button operation. */
 export function PictureInPictureButton({
   active = false,
   failureKey = 0,
@@ -35,6 +43,7 @@ export function PictureInPictureButton({
   );
 }
 
+/** Performs the picture in picture icon operation. */
 function PictureInPictureIcon() {
   return (
     <svg aria-hidden="true" className="overlay-pip-icon" viewBox="0 0 24 24">

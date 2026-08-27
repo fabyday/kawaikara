@@ -14,12 +14,18 @@
   ],
   "contributes": {
     "address": { "hosts": ["coupangplay.com"] },
+    "browserIdentity": {
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "clientHints": "auto",
+      "requestHosts": ["coupangplay.com", "coupang.com"]
+    },
     "shortcut": { "defaultKey": "Control+Alt+9" },
     "locale": {
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },
     "isolation": { "drm": true },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "OTT",
       "order": 70,

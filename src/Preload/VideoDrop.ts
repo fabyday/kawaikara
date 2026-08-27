@@ -1,6 +1,7 @@
 import { ipcRenderer, webUtils } from 'electron';
 import { IPC_CHANNELS } from '../Common/IPC';
 
+/** Installs the video drop target. */
 export function installVideoDropTarget(): void {
   window.addEventListener(
     'dragover',
@@ -36,6 +37,7 @@ export function installVideoDropTarget(): void {
   );
 }
 
+/** Determines whether the files condition applies. */
 function hasFiles(dataTransfer: DataTransfer | null): boolean {
   return Boolean(
     dataTransfer &&

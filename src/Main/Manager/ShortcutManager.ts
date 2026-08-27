@@ -8,39 +8,53 @@ import { APP_SHORTCUTS } from '../../Common/AppShortcuts';
 import {
   SHORT_FORM_VIDEO_SHORTCUTS,
 } from '../../Common/ShortFormVideo';
-import { VIDEO_SHORTCUTS } from '../../Common/VideoControls';
+import {
+  isRepeatableShortFormNavigationShortcut,
+  matchesAccelerator,
+  matchesVideoShortcutInput,
+  supportsShortFormShortcut,
+  type ShortcutBinding,
+} from '../Functional/Shortcut';
 import type { PreferenceManager } from './PreferenceManager';
 import type { SiteManager } from './SiteManager';
 import type { WindowManager } from './WindowManager';
 
-interface ShortcutBinding {
-  readonly id: string;
-  readonly defaultKey: string;
-  run(): void | Promise<void>;
-}
-
+/** Defines the shared picture in picture shortcut ID constant. */
 const PICTURE_IN_PICTURE_SHORTCUT_ID = 'app.toggle-picture-in-picture';
+/** Defines the shared always on top shortcut ID constant. */
 const ALWAYS_ON_TOP_SHORTCUT_ID = 'app.toggle-always-on-top';
 
+/** Coordinates shortcut behavior. */
 export class ShortcutManager {
+  /** The last always on top toggle at value. */
   private lastAlwaysOnTopToggleAt = 0;
+  /** The last picture in picture toggle at value. */
   private lastPictureInPictureToggleAt = 0;
+  /** The picture in picture active value. */
   private pictureInPictureActive = false;
+  /** The picture in picture toggle promise value. */
   private pictureInPictureTogglePromise?: Promise<void>;
+  /** The registered picture in picture accelerator value. */
   private registeredPictureInPictureAccelerator?: string;
+  /** The registered always on top accelerator value. */
   private registeredAlwaysOnTopAccelerator?: string;
+  /** The registered short form accelerators value. */
   private readonly registeredShortFormAccelerators = new Map<string, string>();
 
+  /** Creates an instance of ShortcutManager. */
   constructor(
+    /** The sites value. */
     private readonly sites: SiteManager,
+    /** The Windows value. */
     private readonly windows: WindowManager,
+    /** The preferences value. */
     private readonly preferences: PreferenceManager,
   ) {}
 
+  /** Handles the input. */
   handleInput(input: Input, editing = false): boolean {
     if (
       input.type !== 'keyDown' ||
-      input.isAutoRepeat ||
       input.isComposing
     ) {
       return false;
@@ -69,6 +83,12 @@ export class ShortcutManager {
     if (!binding) {
       return false;
     }
+    if (
+      input.isAutoRepeat &&
+      !isRepeatableShortFormNavigationShortcut(binding.id)
+    ) {
+      return false;
+    }
     // A plain Tab belongs to the focused site input. Modifier-based app/site
     // shortcuts remain available while typing in the viewer.
     if (editing && binding.id === 'app.toggle-menu') {
@@ -81,11 +101,13 @@ export class ShortcutManager {
     return true;
   }
 
+  /** Sets the picture in picture active. */
   setPictureInPictureActive(active: boolean): void {
     this.pictureInPictureActive = active;
     this.refreshGlobalShortcut();
   }
 
+  /** Performs the refresh global shortcut operation. */
   refreshGlobalShortcut(): void {
     this.refreshAlwaysOnTopGlobalShortcut();
     if (!this.pictureInPictureActive) {
@@ -132,6 +154,7 @@ export class ShortcutManager {
     this.refreshShortFormGlobalShortcuts();
   }
 
+  /** Releases the operation. */
   dispose(): void {
     this.pictureInPictureActive = false;
     this.unregisterAlwaysOnTopGlobalShortcut();
@@ -139,6 +162,7 @@ export class ShortcutManager {
     this.unregisterShortFormGlobalShortcuts();
   }
 
+  /** Returns the bindings. */
   private getBindings(): ShortcutBinding[] {
     const appActions: Record<string, () => void | Promise<void>> = {
       'app.toggle-menu': () => this.windows.toggleOverlay(),
@@ -151,14 +175,19 @@ export class ShortcutManager {
         await this.togglePictureInPicture();
       },
       'app.reload-site': () => this.windows.reloadViewer(),
-      'app.go-back': () => this.windows.goBack(),
-      'app.go-forward': () => this.windows.goForward(),
+      'app.go-back': () => {
+        this.windows.goBack();
+      },
+      'app.go-forward': () => {
+        this.windows.goForward();
+      },
     };
     const appBindings = APP_SHORTCUTS.map((definition) => ({
       ...definition,
       run: appActions[definition.id],
     })).filter(
-      (binding): binding is typeof binding & { run: () => void | Promise<void> } =>
+      (binding): binding is typeof binding & { run: () => void | Promise<void>
+      } =>
         Boolean(binding.run),
     );
     const siteBindings = this.sites.listMenuItems().map((site) => ({
@@ -199,6 +228,7 @@ export class ShortcutManager {
     ];
   }
 
+  /** Returns the picture in picture accelerator. */
   private getPictureInPictureAccelerator(): string {
     const definition = APP_SHORTCUTS.find(
       ({ id }) => id === PICTURE_IN_PICTURE_SHORTCUT_ID,
@@ -210,6 +240,7 @@ export class ShortcutManager {
     ).trim();
   }
 
+  /** Returns the always on top accelerator. */
   private getAlwaysOnTopAccelerator(): string {
     const definition = APP_SHORTCUTS.find(
       ({ id }) => id === ALWAYS_ON_TOP_SHORTCUT_ID,
@@ -221,6 +252,7 @@ export class ShortcutManager {
     ).trim();
   }
 
+  /** Performs the refresh always on top global shortcut operation. */
   private refreshAlwaysOnTopGlobalShortcut(): void {
     const accelerator = this.getAlwaysOnTopAccelerator();
     if (
@@ -252,6 +284,7 @@ export class ShortcutManager {
     }
   }
 
+  /** Toggles the always on top. */
   private async toggleAlwaysOnTop(): Promise<void> {
     const now = Date.now();
     if (now - this.lastAlwaysOnTopToggleAt < 250) return;
@@ -264,6 +297,7 @@ export class ShortcutManager {
     this.windows.setAlwaysOnTop(next.alwaysOnTop);
   }
 
+  /** Runs the short form action. */
   private async runShortFormAction(shortcutId: string): Promise<void> {
     const siteId = this.sites.getCurrentSiteId();
     const contribution = this.sites.getCurrentShortFormVideoContribution();
@@ -291,20 +325,24 @@ export class ShortcutManager {
     }
 
     const current = this.preferences.get();
-    const providerSettings = { ...current.providerSettings };
-    const settings = { ...(providerSettings[siteId] ?? {}) };
+    const providerSettings = { ...current.providerSettings
+    };
+    const settings = { ...(providerSettings[siteId] ?? {})
+    };
     const { defaultValue, settingKey } = contribution.autoAdvance;
     const currentValue = settings[settingKey];
     settings[settingKey] =
       typeof currentValue === 'boolean' ? !currentValue : !defaultValue;
     providerSettings[siteId] = settings;
-    await this.preferences.update({ providerSettings });
+    await this.preferences.update({ providerSettings
+    });
     await this.sites.applyCurrentProviderSettings();
     await this.sites.handleAction(
       SHORT_FORM_VIDEO_ACTIONS.announceAutoAdvance,
     );
   }
 
+  /** Performs the refresh short form global shortcuts operation. */
   private refreshShortFormGlobalShortcuts(): void {
     this.unregisterShortFormGlobalShortcuts();
     const contribution = this.sites.getCurrentShortFormVideoContribution();
@@ -344,6 +382,7 @@ export class ShortcutManager {
     }
   }
 
+  /** Performs the ban current short form publisher operation. */
   private async banCurrentShortFormPublisher(
     siteId: string,
     contribution: ShortFormVideoContribution,
@@ -354,8 +393,10 @@ export class ShortcutManager {
     if (!publisher?.id.trim()) return;
 
     const current = this.preferences.get();
-    const providerSettings = { ...current.providerSettings };
-    const settings = { ...(providerSettings[siteId] ?? {}) };
+    const providerSettings = { ...current.providerSettings
+    };
+    const settings = { ...(providerSettings[siteId] ?? {})
+    };
     const existing = Array.isArray(settings[settingKey])
       ? settings[settingKey] as readonly ProviderSettingListItem[]
       : [];
@@ -382,7 +423,8 @@ export class ShortcutManager {
             }
           : item);
       providerSettings[siteId] = settings;
-      await this.preferences.update({ providerSettings });
+      await this.preferences.update({ providerSettings
+      });
       await this.sites.applyCurrentProviderSettings();
       if (existingIndex < 0) {
         await this.sites.handleAction(
@@ -390,11 +432,15 @@ export class ShortcutManager {
         );
       }
     }
-    if (contribution.next) {
+    // Applying a newly added ban refreshes the Provider and makes it skip the
+    // now-blocked current publisher. Sending `next` as well used to skip both
+    // the blocked Short and the following valid Short.
+    if (contribution.next && existingIndex >= 0 && !shouldEnrichExisting) {
       await this.sites.handleAction(SHORT_FORM_VIDEO_ACTIONS.next);
     }
   }
 
+  /** Toggles the picture in picture. */
   private togglePictureInPicture(): Promise<void> {
     if (this.pictureInPictureTogglePromise) {
       return this.pictureInPictureTogglePromise;
@@ -409,6 +455,7 @@ export class ShortcutManager {
       .togglePictureInPicture()
       .then(() => undefined);
     this.pictureInPictureTogglePromise = operation;
+    /** Clears the operation. */
     const clear = () => {
       if (this.pictureInPictureTogglePromise === operation) {
         this.pictureInPictureTogglePromise = undefined;
@@ -418,6 +465,7 @@ export class ShortcutManager {
     return operation;
   }
 
+  /** Performs the unregister picture in picture global shortcut operation. */
   private unregisterPictureInPictureGlobalShortcut(): void {
     const accelerator = this.registeredPictureInPictureAccelerator;
     this.registeredPictureInPictureAccelerator = undefined;
@@ -426,6 +474,7 @@ export class ShortcutManager {
     }
   }
 
+  /** Performs the unregister always on top global shortcut operation. */
   private unregisterAlwaysOnTopGlobalShortcut(): void {
     const accelerator = this.registeredAlwaysOnTopAccelerator;
     this.registeredAlwaysOnTopAccelerator = undefined;
@@ -434,6 +483,7 @@ export class ShortcutManager {
     }
   }
 
+  /** Performs the unregister short form global shortcuts operation. */
   private unregisterShortFormGlobalShortcuts(): void {
     for (const accelerator of this.registeredShortFormAccelerators.values()) {
       if (globalShortcut.isRegistered(accelerator)) {
@@ -442,116 +492,4 @@ export class ShortcutManager {
     }
     this.registeredShortFormAccelerators.clear();
   }
-}
-
-function supportsShortFormShortcut(
-  shortcutId: string,
-  contribution: ShortFormVideoContribution,
-): boolean {
-  if (shortcutId === 'short-form-video.previous') return contribution.previous === true;
-  if (shortcutId === 'short-form-video.next') return contribution.next === true;
-  if (shortcutId === 'short-form-video.toggle-auto-advance') {
-    return Boolean(contribution.autoAdvance);
-  }
-  if (shortcutId === 'short-form-video.ban-current-publisher') {
-    return Boolean(contribution.publisherBan);
-  }
-  return false;
-}
-
-function matchesVideoShortcutInput(
-  input: Input,
-  overrides: Readonly<Record<string, string>>,
-): boolean {
-  return VIDEO_SHORTCUTS.some(({ id, defaultKey }) => {
-    const accelerator = overrides[id] ?? defaultKey;
-    if (!accelerator.trim()) return false;
-    if (matchesAccelerator(input, accelerator)) return true;
-
-    // Control and Alt can be layered on top of a configured Video shortcut
-    // to request a smaller seek distance.
-    const variants: Input[] = [];
-    if (input.control) variants.push({ ...input, control: false });
-    if (input.alt) variants.push({ ...input, alt: false });
-    if (input.control && input.alt) {
-      variants.push({ ...input, control: false, alt: false });
-    }
-    return variants.some((variant) => matchesAccelerator(variant, accelerator));
-  });
-}
-
-export function matchesAccelerator(input: Input, accelerator: string): boolean {
-  const parts = accelerator
-    .split('+')
-    .map((part) => part.trim().toLowerCase())
-    .filter(Boolean);
-  const key = parts.pop();
-  if (!key) {
-    return false;
-  }
-
-  let needsControl = false;
-  let needsMeta = false;
-  let needsAlt = false;
-  let needsShift = false;
-  for (const modifier of parts) {
-    switch (modifier) {
-      case 'commandorcontrol':
-      case 'cmdorctrl':
-        if (process.platform === 'darwin') needsMeta = true;
-        else needsControl = true;
-        break;
-      case 'command':
-      case 'cmd':
-      case 'super':
-        needsMeta = true;
-        break;
-      case 'control':
-      case 'ctrl':
-        needsControl = true;
-        break;
-      case 'alt':
-      case 'option':
-        needsAlt = true;
-        break;
-      case 'shift':
-        needsShift = true;
-        break;
-      default:
-        return false;
-    }
-  }
-
-  return (
-    input.control === needsControl &&
-    input.meta === needsMeta &&
-    input.alt === needsAlt &&
-    input.shift === needsShift &&
-    normalizeInputKey(input) === normalizeAcceleratorKey(key)
-  );
-}
-
-function normalizeInputKey(input: Input): string {
-  if (/^Key[A-Z]$/i.test(input.code)) return input.code.slice(3).toLowerCase();
-  if (/^Digit[0-9]$/.test(input.code)) return input.code.slice(5);
-  if (/^Numpad[0-9]$/.test(input.code)) return input.code.slice(6);
-  if (input.code === 'Comma') return ',';
-  if (input.code === 'Period') return '.';
-  return normalizeAcceleratorKey(input.key);
-}
-
-function normalizeAcceleratorKey(key: string): string {
-  const normalized = key.toLowerCase();
-  const aliases: Record<string, string> = {
-    arrowleft: 'left',
-    arrowright: 'right',
-    arrowup: 'up',
-    arrowdown: 'down',
-    return: 'enter',
-    esc: 'escape',
-    space: ' ',
-    spacebar: ' ',
-    comma: ',',
-  };
-  return aliases[normalized] ?? normalized;
 }

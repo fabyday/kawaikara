@@ -10,11 +10,15 @@ import {
 } from '@kawaikara/kawai-ui';
 import type { ExternalDownloaderStatus } from '../../../Common/Download';
 
+/** Describes the you tube downloader panel props contract. */
 export interface YouTubeDownloaderPanelProps {
+  /** The initial URL value. */
   readonly initialUrl?: string;
+  /** Callback used to handle on close. */
   readonly onClose?: () => void;
 }
 
+/** Performs the you tube downloader panel operation. */
 export function YouTubeDownloaderPanel({
   initialUrl = '',
   onClose,
@@ -44,6 +48,7 @@ export function YouTubeDownloaderPanel({
     };
   }, []);
 
+  /** Opens the downloader. */
   const openDownloader = async () => {
     setOpening(true);
     setError(undefined);
@@ -60,6 +65,7 @@ export function YouTubeDownloaderPanel({
     }
   };
 
+  /** Installs the downloader. */
   const installDownloader = async () => {
     setInstalling(true);
     setError(undefined);
@@ -174,6 +180,7 @@ export function YouTubeDownloaderPanel({
   );
 }
 
+/** Returns the error message. */
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

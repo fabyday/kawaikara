@@ -1,16 +1,13 @@
 import {
   defineBundle,
-  definePlugin,
   defineProvider,
-  type PluginManifest,
   type ProviderConstructor,
   type ProviderManifest,
+  type ProviderLocaleResource,
   type SitePermission,
 } from '@kawaikara/site-api';
 import bundleManifest from './manifest.json';
 import { resolveBundleUpdate } from './Update';
-import { ProviderIdentityPlugin } from './Plugins/Index';
-import providerIdentityManifest from './Plugins/ProviderIdentity/manifest.json';
 import {
   AppleMusicProvider,
   AppleTvProvider,
@@ -50,34 +47,60 @@ import watchaManifest from './Providers/Watcha/manifest.json';
 import wavveManifest from './Providers/Wavve/manifest.json';
 import youTubeManifest from './Providers/YouTube/manifest.json';
 import youTubeMusicManifest from './Providers/YouTubeMusic/manifest.json';
+import chzzkLocalization from './Providers/Chzzk/locale.json';
+import videoLocalization from './Providers/Video/locale.json';
+import youTubeLocalization from './Providers/YouTube/locale.json';
 
+/** Performs the provider operation. */
 const provider = (
   manifest: ProviderManifest,
   constructor: ProviderConstructor,
-) => defineProvider({ manifest, provider: constructor });
+  localization?: ProviderLocaleResource,
+) => defineProvider({ manifest, provider: constructor, localization
+});
 
+/** Stores the builtin bundle value. */
 export const builtinBundle = defineBundle({
+  /** The ID value. */
   id: bundleManifest.id,
+  /** The name value. */
   name: bundleManifest.name,
+  /** The description value. */
   description: bundleManifest.description,
+  /** The version value. */
   version: bundleManifest.version,
-  update: { type: 'resolver', resolve: resolveBundleUpdate },
+  /** The update value. */
+  update: {
+    /** The type value. */
+    type: 'resolver',
+    /** The resolve value. */
+    resolve: resolveBundleUpdate,
+  },
+  /** The API version value. */
   apiVersion: 1,
+  /** The permissions value. */
   permissions: bundleManifest.permissions as SitePermission[],
+  /** The locale value. */
   locale: bundleManifest.locale,
+  /** The browser profiles value. */
   browserProfiles: bundleManifest.browserProfiles,
-  plugins: [
-    definePlugin({
-      manifest: providerIdentityManifest as PluginManifest,
-      plugin: ProviderIdentityPlugin,
-    }),
-  ],
+  /** The plugins value. */
+  plugins: [],
+  /** The providers value. */
   providers: [
     provider(netflixManifest as ProviderManifest, NetflixProvider),
     provider(laftelManifest as ProviderManifest, LaftelProvider),
     provider(disneyPlusManifest as ProviderManifest, DisneyPlusProvider),
-    provider(videoManifest as ProviderManifest, VideoProvider),
-    provider(youTubeManifest as ProviderManifest, YouTubeProvider),
+    provider(
+      videoManifest as ProviderManifest,
+      VideoProvider,
+      videoLocalization,
+    ),
+    provider(
+      youTubeManifest as ProviderManifest,
+      YouTubeProvider,
+      youTubeLocalization,
+    ),
     provider(primeVideoManifest as ProviderManifest, PrimeVideoProvider),
     provider(wavveManifest as ProviderManifest, WavveProvider),
     provider(watchaManifest as ProviderManifest, WatchaProvider),
@@ -85,7 +108,7 @@ export const builtinBundle = defineBundle({
     provider(tvingManifest as ProviderManifest, TvingProvider),
     provider(appleTvManifest as ProviderManifest, AppleTvProvider),
     provider(crunchyrollManifest as ProviderManifest, CrunchyrollProvider),
-    provider(chzzkManifest as ProviderManifest, ChzzkProvider),
+    provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization),
     provider(twitchManifest as ProviderManifest, TwitchProvider),
     provider(appleMusicManifest as ProviderManifest, AppleMusicProvider),
     provider(spotifyManifest as ProviderManifest, SpotifyProvider),
@@ -94,5 +117,4 @@ export const builtinBundle = defineBundle({
   ],
 });
 
-export * from './Plugins/Index';
 export * from './Providers/Index';

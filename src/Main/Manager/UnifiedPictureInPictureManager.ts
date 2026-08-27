@@ -2,7 +2,6 @@ import {
   app,
   BrowserWindow,
   screen,
-  type Display,
   type Input,
   type Rectangle,
   type WebContentsView,
@@ -23,864 +22,136 @@ import {
 import type { LoggingManager } from './LoggingManager';
 import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
 import {
+  capturePictureInPicturePlacement,
+  delay,
+  fitPictureInPictureSize,
+  isInspectableFrameUrl,
+  isPointInside,
+  parsePictureInPictureEnterResult,
+  parseVideoCandidate,
+  resolveGlobalMousePoint,
+  resolvePictureInPictureBounds,
+  resolvePictureInPictureDisplay,
+  withPictureInPictureWindowMode,
+  type PictureInPictureVideoCandidate as VideoCandidate,
+  type UnifiedPictureInPictureState,
+} from '../Functional/PictureInPictureRuntime';
+import {
   disableMacOSFullScreenAuxiliary,
   enableMacOSFullScreenAuxiliary,
 } from '../Functional/MacOSWindowSpaces';
+import { createFindPictureInPictureVideoScript } from '../Inject/PictureInPictureVideo';
+import {
+  createEnterUnifiedPictureInPictureHostScript,
+  createEnterUnifiedPictureInPictureScript,
+  createRefreshUnifiedPictureInPictureVideoScript,
+} from '../Inject/UnifiedPictureInPicturePage';
+import {
+  createExitUnifiedPictureInPictureScript,
+  createExitUnifiedPictureInPictureHostScript,
+  createPauseDocumentVideosScript,
+  createSetPictureInPictureControlsVisibleScript,
+  createTogglePictureInPicturePlaybackScript,
+} from '../Inject/PictureInPictureControls';
 
-const PIP_MARGIN = 20;
+/** Defines the shared PiP hover poll interval ms constant. */
 const PIP_HOVER_POLL_INTERVAL_MS = 80;
+/** Defines the shared PiP video discovery retry ms constant. */
 const PIP_VIDEO_DISCOVERY_RETRY_MS = 100;
+/** Defines the shared PiP video discovery attempts constant. */
 const PIP_VIDEO_DISCOVERY_ATTEMPTS = 2;
-const PIP_RETURN_BUTTON_BOUNDS = { x: 12, y: 12, width: 40, height: 40 };
+/** Defines the shared PiP return button bounds constant. */
+const PIP_RETURN_BUTTON_BOUNDS = {
+  /** The x value. */
+  x: 12,
+  /** The y value. */
+  y: 12,
+  /** The width value. */
+  width: 40,
+  /** The height value. */
+  height: 40,
+};
+/** Defines the shared PiP restore message constant. */
 const PIP_RESTORE_MESSAGE = `__kawaikara_pip_restore_${randomUUID()}`;
+/** Defines the shared PiP playback message constant. */
 const PIP_PLAYBACK_MESSAGE = `__kawaikara_pip_playback_${randomUUID()}`;
+/** Defines the shared PiP control action debounce ms constant. */
 const PIP_CONTROL_ACTION_DEBOUNCE_MS = 300;
+/** Defines the shared PiP playback button size constant. */
 const PIP_PLAYBACK_BUTTON_SIZE = 54;
+/** Defines the shared PiP native drag style constant. */
 const PIP_NATIVE_DRAG_STYLE =
   process.platform === 'win32' ? '-webkit-app-region:drag;' : '';
+/** Defines the shared PiP native no drag style constant. */
 const PIP_NATIVE_NO_DRAG_STYLE =
   process.platform === 'win32' ? '-webkit-app-region:no-drag;' : '';
 
-const FIND_VIDEO_SCRIPT = `
-  (() => {
-    const videos = [];
-    const visit = (root) => {
-      root.querySelectorAll('video').forEach((video) => videos.push(video));
-      root.querySelectorAll('*').forEach((element) => {
-        if (element.shadowRoot) visit(element.shadowRoot);
-      });
-    };
-    visit(document);
-    if (videos.length === 0) return { status: 'no-video', score: 0 };
-
-    const score = (video) => {
-      const rect = video.getBoundingClientRect();
-      const visibleWidth = Math.max(
-        0,
-        Math.min(rect.right, innerWidth) - Math.max(rect.left, 0),
-      );
-      const visibleHeight = Math.max(
-        0,
-        Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0),
-      );
-      return (
-        (!video.paused && !video.ended ? 1e15 : 0) +
-        (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ? 1e12 : 0) +
-        visibleWidth * visibleHeight
-      );
-    };
-    videos.sort((left, right) => score(right) - score(left));
-    const video = videos[0];
-    return {
-      status:
-        video.readyState === HTMLMediaElement.HAVE_NOTHING || !video.videoWidth
-          ? 'not-ready'
-          : 'ready',
-      score: score(video),
-      videoHeight: video.videoHeight,
-      videoWidth: video.videoWidth,
-    };
-  })();
-`;
-
-function createEnterUnifiedPipScript(
-  contentOverlaySelectors: readonly string[],
-): string {
-  return `
-  (() => {
-    const existing = window.__kawaikaraUnifiedPictureInPicture;
-    if (existing) {
-      return {
-        status: 'entered',
-        videoHeight: existing.video.videoHeight,
-        videoWidth: existing.video.videoWidth,
-      };
-    }
-    document.dispatchEvent(
-      new Event('kawaikara:picture-in-picture-transition'),
-    );
-
-    const videos = [];
-    const visit = (root) => {
-      root.querySelectorAll('video').forEach((video) => videos.push(video));
-      root.querySelectorAll('*').forEach((element) => {
-        if (element.shadowRoot) visit(element.shadowRoot);
-      });
-    };
-    visit(document);
-    if (videos.length === 0) return { status: 'no-video' };
-
-    const score = (video) => {
-      const rect = video.getBoundingClientRect();
-      const visibleWidth = Math.max(
-        0,
-        Math.min(rect.right, innerWidth) - Math.max(rect.left, 0),
-      );
-      const visibleHeight = Math.max(
-        0,
-        Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0),
-      );
-      return (
-        (!video.paused && !video.ended ? 1e15 : 0) +
-        (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ? 1e12 : 0) +
-        visibleWidth * visibleHeight
-      );
-    };
-    videos.sort((left, right) => score(right) - score(left));
-    const video = videos[0];
-    if (video.readyState === HTMLMediaElement.HAVE_NOTHING || !video.videoWidth) {
-      return { status: 'not-ready' };
-    }
-
-    const contentOverlaySelectors = ${JSON.stringify(contentOverlaySelectors)};
-    const composedParentElement = (element) => {
-      if (element.parentElement) return element.parentElement;
-      const root = element.getRootNode();
-      return root instanceof ShadowRoot ? root.host : null;
-    };
-
-    const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
-    video.setAttribute('data-kawaikara-unified-pip-video', 'true');
-    const elements = [];
-    for (let element = video; element; element = composedParentElement(element)) {
-      elements.push({ element, style: element.getAttribute('style') });
-    }
-    const backdrop = document.createElement('div');
-    backdrop.dataset.kawaikaraUnifiedPipBackdrop = 'true';
-    backdrop.style.cssText = [
-      'position:fixed!important',
-      'inset:0!important',
-      'width:100vw!important',
-      'height:100vh!important',
-      'background:#000!important',
-      'z-index:2147483645!important',
-      'pointer-events:none!important',
-    ].join(';');
-    document.body.append(backdrop);
-
-    for (const { element } of elements) {
-      element.style.setProperty('transform', 'none', 'important');
-      element.style.setProperty('filter', 'none', 'important');
-      element.style.setProperty('perspective', 'none', 'important');
-      element.style.setProperty('contain', 'none', 'important');
-      element.style.setProperty('clip-path', 'none', 'important');
-      if (element === document.body || element === document.documentElement) {
-        element.style.setProperty('overflow', 'hidden', 'important');
-      }
-      element.style.setProperty('opacity', '1', 'important');
-      element.style.setProperty('z-index', '2147483647', 'important');
-    }
-    video.style.setProperty('position', 'fixed', 'important');
-    video.style.setProperty('inset', '0', 'important');
-    video.style.setProperty('width', '100vw', 'important');
-    video.style.setProperty('height', '100vh', 'important');
-    video.style.setProperty('max-width', 'none', 'important');
-    video.style.setProperty('max-height', 'none', 'important');
-    video.style.setProperty('object-fit', 'contain', 'important');
-    video.style.setProperty('background', '#000', 'important');
-    video.style.setProperty('visibility', 'visible', 'important');
-    video.style.setProperty('z-index', '2147483646', 'important');
-
-    const controlsStyle = document.createElement('style');
-    controlsStyle.dataset.kawaikaraUnifiedPipControls = 'true';
-    const contentOverlayStyleText = contentOverlaySelectors
-      .map((selector) =>
-        'body ' + selector + ',' +
-        'body ' + selector + ' *{' +
-          'visibility:visible!important;' +
-          'pointer-events:none!important;' +
-          'z-index:2147483647!important}'
-      )
-      .join('');
-    const shadowContentOverlayStyleText = contentOverlaySelectors
-      .map((selector) =>
-        selector + ',' + selector + ' *{' +
-          'visibility:visible!important;' +
-          'pointer-events:none!important;' +
-          'z-index:2147483647!important}'
-      )
-      .join('');
-    const shadowControlsStyleText =
-      ':host *{visibility:hidden!important;pointer-events:none!important}' +
-      'video[data-kawaikara-unified-pip-video="true"]{' +
-        'position:fixed!important;inset:0!important;' +
-        'width:100vw!important;height:100vh!important;' +
-        'max-width:none!important;max-height:none!important;' +
-        'object-fit:contain!important;background:#000!important;' +
-        'visibility:visible!important;pointer-events:none!important;' +
-        'z-index:2147483646!important}' +
-      shadowContentOverlayStyleText;
-    const controlsStyleText =
-      'html,body{width:100%!important;height:100%!important;' +
-        'overflow:hidden!important;overscroll-behavior:none!important}' +
-      'html::-webkit-scrollbar,body::-webkit-scrollbar{' +
-        'display:none!important;width:0!important;height:0!important}' +
-      'body *{visibility:hidden!important;pointer-events:none!important}' +
-      'body [data-kawaikara-unified-pip-backdrop="true"]{' +
-        'visibility:visible!important;pointer-events:none!important}' +
-      'body video[data-kawaikara-unified-pip-video="true"]{' +
-        'position:fixed!important;inset:0!important;' +
-        'width:100vw!important;height:100vh!important;' +
-        'max-width:none!important;max-height:none!important;' +
-        'object-fit:contain!important;background:#000!important;' +
-        'visibility:visible!important;pointer-events:none!important;' +
-        'z-index:2147483646!important}' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls,' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-enclosure,' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-panel,' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-timeline,' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-current-time-display,' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-time-remaining-display' +
-      '{display:none!important;opacity:0!important;visibility:hidden!important}' +
-      contentOverlayStyleText;
-    const navigationControlsStyleText =
-      'body [data-kawaikara-unified-pip-backdrop="true"]{' +
-        'visibility:visible!important;pointer-events:none!important}' +
-      'body video[data-kawaikara-unified-pip-video="true"]{' +
-        'position:fixed!important;inset:0!important;' +
-        'width:100vw!important;height:100vh!important;' +
-        'max-width:none!important;max-height:none!important;' +
-        'object-fit:contain!important;background:#000!important;' +
-        'visibility:visible!important;pointer-events:none!important;' +
-        'z-index:2147483646!important}' +
-      'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls{' +
-        'display:none!important;opacity:0!important;visibility:hidden!important}' +
-      contentOverlayStyleText;
-    controlsStyle.textContent = controlsStyleText;
-    document.head.append(controlsStyle);
-
-    // Document styles cannot cross a shadow boundary. Install the equivalent
-    // video/subtitle policy in every accessible player shadow root and track
-    // roots added while PiP is active.
-    const shadowStyles = [];
-    const styledShadowRoots = new WeakSet();
-    const installShadowStyle = (root) => {
-      if (styledShadowRoots.has(root)) return;
-      styledShadowRoots.add(root);
-      const style = document.createElement('style');
-      style.dataset.kawaikaraUnifiedPipShadow = 'true';
-      style.textContent = shadowControlsStyleText;
-      root.append(style);
-      shadowStyles.push(style);
-      root.querySelectorAll('*').forEach((element) => {
-        if (element.shadowRoot) installShadowStyle(element.shadowRoot);
-      });
-    };
-    const scanShadowRoots = (root) => {
-      if (root instanceof Element && root.shadowRoot) {
-        installShadowStyle(root.shadowRoot);
-      }
-      root.querySelectorAll?.('*').forEach((element) => {
-        if (element.shadowRoot) installShadowStyle(element.shadowRoot);
-      });
-    };
-    scanShadowRoots(document);
-    const shadowObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node instanceof Element) scanShadowRoots(node);
-        }
-      }
-    });
-    shadowObserver.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-
-    const maintainNavigationVideoPosition = () => {
-      const activeState = window.__kawaikaraUnifiedPictureInPicture;
-      if (!activeState?.layoutReleased) return;
-      const currentX = activeState.navigationOffsetX ?? 0;
-      const currentY = activeState.navigationOffsetY ?? 0;
-      const rect = activeState.video.getBoundingClientRect();
-      const nextX = currentX - rect.left;
-      const nextY = currentY - rect.top;
-      activeState.navigationOffsetX = nextX;
-      activeState.navigationOffsetY = nextY;
-      activeState.video.style.setProperty(
-        'transform',
-        'translate(' + String(nextX) + 'px,' + String(nextY) + 'px)',
-        'important',
-      );
-      requestAnimationFrame(maintainNavigationVideoPosition);
-    };
-
-    const restoreLayoutAfterNavigation = () => {
-      const activeState = window.__kawaikaraUnifiedPictureInPicture;
-      if (!activeState?.layoutReleased) return;
-      const activeContainer = activeState.video.closest(
-        '[is-active], [aria-current="true"], [class*="is_current"]',
-      );
-      if (
-        !activeContainer &&
-        (activeState.video.paused || activeState.video.ended)
-      ) {
-        return;
-      }
-      for (const { element, style } of activeState.elements) {
-        if (style === null) element.removeAttribute('style');
-        else element.setAttribute('style', style);
-      }
-      const elements = [];
-      for (
-        let element = activeState.video;
-        element;
-        element = composedParentElement(element)
-      ) {
-        elements.push({ element, style: element.getAttribute('style') });
-      }
-      activeState.elements = elements;
-      for (const { element } of elements) {
-        element.style.setProperty('transform', 'none', 'important');
-        element.style.setProperty('filter', 'none', 'important');
-        element.style.setProperty('perspective', 'none', 'important');
-        element.style.setProperty('contain', 'none', 'important');
-        element.style.setProperty('clip-path', 'none', 'important');
-        if (element === document.body || element === document.documentElement) {
-          element.style.setProperty('overflow', 'hidden', 'important');
-        }
-        element.style.setProperty('opacity', '1', 'important');
-        element.style.setProperty('z-index', '2147483647', 'important');
-      }
-      activeState.video.style.setProperty('position', 'fixed', 'important');
-      activeState.video.style.setProperty('inset', '0', 'important');
-      activeState.video.style.setProperty('width', '100vw', 'important');
-      activeState.video.style.setProperty('height', '100vh', 'important');
-      activeState.video.style.setProperty('max-width', 'none', 'important');
-      activeState.video.style.setProperty('max-height', 'none', 'important');
-      activeState.video.style.setProperty('object-fit', 'contain', 'important');
-      activeState.video.style.setProperty('background', '#000', 'important');
-      activeState.video.style.setProperty('visibility', 'visible', 'important');
-      activeState.video.style.setProperty('z-index', '2147483646', 'important');
-      activeState.controlsStyle.textContent = activeState.controlsStyleText;
-      activeState.layoutReleased = false;
-      activeState.navigationOffsetX = 0;
-      activeState.navigationOffsetY = 0;
-    };
-
-    const releaseLayoutForNavigation = () => {
-      const activeState = window.__kawaikaraUnifiedPictureInPicture;
-      if (!activeState) return;
-      // YouTube Shorts and CHZZK Clips both use an internal carousel. PiP must
-      // temporarily restore that carousel's transforms/overflow before its
-      // native next/previous command can select the new video element. The
-      // black backdrop and the currently marked video remain above the page.
-      for (const { element, style } of activeState.elements) {
-        if (style === null) element.removeAttribute('style');
-        else element.setAttribute('style', style);
-      }
-      activeState.controlsStyle.textContent =
-        activeState.navigationControlsStyleText;
-      activeState.layoutReleased = true;
-      activeState.navigationOffsetX = 0;
-      activeState.navigationOffsetY = 0;
-      requestAnimationFrame(maintainNavigationVideoPosition);
-    };
-
-    const overlay = document.createElement('div');
-    overlay.dataset.kawaikaraUnifiedPipOverlay = 'true';
-    overlay.setAttribute('popover', 'manual');
-    overlay.style.cssText = [
-      'all:initial!important',
-      'position:fixed!important',
-      'inset:0!important',
-      'margin:0!important',
-      'padding:0!important',
-      'border:0!important',
-      'display:block!important',
-      'z-index:2147483647!important',
-      'pointer-events:auto!important',
-    ].join(';');
-    const shadow = overlay.attachShadow({ mode: 'closed' });
-    const overlayStyle = document.createElement('style');
-    overlayStyle.textContent =
-      ':host{all:initial}' +
-      '.drag-surface{' +
-        'position:absolute;inset:0;cursor:move;' +
-        ${JSON.stringify(PIP_NATIVE_DRAG_STYLE)} +
-      '}' +
-      'button{' +
-        'position:absolute;' +
-        'width:40px;height:40px;padding:0;border:1px solid rgba(255,255,255,.2);' +
-        'border-radius:12px;background:rgba(12,12,14,.82);color:#fff;' +
-        'z-index:1;display:grid;place-items:center;cursor:pointer;' +
-        'opacity:0;transform:scale(.92);pointer-events:none;' +
-        'transition:opacity 140ms ease,transform 140ms ease,background 140ms ease;' +
-        'box-shadow:0 8px 24px rgba(0,0,0,.35);backdrop-filter:blur(12px);' +
-        ${JSON.stringify(PIP_NATIVE_NO_DRAG_STYLE)} +
-      '}' +
-      '.restore-button{top:12px;left:12px}' +
-      '.playback-button{' +
-        'top:50%;left:50%;width:${String(PIP_PLAYBACK_BUTTON_SIZE)}px;' +
-        'height:${String(PIP_PLAYBACK_BUTTON_SIZE)}px;border-radius:50%;' +
-        'transform:translate(-50%,-50%) scale(.92);background:rgba(12,12,14,.72)' +
-      '}' +
-      ':host([data-controls-visible="true"]) button,' +
-      'button:hover,' +
-      'button:focus-visible{' +
-        'opacity:1;transform:scale(1);pointer-events:auto' +
-      '}' +
-      ':host([data-controls-visible="true"]) .playback-button,' +
-      '.playback-button:hover,' +
-      '.playback-button:focus-visible{' +
-        'transform:translate(-50%,-50%) scale(1)' +
-      '}' +
-      'button:hover{background:rgba(38,38,43,.96)}' +
-      'svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;' +
-        'stroke-linecap:round;stroke-linejoin:round}';
-    const dragSurface = document.createElement('div');
-    dragSurface.className = 'drag-surface';
-    dragSurface.setAttribute('aria-hidden', 'true');
-    const restoreButton = document.createElement('button');
-    restoreButton.className = 'restore-button';
-    restoreButton.type = 'button';
-    restoreButton.title = 'Return to Kawaikara';
-    restoreButton.setAttribute('aria-label', 'Return to Kawaikara');
-    const svgNamespace = 'http://www.w3.org/2000/svg';
-    const restoreIcon = document.createElementNS(svgNamespace, 'svg');
-    restoreIcon.setAttribute('viewBox', '0 0 24 24');
-    restoreIcon.setAttribute('aria-hidden', 'true');
-    for (const pathData of [
-      'M9 5H5v14h14v-4',
-      'M11 5h8v8',
-      'm19 5-9 9',
-    ]) {
-      const path = document.createElementNS(svgNamespace, 'path');
-      path.setAttribute('d', pathData);
-      restoreIcon.append(path);
-    }
-    restoreButton.append(restoreIcon);
-    const playbackButton = document.createElement('button');
-    playbackButton.className = 'playback-button';
-    playbackButton.type = 'button';
-    const activePlaybackVideo = () =>
-      window.__kawaikaraUnifiedPictureInPicture?.video ?? video;
-    const renderPlaybackButton = () => {
-      const activeVideo = activePlaybackVideo();
-      const paused = activeVideo.paused || activeVideo.ended;
-      playbackButton.title = paused ? 'Play' : 'Pause';
-      playbackButton.setAttribute('aria-label', paused ? 'Play' : 'Pause');
-      const icon = document.createElementNS(svgNamespace, 'svg');
-      icon.setAttribute('viewBox', '0 0 24 24');
-      icon.setAttribute('aria-hidden', 'true');
-      const path = document.createElementNS(svgNamespace, 'path');
-      path.setAttribute('d', paused ? 'M8 5v14l11-7z' : 'M9 5v14M15 5v14');
-      icon.append(path);
-      playbackButton.replaceChildren(icon);
-    };
-    const requestPlaybackToggle = (event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      console.debug(${JSON.stringify(PIP_PLAYBACK_MESSAGE)});
-    };
-    playbackButton.addEventListener('click', requestPlaybackToggle);
-    video.addEventListener('play', renderPlaybackButton);
-    video.addEventListener('pause', renderPlaybackButton);
-    video.addEventListener('ended', renderPlaybackButton);
-    renderPlaybackButton();
-    shadow.append(overlayStyle, dragSurface, restoreButton, playbackButton);
-    restoreButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      console.debug(${JSON.stringify(PIP_RESTORE_MESSAGE)});
-    });
-    document.documentElement.append(overlay);
-    // Apple TV and some other players use their own topmost compositing
-    // layers. The Popover top layer keeps Kawaikara's shared restore and
-    // playback controls above those surfaces without Provider-specific DOM.
-    if (typeof overlay.showPopover === 'function') {
-      try {
-        overlay.showPopover();
-      } catch {
-        // The fixed, maximum-z-index overlay remains the compatibility path.
-      }
-    }
-
-    window.__kawaikaraUnifiedPictureInPicture = {
-      backdrop,
-      controls: video.controls,
-      controlsStyle,
-      controlsStyleText,
-      elements,
-      layoutReleased: false,
-      navigationControlsStyleText,
-      navigationOffsetX: 0,
-      navigationOffsetY: 0,
-      overlay,
-      playbackButton,
-      releaseLayoutForNavigation,
-      renderPlaybackButton,
-      restoreLayoutAfterNavigation,
-      shadowObserver,
-      shadowStyles,
-      video,
-      videoMarker,
-    };
-    video.controls = false;
-    return {
-      status: 'entered',
-      videoHeight: video.videoHeight,
-      videoWidth: video.videoWidth,
-    };
-  })();
-`;
-}
-
-const TOGGLE_UNIFIED_PIP_PLAYBACK_SCRIPT = `
-  (async () => {
-    const state = window.__kawaikaraUnifiedPictureInPicture;
-    if (!state?.video) return { status: 'missing' };
-    const video = state.video;
-    try {
-      if (video.paused || video.ended) {
-        if (video.ended) video.currentTime = 0;
-        await video.play();
-      } else {
-        video.pause();
-      }
-      state.renderPlaybackButton?.();
-      return { status: 'toggled', paused: video.paused };
-    } catch (error) {
-      return {
-        status: 'failed',
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
-  })();
-`;
-
-const EXIT_UNIFIED_PIP_SCRIPT = `
-  (async () => {
-    const state = window.__kawaikaraUnifiedPictureInPicture;
-    if (!state) return { status: 'exited' };
-    document.dispatchEvent(
-      new Event('kawaikara:picture-in-picture-transition'),
-    );
-    state.video.controls = state.controls;
-    state.video.removeEventListener('play', state.renderPlaybackButton);
-    state.video.removeEventListener('pause', state.renderPlaybackButton);
-    state.video.removeEventListener('ended', state.renderPlaybackButton);
-    for (const { element, style } of state.elements) {
-      if (style === null) element.removeAttribute('style');
-      else element.setAttribute('style', style);
-    }
-    state.controlsStyle.remove();
-    state.shadowObserver?.disconnect();
-    state.shadowStyles?.forEach((style) => style.remove());
-    state.overlay.remove();
-    state.backdrop.remove();
-    if (state.videoMarker === null) {
-      state.video.removeAttribute('data-kawaikara-unified-pip-video');
-    } else {
-      state.video.setAttribute(
-        'data-kawaikara-unified-pip-video',
-        state.videoMarker,
-      );
-    }
-    delete window.__kawaikaraUnifiedPictureInPicture;
-    await new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(resolve));
-    });
-    return { status: 'exited' };
-  })();
-`;
-
-const REFRESH_UNIFIED_PIP_VIDEO_SCRIPT = `
-  (() => {
-    const state = window.__kawaikaraUnifiedPictureInPicture;
-    if (!state) return { status: 'missing' };
-    const composedParentElement = (element) => {
-      if (element.parentElement) return element.parentElement;
-      const root = element.getRootNode();
-      return root instanceof ShadowRoot ? root.host : null;
-    };
-
-    const videos = [];
-    const visit = (root) => {
-      root.querySelectorAll('video').forEach((video) => videos.push(video));
-      root.querySelectorAll('*').forEach((element) => {
-        if (element.shadowRoot) visit(element.shadowRoot);
-      });
-    };
-    visit(document);
-    const score = (video) => {
-      const rect = video.getBoundingClientRect();
-      const visibleWidth = Math.max(
-        0,
-        Math.min(rect.right, innerWidth) - Math.max(rect.left, 0),
-      );
-      const visibleHeight = Math.max(
-        0,
-        Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0),
-      );
-      const activeContainer = video.closest(
-        '[is-active], [aria-current="true"], [class*="is_current"]',
-      );
-      return (
-        (activeContainer ? 1e18 : 0) +
-        (!video.paused && !video.ended ? 1e15 : 0) +
-        (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ? 1e12 : 0) +
-        visibleWidth * visibleHeight
-      );
-    };
-    videos.sort((left, right) => score(right) - score(left));
-    const video = videos[0];
-    if (
-      !video ||
-      video.readyState === HTMLMediaElement.HAVE_NOTHING ||
-      !video.videoWidth
-    ) {
-      return { status: 'not-ready' };
-    }
-    if (video === state.video && !state.layoutReleased) {
-      return { status: 'unchanged' };
-    }
-
-    state.video.controls = state.controls;
-    state.video.removeEventListener('play', state.renderPlaybackButton);
-    state.video.removeEventListener('pause', state.renderPlaybackButton);
-    state.video.removeEventListener('ended', state.renderPlaybackButton);
-    for (const { element, style } of state.elements) {
-      if (style === null) element.removeAttribute('style');
-      else element.setAttribute('style', style);
-    }
-    if (state.videoMarker === null) {
-      state.video.removeAttribute('data-kawaikara-unified-pip-video');
-    } else {
-      state.video.setAttribute(
-        'data-kawaikara-unified-pip-video',
-        state.videoMarker,
-      );
-    }
-
-    const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
-    video.setAttribute('data-kawaikara-unified-pip-video', 'true');
-    const elements = [];
-    for (let element = video; element; element = composedParentElement(element)) {
-      elements.push({ element, style: element.getAttribute('style') });
-    }
-    for (const { element } of elements) {
-      element.style.setProperty('transform', 'none', 'important');
-      element.style.setProperty('filter', 'none', 'important');
-      element.style.setProperty('perspective', 'none', 'important');
-      element.style.setProperty('contain', 'none', 'important');
-      element.style.setProperty('clip-path', 'none', 'important');
-      if (element === document.body || element === document.documentElement) {
-        element.style.setProperty('overflow', 'hidden', 'important');
-      }
-      element.style.setProperty('opacity', '1', 'important');
-      element.style.setProperty('z-index', '2147483647', 'important');
-    }
-    video.style.setProperty('position', 'fixed', 'important');
-    video.style.setProperty('inset', '0', 'important');
-    video.style.setProperty('width', '100vw', 'important');
-    video.style.setProperty('height', '100vh', 'important');
-    video.style.setProperty('max-width', 'none', 'important');
-    video.style.setProperty('max-height', 'none', 'important');
-    video.style.setProperty('object-fit', 'contain', 'important');
-    video.style.setProperty('background', '#000', 'important');
-    video.style.setProperty('visibility', 'visible', 'important');
-    video.style.setProperty('z-index', '2147483646', 'important');
-
-    state.video = video;
-    state.controls = video.controls;
-    state.controlsStyle.textContent = state.controlsStyleText;
-    state.elements = elements;
-    state.layoutReleased = false;
-    state.navigationOffsetX = 0;
-    state.navigationOffsetY = 0;
-    state.videoMarker = videoMarker;
-    video.controls = false;
-    video.addEventListener('play', state.renderPlaybackButton);
-    video.addEventListener('pause', state.renderPlaybackButton);
-    video.addEventListener('ended', state.renderPlaybackButton);
-    state.renderPlaybackButton();
-    return {
-      status: 'refreshed',
-      videoHeight: video.videoHeight,
-      videoWidth: video.videoWidth,
-    };
-  })();
-`;
-
-const EXIT_UNIFIED_PIP_HOST_SCRIPT = `
-  (() => {
-    const state = window.__kawaikaraUnifiedPictureInPictureHost;
-    if (!state) return { status: 'exited' };
-    for (const { element, marker, style } of state.elements) {
-      if (style === null) element.removeAttribute('style');
-      else element.setAttribute('style', style);
-      if (marker === null) {
-        element.removeAttribute('data-kawaikara-unified-pip-host-path');
-      } else {
-        element.setAttribute('data-kawaikara-unified-pip-host-path', marker);
-      }
-    }
-    state.style.remove();
-    delete window.__kawaikaraUnifiedPictureInPictureHost;
-    return { status: 'exited' };
-  })();
-`;
-
-function createEnterUnifiedPipHostScript(childFrameUrl: string): string {
-  return `
-    (() => {
-      if (window.__kawaikaraUnifiedPictureInPictureHost) {
-        return { status: 'entered' };
-      }
-      const childFrameUrl = ${JSON.stringify(childFrameUrl)};
-      const desiredUrl = new URL(childFrameUrl);
-      const candidates = [...document.querySelectorAll('iframe')].filter((frame) => {
-        try {
-          const frameUrl = new URL(frame.src, location.href);
-          return (
-            frameUrl.origin === desiredUrl.origin &&
-            frameUrl.pathname === desiredUrl.pathname
-          );
-        } catch {
-          return false;
-        }
-      });
-      const target = candidates.find((frame) => {
-        try {
-          const frameUrl = new URL(frame.src, location.href);
-          return [...desiredUrl.searchParams].some(
-            ([key, value]) => frameUrl.searchParams.get(key) === value,
-          );
-        } catch {
-          return false;
-        }
-      }) ?? candidates[0];
-      if (!target) return { status: 'no-frame' };
-
-      const elements = [];
-      for (let element = target; element; element = element.parentElement) {
-        elements.push({
-          element,
-          marker: element.getAttribute('data-kawaikara-unified-pip-host-path'),
-          style: element.getAttribute('style'),
-        });
-        element.setAttribute('data-kawaikara-unified-pip-host-path', 'true');
-        element.style.setProperty('transform', 'none', 'important');
-        element.style.setProperty('filter', 'none', 'important');
-        element.style.setProperty('perspective', 'none', 'important');
-        element.style.setProperty('contain', 'none', 'important');
-        element.style.setProperty('clip-path', 'none', 'important');
-        element.style.setProperty('overflow', 'visible', 'important');
-        element.style.setProperty('opacity', '1', 'important');
-        element.style.setProperty('visibility', 'visible', 'important');
-        element.style.setProperty('z-index', '2147483647', 'important');
-      }
-      target.style.setProperty('position', 'fixed', 'important');
-      target.style.setProperty('inset', '0', 'important');
-      target.style.setProperty('width', '100vw', 'important');
-      target.style.setProperty('height', '100vh', 'important');
-      target.style.setProperty('max-width', 'none', 'important');
-      target.style.setProperty('max-height', 'none', 'important');
-      target.style.setProperty('border', '0', 'important');
-      target.style.setProperty('background', '#000', 'important');
-
-      const style = document.createElement('style');
-      style.dataset.kawaikaraUnifiedPipHost = 'true';
-      style.textContent =
-        'html,body{width:100%!important;height:100%!important;' +
-          'overflow:hidden!important;background:#000!important}' +
-        'body *{visibility:hidden!important;pointer-events:none!important}' +
-        'body [data-kawaikara-unified-pip-host-path="true"]{' +
-          'visibility:visible!important}' +
-        'body iframe[data-kawaikara-unified-pip-host-path="true"]{' +
-          'pointer-events:auto!important}';
-      document.head.append(style);
-      window.__kawaikaraUnifiedPictureInPictureHost = { elements, style };
-      return { status: 'entered' };
-    })();
-  `;
-}
-
-interface VideoCandidate {
-  readonly aspectRatio?: number;
-  readonly frame: WebFrameMain;
-  readonly score: number;
-  readonly status: 'ready' | 'not-ready';
-}
-
-interface UnifiedPictureInPictureState {
-  closing: boolean;
-  controlsVisible: boolean;
-  lastControlAction?: {
-    readonly action: 'playback' | 'restore';
-    readonly at: number;
-  };
-  dragState?: {
-    readonly cursorX: number;
-    readonly cursorY: number;
-    readonly windowX: number;
-    readonly windowY: number;
-  };
-  readonly consoleListener: (
-    details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
-  ) => void;
-  frame: WebFrameMain;
-  readonly inputListener: (event: Electron.Event, input: Input) => void;
-  hostFrames: readonly WebFrameMain[];
-  readonly mediaStartedListener: () => void;
-  readonly pointerInputListener: (
-    event: Electron.Event,
-    input: Electron.InputEvent,
-  ) => void;
-  readonly pipWindow: BrowserWindow;
-  readonly siteView: WebContentsView;
-  readonly viewerWindow: BrowserWindow;
-  readonly fullscreenReassertTimers: Set<ReturnType<typeof setTimeout>>;
-  readonly videoRefreshTimers: Set<ReturnType<typeof setTimeout>>;
-  refreshingVideo: boolean;
-  hoverTimer?: ReturnType<typeof setInterval>;
-}
-
+/** Coordinates unified picture in picture behavior. */
 export class UnifiedPictureInPictureManager {
+  /** The enter promise value. */
   private enterPromise?: Promise<PictureInPictureResult>;
+  /** The exit promise value. */
   private exitPromise?: Promise<PictureInPictureResult>;
+  /** The state value. */
   private state?: UnifiedPictureInPictureState;
+  /** The placement preference value. */
   private placementPreference = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
+  /** The placement write value. */
   private placementWrite = Promise.resolve();
+  /** The portrait size preference value. */
   private portraitSizePreference = DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE;
+  /** The size preference value. */
   private sizePreference = DEFAULT_PICTURE_IN_PICTURE_SIZE;
 
+  /** Creates an instance of UnifiedPictureInPictureManager. */
   constructor(
+    /** Callback used to handle get viewer window. */
     private readonly getViewerWindow: () => BrowserWindow,
+    /** Callback used to handle get site view. */
     private readonly getSiteView: () => WebContentsView,
+    /** Callback used to handle get content overlay selectors. */
     private readonly getContentOverlaySelectors: () => readonly string[],
+    /** The logging value. */
     private readonly logging: LoggingManager,
+    /** Callback used to handle on state changed. */
     private readonly onStateChanged: (result: PictureInPictureResult) => void,
+    /** Callback used to handle on exited. */
     private readonly onExited: () => void,
+    /** Callback used to handle on last placement changed. */
     private readonly onLastPlacementChanged?: (
       placement: PictureInPictureLastPlacement,
     ) => Promise<void> | void,
   ) {}
 
+  /** Sets the window size. */
   setWindowSize(preference: PictureInPictureSizePreference): void {
     this.sizePreference = preference;
   }
 
+  /** Sets the portrait window size. */
   setPortraitWindowSize(preference: PictureInPictureSizePreference): void {
     this.portraitSizePreference = preference;
   }
 
+  /** Sets the window placement. */
   setWindowPlacement(preference: PictureInPicturePlacementPreference): void {
     this.placementPreference = preference;
   }
 
+  /** Determines whether the active condition applies. */
   isActive(): boolean {
     return this.state !== undefined;
   }
 
-  toggle(): Promise<PictureInPictureResult> {
+  /** Toggles the operation. */
+  toggle(beforeEnter?: () => boolean): Promise<PictureInPictureResult> {
     if (this.exitPromise) return this.exitPromise;
     if (this.state) return this.exit();
     if (this.enterPromise) return this.enterPromise;
 
-    const operation = this.enter();
+    const operation = this.enter(beforeEnter);
     this.enterPromise = operation;
+    /** Clears the operation. */
     const clear = () => {
       if (this.enterPromise === operation) this.enterPromise = undefined;
     };
@@ -888,12 +159,14 @@ export class UnifiedPictureInPictureManager {
     return operation;
   }
 
+  /** Performs the exit all modes operation. */
   async exitAllModes(): Promise<void> {
     if (this.enterPromise) await this.enterPromise;
     if (this.state) await this.exit();
     await this.placementWrite;
   }
 
+  /** Handles the viewer closed. */
   handleViewerClosed(): void {
     const state = this.state;
     this.state = undefined;
@@ -909,29 +182,47 @@ export class UnifiedPictureInPictureManager {
       'media-started-playing',
       state.mediaStartedListener,
     );
+    state.siteView.webContents.off('did-navigate', state.navigationListener);
+    state.siteView.webContents.off(
+      'did-navigate-in-page',
+      state.navigationListener,
+    );
     void this.restoreHostFrames(state.hostFrames);
     void this.restoreMacApplicationPresentation(state.pipWindow);
     if (!state.pipWindow.isDestroyed()) state.pipWindow.destroy();
   }
 
-  private async enter(): Promise<PictureInPictureResult> {
+  /** Performs the enter operation. */
+  private async enter(
+    beforeEnter?: () => boolean,
+  ): Promise<PictureInPictureResult> {
     const viewerWindow = this.getViewerWindow();
     const siteView = this.getSiteView();
     const candidate = await this.findVideoCandidate(siteView);
-    if (!candidate) return withWindowMode('no-video');
-    if (candidate.status === 'not-ready') return withWindowMode('not-ready');
+    if (!candidate) return withPictureInPictureWindowMode('no-video');
+    if (candidate.status === 'not-ready') {
+      return withPictureInPictureWindowMode('not-ready');
+    }
+    // Candidate discovery must happen before the host hides its menu or changes
+    // macOS activation policy. Otherwise a harmless PiP request on a page with
+    // no playable video visibly closes and reopens the application UI.
+    if (beforeEnter && !beforeEnter()) {
+      return withPictureInPictureWindowMode('disabled');
+    }
 
     let pipWindow: BrowserWindow | undefined;
     let hostFrames: readonly WebFrameMain[] = [];
     try {
       hostFrames = await this.enterHostFrames(candidate.frame);
-      const result = parseEnterResult(
+      const result = parsePictureInPictureEnterResult(
         await candidate.frame.executeJavaScript(
-          createEnterUnifiedPipScript(this.getContentOverlaySelectors()),
+          this.createEnterPageScript(),
           true,
         ),
       );
-      if (result.status !== 'entered') return withWindowMode(result.status);
+      if (result.status !== 'entered') {
+        return withPictureInPictureWindowMode(result.status);
+      }
 
       const bounds = this.resolveInitialBounds(
         viewerWindow,
@@ -939,6 +230,7 @@ export class UnifiedPictureInPictureManager {
       );
       pipWindow = this.createPipWindow(bounds, result.aspectRatio);
 
+      /** Performs the input listener operation. */
       const inputListener = (event: Electron.Event, input: Input): void => {
         if (
           input.type === 'keyDown' &&
@@ -961,6 +253,7 @@ export class UnifiedPictureInPictureManager {
           void this.exit();
         }
       };
+      /** Performs the console listener operation. */
       const consoleListener = (
         details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
       ): void => {
@@ -972,6 +265,7 @@ export class UnifiedPictureInPictureManager {
           this.activateControl(activeState, 'playback');
         }
       };
+      /** Performs the pointer input listener operation. */
       const pointerInputListener = (
         _event: Electron.Event,
         input: Electron.InputEvent,
@@ -980,7 +274,14 @@ export class UnifiedPictureInPictureManager {
         if (!activeState || activeState.pipWindow !== pipWindow) return;
         this.handlePointerInput(activeState, input);
       };
+      /** Performs the media started listener operation. */
       const mediaStartedListener = (): void => {
+        const activeState = this.state;
+        if (!activeState || activeState.pipWindow !== pipWindow) return;
+        this.scheduleVideoRefresh(activeState);
+      };
+      /** Performs the navigation listener operation. */
+      const navigationListener = (): void => {
         const activeState = this.state;
         if (!activeState || activeState.pipWindow !== pipWindow) return;
         this.scheduleVideoRefresh(activeState);
@@ -994,6 +295,7 @@ export class UnifiedPictureInPictureManager {
         hostFrames,
         inputListener,
         mediaStartedListener,
+        navigationListener,
         pipWindow,
         pointerInputListener,
         siteView,
@@ -1007,12 +309,18 @@ export class UnifiedPictureInPictureManager {
       siteView.webContents.on('before-input-event', inputListener);
       siteView.webContents.on('input-event', pointerInputListener);
       siteView.webContents.on('media-started-playing', mediaStartedListener);
+      siteView.webContents.on('did-navigate', navigationListener);
+      siteView.webContents.on('did-navigate-in-page', navigationListener);
 
       await transferWebContentsView({
         sourceWindow: viewerWindow,
         targetWindow: pipWindow,
         view: siteView,
       });
+      // The native PiP presentation can settle to a content size that differs
+      // by a few pixels from the constructor bounds on macOS. Fill that final
+      // content rect immediately instead of waiting for a user resize event.
+      this.syncSiteViewBounds(state);
       viewerWindow.hide();
       if (process.platform === 'darwin') {
         // Match Chatty's overlay presentation: do not activate Kawaikara or
@@ -1027,7 +335,7 @@ export class UnifiedPictureInPictureManager {
       this.startHoverTracking(state);
       this.scheduleFullscreenReassertion(state);
 
-      const entered = withWindowMode('entered');
+      const entered = withPictureInPictureWindowMode('entered');
       this.onStateChanged(entered);
       return entered;
     } catch (error) {
@@ -1055,6 +363,11 @@ export class UnifiedPictureInPictureManager {
           'media-started-playing',
           state.mediaStartedListener,
         );
+        state.siteView.webContents.off('did-navigate', state.navigationListener);
+        state.siteView.webContents.off(
+          'did-navigate-in-page',
+          state.navigationListener,
+        );
       }
       await this.restoreInjectedVideo(candidate.frame);
       await this.restoreHostFrames(hostFrames);
@@ -1062,14 +375,16 @@ export class UnifiedPictureInPictureManager {
       await this.restoreMacApplicationPresentation(pipWindow);
       if (pipWindow && !pipWindow.isDestroyed()) pipWindow.destroy();
       viewerWindow.show();
-      return withWindowMode('failed');
+      return withPictureInPictureWindowMode('failed');
     }
   }
 
+  /** Performs the exit operation. */
   private exit(): Promise<PictureInPictureResult> {
     if (this.exitPromise) return this.exitPromise;
     const operation = this.performExit();
     this.exitPromise = operation;
+    /** Clears the operation. */
     const clear = () => {
       if (this.exitPromise === operation) this.exitPromise = undefined;
     };
@@ -1077,9 +392,10 @@ export class UnifiedPictureInPictureManager {
     return operation;
   }
 
+  /** Performs the perform exit operation. */
   private async performExit(): Promise<PictureInPictureResult> {
     const state = this.state;
-    if (!state) return withWindowMode('exited');
+    if (!state) return withPictureInPictureWindowMode('exited');
     state.closing = true;
     this.stopHoverTracking(state);
     this.clearFullscreenReassertions(state);
@@ -1090,6 +406,11 @@ export class UnifiedPictureInPictureManager {
     state.siteView.webContents.off(
       'media-started-playing',
       state.mediaStartedListener,
+    );
+    state.siteView.webContents.off('did-navigate', state.navigationListener);
+    state.siteView.webContents.off(
+      'did-navigate-in-page',
+      state.navigationListener,
     );
 
     await this.rememberCurrentPlacement(state.pipWindow);
@@ -1106,12 +427,13 @@ export class UnifiedPictureInPictureManager {
     if (!state.viewerWindow.isDestroyed()) state.viewerWindow.show();
     if (!state.pipWindow.isDestroyed()) state.pipWindow.destroy();
 
-    const exited = withWindowMode('exited');
+    const exited = withPictureInPictureWindowMode('exited');
     this.onStateChanged(exited);
     this.onExited();
     return exited;
   }
 
+  /** Creates the PiP window. */
   private createPipWindow(
     bounds: Rectangle,
     aspectRatio?: number,
@@ -1156,6 +478,7 @@ export class UnifiedPictureInPictureManager {
     return pipWindow;
   }
 
+  /** Applies the mac picture in picture level. */
   private applyMacPictureInPictureLevel(pipWindow: BrowserWindow): void {
     // Electron's public call sets the all-workspaces behavior, but an app that
     // started as a regular Dock app can still omit an already-existing true
@@ -1168,6 +491,7 @@ export class UnifiedPictureInPictureManager {
     enableMacOSFullScreenAuxiliary(pipWindow);
   }
 
+  /** Prepares the mac application for picture in picture. */
   private prepareMacApplicationForPictureInPicture(): void {
     // FullScreenAuxiliary windows must belong to an accessory/UI-element app.
     // Kawaikara returns to a regular Dock app as soon as PiP exits.
@@ -1175,6 +499,7 @@ export class UnifiedPictureInPictureManager {
     app.dock?.hide();
   }
 
+  /** Performs the present mac picture in picture operation. */
   private presentMacPictureInPicture(pipWindow: BrowserWindow): void {
     this.prepareMacApplicationForPictureInPicture();
     this.applyMacPictureInPictureLevel(pipWindow);
@@ -1182,6 +507,7 @@ export class UnifiedPictureInPictureManager {
     pipWindow.moveTop();
   }
 
+  /** Attaches the window events. */
   private attachWindowEvents(state: UnifiedPictureInPictureState): void {
     state.pipWindow.on('resize', () => this.syncSiteViewBounds(state));
     state.pipWindow.on('blur', () => {
@@ -1189,8 +515,14 @@ export class UnifiedPictureInPictureManager {
     });
     state.pipWindow.on('close', (event) => {
       if (state.closing || this.state !== state) return;
+      // The unified PiP window is frameless; users exit through Kawaikara's
+      // restore control. A remote document can still call window.close()
+      // during rapid player/frame replacement. Treat that as untrusted page
+      // behavior and keep the application-owned PiP lifecycle alive.
       event.preventDefault();
-      void this.exit();
+      this.logging
+        .createLogger('picture-in-picture')
+        .debug('Ignored a page-originated close request for unified PiP.');
     });
     state.pipWindow.on('closed', () => {
       if (state.closing || this.state !== state) return;
@@ -1199,6 +531,7 @@ export class UnifiedPictureInPictureManager {
     state.pipWindow.webContents.on('before-input-event', state.inputListener);
   }
 
+  /** Performs the sync site view bounds operation. */
   private syncSiteViewBounds(state: UnifiedPictureInPictureState): void {
     if (state.pipWindow.isDestroyed()) return;
     const [width, height] = state.pipWindow.getContentSize();
@@ -1210,6 +543,7 @@ export class UnifiedPictureInPictureManager {
     });
   }
 
+  /** Handles the pointer input. */
   private handlePointerInput(
     state: UnifiedPictureInPictureState,
     input: Electron.InputEvent,
@@ -1227,12 +561,18 @@ export class UnifiedPictureInPictureManager {
     const mouseInput = input as Electron.MouseInputEvent;
     if (input.type === 'mouseDown') {
       if (mouseInput.button && mouseInput.button !== 'left') return;
-      if (isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)) {
+      // The renderer hides controls independently from this native fallback.
+      // Never leave an invisible native hit target active after hover exits.
+      if (
+        state.controlsVisible &&
+        isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)
+      ) {
         this.activateControl(state, 'restore');
         return;
       }
       const [contentWidth, contentHeight] = state.pipWindow.getContentSize();
       if (
+        state.controlsVisible &&
         isPointInside(mouseInput, {
           x: (contentWidth - PIP_PLAYBACK_BUTTON_SIZE) / 2,
           y: (contentHeight - PIP_PLAYBACK_BUTTON_SIZE) / 2,
@@ -1280,6 +620,7 @@ export class UnifiedPictureInPictureManager {
     );
   }
 
+  /** Performs the activate control operation. */
   private activateControl(
     state: UnifiedPictureInPictureState,
     action: 'playback' | 'restore',
@@ -1292,14 +633,15 @@ export class UnifiedPictureInPictureManager {
     ) {
       return;
     }
-    state.lastControlAction = { action, at: now };
+    state.lastControlAction = { action, at: now
+    };
     if (action === 'restore') {
       void this.exit();
       return;
     }
     if (state.frame.isDestroyed()) return;
     void state.frame
-      .executeJavaScript(TOGGLE_UNIFIED_PIP_PLAYBACK_SCRIPT, true)
+      .executeJavaScript(createTogglePictureInPicturePlaybackScript(), true)
       .then((result: unknown) => {
         if (
           typeof result === 'object' &&
@@ -1319,10 +661,12 @@ export class UnifiedPictureInPictureManager {
       });
   }
 
+  /** Starts the hover tracking. */
   private startHoverTracking(state: UnifiedPictureInPictureState): void {
     // Native draggable regions do not reliably emit WebContents mouse-move
     // events on Windows. Screen coordinates make the whole PiP surface a
     // dependable hover target on every platform.
+    /** Performs the sync operation. */
     const sync = () => {
       if (this.state !== state || state.pipWindow.isDestroyed()) return;
       const point = screen.getCursorScreenPoint();
@@ -1339,12 +683,14 @@ export class UnifiedPictureInPictureManager {
     state.hoverTimer = setInterval(sync, PIP_HOVER_POLL_INTERVAL_MS);
   }
 
+  /** Stops the hover tracking. */
   private stopHoverTracking(state: UnifiedPictureInPictureState): void {
     if (state.hoverTimer === undefined) return;
     clearInterval(state.hoverTimer);
     state.hoverTimer = undefined;
   }
 
+  /** Schedules the fullscreen reassertion. */
   private scheduleFullscreenReassertion(
     state: UnifiedPictureInPictureState,
   ): void {
@@ -1367,6 +713,7 @@ export class UnifiedPictureInPictureManager {
     }
   }
 
+  /** Clears the fullscreen reassertions. */
   private clearFullscreenReassertions(
     state: UnifiedPictureInPictureState,
   ): void {
@@ -1374,10 +721,12 @@ export class UnifiedPictureInPictureManager {
     state.fullscreenReassertTimers.clear();
   }
 
+  /** Schedules the video refresh. */
   private scheduleVideoRefresh(state: UnifiedPictureInPictureState): void {
     // Short-form players begin playback before their vertical carousel has
     // settled. Refreshing immediately freezes that intermediate offset into
     // the PiP layout, so wait until the native transition is complete.
+    this.clearVideoRefreshes(state);
     for (const delayMilliseconds of [620, 980]) {
       const timer = setTimeout(() => {
         state.videoRefreshTimers.delete(timer);
@@ -1390,6 +739,7 @@ export class UnifiedPictureInPictureManager {
     }
   }
 
+  /** Performs the refresh active video operation. */
   private async refreshActiveVideo(
     state: UnifiedPictureInPictureState,
   ): Promise<void> {
@@ -1407,7 +757,10 @@ export class UnifiedPictureInPictureManager {
       }
 
       if (candidate.frame === state.frame && !state.frame.isDestroyed()) {
-        await state.frame.executeJavaScript(REFRESH_UNIFIED_PIP_VIDEO_SCRIPT, true);
+        await state.frame.executeJavaScript(
+          createRefreshUnifiedPictureInPictureVideoScript(),
+          true,
+        );
         return;
       }
 
@@ -1419,9 +772,9 @@ export class UnifiedPictureInPictureManager {
       const previousHostFrames = state.hostFrames;
       await this.restoreHostFrames(previousHostFrames);
       const nextHostFrames = await this.enterHostFrames(candidate.frame);
-      const result = parseEnterResult(
+      const result = parsePictureInPictureEnterResult(
         await candidate.frame.executeJavaScript(
-          createEnterUnifiedPipScript(this.getContentOverlaySelectors()),
+          this.createEnterPageScript(),
           true,
         ),
       );
@@ -1440,7 +793,7 @@ export class UnifiedPictureInPictureManager {
       this.setControlsVisible(state, state.controlsVisible, true);
       if (!previousFrame.isDestroyed()) {
         await previousFrame.executeJavaScript(
-          "document.querySelectorAll('video').forEach((video) => video.pause())",
+          createPauseDocumentVideosScript(),
           true,
         ).catch(() => undefined);
       }
@@ -1454,11 +807,13 @@ export class UnifiedPictureInPictureManager {
     }
   }
 
+  /** Clears the video refreshes. */
   private clearVideoRefreshes(state: UnifiedPictureInPictureState): void {
     for (const timer of state.videoRefreshTimers) clearTimeout(timer);
     state.videoRefreshTimers.clear();
   }
 
+  /** Restores the mac application presentation. */
   private async restoreMacApplicationPresentation(
     pipWindow?: BrowserWindow,
   ): Promise<void> {
@@ -1478,6 +833,7 @@ export class UnifiedPictureInPictureManager {
     }
   }
 
+  /** Sets the controls visible. */
   private setControlsVisible(
     state: UnifiedPictureInPictureState,
     visible: boolean,
@@ -1488,14 +844,7 @@ export class UnifiedPictureInPictureManager {
     }
     state.controlsVisible = visible;
     void state.frame
-      .executeJavaScript(`
-        (() => {
-          const overlay = document.querySelector(
-            '[data-kawaikara-unified-pip-overlay="true"]',
-          );
-          if (overlay) overlay.dataset.controlsVisible = ${JSON.stringify(visible)};
-        })();
-      `)
+      .executeJavaScript(createSetPictureInPictureControlsVisibleScript(visible))
       .catch((error: unknown) => {
         if (this.state === state && !state.closing) {
           console.debug('Unified PiP hover state could not be updated.', error);
@@ -1503,6 +852,7 @@ export class UnifiedPictureInPictureManager {
       });
   }
 
+  /** Restores the site view. */
   private restoreSiteView(
     viewerWindow: BrowserWindow,
     siteView: WebContentsView,
@@ -1512,12 +862,16 @@ export class UnifiedPictureInPictureManager {
       return Promise.resolve();
     }
     return transferWebContentsView({
+      /** The source window value. */
       sourceWindow,
+      /** The target window value. */
       targetWindow: viewerWindow,
+      /** The view value. */
       view: siteView,
     });
   }
 
+  /** Finds the video candidate. */
   private async findVideoCandidate(
     siteView: WebContentsView,
   ): Promise<VideoCandidate | undefined> {
@@ -1532,6 +886,7 @@ export class UnifiedPictureInPictureManager {
     return candidate;
   }
 
+  /** Performs the inspect video frames operation. */
   private async inspectVideoFrames(
     siteView: WebContentsView,
   ): Promise<VideoCandidate | undefined> {
@@ -1539,31 +894,33 @@ export class UnifiedPictureInPictureManager {
     const frames = siteView.webContents.mainFrame.framesInSubtree.filter(
       (frame) => !frame.isDestroyed() && isInspectableFrameUrl(frame.url),
     );
-    const candidates = await Promise.all(
-      frames.map(async (frame): Promise<VideoCandidate | undefined> => {
-        try {
-          const result = parseVideoCandidate(
-            await frame.executeJavaScript(FIND_VIDEO_SCRIPT),
-          );
-          return result ? { frame, ...result } : undefined;
-        } catch (error) {
-          console.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
-          return undefined;
-        }
-      }),
-    );
-    for (const candidate of candidates) {
+    // Electron waits for a loading frame by temporarily subscribing to the
+    // owning WebContents. Inspecting every iframe concurrently can therefore
+    // exceed EventEmitter's listener limit on iframe-heavy streaming pages.
+    // Sequential inspection bounds that temporary listener count to one.
+    for (const frame of frames) {
+      let candidate: VideoCandidate | undefined;
+      try {
+        const result = parseVideoCandidate(
+          await frame.executeJavaScript(createFindPictureInPictureVideoScript()),
+        );
+        candidate = result ? { frame, ...result
+        } : undefined;
+      } catch (error) {
+        console.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
+      }
       if (!candidate || (best && candidate.score <= best.score)) continue;
       best = candidate;
     }
     return best;
   }
 
+  /** Resolves the initial bounds. */
   private resolveInitialBounds(
     viewerWindow: BrowserWindow,
     aspectRatio?: number,
   ): Rectangle {
-    const display = resolvePlacementDisplay(
+    const display = resolvePictureInPictureDisplay(
       viewerWindow.getBounds(),
       this.placementPreference,
     );
@@ -1573,14 +930,14 @@ export class UnifiedPictureInPictureManager {
       aspectRatio,
       portrait ? 'portrait' : 'landscape',
     );
-    const size = fitSizeWithinWorkArea(
+    const size = fitPictureInPictureSize(
       {
         width: preferredSize.width,
         height: preferredSize.height,
       },
       display.workArea,
     );
-    return resolvePlacementBounds(
+    return resolvePictureInPictureBounds(
       display.workArea,
       size.width,
       size.height,
@@ -1588,9 +945,10 @@ export class UnifiedPictureInPictureManager {
     );
   }
 
+  /** Performs the remember current placement operation. */
   private async rememberCurrentPlacement(pipWindow: BrowserWindow): Promise<void> {
     if (pipWindow.isDestroyed() || !this.onLastPlacementChanged) return;
-    const placement = captureLastPlacement(pipWindow);
+    const placement = capturePictureInPicturePlacement(pipWindow);
     this.placementWrite = this.placementWrite
       .then(() => this.onLastPlacementChanged?.(placement))
       .then(() => undefined)
@@ -1600,13 +958,35 @@ export class UnifiedPictureInPictureManager {
     await this.placementWrite;
   }
 
+  /** Restores the injected video. */
   private async restoreInjectedVideo(frame: WebFrameMain): Promise<void> {
     if (frame.isDestroyed()) return;
-    await frame.executeJavaScript(EXIT_UNIFIED_PIP_SCRIPT).catch((error: unknown) => {
+    await frame.executeJavaScript(
+      createExitUnifiedPictureInPictureScript(),
+    ).catch((error: unknown) => {
       console.debug('Unified PiP video styles were already unavailable.', error);
     });
   }
 
+  /** Selects runtime values; the injected DOM implementation stays in Inject/. */
+  private createEnterPageScript(): string {
+    return createEnterUnifiedPictureInPictureScript({
+      /** The content overlay selectors value. */
+      contentOverlaySelectors: this.getContentOverlaySelectors(),
+      /** The native drag style value. */
+      nativeDragStyle: PIP_NATIVE_DRAG_STYLE,
+      /** The native no drag style value. */
+      nativeNoDragStyle: PIP_NATIVE_NO_DRAG_STYLE,
+      /** The playback button size value. */
+      playbackButtonSize: PIP_PLAYBACK_BUTTON_SIZE,
+      /** The playback message value. */
+      playbackMessage: PIP_PLAYBACK_MESSAGE,
+      /** The restore message value. */
+      restoreMessage: PIP_RESTORE_MESSAGE,
+    });
+  }
+
+  /** Performs the enter host frames operation. */
   private async enterHostFrames(
     videoFrame: WebFrameMain,
   ): Promise<readonly WebFrameMain[]> {
@@ -1619,9 +999,10 @@ export class UnifiedPictureInPictureManager {
           throw new Error('A PiP frame was destroyed during host preparation.');
         }
         const result = await parent.executeJavaScript(
-          createEnterUnifiedPipHostScript(child.url),
+          createEnterUnifiedPictureInPictureHostScript(child.url),
           true,
-        ) as { status?: unknown };
+        ) as { status?: unknown
+        };
         if (result?.status !== 'entered') {
           throw new Error(
             `Could not expose embedded PiP frame (${String(result?.status)}).`,
@@ -1638,6 +1019,7 @@ export class UnifiedPictureInPictureManager {
     }
   }
 
+  /** Restores the host frames. */
   private async restoreHostFrames(
     frames: readonly WebFrameMain[],
   ): Promise<void> {
@@ -1645,190 +1027,10 @@ export class UnifiedPictureInPictureManager {
       [...frames].reverse().map((frame) =>
         frame.isDestroyed()
           ? Promise.resolve()
-          : frame.executeJavaScript(EXIT_UNIFIED_PIP_HOST_SCRIPT),
+          : frame.executeJavaScript(
+              createExitUnifiedPictureInPictureHostScript(),
+            ),
       ),
     );
   }
-}
-
-function resolvePlacementDisplay(
-  viewerBounds: Rectangle,
-  preference: PictureInPicturePlacementPreference,
-): Display {
-  const displays = screen.getAllDisplays();
-  const byId = (displayId: string | undefined) =>
-    displayId
-      ? displays.find((display) => String(display.id) === displayId)
-      : undefined;
-  const currentDisplay = screen.getDisplayMatching(viewerBounds);
-  switch (preference.monitor.mode) {
-    case 'display':
-      return byId(preference.monitor.displayId) ?? currentDisplay;
-    case 'last':
-      return byId(preference.lastPlacement?.displayId) ?? currentDisplay;
-    case 'video':
-    case 'current':
-      return currentDisplay;
-  }
-}
-
-function resolvePlacementBounds(
-  workArea: Rectangle,
-  width: number,
-  height: number,
-  preference: PictureInPicturePlacementPreference,
-): Rectangle {
-  const availableWidth = Math.max(0, workArea.width - width);
-  const availableHeight = Math.max(0, workArea.height - height);
-  if (preference.position === 'last' && preference.lastPlacement) {
-    return {
-      x: Math.round(workArea.x + availableWidth * preference.lastPlacement.xRatio),
-      y: Math.round(workArea.y + availableHeight * preference.lastPlacement.yRatio),
-      width,
-      height,
-    };
-  }
-
-  const left = workArea.x + Math.min(PIP_MARGIN, availableWidth);
-  const right = workArea.x + Math.max(0, availableWidth - PIP_MARGIN);
-  const top = workArea.y + Math.min(PIP_MARGIN, availableHeight);
-  const bottom = workArea.y + Math.max(0, availableHeight - PIP_MARGIN);
-  const position = preference.position === 'last' ? 'top-right' : preference.position;
-  return {
-    x: position.endsWith('left') ? left : right,
-    y: position.startsWith('top') ? top : bottom,
-    width,
-    height,
-  };
-}
-
-function captureLastPlacement(
-  pipWindow: BrowserWindow,
-): PictureInPictureLastPlacement {
-  const bounds = pipWindow.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const availableWidth = Math.max(0, display.workArea.width - bounds.width);
-  const availableHeight = Math.max(0, display.workArea.height - bounds.height);
-  return {
-    displayId: String(display.id),
-    xRatio:
-      availableWidth > 0
-        ? clampRatio((bounds.x - display.workArea.x) / availableWidth)
-        : 0,
-    yRatio:
-      availableHeight > 0
-        ? clampRatio((bounds.y - display.workArea.y) / availableHeight)
-        : 0,
-  };
-}
-
-function fitSizeWithinWorkArea(
-  size: { readonly width: number; readonly height: number },
-  workArea: Rectangle,
-): { readonly width: number; readonly height: number } {
-  const scale = Math.min(
-    1,
-    Math.max(1, workArea.width - PIP_MARGIN * 2) / size.width,
-    Math.max(1, workArea.height - PIP_MARGIN * 2) / size.height,
-  );
-  return {
-    width: Math.max(1, Math.round(size.width * scale)),
-    height: Math.max(1, Math.round(size.height * scale)),
-  };
-}
-
-function isPointInside(
-  point: Pick<Electron.MouseInputEvent, 'x' | 'y'>,
-  bounds: Rectangle,
-): boolean {
-  return (
-    point.x >= bounds.x &&
-    point.x < bounds.x + bounds.width &&
-    point.y >= bounds.y &&
-    point.y < bounds.y + bounds.height
-  );
-}
-
-function resolveGlobalMousePoint(
-  input: Electron.MouseInputEvent,
-): { readonly x: number; readonly y: number } {
-  if (
-    typeof input.globalX === 'number' &&
-    Number.isFinite(input.globalX) &&
-    typeof input.globalY === 'number' &&
-    Number.isFinite(input.globalY)
-  ) {
-    return { x: input.globalX, y: input.globalY };
-  }
-  return screen.getCursorScreenPoint();
-}
-
-function parseVideoCandidate(
-  value: unknown,
-): Omit<VideoCandidate, 'frame'> | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const candidate = value as {
-    score?: unknown;
-    status?: unknown;
-    videoHeight?: unknown;
-    videoWidth?: unknown;
-  };
-  if (
-    (candidate.status !== 'ready' && candidate.status !== 'not-ready') ||
-    typeof candidate.score !== 'number' ||
-    !Number.isFinite(candidate.score)
-  ) {
-    return undefined;
-  }
-  return {
-    score: candidate.score,
-    status: candidate.status,
-    ...readAspectRatio(candidate),
-  };
-}
-
-function isInspectableFrameUrl(url: string): boolean {
-  return url !== '' && url !== 'about:blank';
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function parseEnterResult(value: unknown): {
-  readonly aspectRatio?: number;
-  readonly status: PictureInPictureResult['status'];
-} {
-  if (!value || typeof value !== 'object') return { status: 'failed' };
-  const candidate = value as { status?: unknown };
-  const status = candidate.status;
-  if (
-    typeof status !== 'string' ||
-    !['entered', 'no-video', 'not-ready', 'failed'].includes(status)
-  ) {
-    return { status: 'failed' };
-  }
-  return {
-    status: status as PictureInPictureResult['status'],
-    ...readAspectRatio(value),
-  };
-}
-
-function readAspectRatio(value: object): { readonly aspectRatio?: number } {
-  const candidate = value as { videoHeight?: unknown; videoWidth?: unknown };
-  const width = Number(candidate.videoWidth);
-  const height = Number(candidate.videoHeight);
-  return Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
-    ? { aspectRatio: width / height }
-    : {};
-}
-
-function withWindowMode(
-  status: PictureInPictureResult['status'],
-): PictureInPictureResult {
-  return { status, mode: 'window' };
-}
-
-function clampRatio(value: number): number {
-  return Math.min(1, Math.max(0, value));
 }

@@ -1,6 +1,6 @@
-# Kawaikara dev3
+# Kawaikara dev
 
-Kawaikara is a compact Electron viewer for streaming, video, music, and reading services. `dev3` rebuilds the application around isolated Provider sessions, explicit Bundles, an app-owned overlay, and a unified video-focused Picture in Picture window.
+Kawaikara is a compact Electron viewer for streaming, video, music, and reading services. The `dev` branch rebuilds the application around isolated Provider sessions, explicit Bundles, an app-owned overlay, and a unified video-focused Picture in Picture window.
 
 ## Implemented features
 
@@ -68,7 +68,7 @@ Important compatibility work includes external-browser login with cookie transfe
 
 ## Development documentation
 
-See the [developer documentation](../Developer/README.md) for architecture, lifecycle, security, plugin development, implemented feature details, and the [build/release guide](../build/1.build.md).
+See the [developer documentation](../Developer/README.md) for architecture, lifecycle, security, plugin development, implemented feature details, and the [build/release guide](../build/1.BuildAndRelease.md).
 
 Start Storybook with:
 

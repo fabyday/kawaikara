@@ -1,44 +1,77 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { UpdatePanel } from '../../src/Renderer/View/Update/UpdatePanel';
 
+/** Stores the meta value. */
 const meta = {
+  /** The title value. */
   title: 'Component/Update Panel',
+  /** The component value. */
   component: UpdatePanel,
+  /** The tags value. */
   tags: ['autodocs'],
-  parameters: { layout: 'fullscreen' },
+  /** The parameters value. */
+  parameters: {
+    /** The layout value. */
+    layout: 'fullscreen' },
+  /** The args value. */
   args: {
+    /** The locale value. */
     locale: 'en-US',
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'available',
+      /** The origin value. */
       origin: 'manual',
+      /** The channel value. */
       channel: 'staging',
+      /** The current version value. */
       currentVersion: '3.0.0-staging.12',
+      /** The latest version value. */
       latestVersion: '3.0.0-staging.13',
+      /** The release notes value. */
       releaseNotes:
         'Provider sessions are now isolated by profile.\n\nVideo playback and Picture in Picture transitions are smoother.',
     },
+    /** The on dismiss value. */
     onDismiss: () => undefined,
+    /** The on download value. */
     onDownload: () => undefined,
+    /** The on install value. */
     onInstall: () => undefined,
+    /** The on retry value. */
     onRetry: () => undefined,
   },
 } satisfies Meta<typeof UpdatePanel>;
 
 export default meta;
+/** Defines the story type. */
 type Story = StoryObj<typeof meta>;
 
+/** Stores the update available value. */
 export const UpdateAvailable = {} satisfies Story;
 
+/** Stores the release notes value. */
 export const ReleaseNotes = {
+  /** The args value. */
   args: {
+    /** The locale value. */
     locale: 'ko-KR',
+    /** The initial view value. */
     initialView: 'release-notes',
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'available',
+      /** The origin value. */
       origin: 'manual',
+      /** The channel value. */
       channel: 'staging',
+      /** The current version value. */
       currentVersion: '3.0.0-staging.12',
+      /** The latest version value. */
       latestVersion: '3.0.0-staging.13',
+      /** The release notes value. */
       releaseNotes: `## English
 
 ### Kawaikara 3.0.0
@@ -79,76 +112,128 @@ Source commit: 0123456789abcdef`,
   },
 } satisfies Story;
 
+/** Stores the checking value. */
 export const Checking = {
+  /** The args value. */
   args: {
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'checking',
+      /** The origin value. */
       origin: 'manual',
+      /** The channel value. */
       channel: 'stable',
+      /** The current version value. */
       currentVersion: '3.0.0',
     },
   },
 } satisfies Story;
 
+/** Stores the downloading automatically value. */
 export const DownloadingAutomatically = {
+  /** The args value. */
   args: {
+    /** The locale value. */
     locale: 'ko-KR',
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'downloading',
+      /** The origin value. */
       origin: 'automatic',
+      /** The channel value. */
       channel: 'nightly',
+      /** The current version value. */
       currentVersion: '3.0.0-nightly.20260819.204.1.g891f02a1',
+      /** The latest version value. */
       latestVersion: '3.0.0-nightly.20260820.205.1.g2c13bd91',
+      /** The release notes value. */
       releaseNotes:
         'Provider 업데이트 로딩 안정성을 개선했습니다.\nVideo 재생 프레임 전달을 최적화했습니다.',
+      /** The progress value. */
       progress: {
+        /** The percent value. */
         percent: 63.4,
+        /** The bytes per second value. */
         bytesPerSecond: 5_800_000,
+        /** The transferred value. */
         transferred: 63_400_000,
+        /** The total value. */
         total: 100_000_000,
       },
     },
   },
 } satisfies Story;
 
+/** Stores the ready to restart value. */
 export const ReadyToRestart = {
+  /** The args value. */
   args: {
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'downloaded',
+      /** The origin value. */
       origin: 'automatic',
+      /** The channel value. */
       channel: 'staging',
+      /** The current version value. */
       currentVersion: '3.0.0-staging.12',
+      /** The latest version value. */
       latestVersion: '3.0.0-staging.13',
+      /** The release notes value. */
       releaseNotes: 'The update was downloaded successfully.',
+      /** The progress value. */
       progress: {
+        /** The percent value. */
         percent: 100,
+        /** The bytes per second value. */
         bytesPerSecond: 0,
+        /** The transferred value. */
         transferred: 100_000_000,
+        /** The total value. */
         total: 100_000_000,
       },
     },
   },
 } satisfies Story;
 
+/** Stores the up to date value. */
 export const UpToDate = {
+  /** The args value. */
   args: {
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'up-to-date',
+      /** The origin value. */
       origin: 'manual',
+      /** The channel value. */
       channel: 'stable',
+      /** The current version value. */
       currentVersion: '3.0.0',
+      /** The latest version value. */
       latestVersion: '3.0.0',
     },
   },
 } satisfies Story;
 
+/** Stores the error value. */
 export const Error = {
+  /** The args value. */
   args: {
+    /** The state value. */
     state: {
+      /** The phase value. */
       phase: 'error',
+      /** The origin value. */
       origin: 'manual',
+      /** The channel value. */
       channel: 'staging',
+      /** The current version value. */
       currentVersion: '3.0.0-staging.12',
+      /** The error value. */
       error: 'The update server could not be reached.',
     },
   },

@@ -1,15 +1,16 @@
 import {
-  SHORT_FORM_VIDEO_ACTIONS,
-  SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
+  AbstractUrlProvider,
+  defineProviderLocale,
   provider,
+  readShortFormVideoAutoAdvance,
+  resolveShortFormVideoCommand,
   type ProviderSettings,
+  type NewWindowPolicy,
   type SiteRequestDetails,
-  type SiteRequestHeaders,
   type SiteRequestRedirect,
+  webAuthenticationPolicy,
+  matchesSiteUrlHost,
 } from '@kawaikara/site-api';
-import { createVideoPictureInPicture } from '../../PictureInPicture';
-import { setHeader } from '../../SiteUtilities';
-import { UrlProvider } from '../../UrlProvider';
 import {
   CHZZK_AD_RESPONSE_BLOCKER_SCRIPT,
   CHZZK_AD_SKIPPER_SCRIPT,
@@ -18,125 +19,124 @@ import {
   createChzzkQualityEnhancementScript,
   type ChzzkClipsInjectionOptions,
 } from './Inject/Index';
+import localization from './locale.json';
 
+/** Stores the messages value. */
+const messages = defineProviderLocale(localization);
+
+/** Defines the shared CHZZK enable 1080 bypass action constant. */
 const CHZZK_ENABLE_1080_BYPASS_ACTION = 'chzzk:quality:enable-1080';
+/** Defines the shared CHZZK enable 720 bypass action constant. */
 const CHZZK_ENABLE_720_BYPASS_ACTION = 'chzzk:quality:enable-720';
+/** Defines the shared CHZZK disable 1080 bypass action constant. */
 const CHZZK_DISABLE_1080_BYPASS_ACTION = 'chzzk:quality:disable-1080';
+/** Defines the shared CHZZK skip shorts advertisement action constant. */
+const CHZZK_SKIP_SHORTS_ADVERTISEMENT_ACTION = 'chzzk:clips:skip-advertisement';
 
-const CHZZK_BROWSER_USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
-
-const CHZZK_PIP_CONTROL_SELECTORS = [
-  '.pzp-pc-pip-button',
-  '.pzp-pc__pip-button',
-  '.pzp-pc-ui-button[aria-label="PIP" i]',
-  '.pzp-pc__setting-button[aria-label="PIP" i]',
-  'button[label="PIP" i]',
-] as const;
-
+/** Implements the CHZZK site provider. */
 @provider({
+  settings: {
+    categories: [
+      {
+        id: 'clips',
+        settings: [
+          {
+            type: 'boolean',
+            key: 'short-form-video.auto-advance',
+            defaultValue: true,
+          },
+        ],
+      },
+    ],
+  },
   pictureInPicture: {
-    ...createVideoPictureInPicture([
+    pageRequestPolicy: 'allow',
+    pageControlSelectors: [
+      '.pzp-pc-pip-button',
+      '.pzp-pc__pip-button',
+      '.pzp-pc-ui-button[aria-label="PIP" i]',
+      '.pzp-pc__setting-button[aria-label="PIP" i]',
+      'button[label="PIP" i]',
+    ],
+    contentOverlaySelectors: [
       '.pzp-pc__subtitle',
       '.pzp-pc-subtitle',
       '.pzp-pc__caption',
-    ]),
-    // CHZZK moves the stream into its page-owned mini-player when leaving a
-    // live route. Keep that automatic lifecycle operational and visible so
-    // the detached player remains controllable; only its manual PIP button is
-    // hidden from the user.
-    pageRequestPolicy: 'allow',
-    pageControlSelectors: CHZZK_PIP_CONTROL_SELECTORS,
+    ],
   },
 })
-export class ChzzkProvider extends UrlProvider {
+export class ChzzkProvider extends AbstractUrlProvider {
+  /** The URL value. */
   protected readonly url = 'https://chzzk.naver.com/';
-  private injectionPass = 0;
+  /** The quality redirect count value. */
   private qualityRedirectCount = 0;
+  /** The quality bypass target value. */
   private qualityBypassTarget: '720p' | '1080p' | undefined = '1080p';
+  /** The auto advance clips value. */
   private autoAdvanceClips = true;
+  /** The clips injection installed value. */
   private clipsInjectionInstalled = false;
 
+  /** Loads the operation. */
   async load(): Promise<void> {
-    this.subscriptions.add(
-      this.context.viewer.onFrameReady(() => this.installClipsInjection()),
-    );
+    const page = this.requirePage();
+    this.subscriptions.add(page.register({
+      id: 'chzzk.quality-enhancement',
+      source: () => createChzzkQualityEnhancementScript({
+        enableBypassActionUrl: this.context.actions.createUrl(
+          CHZZK_ENABLE_1080_BYPASS_ACTION,
+        ),
+        enable720BypassActionUrl: this.context.actions.createUrl(
+          CHZZK_ENABLE_720_BYPASS_ACTION,
+        ),
+        disableBypassActionUrl: this.context.actions.createUrl(
+          CHZZK_DISABLE_1080_BYPASS_ACTION,
+        ),
+      }),
+    }));
+    this.subscriptions.add(page.register({
+      id: 'chzzk.ad-response-blocker',
+      source: CHZZK_AD_RESPONSE_BLOCKER_SCRIPT,
+      phases: ['dom-ready', 'did-finish-load', 'frame-ready'],
+      frames: 'all',
+    }));
+    this.subscriptions.add(page.register({
+      id: 'chzzk.ad-skipper',
+      source: CHZZK_AD_SKIPPER_SCRIPT,
+      phases: ['dom-ready', 'did-finish-load', 'frame-ready'],
+      frames: 'all',
+    }));
+    this.subscriptions.add(page.register({
+      id: 'chzzk.clips',
+      source: () => createChzzkClipsInjectionScript(this.clipsOptions(false)),
+      phases: ['dom-ready', 'did-finish-load', 'frame-ready'],
+      frames: 'all',
+    }));
+    this.clipsInjectionInstalled = true;
     await super.load();
   }
 
+  /** Performs the before load operation. */
   protected async beforeLoad(): Promise<void> {
     // Match the original integration: the internal 480p player route is
     // upgraded to 1080p from the first request. The page injection can later
     // switch this target to 720p or disable it for a native low-quality row.
     this.qualityBypassTarget = '1080p';
     this.qualityRedirectCount = 0;
-    this.context.viewer.setUserAgent(CHZZK_BROWSER_USER_AGENT);
   }
 
-  protected async afterLoad(): Promise<void> {
-    // Keep the injections independent. A CHZZK markup change in the quality
-    // enhancement must never prevent the ad skipper from being installed.
-    const qualityEnhancementScript = createChzzkQualityEnhancementScript({
-      enableBypassActionUrl: this.context.actions.createUrl(
-        CHZZK_ENABLE_1080_BYPASS_ACTION,
-      ),
-      enable720BypassActionUrl: this.context.actions.createUrl(
-        CHZZK_ENABLE_720_BYPASS_ACTION,
-      ),
-      disableBypassActionUrl: this.context.actions.createUrl(
-        CHZZK_DISABLE_1080_BYPASS_ACTION,
-      ),
-    });
-    const injections = [
-      // Resolve the player-blocking extension gate first. Until CHZZK's own
-      // "watch without installation" action runs there is no video element or
-      // quality menu for any other playback feature to attach to.
-      ['quality enhancement', qualityEnhancementScript],
-      ['ad response blocker', CHZZK_AD_RESPONSE_BLOCKER_SCRIPT],
-      ['ad skipper', CHZZK_AD_SKIPPER_SCRIPT],
-    ] as const;
-    const results: PromiseSettledResult<unknown>[] = [];
-    for (const [, script] of injections) {
-      try {
-        results.push({
-          status: 'fulfilled',
-          value: await this.context.viewer.executeJavaScript(script),
-        });
-      } catch (reason) {
-        // Continue installing the remaining independent features even when a
-        // preceding page-world patch is unavailable.
-        results.push({ status: 'rejected', reason });
-      }
-    }
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        this.context.logger.warn(
-          `CHZZK ${injections[index][0]} injection failed.`,
-          result.reason,
-        );
-      }
-    });
-    await this.installClipsInjection();
-    this.injectionPass += 1;
-    if (results.every((result) => result.status === 'fulfilled')) {
-      this.context.logger.info('CHZZK page injections are active.', {
-        pass: this.injectionPass,
-        phase: this.injectionPass === 1 ? 'dom-ready' : 'refresh',
-      });
-    }
-  }
-
+  /** Handles the action. */
   async onAction(action: string): Promise<boolean> {
-    if (action === SHORT_FORM_VIDEO_ACTIONS.next) {
-      await this.runClipsCommand('next');
+    const shortFormCommand = resolveShortFormVideoCommand(action);
+    if (shortFormCommand && shortFormCommand !== 'ban') {
+      await this.runClipsCommand(shortFormCommand);
       return true;
     }
-    if (action === SHORT_FORM_VIDEO_ACTIONS.previous) {
-      await this.runClipsCommand('previous');
-      return true;
-    }
-    if (action === SHORT_FORM_VIDEO_ACTIONS.announceAutoAdvance) {
-      await this.runClipsCommand('announce');
+    if (action === CHZZK_SKIP_SHORTS_ADVERTISEMENT_ACTION) {
+      this.context.logger.info(
+        'Skipping a NAVER-labelled CHZZK Shorts advertisement.',
+      );
+      this.requirePage().sendKeyPress('ArrowDown');
       return true;
     }
     if (action === CHZZK_ENABLE_1080_BYPASS_ACTION) {
@@ -154,18 +154,33 @@ export class ChzzkProvider extends UrlProvider {
     return false;
   }
 
+  /** Handles the settings changed. */
   async onSettingsChanged(settings: ProviderSettings): Promise<void> {
-    this.autoAdvanceClips =
-      typeof settings[SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING] === 'boolean'
-        ? settings[SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING]
-        : true;
+    this.autoAdvanceClips = readShortFormVideoAutoAdvance(settings);
     if (!this.clipsInjectionInstalled) return;
-    await this.context.viewer.executeJavaScriptInAllFrames(
-      createChzzkClipsInjectionScript(this.clipsOptions(false)),
-    );
+    await this.requirePage().refresh('chzzk.clips');
   }
 
+  /** Handles the before request. */
   onBeforeRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined {
+    // The August 2026 CHZZK player no longer obtains every preroll from its
+    // encrypted /service/t schedule. Google IMA now requests a VAST document
+    // directly from gampad/ads. The recorded HAR proves that request returned
+    // 200 immediately before the ad player was mounted. Cancel only the VAST
+    // GET; Veta OPTIONS preflights remain untouched because rejecting those is
+    // an anti-adblock signal on CHZZK.
+    if (
+      details.method === 'GET' &&
+      /^https:\/\/(?:pubads|securepubads|googleads)\.(?:g\.)?doubleclick\.net\/gampad\/ads(?:[?#]|$)/i
+        .test(details.url)
+    ) {
+      this.context.logger.info('Blocked a CHZZK Google IMA VAST ad request.');
+      return {
+        /** Whether the cancel option is enabled. */
+        cancel: true,
+      };
+    }
+
     // Do not cancel Veta CORS preflights. A failed OPTIONS request is itself
     // an anti-adblock signal and makes CHZZK show its blocker warning. Ads are
     // neutralized by the page response patch and media skipper instead.
@@ -192,18 +207,25 @@ export class ChzzkProvider extends UrlProvider {
         },
       );
     }
-    return { redirectURL };
+    return {
+      /** The redirect URL value. */
+      redirectURL,
+    };
   }
 
-  onBeforeSendHeaders(
-    details: SiteRequestDetails,
-  ): SiteRequestHeaders | undefined {
-    if (!isChzzkRelatedUrl(details.url)) return undefined;
-    const headers = { ...details.requestHeaders };
-    setHeader(headers, 'User-Agent', CHZZK_BROWSER_USER_AGENT);
-    return headers;
+  /** Handles the new window. */
+  onNewWindow(url: string): NewWindowPolicy {
+    // Channel/profile links inside Clips use target=_blank. They are ordinary
+    // CHZZK navigation and belong in the existing viewer, not a second app
+    // window. Naver and other authentication origins still need a real popup
+    // with opener semantics and the shared Provider Session.
+    if (matchesSiteUrlHost(url, ['chzzk.naver.com', 'm.naver.com'])) {
+      return 'viewer';
+    }
+    return webAuthenticationPolicy(url, 'popup');
   }
 
+  /** Performs the allow picture in picture operation. */
   allowPictureInPicture(value: string): boolean {
     const match = /^https:\/\/chzzk\.naver\.com(\/[^?#]*)?(?:[?#]|$)/i.exec(
       value,
@@ -212,12 +234,13 @@ export class ChzzkProvider extends UrlProvider {
     return /^\/(?:live|video|clips)\/[^/]+\/?$/.test(pathname);
   }
 
+  /** Performs the unload operation. */
   async unload(): Promise<void> {
     this.qualityBypassTarget = undefined;
-    this.context.viewer.setUserAgent();
     await super.unload();
   }
 
+  /** Sets the quality bypass target. */
   private setQualityBypassTarget(
     target: '720p' | '1080p' | undefined,
     reason: string,
@@ -227,61 +250,67 @@ export class ChzzkProvider extends UrlProvider {
     this.qualityRedirectCount = 0;
     this.context.logger.info(
       `CHZZK quality request bypass ${target ? `enabled for ${target}` : 'disabled'}.`,
-      { reason, target: target ?? null },
+      { reason, target: target ?? null
+      },
     );
   }
 
+  /** Runs the clips command. */
   private async runClipsCommand(
     command: 'next' | 'previous' | 'announce',
   ): Promise<void> {
-    await this.context.viewer.executeJavaScriptInAllFrames(
+    const results = await this.requirePage().executeInAllFrames<boolean>(
+      'chzzk.clips.command',
       createChzzkClipsCommandScript(command),
     );
+    if (
+      !results.some((handled) => handled) &&
+      (command === 'next' || command === 'previous')
+    ) {
+      // Advertisement renderers occasionally replace both the active video
+      // and the visible carousel controls. A trusted key press is the final
+      // site-native fallback; synthetic KeyboardEvents are ignored.
+      this.requirePage().sendKeyPress(
+        command === 'next' ? 'ArrowDown' : 'ArrowUp',
+      );
+    }
   }
 
-  private async installClipsInjection(): Promise<void> {
-    const results = await this.context.viewer.executeJavaScriptInAllFrames(
-      createChzzkClipsInjectionScript(this.clipsOptions(false)),
-    );
-    this.clipsInjectionInstalled = results.length > 0;
-  }
-
+  /** Performs the clips options operation. */
   private clipsOptions(announce: boolean): ChzzkClipsInjectionOptions {
     return {
+      /** The auto advance value. */
       autoAdvance: this.autoAdvanceClips,
+      /** The announce value. */
       announce,
+      /** The skip advertisement action URL value. */
+      skipAdvertisementActionUrl: this.context.actions.createUrl(
+        CHZZK_SKIP_SHORTS_ADVERTISEMENT_ACTION,
+      ),
+      /** The labels value. */
       labels: resolveClipsLabels(this.context.locale?.site),
     };
   }
+
 }
 
+/** Resolves the clips labels. */
 function resolveClipsLabels(
   locale?: string,
 ): ChzzkClipsInjectionOptions['labels'] {
-  if (locale?.toLowerCase().startsWith('ko')) {
-    return {
-      enabled: '클립 자동 넘김 켜짐',
-      disabled: '클립 자동 넘김 꺼짐',
-      next: '다음 클립',
-      previous: '이전 클립',
-    };
-  }
-  if (locale?.toLowerCase().startsWith('ja')) {
-    return {
-      enabled: 'クリップ自動送り オン',
-      disabled: 'クリップ自動送り オフ',
-      next: '次のクリップ',
-      previous: '前のクリップ',
-    };
-  }
   return {
-    enabled: 'Clip auto-advance on',
-    disabled: 'Clip auto-advance off',
-    next: 'Next clip',
-    previous: 'Previous clip',
+    /** Whether the enabled option is enabled. */
+    enabled: messages.resolve(locale, 'clips.announcement.enabled'),
+    /** The disabled value. */
+    disabled: messages.resolve(locale, 'clips.announcement.disabled'),
+    /** The next value. */
+    next: messages.resolve(locale, 'clips.announcement.next'),
+    /** The previous value. */
+    previous: messages.resolve(locale, 'clips.announcement.previous'),
   };
 }
 
+/** Performs the describe media URL operation. */
 function describeMediaUrl(value: string): string {
   try {
     const url = new URL(value);
@@ -289,23 +318,4 @@ function describeMediaUrl(value: string): string {
   } catch {
     return '<invalid-url>';
   }
-}
-
-function isChzzkRelatedUrl(value: string): boolean {
-  const hostname = /^https?:\/\/([^/:]+)/i.exec(value)?.[1]?.toLowerCase();
-  if (!hostname) return false;
-  return (
-    hostname === 'chzzk.naver.com' ||
-    hostname.endsWith('.chzzk.naver.com') ||
-    hostname === 'naver.com' ||
-    hostname.endsWith('.naver.com') ||
-    hostname === 'pstatic.net' ||
-    hostname.endsWith('.pstatic.net') ||
-    hostname === 'akamaized.net' ||
-    hostname.endsWith('.akamaized.net') ||
-    hostname === 'ntruss.com' ||
-    hostname.endsWith('.ntruss.com') ||
-    hostname === 'naver.net' ||
-    hostname.endsWith('.naver.net')
-  );
 }

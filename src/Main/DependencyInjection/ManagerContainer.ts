@@ -1,25 +1,40 @@
+/** Describes the manager token contract. */
 export interface ManagerToken<T> {
+  /** The key value. */
   readonly key: symbol;
+  /** The name value. */
   readonly name: string;
+  /** Callback used to handle manager type. */
   readonly managerType?: (manager: T) => T;
 }
 
+/** Describes the manager resolver contract. */
 export interface ManagerResolver {
+  /** Resolves the operation. */
   resolve<T>(token: ManagerToken<T>): T;
 }
 
+/** Defines the manager factory type. */
 export type ManagerFactory<T> = (resolver: ManagerResolver) => T;
 
+/** Describes the singleton registration contract. */
 interface SingletonRegistration<T> {
+  /** The factory value. */
   readonly factory: ManagerFactory<T>;
+  /** The instance value. */
   instance?: T;
+  /** Whether the initialized option is enabled. */
   initialized: boolean;
+  /** Whether the resolving option is enabled. */
   resolving: boolean;
 }
 
+/** Creates the manager token. */
 export function createManagerToken<T>(name: string): ManagerToken<T> {
   return {
+    /** The key value. */
     key: Symbol(name),
+    /** The name value. */
     name,
   };
 }
@@ -32,11 +47,13 @@ export function createManagerToken<T>(name: string): ManagerToken<T> {
  * should use it.
  */
 export class ManagerContainer implements ManagerResolver {
+  /** The registrations value. */
   private readonly registrations = new Map<
     symbol,
     SingletonRegistration<unknown>
   >();
 
+  /** Registers the singleton. */
   registerSingleton<T>(
     token: ManagerToken<T>,
     factory: ManagerFactory<T>,
@@ -52,10 +69,12 @@ export class ManagerContainer implements ManagerResolver {
     return this;
   }
 
+  /** Registers the value. */
   registerValue<T>(token: ManagerToken<T>, instance: T): this {
     return this.registerSingleton(token, () => instance);
   }
 
+  /** Replaces the singleton. */
   replaceSingleton<T>(
     token: ManagerToken<T>,
     factory: ManagerFactory<T>,
@@ -68,10 +87,12 @@ export class ManagerContainer implements ManagerResolver {
     return this.registerSingleton(token, factory);
   }
 
+  /** Determines whether the unnamed declaration condition applies. */
   has(token: ManagerToken<unknown>): boolean {
     return this.registrations.has(token.key);
   }
 
+  /** Resolves the operation. */
   resolve<T>(token: ManagerToken<T>): T {
     const registration = this.registrations.get(token.key) as
       | SingletonRegistration<T>

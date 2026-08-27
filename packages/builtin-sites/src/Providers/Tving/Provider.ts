@@ -1,10 +1,8 @@
-import { provider } from '@kawaikara/site-api';
-import { createVideoPictureInPicture } from '../../PictureInPicture';
-import { UrlProvider } from '../../UrlProvider';
+import { AbstractUrlProvider, provider } from '@kawaikara/site-api';
 
-@provider({
-  pictureInPicture: createVideoPictureInPicture(),
-})
-export class TvingProvider extends UrlProvider {
+/** Implements the tving site provider. */
+@provider()
+export class TvingProvider extends AbstractUrlProvider {
+  /** The URL value. */
   protected readonly url = 'https://www.tving.com/';
 }

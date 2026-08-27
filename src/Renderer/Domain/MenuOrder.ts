@@ -1,9 +1,12 @@
 import type { PreferenceState, SiteMenuItem } from '../../Common/IPC';
 
+/** Defines the site menu group type. */
 export type SiteMenuGroup = readonly [category: string, sites: SiteMenuItem[]];
 
+/** Defines the shared menu category shortcut prefix constant. */
 const MENU_CATEGORY_SHORTCUT_PREFIX = 'menu-category:';
 
+/** Creates the ordered site groups. */
 export function createOrderedSiteGroups(
   sites: readonly SiteMenuItem[],
   preferences?: Pick<PreferenceState, 'menuCategoryOrder' | 'menuSiteOrder'>,
@@ -29,6 +32,7 @@ export function createOrderedSiteGroups(
   ]);
 }
 
+/** Applies the preferred order. */
 export function applyPreferredOrder<T>(
   items: readonly T[],
   preferredIds: readonly string[],
@@ -38,7 +42,8 @@ export function applyPreferredOrder<T>(
     preferredIds.map((id, index) => [id, index] as const),
   );
   return items
-    .map((item, sourceIndex) => ({ item, sourceIndex }))
+    .map((item, sourceIndex) => ({ item, sourceIndex
+    }))
     .sort((left, right) => {
       const leftPosition = positions.get(getId(left.item));
       const rightPosition = positions.get(getId(right.item));
@@ -52,6 +57,7 @@ export function applyPreferredOrder<T>(
     .map(({ item }) => item);
 }
 
+/** Moves the ordered item. */
 export function moveOrderedItem<T>(
   items: readonly T[],
   index: number,
@@ -66,18 +72,22 @@ export function moveOrderedItem<T>(
   return next;
 }
 
+/** Returns the menu category shortcut ID. */
 export function getMenuCategoryShortcutId(category: string): string {
   return `${MENU_CATEGORY_SHORTCUT_PREFIX}${category}`;
 }
 
+/** Returns the default menu category shortcut. */
 export function getDefaultMenuCategoryShortcut(index: number): string {
   return index >= 0 && index < 9 ? String(index + 1) : '';
 }
 
+/** Determines whether the apple platform condition applies. */
 export function isApplePlatform(): boolean {
   return /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 }
 
+/** Performs the matches keyboard accelerator operation. */
 export function matchesKeyboardAccelerator(
   event: KeyboardEvent,
   accelerator: string,
@@ -132,6 +142,7 @@ export function matchesKeyboardAccelerator(
   );
 }
 
+/** Normalizes the keyboard key. */
 function normalizeKeyboardKey(key: string): string {
   const normalized = key.toLowerCase();
   const aliases: Record<string, string> = {

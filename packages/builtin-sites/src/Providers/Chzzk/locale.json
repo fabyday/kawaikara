@@ -1,0 +1,26 @@
+{
+  "en-US": {
+    "settings.clips.title": "Clips",
+    "settings.short-form-video.auto-advance.title": "Play the next clip automatically",
+    "clips.announcement.enabled": "Clip auto-advance on",
+    "clips.announcement.disabled": "Clip auto-advance off",
+    "clips.announcement.next": "Next clip",
+    "clips.announcement.previous": "Previous clip"
+  },
+  "ko-KR": {
+    "settings.clips.title": "클립",
+    "settings.short-form-video.auto-advance.title": "다음 클립 자동 재생",
+    "clips.announcement.enabled": "클립 자동 넘김 켜짐",
+    "clips.announcement.disabled": "클립 자동 넘김 꺼짐",
+    "clips.announcement.next": "다음 클립",
+    "clips.announcement.previous": "이전 클립"
+  },
+  "ja-JP": {
+    "settings.clips.title": "クリップ",
+    "settings.short-form-video.auto-advance.title": "次のクリップを自動再生",
+    "clips.announcement.enabled": "クリップ自動送り オン",
+    "clips.announcement.disabled": "クリップ自動送り オフ",
+    "clips.announcement.next": "次のクリップ",
+    "clips.announcement.previous": "前のクリップ"
+  }
+}

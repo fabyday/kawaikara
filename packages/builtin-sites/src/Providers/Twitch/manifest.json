@@ -13,6 +13,7 @@
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "Streaming",
       "order": 20,

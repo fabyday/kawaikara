@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 
+/** Describes the video thumbnail props contract. */
 export interface VideoThumbnailProps {
+  /** The alt value. */
   readonly alt?: string;
+  /** The class name value. */
   readonly className?: string;
+  /** Callback used to handle load thumbnail. */
   readonly loadThumbnail: (path: string) => Promise<string | undefined>;
+  /** The path value. */
   readonly path: string;
 }
 
+/** Performs the video thumbnail operation. */
 export function VideoThumbnail({
   alt = '',
   className,
@@ -29,7 +35,8 @@ export function VideoThumbnail({
         setVisible(true);
         observer.disconnect();
       },
-      { rootMargin: '160px' },
+      { rootMargin: '160px'
+      },
     );
     observer.observe(host);
     return () => observer.disconnect();

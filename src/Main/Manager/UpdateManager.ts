@@ -11,26 +11,35 @@ import type {
   ApplicationUpdateProgress,
   PreferenceState,
 } from '../../Common/IPC';
+import {
+  normalizeReleaseNotes,
+  normalizeUpdateProgress,
+  type ApplicationUpdateSignal,
+} from '../Functional/ApplicationUpdates';
 import type { LoggingManager } from './LoggingManager';
 import type { WindowManager } from './WindowManager';
 
+/** Defines the shared check timeout ms constant. */
 const CHECK_TIMEOUT_MS = 60_000;
 
-interface UpdateSignal {
-  readonly available: boolean;
-  readonly version: string;
-  readonly releaseNotes?: string;
-}
-
+/** Coordinates update behavior. */
 export class UpdateManager {
+  /** The update log value. */
   private readonly updateLog: ReturnType<LoggingManager['createLogger']>;
+  /** The preferences value. */
   private preferences?: PreferenceState;
+  /** The check request value. */
   private checkRequest?: Promise<ApplicationUpdateCheckResult>;
+  /** The download request value. */
   private downloadRequest?: Promise<ApplicationUpdatePanelState>;
+  /** The current state value. */
   private currentState?: ApplicationUpdatePanelState;
+  /** The installing update value. */
   private installingUpdate = false;
 
+  /** Creates an instance of UpdateManager. */
   constructor(
+    /** The Windows value. */
     private readonly windows: WindowManager,
     logging: LoggingManager,
   ) {
@@ -40,11 +49,13 @@ export class UpdateManager {
     autoUpdater.autoInstallOnAppQuit = false;
   }
 
+  /** Performs the configure operation. */
   configure(preferences: PreferenceState): void {
     this.preferences = preferences;
     this.applyBuildChannel();
   }
 
+  /** Applies the build channel. */
   private applyBuildChannel(): void {
     const repository = UPDATE_REPOSITORIES[BUILD_CHANNEL];
     autoUpdater.setFeedURL({
@@ -60,6 +71,7 @@ export class UpdateManager {
     autoUpdater.allowDowngrade = false;
   }
 
+  /** Performs the check at startup operation. */
   async checkAtStartup(): Promise<void> {
     // Every packaged channel checks its own feed. The preference controls
     // automatic download/install, not whether the application can discover
@@ -70,18 +82,22 @@ export class UpdateManager {
     );
   }
 
+  /** Performs the check for updates operation. */
   checkForUpdates(): Promise<ApplicationUpdateCheckResult> {
     return this.checkForUpdatesInternal('manual', false);
   }
 
+  /** Returns the state. */
   getState(): ApplicationUpdatePanelState | undefined {
     return this.currentState;
   }
 
+  /** Determines whether the installing condition applies. */
   isInstalling(): boolean {
     return this.installingUpdate;
   }
 
+  /** Performs the download update operation. */
   async downloadUpdate(): Promise<ApplicationUpdatePanelState> {
     if (this.downloadRequest) return this.downloadRequest;
     const state = this.currentState;
@@ -98,6 +114,7 @@ export class UpdateManager {
     }
   }
 
+  /** Installs the update. */
   installUpdate(): void {
     if (this.currentState?.phase !== 'downloaded' || this.installingUpdate) {
       return;
@@ -106,6 +123,7 @@ export class UpdateManager {
     setImmediate(() => autoUpdater.quitAndInstall(false, true));
   }
 
+  /** Performs the check for updates internal operation. */
   private async checkForUpdatesInternal(
     origin: ApplicationUpdatePanelState['origin'],
     downloadAutomatically: boolean,
@@ -126,6 +144,7 @@ export class UpdateManager {
     }
   }
 
+  /** Performs the perform check operation. */
   private async performCheck(
     origin: ApplicationUpdatePanelState['origin'],
     downloadAutomatically: boolean,
@@ -154,8 +173,11 @@ export class UpdateManager {
       };
       this.finishCheckState(unsupported);
       return {
+        /** The status value. */
         status: 'unsupported',
+        /** The channel value. */
         channel: BUILD_CHANNEL,
+        /** The current version value. */
         currentVersion,
       };
     }
@@ -185,9 +207,13 @@ export class UpdateManager {
       }
 
       return {
+        /** The status value. */
         status: signal.available ? 'update-available' : 'up-to-date',
+        /** The channel value. */
         channel: BUILD_CHANNEL,
+        /** The current version value. */
         currentVersion,
+        /** The latest version value. */
         latestVersion: signal.version,
       };
     } catch (reason) {
@@ -202,23 +228,30 @@ export class UpdateManager {
       };
       this.finishCheckState(failedState);
       return {
+        /** The status value. */
         status: 'error',
+        /** The channel value. */
         channel: BUILD_CHANNEL,
+        /** The current version value. */
         currentVersion,
+        /** The error value. */
         error,
       };
     }
   }
 
-  private waitForUpdateSignal(): Promise<UpdateSignal> {
-    return new Promise<UpdateSignal>((resolve, reject) => {
+  /** Waits for the for update signal. */
+  private waitForUpdateSignal(): Promise<ApplicationUpdateSignal> {
+    return new Promise<ApplicationUpdateSignal>((resolve, reject) => {
       let settled = false;
+      /** Performs the finish operation. */
       const finish = (callback: () => void) => {
         if (settled) return;
         settled = true;
         cleanup();
         callback();
       };
+      /** Handles the available. */
       const onAvailable = (info: {
         version: string;
         releaseNotes?: unknown;
@@ -227,13 +260,18 @@ export class UpdateManager {
         version: info.version,
         releaseNotes: normalizeReleaseNotes(info.releaseNotes),
       }));
-      const onNotAvailable = (info: { version: string }) =>
-        finish(() => resolve({ available: false, version: info.version }));
+      /** Handles the not available. */
+      const onNotAvailable = (info: { version: string
+      }) =>
+        finish(() => resolve({ available: false, version: info.version
+        }));
+      /** Handles the error. */
       const onError = (error: Error) => finish(() => reject(error));
       const timer = setTimeout(
         () => finish(() => reject(new Error('Update check timed out.'))),
         CHECK_TIMEOUT_MS,
       );
+      /** Performs the cleanup operation. */
       const cleanup = () => {
         clearTimeout(timer);
         autoUpdater.off('update-available', onAvailable);
@@ -254,6 +292,7 @@ export class UpdateManager {
     });
   }
 
+  /** Performs the perform download operation. */
   private async performDownload(
     available: ApplicationUpdatePanelState,
     presentAutomatically = false,
@@ -274,6 +313,7 @@ export class UpdateManager {
       this.updateState(downloading);
     }
 
+    /** Handles the progress. */
     const onProgress = (progress: ApplicationUpdateProgress) => {
       for (const window of BrowserWindow.getAllWindows()) {
         window.setProgressBar(progress.percent / 100);
@@ -281,7 +321,7 @@ export class UpdateManager {
       this.updateState({
         ...available,
         phase: 'downloading',
-        progress: normalizeProgress(progress),
+        progress: normalizeUpdateProgress(progress),
       });
     };
     autoUpdater.on('download-progress', onProgress);
@@ -324,16 +364,19 @@ export class UpdateManager {
     }
   }
 
+  /** Performs the present state operation. */
   private presentState(state: ApplicationUpdatePanelState): void {
     this.currentState = state;
     this.windows.showUpdateOverlay(state);
   }
 
+  /** Updates the state. */
   private updateState(state: ApplicationUpdatePanelState): void {
     this.currentState = state;
     this.windows.updateUpdateOverlay(state);
   }
 
+  /** Performs the finish check state operation. */
   private finishCheckState(state: ApplicationUpdatePanelState): void {
     if (state.origin === 'manual') {
       this.updateState(state);
@@ -343,39 +386,4 @@ export class UpdateManager {
     // update panel. Keep the result available for diagnostics only.
     this.currentState = state;
   }
-}
-
-function normalizeReleaseNotes(value: unknown): string | undefined {
-  if (typeof value === 'string') return stripReleaseNoteMarkup(value);
-  if (!Array.isArray(value)) return undefined;
-  const notes = value.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const candidate = entry as { version?: unknown; note?: unknown };
-    if (typeof candidate.note !== 'string') return [];
-    const prefix = typeof candidate.version === 'string'
-      ? `${candidate.version}\n`
-      : '';
-    return [`${prefix}${stripReleaseNoteMarkup(candidate.note)}`];
-  });
-  return notes.length > 0 ? notes.join('\n\n') : undefined;
-}
-
-function stripReleaseNoteMarkup(value: string): string {
-  return value
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/p\s*>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function normalizeProgress(
-  progress: ApplicationUpdateProgress,
-): ApplicationUpdateProgress {
-  return {
-    percent: Math.max(0, Math.min(100, progress.percent)),
-    bytesPerSecond: Math.max(0, progress.bytesPerSecond),
-    transferred: Math.max(0, progress.transferred),
-    total: Math.max(0, progress.total),
-  };
 }

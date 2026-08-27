@@ -8,27 +8,19 @@
   "permissions": ["navigation", "network-interception", "script-injection"],
   "contributes": {
     "address": { "hosts": ["chzzk.naver.com"] },
-    "shortcut": { "defaultKey": "Control+Alt+Z" },
-    "settings": {
-      "categories": [
-        {
-          "id": "clips",
-          "title": { "en-US": "Clips", "ko-KR": "클립", "ja-JP": "クリップ" },
-          "settings": [
-            {
-              "type": "boolean",
-              "key": "short-form-video.auto-advance",
-              "title": {
-                "en-US": "Play the next clip automatically",
-                "ko-KR": "다음 클립 자동 재생",
-                "ja-JP": "次のクリップを自動再生"
-              },
-              "defaultValue": true
-            }
-          ]
-        }
+    "browserIdentity": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      "clientHints": "auto",
+      "requestHosts": [
+        "chzzk.naver.com",
+        "naver.com",
+        "pstatic.net",
+        "akamaized.net",
+        "ntruss.com",
+        "naver.net"
       ]
     },
+    "shortcut": { "defaultKey": "Control+Alt+Z" },
     "shortFormVideo": {
       "previous": true,
       "next": true,
@@ -37,7 +29,9 @@
         "defaultValue": true
       }
     },
+    "pictureInPicture": { "enabled": true },
     "locale": {
+      "resource": "locale.json",
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },

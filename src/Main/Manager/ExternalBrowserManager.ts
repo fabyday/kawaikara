@@ -1,6 +1,5 @@
 import path from 'node:path';
 import os from 'node:os';
-import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import type {
   Cookie as ElectronCookie,
@@ -20,17 +19,29 @@ import type {
   ExternalLoginOptions,
   ExternalLoginResult,
 } from '@kawaikara/site-api';
+import {
+  createCookieJarFingerprint,
+  formatObservedUrl,
+  isExpectedNavigationInterruption,
+  isGoogleLoginCookie,
+  isGoogleMultiLoginCookie,
+  normalizeCookieDomain,
+  removeTemporaryProfile,
+  validateResetOrigins,
+  type ActiveExternalLogin,
+} from '../Functional/ExternalBrowser';
 import { getKawaiDataPath } from '../Functional/UserDataPaths';
 
-interface ActiveLogin {
-  cancel(): Promise<void>;
-}
-
+/** Coordinates external browser behavior. */
 export class ExternalBrowserManager {
-  private activeLogin?: ActiveLogin;
+  /** Whether the active login option is enabled. */
+  private activeLogin?: ActiveExternalLogin;
+  /** The browser cleanup value. */
   private browserCleanup?: Promise<void>;
+  /** The removed legacy browser state value. */
   private removedLegacyBrowserState = false;
 
+  /** Performs the login operation. */
   async login(
     options: ExternalLoginOptions,
     targetSession: Session,
@@ -69,6 +80,7 @@ export class ExternalBrowserManager {
         options.cookieImportMode,
         options.awaitBrowserCleanup === true,
         options.cookieSettleMs,
+        options.autoActivate,
       );
       return result;
     } catch (error) {
@@ -80,12 +92,14 @@ export class ExternalBrowserManager {
     }
   }
 
+  /** Closes the operation. */
   async close(): Promise<void> {
     const activeLogin = this.activeLogin;
     if (activeLogin) await activeLogin.cancel();
     await this.browserCleanup;
   }
 
+  /** Performs the launch browser operation. */
   private async launchBrowser(profilePath: string): Promise<BrowserContext> {
     const args = ['--app=data:text/html,<html></html>'];
     const channels = ['chrome', 'msedge'] as const;
@@ -109,6 +123,7 @@ export class ExternalBrowserManager {
     );
   }
 
+  /** Waits for the for login. */
   private async waitForLogin(
     browserContext: BrowserContext,
     page: Page,
@@ -122,6 +137,7 @@ export class ExternalBrowserManager {
     cookieImportMode: ExternalLoginOptions['cookieImportMode'] = 'preserve-source',
     awaitBrowserCleanup = false,
     cookieSettleMs = 0,
+    autoActivate?: ExternalLoginOptions['autoActivate'],
   ): Promise<ExternalLoginResult> {
     let settled = false;
     let emptyWindowTimer: ReturnType<typeof setTimeout> | undefined;
@@ -130,6 +146,7 @@ export class ExternalBrowserManager {
     const loginStartedAt = Date.now();
 
     return await new Promise<ExternalLoginResult>((resolve, reject) => {
+      /** Performs the cleanup operation. */
       const cleanup = async (): Promise<void> => {
         if (emptyWindowTimer !== undefined) clearTimeout(emptyWindowTimer);
         if (completionPollTimer !== undefined) clearInterval(completionPollTimer);
@@ -154,6 +171,7 @@ export class ExternalBrowserManager {
         });
       };
 
+      /** Performs the finish operation. */
       const finish = async (
         result: ExternalLoginResult,
         error?: unknown,
@@ -192,6 +210,7 @@ export class ExternalBrowserManager {
         }
 
         let cleanupPromise: Promise<void> | undefined;
+        /** Starts the cleanup. */
         const startCleanup = (): Promise<void> => {
           if (cleanupPromise) return cleanupPromise;
           cleanupPromise = cleanup().catch((cleanupError: unknown) => {
@@ -256,15 +275,18 @@ export class ExternalBrowserManager {
         }
       };
 
+      /** Determines whether the cel condition applies. */
       const cancel = async (): Promise<void> => {
         await finish('cancelled');
       };
 
+      /** Performs the matches completion operation. */
       const matchesCompletion = (url: string): boolean => {
         completionPattern.lastIndex = 0;
         return completionPattern.test(url);
       };
 
+      /** Performs the check tracked page URLs operation. */
       const checkTrackedPageUrls = (): void => {
         for (const trackedPage of trackedPages.keys()) {
           if (!trackedPage.isClosed() && matchesCompletion(trackedPage.url())) {
@@ -274,6 +296,7 @@ export class ExternalBrowserManager {
         }
       };
 
+      /** Handles the frame navigated. */
       const onFrameNavigated = (frame: Frame): void => {
         if (frame !== frame.page().mainFrame()) {
           return;
@@ -281,6 +304,7 @@ export class ExternalBrowserManager {
         if (matchesCompletion(frame.url())) void finish('completed');
       };
 
+      /** Handles the request. */
       const onRequest = (request: Request): void => {
         const requestPage = request.frame().page();
         if (
@@ -297,14 +321,17 @@ export class ExternalBrowserManager {
         if (request.resourceType() === 'document') setTimeout(checkTrackedPageUrls, 0);
       };
 
+      /** Handles the page load. */
       const onPageLoad = (): void => checkTrackedPageUrls();
 
+      /** Handles the page created. */
       const onPageCreated = (nextPage: Page): void => {
         if (emptyWindowTimer !== undefined) {
           clearTimeout(emptyWindowTimer);
           emptyWindowTimer = undefined;
         }
         if (trackedPages.has(nextPage)) return;
+        /** Handles the page closed. */
         const onPageClosed = () => {
           trackedPages.delete(nextPage);
           if (settled || trackedPages.size > 0) return;
@@ -327,11 +354,13 @@ export class ExternalBrowserManager {
         nextPage.once('close', onPageClosed);
       };
 
+      /** Handles the context closed. */
       const onContextClosed = (): void => {
         void finish('cancelled');
       };
 
-      this.activeLogin = { cancel };
+      this.activeLogin = { cancel
+      };
       browserContext.on('page', onPageCreated);
       browserContext.once('close', onContextClosed);
       for (const existingPage of browserContext.pages()) {
@@ -339,6 +368,18 @@ export class ExternalBrowserManager {
       }
       completionPollTimer = setInterval(checkTrackedPageUrls, 250);
 
+      if (autoActivate) {
+        void this.autoActivateLoginControl(page, autoActivate).catch(
+          (error: unknown) => {
+            if (!page.isClosed()) {
+              console.warn(
+                'External login control could not be activated automatically.',
+                error,
+              );
+            }
+          },
+        );
+      }
       void page.goto(startUrl).catch((error: unknown) => {
         // Login SPAs can replace the first document while goto is waiting.
         // Patchright reports that successful hand-off as ERR_ABORTED.
@@ -349,6 +390,57 @@ export class ExternalBrowserManager {
     });
   }
 
+  /** Performs the auto activate login control operation. */
+  private async autoActivateLoginControl(
+    page: Page,
+    options: NonNullable<ExternalLoginOptions['autoActivate']>,
+  ): Promise<void> {
+    const fallbackLabels = (options.fallbackLabels ?? [])
+      .map((label) => label.replace(/\s+/g, ' ').trim().toLowerCase())
+      .filter(Boolean);
+    // The start page is an SPA, so its login controls can appear well after
+    // the first document load. Poll only this temporary page and stop as soon
+    // as the original Kawaikara click has been replayed once.
+    for (let attempt = 0; attempt < 40 && !page.isClosed(); attempt += 1) {
+      const activated = await page.evaluate(
+        ({ selector, labels }) => {
+          let direct: Element | null = null;
+          try {
+            direct = document.querySelector(selector);
+          } catch {
+            return false;
+          }
+          /** Performs the label of operation. */
+          const labelOf = (element: Element): string => [
+            element.getAttribute('aria-label'),
+            element.getAttribute('title'),
+            element.textContent,
+          ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().toLowerCase();
+          const semantic = Array.from(document.querySelectorAll(
+            'a,button,[role="button"]',
+          )).find((element) =>
+            labels.some((label) => labelOf(element).includes(label))
+          );
+          const control = direct ?? semantic;
+          if (!(control instanceof HTMLElement)) return false;
+          control.click();
+          return true;
+        },
+        { selector: options.selector, labels: fallbackLabels
+        },
+      ).catch(() => false);
+      if (activated) {
+        console.info('Activated the external login control automatically.');
+        return;
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+    }
+    if (!page.isClosed()) {
+      console.warn('External login control was not found for automatic activation.');
+    }
+  }
+
+  /** Performs the sync cookies operation. */
   private async syncCookies(
     cookies: Cookie[],
     targetSession: Session,
@@ -377,6 +469,7 @@ export class ExternalBrowserManager {
     await this.verifyCookieSynchronization(supportedCookies, targetSession);
   }
 
+  /** Performs the capture settled cookies operation. */
   private async captureSettledCookies(
     browserContext: BrowserContext,
     stabilityMs: number,
@@ -417,6 +510,7 @@ export class ExternalBrowserManager {
     return latestCookies;
   }
 
+  /** Performs the seed browser cookies operation. */
   private async seedBrowserCookies(
     browserContext: BrowserContext,
     targetSession: Session,
@@ -448,6 +542,7 @@ export class ExternalBrowserManager {
     });
   }
 
+  /** Replaces the session login. */
   private async replaceSessionLogin(
     cookies: Cookie[],
     targetSession: Session,
@@ -480,7 +575,8 @@ export class ExternalBrowserManager {
         );
       }
       const previousCookieCount = (await targetSession.cookies.get({})).length;
-      await targetSession.clearData({ dataTypes: ['cookies'] });
+      await targetSession.clearData({ dataTypes: ['cookies']
+      });
       console.info('Cleared the target Session cookie jar before import.', {
         previousCookieCount,
       });
@@ -495,6 +591,7 @@ export class ExternalBrowserManager {
     await targetSession.closeAllConnections();
   }
 
+  /** Performs the to Electron cookie operation. */
   private toElectronCookie(
     cookie: Cookie,
     cookieImportMode: ExternalLoginOptions['cookieImportMode'],
@@ -529,6 +626,7 @@ export class ExternalBrowserManager {
     return details;
   }
 
+  /** Performs the verify cookie synchronization operation. */
   private async verifyCookieSynchronization(
     expectedCookies: readonly Cookie[],
     targetSession: Session,
@@ -571,6 +669,7 @@ export class ExternalBrowserManager {
     }
   }
 
+  /** Performs the to browser cookie operation. */
   private toBrowserCookie(
     cookie: ElectronCookie,
   ): Parameters<BrowserContext['addCookies']>[0][number] {
@@ -600,6 +699,7 @@ export class ExternalBrowserManager {
     return converted;
   }
 
+  /** Performs the sync partitioned cookies operation. */
   private async syncPartitionedCookies(
     cookies: Cookie[],
     targetWebContents: WebContents,
@@ -621,7 +721,8 @@ export class ExternalBrowserManager {
           secure: cookie.secure,
           httpOnly: cookie.httpOnly,
           sameSite: cookie.sameSite,
-          ...(cookie.expires > 0 ? { expires: cookie.expires } : {}),
+          ...(cookie.expires > 0 ? { expires: cookie.expires
+          } : {}),
           partitionKey: {
             topLevelSite: cookie.partitionKey,
             hasCrossSiteAncestor: true,
@@ -638,12 +739,14 @@ export class ExternalBrowserManager {
     }
   }
 
+  /** Removes the legacy persistent browser state. */
   private async removeLegacyPersistentBrowserState(): Promise<void> {
     if (this.removedLegacyBrowserState) return;
     this.removedLegacyBrowserState = true;
     const legacyPath = getKawaiDataPath('external-browser');
     try {
-      await rm(legacyPath, { recursive: true, force: true, maxRetries: 2 });
+      await rm(legacyPath, { recursive: true, force: true, maxRetries: 2
+      });
       console.info('Removed legacy persistent external-browser state.');
     } catch (error) {
       this.removedLegacyBrowserState = false;
@@ -653,98 +756,4 @@ export class ExternalBrowserManager {
       );
     }
   }
-}
-
-function createCookieJarFingerprint(cookies: readonly Cookie[]): string {
-  const serialized = cookies
-    .map((cookie) => [
-      cookie.domain,
-      cookie.path,
-      cookie.name,
-      cookie.value,
-      cookie.expires,
-      cookie.partitionKey ?? '',
-    ].join('\u0000'))
-    .sort()
-    .join('\u0001');
-  return createHash('sha256').update(serialized).digest('hex');
-}
-
-function isGoogleLoginCookie(cookie: Cookie): boolean {
-  const domain = normalizeCookieDomain(cookie.domain);
-  return domain === 'google.com' ||
-    domain.endsWith('.google.com') ||
-    domain === 'google.co.kr' ||
-    domain.endsWith('.google.co.kr') ||
-    domain === 'youtube.com' ||
-    domain.endsWith('.youtube.com');
-}
-
-function isGoogleMultiLoginCookie(cookie: Cookie): boolean {
-  return cookie.name === 'LSOLH' &&
-    normalizeCookieDomain(cookie.domain) === 'accounts.google.com';
-}
-
-function normalizeCookieDomain(value: string | undefined): string {
-  return (value ?? '').replace(/^\./, '').toLowerCase();
-}
-
-function validateResetOrigins(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => {
-    const url = new URL(value);
-    if (
-      url.protocol !== 'https:' ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.pathname !== '/' ||
-      url.search ||
-      url.hash
-    ) {
-      throw new Error(`External-login reset origin is not a safe HTTPS origin: ${value}`);
-    }
-    return url.origin;
-  }))];
-}
-
-function formatObservedUrl(value: string): string {
-  try {
-    const url = new URL(value);
-    return `${url.origin}${url.pathname}`;
-  } catch {
-    return '<unparseable-url>';
-  }
-}
-
-function isExpectedNavigationInterruption(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /(?:net::)?ERR_ABORTED|navigation.*(?:interrupted|aborted)/i.test(message);
-}
-
-async function removeTemporaryProfile(profilePath: string): Promise<void> {
-  const retryDelays = [0, 80, 220, 500, 1_000] as const;
-  let lastError: unknown;
-  for (const delay of retryDelays) {
-    if (delay > 0) {
-      await new Promise<void>((resolve) => setTimeout(resolve, delay));
-    }
-    try {
-      await rm(profilePath, { recursive: true, force: true, maxRetries: 2 });
-      return;
-    } catch (error) {
-      lastError = error;
-      if (!isRetryableProfileCleanupError(error)) throw error;
-    }
-  }
-  console.warn(
-    `Temporary external-login profile is still locked and will be left for the operating system to clean: ${profilePath}`,
-    lastError,
-  );
-}
-
-function isRetryableProfileCleanupError(error: unknown): boolean {
-  const code = error && typeof error === 'object' && 'code' in error
-    ? String(error.code)
-    : '';
-  return code === 'EBUSY' || code === 'EPERM' || code === 'ENOTEMPTY';
 }

@@ -1,12 +1,12 @@
-import { provider } from '@kawaikara/site-api';
-import { createVideoPictureInPicture } from '../../PictureInPicture';
-import { UrlProvider } from '../../UrlProvider';
+import { AbstractUrlProvider, provider } from '@kawaikara/site-api';
 
+/** Implements the disney plus site provider. */
 @provider({
-  pictureInPicture: createVideoPictureInPicture([
-    '[class*="dss-subtitle" i]',
-  ]),
+  pictureInPicture: {
+    contentOverlaySelectors: ['[class*="dss-subtitle" i]'],
+  },
 })
-export class DisneyPlusProvider extends UrlProvider {
+export class DisneyPlusProvider extends AbstractUrlProvider {
+  /** The URL value. */
   protected readonly url = 'https://www.disneyplus.com/';
 }

@@ -8,18 +8,27 @@ import type {
 } from '../../../Common/IPC';
 import { VideoThumbnail } from '../../Component/VideoThumbnail';
 
+/** Describes the video library menu panel props contract. */
 interface VideoLibraryMenuPanelProps {
+  /** The labels value. */
   readonly labels: VideoLibraryMessages;
+  /** The refresh key value. */
   readonly refreshKey: number;
+  /** Callback used to handle on error. */
   readonly onError: (message: string) => void;
 }
 
+/** Describes the folder context menu contract. */
 interface FolderContextMenu {
+  /** The folder value. */
   readonly folder: VideoLibraryFolder;
+  /** The x value. */
   readonly x: number;
+  /** The y value. */
   readonly y: number;
 }
 
+/** Performs the video library menu panel operation. */
 export function VideoLibraryMenuPanel({
   labels,
   refreshKey,
@@ -52,7 +61,9 @@ export function VideoLibraryMenuPanel({
 
   useEffect(() => {
     if (!contextMenu) return;
+    /** Closes the operation. */
     const close = () => setContextMenu(undefined);
+    /** Handles the key down. */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
@@ -66,6 +77,7 @@ export function VideoLibraryMenuPanel({
     };
   }, [contextMenu]);
 
+  /** Opens the item. */
   const openItem = async (path: string) => {
     if (openingPath) return;
     setContextMenu(undefined);
@@ -79,6 +91,7 @@ export function VideoLibraryMenuPanel({
     });
   };
 
+  /** Updates the folder. */
   const updateFolder = async (
     folder: VideoLibraryFolder,
     action: 'pin' | 'remove',
@@ -104,10 +117,12 @@ export function VideoLibraryMenuPanel({
   return (
     <>
       <motion.aside
-        animate={{ opacity: openingPath ? 0 : 1, x: openingPath ? 18 : 0 }}
+        animate={{ opacity: openingPath ? 0 : 1, x: openingPath ? 18 : 0
+        }}
         className="video-library-menu-panel"
         aria-label={labels.title}
-        transition={{ duration: reduceMotion ? 0 : 0.17, ease: 'easeOut' }}
+        transition={{ duration: reduceMotion ? 0 : 0.17, ease: 'easeOut'
+        }}
       >
       <header className="video-library-menu-header">
         <div>
@@ -206,7 +221,8 @@ export function VideoLibraryMenuPanel({
             <div
               className="kawai-theme-dark video-folder-context-menu"
               role="menu"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
+              style={{ left: contextMenu.x, top: contextMenu.y
+              }}
               onPointerDown={(event) => event.stopPropagation()}
             >
               <button
@@ -232,13 +248,17 @@ export function VideoLibraryMenuPanel({
   );
 }
 
+/** Performs the empty state operation. */
 function EmptyState({
   title,
   description,
 }: {
+  /** The title value. */
   readonly title: string;
+  /** The description value. */
   readonly description: string;
-}) {
+}
+) {
   return (
     <div className="video-library-menu-empty">
       <strong>{title}</strong>
@@ -247,12 +267,14 @@ function EmptyState({
   );
 }
 
+/** Formats the stored date. */
 function formatStoredDate(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 }
 
+/** Returns the error message. */
 function getErrorMessage(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason ?? '');
 }

@@ -1,24 +1,46 @@
-import { serializePageInjectionWithOptions } from '../../../Inject/Serialize';
+import { serializePageInjectionWithOptions } from '@kawaikara/site-api';
+
+/**
+ * YouTube Shorts page-world implementation used only by YouTubeProvider in
+ * Providers/YouTube/Provider.ts. beforeLoad() registers installation,
+ * runShortsCommand() executes navigation/status commands, and
+ * getShortFormVideoPublisher() executes the publisher reader. The three
+ * exported factories below are the only serialization boundary.
+ */
 
 export interface YouTubeShortsInjectionOptions {
+  /** Whether the auto advance option is enabled. */
   readonly autoAdvance: boolean;
+  /** The banned publishers value. */
   readonly bannedPublishers: readonly {
+    /** The ID value. */
     readonly id: string;
+    /** The label value. */
     readonly label: string;
   }[];
+  /** Whether the announce option is enabled. */
   readonly announce: boolean;
+  /** The labels value. */
   readonly labels: {
+    /** Whether the enabled option is enabled. */
     readonly enabled: string;
+    /** The disabled value. */
     readonly disabled: string;
+    /** The banned value. */
     readonly banned: string;
+    /** The next value. */
     readonly next: string;
+    /** The previous value. */
     readonly previous: string;
   };
 }
 
+/** Defines the you tube shorts command type. */
 export type YouTubeShortsCommand = 'next' | 'previous' | 'announce' | 'ban';
 
+/** Describes the you tube shorts command options contract. */
 interface YouTubeShortsCommandOptions {
+  /** The command value. */
   readonly command: YouTubeShortsCommand;
 }
 
@@ -27,48 +49,81 @@ interface YouTubeShortsCommandOptions {
  * so TypeScript can check DOM access before it is serialized.
  */
 function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
+  /** Describes the shorts publisher contract. */
   interface ShortsPublisher {
+    /** The ID value. */
     readonly id: string;
+    /** The label value. */
     readonly label: string;
+    /** The handle value. */
     readonly handle?: string;
+    /** The image URL value. */
     readonly imageUrl?: string;
+    /** The aliases value. */
     readonly aliases?: readonly string[];
   }
 
+  /** Describes the progress snapshot contract. */
   interface ProgressSnapshot {
+    /** The current time value. */
     readonly currentTime: number;
+    /** The duration value. */
     readonly duration: number;
+    /** The generation value. */
     readonly generation: number;
+    /** The observed at value. */
     readonly observedAt: number;
+    /** The URL value. */
     readonly url: string;
   }
 
+  /** Describes the shorts state contract. */
   interface ShortsState {
+    /** Whether the auto advance option is enabled. */
     autoAdvance: boolean;
+    /** Whether the advancing option is enabled. */
     advancing: boolean;
+    /** The last advanced URL value. */
     lastAdvancedUrl?: string;
+    /** The progress generation value. */
     progressGeneration: number;
+    /** The progress by video value. */
     readonly progressByVideo: WeakMap<HTMLVideoElement, ProgressSnapshot>;
+    /** The labels value. */
     readonly labels: {
+      /** Whether the enabled option is enabled. */
       enabled: string;
+      /** The disabled value. */
       disabled: string;
+      /** The banned value. */
       banned: string;
+      /** The next value. */
       next: string;
+      /** The previous value. */
       previous: string;
     };
+    /** The banned publisher IDs value. */
     readonly bannedPublisherIds: Set<string>;
+    /** Resolves the active publisher. */
     resolveActivePublisher(): Promise<ShortsPublisher | undefined>;
+    /** Performs the check banned publisher operation. */
     checkBannedPublisher(): Promise<void>;
+    /** Performs the navigate operation. */
     navigate(direction: 'next' | 'previous'): boolean;
+    /** Sets the auto advance. */
     setAutoAdvance(enabled: boolean, announce: boolean): void;
+    /** Performs the show action status operation. */
     showActionStatus(message: string, icon?: string): void;
+    /** Performs the show auto advance status operation. */
     showAutoAdvanceStatus(): void;
   }
 
   const pageGlobal = globalThis as typeof globalThis & {
     __kawaikaraYouTubeShorts?: ShortsState;
     __kawaikaraUnifiedPictureInPicture?: {
+      /** Performs the release layout for navigation operation. */
       releaseLayoutForNavigation?(): void;
+      /** Restores the layout after navigation. */
       restoreLayoutAfterNavigation?(): void;
     };
   };
@@ -92,13 +147,16 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
   }
 
   const progressByVideo = new WeakMap<HTMLVideoElement, ProgressSnapshot>();
-  const labels = { ...options.labels };
+  const labels = { ...options.labels
+  };
   let statusTimer: number | undefined;
   const publisherByHandle = new Map<string, ShortsPublisher>();
 
+  /** Determines whether the shorts page condition applies. */
   const isShortsPage = (): boolean =>
     /^\/shorts\/[^/?#]+\/?$/.test(location.pathname);
 
+  /** Performs the visible ratio operation. */
   const visibleRatio = (element: Element): number => {
     const rect = element.getBoundingClientRect();
     const visibleWidth = Math.max(
@@ -113,18 +171,21 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     return area > 0 ? (visibleWidth * visibleHeight) / area : 0;
   };
 
+  /** Determines whether the active shorts video condition applies. */
   const isActiveShortsVideo = (candidate: unknown): candidate is HTMLVideoElement =>
     candidate instanceof HTMLVideoElement &&
     candidate.isConnected &&
     candidate.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
     visibleRatio(candidate) >= 0.5;
 
+  /** Finds the active renderer. */
   const findActiveRenderer = (): Element | undefined =>
     document.querySelector('ytd-reel-video-renderer[is-active]') ??
     [...document.querySelectorAll('ytd-reel-video-renderer')].find(
       (renderer) => visibleRatio(renderer) >= 0.5,
     );
 
+  /** Resolves the image URL. */
   const resolveImageUrl = (
     scope: Element | Document,
     anchor: HTMLAnchorElement,
@@ -155,14 +216,17 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
         const verticalDistance = Math.abs(
           rect.top + rect.height / 2 - (anchorRect.top + anchorRect.height / 2),
         );
-        return { url, distance: horizontalDistance + verticalDistance };
+        return { url, distance: horizontalDistance + verticalDistance
+        };
       })
-      .filter((candidate): candidate is { url: string; distance: number } =>
+      .filter((candidate): candidate is { url: string; distance: number
+      } =>
         candidate !== undefined,
       )
       .sort((left, right) => left.distance - right.distance)[0]?.url;
   };
 
+  /** Resolves the active publisher. */
   const resolveActivePublisher = async (): Promise<ShortsPublisher | undefined> => {
     if (!isShortsPage()) return undefined;
     const renderer = findActiveRenderer();
@@ -208,7 +272,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     const cached = publisherByHandle.get(key);
     if (cached) {
       if (cached.imageUrl || !currentImageUrl) return cached;
-      const enriched = { ...cached, imageUrl: currentImageUrl };
+      const enriched = { ...cached, imageUrl: currentImageUrl
+      };
       publisherByHandle.set(key, enriched);
       return enriched;
     }
@@ -217,7 +282,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     let displayLabel = label || handle;
     let imageUrl = currentImageUrl;
     try {
-      const response = await fetch(`/${handle}`, { credentials: 'include' });
+      const response = await fetch(`/${handle}`, { credentials: 'include'
+      });
       if (response.ok) {
         const html = await response.text();
         const channelDocument = new DOMParser().parseFromString(html, 'text/html');
@@ -249,6 +315,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     return publisher;
   };
 
+  /** Finds the navigation button. */
   const findNavigationButton = (
     direction: 'next' | 'previous',
   ): HTMLButtonElement | undefined => {
@@ -270,9 +337,11 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     return undefined;
   };
 
+  /** Finds the navigation scroll target. */
   const findNavigationScrollTarget = (
     direction: 'next' | 'previous',
-  ): { readonly container: HTMLElement; readonly top: number } | undefined => {
+  ): { readonly container: HTMLElement; readonly top: number
+  } | undefined => {
     const container = document.querySelector('#shorts-container');
     const activeRenderer = findActiveRenderer();
     const slot = activeRenderer?.parentElement?.parentElement;
@@ -282,9 +351,25 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     if (!(container instanceof HTMLElement) || !(target instanceof HTMLElement)) {
       return undefined;
     }
-    return { container, top: target.offsetTop };
+    return { container, top: target.offsetTop
+    };
   };
 
+  /** Performs the align active shorts renderer operation. */
+  const alignActiveShortsRenderer = (): void => {
+    const container = document.querySelector('#shorts-container');
+    const activeRenderer = findActiveRenderer();
+    const slot = activeRenderer?.parentElement?.parentElement;
+    if (!(container instanceof HTMLElement) || !(slot instanceof HTMLElement)) {
+      return;
+    }
+    // YouTube can finish its URL transition before the vertical carousel has
+    // reached the corresponding slot. Leaving that intermediate scroll offset
+    // in unified PiP makes only part of the replacement video visible.
+    container.scrollTop = slot.offsetTop;
+  };
+
+  /** Performs the stabilize document viewport operation. */
   const stabilizeDocumentViewport = (
     scrollLeft: number,
     scrollTop: number,
@@ -294,6 +379,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     // The Shorts carousel owns its own movement. A native navigation click can
     // also nudge the outer document by a few pixels, leaving the player lower
     // after automatic advance. Restore only that outer document offset.
+    /** Restores the operation. */
     const restore = (): void => {
       if (!isShortsPage()) return;
       scrollingElement.scrollLeft = scrollLeft;
@@ -316,6 +402,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       ...(label.startsWith('@') ? [`handle:${label.toLowerCase()}`] : []),
     ])),
     resolveActivePublisher,
+    /** Performs the check banned publisher operation. */
     async checkBannedPublisher() {
       if (!isShortsPage() || state.advancing) return;
       const currentUrl = location.href;
@@ -332,8 +419,15 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
         window.setTimeout(() => void state.checkBannedPublisher(), 1_250);
       }
     },
+    /** Performs the navigate operation. */
     navigate(direction) {
-      if (!isShortsPage() || state.advancing) return false;
+      if (!isShortsPage()) return false;
+      if (state.advancing) {
+        // A repeated key press during the current transition is intentionally
+        // coalesced into that transition instead of being queued for a later
+        // Short. This makes "press until it moves" stop on the next item.
+        return true;
+      }
       const button = findNavigationButton(direction);
 
       const currentUrl = location.href;
@@ -367,32 +461,41 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       if (scrollTarget) scrollTarget.container.scrollTop = scrollTarget.top;
       stabilizeDocumentViewport(scrollLeft, scrollTop);
       window.setTimeout(
-        () => pageGlobal.__kawaikaraUnifiedPictureInPicture
-          ?.restoreLayoutAfterNavigation?.(),
-        120,
+        () => {
+          alignActiveShortsRenderer();
+          pageGlobal.__kawaikaraUnifiedPictureInPicture
+            ?.restoreLayoutAfterNavigation?.();
+        },
+        360,
       );
       window.setTimeout(
-        () => pageGlobal.__kawaikaraUnifiedPictureInPicture
-          ?.restoreLayoutAfterNavigation?.(),
-        280,
+        () => {
+          alignActiveShortsRenderer();
+          pageGlobal.__kawaikaraUnifiedPictureInPicture
+            ?.restoreLayoutAfterNavigation?.();
+        },
+        640,
       );
       window.setTimeout(() => {
         state.advancing = false;
         if (location.href === currentUrl) state.lastAdvancedUrl = undefined;
         void state.checkBannedPublisher();
-      }, 1_100);
+      }, 620);
       return true;
     },
+    /** Sets the auto advance. */
     setAutoAdvance(enabled, announce) {
       const changed = state.autoAdvance !== enabled;
       state.autoAdvance = enabled;
       if (announce && changed) state.showAutoAdvanceStatus();
     },
+    /** Performs the show auto advance status operation. */
     showAutoAdvanceStatus() {
       state.showActionStatus(
         state.autoAdvance ? state.labels.enabled : state.labels.disabled,
       );
     },
+    /** Performs the show action status operation. */
     showActionStatus(message, icon) {
       let host = document.querySelector<HTMLElement>(
         '[data-kawaikara-shorts-status="youtube"]',
@@ -402,7 +505,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
         host.dataset.kawaikaraShortsStatus = 'youtube';
         host.setAttribute('role', 'status');
         host.setAttribute('aria-live', 'polite');
-        const shadow = host.attachShadow({ mode: 'open' });
+        const shadow = host.attachShadow({ mode: 'open'
+        });
         const style = document.createElement('style');
         style.textContent =
           ':host{all:initial;position:fixed;left:50%;top:14%;z-index:2147483647;' +
@@ -431,6 +535,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     },
   };
 
+  /** Performs the advance after completion operation. */
   const advanceAfterCompletion = (video: unknown): void => {
     if (
       state.lastAdvancedUrl &&
@@ -538,21 +643,31 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
   void state.checkBannedPublisher();
 }
 
+/** Reads the you tube shorts publisher. */
 async function readYouTubeShortsPublisher(): Promise<
   {
+    /** The ID value. */
     readonly id: string;
+    /** The label value. */
     readonly label: string;
+    /** The handle value. */
     readonly handle?: string;
+    /** The image URL value. */
     readonly imageUrl?: string;
   } | undefined
 > {
   const pageGlobal = globalThis as typeof globalThis & {
     __kawaikaraYouTubeShorts?: {
+      /** Resolves the active publisher. */
       resolveActivePublisher(): Promise<
         {
+          /** The ID value. */
           readonly id: string;
+          /** The label value. */
           readonly label: string;
+          /** The handle value. */
           readonly handle?: string;
+          /** The image URL value. */
           readonly imageUrl?: string;
         } | undefined
       >;
@@ -561,11 +676,22 @@ async function readYouTubeShortsPublisher(): Promise<
   return pageGlobal.__kawaikaraYouTubeShorts?.resolveActivePublisher();
 }
 
+/** Runs the you tube shorts command. */
 function runYouTubeShortsCommand(options: YouTubeShortsCommandOptions): boolean {
+  /** Describes the shorts command state contract. */
   interface ShortsCommandState {
+    /** Performs the check banned publisher operation. */
+    checkBannedPublisher(): Promise<void>;
+    /** Performs the navigate operation. */
     navigate(direction: 'next' | 'previous'): boolean;
-    readonly labels: { banned: string };
+    /** The labels value. */
+    readonly labels: {
+      /** The banned value. */
+      banned: string;
+    };
+    /** Performs the show action status operation. */
     showActionStatus(message: string, icon?: string): void;
+    /** Performs the show auto advance status operation. */
     showAutoAdvanceStatus(): void;
   }
   const pageGlobal = globalThis as typeof globalThis & {
@@ -579,23 +705,30 @@ function runYouTubeShortsCommand(options: YouTubeShortsCommandOptions): boolean 
   }
   if (options.command === 'ban') {
     state.showActionStatus(state.labels.banned, '⊘');
+    void state.checkBannedPublisher();
     return true;
   }
   return state.navigate(options.command);
 }
 
+/** Creates the you tube shorts injection script. */
 export function createYouTubeShortsInjectionScript(
   options: YouTubeShortsInjectionOptions,
 ): string {
   return serializePageInjectionWithOptions(installYouTubeShorts, options);
 }
 
+/** Creates the you tube shorts command script. */
 export function createYouTubeShortsCommandScript(
   command: YouTubeShortsCommand,
 ): string {
-  return serializePageInjectionWithOptions(runYouTubeShortsCommand, { command });
+  return serializePageInjectionWithOptions(runYouTubeShortsCommand, {
+    /** The command value. */
+    command,
+  });
 }
 
+/** Creates the you tube shorts publisher script. */
 export function createYouTubeShortsPublisherScript(): string {
   return serializePageInjectionWithOptions(readYouTubeShortsPublisher, {});
 }

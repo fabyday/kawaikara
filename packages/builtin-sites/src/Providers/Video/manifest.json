@@ -10,23 +10,14 @@
   "contributes": {
     "shortcut": { "defaultKey": "Control+Alt+4" },
     "locale": {
+      "resource": "locale.json",
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },
+    "pictureInPicture": { "enabled": true },
     "menu": {
       "category": "Video",
-      "order": 0,
-      "panels": [
-        {
-          "id": "library",
-          "title": {
-            "en-US": "Library",
-            "ko-KR": "라이브러리",
-            "ja-JP": "ライブラリ"
-          },
-          "content": { "kind": "internal", "viewId": "video-library" }
-        }
-      ]
+      "order": 0
     }
   }
 }

@@ -38,7 +38,7 @@
     "Providers/YouTubeMusic",
     "Providers/RidiBooks"
   ],
-  "plugins": ["Plugins/ProviderIdentity"],
+  "plugins": [],
   "locale": {
     "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
     "defaultLocale": "inherit"

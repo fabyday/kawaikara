@@ -1,0 +1,41 @@
+{
+  "en-US": {
+    "settings.shorts.title": "Shorts",
+    "settings.shorts.description": "Control Shorts playback and publishers hidden from the feed.",
+    "settings.short-form-video.auto-advance.title": "Play the next Short automatically",
+    "settings.short-form-video.banned-publishers.title": "Banned publishers",
+    "settings.short-form-video.banned-publishers.description": "Shorts from these publishers are skipped automatically.",
+    "settings.short-form-video.banned-publishers.emptyText": "No publishers are banned.",
+    "shorts.announcement.enabled": "Shorts auto-advance on",
+    "shorts.announcement.disabled": "Shorts auto-advance off",
+    "shorts.announcement.banned": "Publisher banned",
+    "shorts.announcement.next": "Next Short",
+    "shorts.announcement.previous": "Previous Short"
+  },
+  "ko-KR": {
+    "settings.shorts.title": "쇼츠",
+    "settings.shorts.description": "쇼츠 재생과 피드에서 숨길 게시자를 관리합니다.",
+    "settings.short-form-video.auto-advance.title": "다음 쇼츠 자동 재생",
+    "settings.short-form-video.banned-publishers.title": "차단한 게시자",
+    "settings.short-form-video.banned-publishers.description": "이 게시자의 쇼츠는 자동으로 건너뜁니다.",
+    "settings.short-form-video.banned-publishers.emptyText": "차단한 게시자가 없습니다.",
+    "shorts.announcement.enabled": "쇼츠 자동 넘김 켜짐",
+    "shorts.announcement.disabled": "쇼츠 자동 넘김 꺼짐",
+    "shorts.announcement.banned": "이 게시자를 차단했습니다",
+    "shorts.announcement.next": "다음 쇼츠",
+    "shorts.announcement.previous": "이전 쇼츠"
+  },
+  "ja-JP": {
+    "settings.shorts.title": "Shorts",
+    "settings.shorts.description": "Shorts の再生とフィードから非表示にする投稿者を管理します。",
+    "settings.short-form-video.auto-advance.title": "次の Shorts を自動再生",
+    "settings.short-form-video.banned-publishers.title": "ブロックした投稿者",
+    "settings.short-form-video.banned-publishers.description": "これらの投稿者の Shorts は自動的にスキップされます。",
+    "settings.short-form-video.banned-publishers.emptyText": "ブロックした投稿者はいません。",
+    "shorts.announcement.enabled": "Shorts 自動送り オン",
+    "shorts.announcement.disabled": "Shorts 自動送り オフ",
+    "shorts.announcement.banned": "この投稿者をブロックしました",
+    "shorts.announcement.next": "次の Shorts",
+    "shorts.announcement.previous": "前の Shorts"
+  }
+}

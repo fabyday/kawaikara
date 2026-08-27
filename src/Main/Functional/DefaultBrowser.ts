@@ -15,7 +15,9 @@ export async function openInDefaultBrowser(value: string): Promise<void> {
     throw new Error('Only credential-free HTTP(S) URLs can open externally.');
   }
   await shell.openExternal(target.href, {
-    ...(process.platform === 'darwin' ? { activate: true } : {}),
-    ...(process.platform === 'win32' ? { logUsage: true } : {}),
+    ...(process.platform === 'darwin' ? { activate: true
+    } : {}),
+    ...(process.platform === 'win32' ? { logUsage: true
+    } : {}),
   });
 }

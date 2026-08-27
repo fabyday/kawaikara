@@ -1,5 +1,23 @@
 {
     "typescript.tsserver.watchOptions": {},
     "typescript.tsdk": ".\\node_modules\\.pnpm\\typescript@5.8.3\\node_modules\\typescript\\lib",
-    "css.lint.unknownAtRules": "ignore"
+    "css.lint.unknownAtRules": "ignore",
+    "json.schemas": [
+        {
+            "fileMatch": ["/packages/builtin-sites/src/manifest.json"],
+            "url": "./packages/site-api/schemas/bundle-manifest.schema.json"
+        },
+        {
+            "fileMatch": ["/packages/builtin-sites/src/Providers/*/manifest.json"],
+            "url": "./packages/site-api/schemas/provider-manifest.schema.json"
+        },
+        {
+            "fileMatch": ["/packages/builtin-sites/src/Providers/*/Plugins/**/manifest.json"],
+            "url": "./packages/site-api/schemas/plugin-manifest.schema.json"
+        },
+        {
+            "fileMatch": ["/package.json", "/packages/*/package.json"],
+            "url": "./packages/site-api/schemas/kawaikara-package.schema.json"
+        }
+    ]
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Flex, Select } from '@kawaikara/kawai-ui';
+import { NumberInput } from './NumberInput';
 import {
   PICTURE_IN_PICTURE_SIZE_LIMITS,
   PICTURE_IN_PICTURE_SIZE_PRESETS,
@@ -8,37 +8,64 @@ import {
   type PictureInPictureSizePreset,
 } from '../../Common/PictureInPicture';
 
+/** Describes the picture in picture size control messages contract. */
 export interface PictureInPictureSizeControlMessages {
+  /** The compact value. */
   readonly compact: string;
+  /** The custom value. */
   readonly custom: string;
+  /** The description value. */
   readonly description: string;
+  /** The height value. */
   readonly height: string;
+  /** The large value. */
   readonly large: string;
+  /** The medium value. */
   readonly medium: string;
+  /** The pixels value. */
   readonly pixels: string;
+  /** The size value. */
   readonly size: string;
+  /** The width value. */
   readonly width: string;
 }
 
+/** Describes the picture in picture size control props contract. */
 export interface PictureInPictureSizeControlProps {
+  /** Whether the disabled option is enabled. */
   readonly disabled?: boolean;
+  /** The limits value. */
   readonly limits?: {
+    /** The max height value. */
     readonly maxHeight: number;
+    /** The max width value. */
     readonly maxWidth: number;
+    /** The min height value. */
     readonly minHeight: number;
+    /** The min width value. */
     readonly minWidth: number;
   };
+  /** The messages value. */
   readonly messages: PictureInPictureSizeControlMessages;
+  /** The presets value. */
   readonly presets?: Readonly<
     Record<
       Exclude<PictureInPictureSizePreset, 'custom'>,
-      { readonly height: number; readonly width: number }
+      {
+        /** The height value. */
+        readonly height: number;
+        /** The width value. */
+        readonly width: number;
+      }
     >
   >;
+  /** The value value. */
   readonly value: PictureInPictureSizePreference;
+  /** Callback used to handle on change. */
   readonly onChange: (value: PictureInPictureSizePreference) => void;
 }
 
+/** Performs the picture in picture size control operation. */
 export function PictureInPictureSizeControl({
   disabled = false,
   limits = PICTURE_IN_PICTURE_SIZE_LIMITS,
@@ -47,65 +74,21 @@ export function PictureInPictureSizeControl({
   value,
   onChange,
 }: PictureInPictureSizeControlProps) {
-  const [widthDraft, setWidthDraft] = useState(String(value.width));
-  const [heightDraft, setHeightDraft] = useState(String(value.height));
-
-  useEffect(() => setWidthDraft(String(value.width)), [value.width]);
-  useEffect(() => setHeightDraft(String(value.height)), [value.height]);
-
-  const options: Array<{ label: string; value: PictureInPictureSizePreset }> = (
+  const options: Array<{ label: string; value: PictureInPictureSizePreset
+  }> = (
     Object.entries(presets) as Array<
       [
         Exclude<PictureInPictureSizePreset, 'custom'>,
-        { width: number; height: number },
+        { width: number; height: number
+        },
       ]
     >
   ).map(([preset, size]) => ({
     label: `${presetLabel(preset, messages)} · ${String(size.width)} × ${String(size.height)}`,
     value: preset,
   }));
-  options.push({ label: messages.custom, value: 'custom' });
-
-  const updateDimension = (
-    dimension: 'width' | 'height',
-    rawValue: string,
-  ) => {
-    const setDraft = dimension === 'width' ? setWidthDraft : setHeightDraft;
-    setDraft(rawValue);
-    const number = Number(rawValue);
-    const minimum =
-      dimension === 'width'
-        ? limits.minWidth
-        : limits.minHeight;
-    const maximum =
-      dimension === 'width'
-        ? limits.maxWidth
-        : limits.maxHeight;
-    if (!Number.isFinite(number) || number < minimum || number > maximum) return;
-    onChange({ ...value, [dimension]: Math.round(number) });
-  };
-
-  const commitDimension = (
-    dimension: 'width' | 'height',
-    rawValue: string,
-  ) => {
-    const minimum =
-      dimension === 'width'
-        ? limits.minWidth
-        : limits.minHeight;
-    const maximum =
-      dimension === 'width'
-        ? limits.maxWidth
-        : limits.maxHeight;
-    const fallback = value[dimension];
-    const parsed = Number(rawValue);
-    const next = Number.isFinite(parsed)
-      ? Math.min(maximum, Math.max(minimum, Math.round(parsed)))
-      : fallback;
-    if (dimension === 'width') setWidthDraft(String(next));
-    else setHeightDraft(String(next));
-    onChange({ ...value, [dimension]: next });
-  };
+  options.push({ label: messages.custom, value: 'custom'
+  });
 
   return (
     <Flex direction="column" gap="sm">
@@ -116,43 +99,52 @@ export function PictureInPictureSizeControl({
         value={value.preset}
         description={messages.description}
         onValueChange={(preset) =>
-          onChange({ ...value, preset: preset as PictureInPictureSizePreset })
+          onChange({ ...value, preset: preset as PictureInPictureSizePreset
+          })
         }
       />
       <AnimatePresence initial={false}>
         {value.preset === 'custom' ? (
           <motion.div
             className="pip-custom-size-fields"
-            initial={{ height: 0, opacity: 0, y: -8 }}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -8 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+            initial={{ height: 0, opacity: 0, y: -8
+            }}
+            animate={{ height: 'auto', opacity: 1, y: 0
+            }}
+            exit={{ height: 0, opacity: 0, y: -8
+            }}
+            transition={{ type: 'spring', stiffness: 380, damping: 34
+            }}
           >
             <div className="pip-custom-size-grid">
-              <PictureInPictureDimensionField
+              <NumberInput
+                containerClassName="pip-dimension-field"
                 disabled={disabled}
                 label={messages.width}
+                layout="stacked"
                 max={limits.maxWidth}
                 min={limits.minWidth}
+                step={1}
                 unit={messages.pixels}
-                value={widthDraft}
-                onChange={(next) => updateDimension('width', next)}
-                onCommit={(next) => commitDimension('width', next)}
-                onStep={(delta) =>
-                  commitDimension('width', String(value.width + delta))
+                value={value.width}
+                onValueChange={(width) =>
+                  onChange({ ...value, width
+                  })
                 }
               />
-              <PictureInPictureDimensionField
+              <NumberInput
+                containerClassName="pip-dimension-field"
                 disabled={disabled}
                 label={messages.height}
+                layout="stacked"
                 max={limits.maxHeight}
                 min={limits.minHeight}
+                step={1}
                 unit={messages.pixels}
-                value={heightDraft}
-                onChange={(next) => updateDimension('height', next)}
-                onCommit={(next) => commitDimension('height', next)}
-                onStep={(delta) =>
-                  commitDimension('height', String(value.height + delta))
+                value={value.height}
+                onValueChange={(height) =>
+                  onChange({ ...value, height
+                  })
                 }
               />
             </div>
@@ -163,79 +155,7 @@ export function PictureInPictureSizeControl({
   );
 }
 
-function PictureInPictureDimensionField({
-  disabled,
-  label,
-  max,
-  min,
-  unit,
-  value,
-  onChange,
-  onCommit,
-  onStep,
-}: {
-  readonly disabled: boolean;
-  readonly label: string;
-  readonly max: number;
-  readonly min: number;
-  readonly unit: string;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly onCommit: (value: string) => void;
-  readonly onStep: (delta: number) => void;
-}) {
-  const numericValue = Number(value);
-
-  return (
-    <label className="pip-dimension-field">
-      <span className="pip-dimension-label">{label}</span>
-      <span className="pip-dimension-value">
-        <span className="number-preference-input-group">
-          <input
-            aria-label={label}
-            disabled={disabled}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            type="text"
-            value={value}
-            onBlur={(event) => onCommit(event.currentTarget.value)}
-            onChange={(event) => {
-              const next = event.currentTarget.value;
-              if (/^\d*$/.test(next)) onChange(next);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur();
-            }}
-          />
-          <span className="number-preference-steppers">
-            <button
-              aria-label={`${label} +`}
-              disabled={disabled || numericValue >= max}
-              tabIndex={-1}
-              type="button"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => onStep(1)}
-            >
-              +
-            </button>
-            <button
-              aria-label={`${label} −`}
-              disabled={disabled || numericValue <= min}
-              tabIndex={-1}
-              type="button"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => onStep(-1)}
-            >
-              −
-            </button>
-          </span>
-        </span>
-        <span className="number-preference-unit">{unit}</span>
-      </span>
-    </label>
-  );
-}
-
+/** Performs the preset label operation. */
 function presetLabel(
   preset: Exclude<PictureInPictureSizePreset, 'custom'>,
   messages: PictureInPictureSizeControlMessages,

@@ -17,28 +17,47 @@ import type {
 } from '../../../Common/IPC';
 import { VideoThumbnail } from '../../Component/VideoThumbnail';
 
+/** Describes the browser folder context menu contract. */
 interface BrowserFolderContextMenu {
+  /** The folder value. */
   readonly folder: VideoLibraryFolder;
+  /** The x value. */
   readonly x: number;
+  /** The y value. */
   readonly y: number;
 }
 
+/** Describes the video browser props contract. */
 interface VideoBrowserProps {
+  /** The initial directory value. */
   readonly initialDirectory?: string;
+  /** The labels value. */
   readonly labels: VideoBrowserMessages;
+  /** The theme value. */
   readonly theme: AppTheme;
+  /** Whether the close option is enabled. */
   readonly canClose: boolean;
+  /** The backend label value. */
   readonly backendLabel: string;
+  /** The backend warning value. */
   readonly backendWarning?: string;
+  /** Callback used to handle on close. */
   readonly onClose: () => void;
+  /** Callback used to handle on open hls. */
   readonly onOpenHls: () => void;
+  /** Callback used to handle on open video. */
   readonly onOpenVideo: (
-    request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
+    request: Extract<VideoOpenRequest, {
+      /** The kind value. */
+      readonly kind: 'local';
+    }>,
     directory: string,
   ) => void;
+  /** Callback used to handle on select file. */
   readonly onSelectFile: () => Promise<VideoOpenRequest | null>;
 }
 
+/** Performs the video browser operation. */
 export function VideoBrowser({
   initialDirectory,
   labels,
@@ -114,6 +133,7 @@ export function VideoBrowser({
     };
   }, [initialDirectory, labels.folderUnavailable, refreshSnapshot]);
 
+  /** Opens the path. */
   const openPath = async (value: string) => {
     const target = value.trim();
     if (!target) return;
@@ -140,11 +160,13 @@ export function VideoBrowser({
     }
   };
 
+  /** Performs the submit address operation. */
   const submitAddress = (event: FormEvent) => {
     event.preventDefault();
     void openPath(address);
   };
 
+  /** Performs the submit search operation. */
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
     if (!listing || !query.trim()) {
@@ -162,6 +184,7 @@ export function VideoBrowser({
       .finally(() => setLoading(false));
   };
 
+  /** Performs the show home operation. */
   const showHome = () => {
     setListing(undefined);
     setAddress('');
@@ -172,7 +195,9 @@ export function VideoBrowser({
 
   useEffect(() => {
     if (!contextMenu) return;
+    /** Closes the operation. */
     const close = () => setContextMenu(undefined);
+    /** Handles the key down. */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
@@ -184,6 +209,7 @@ export function VideoBrowser({
     };
   }, [contextMenu]);
 
+  /** Sets the favorite. */
   const setFavorite = async (folder: VideoLibraryFolder, pinned: boolean) => {
     setContextMenu(undefined);
     try {
@@ -373,7 +399,8 @@ export function VideoBrowser({
               theme === 'dark' ? 'kawai-theme-dark' : 'kawai-theme-light'
             }`}
             role="menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            style={{ left: contextMenu.x, top: contextMenu.y
+            }}
             onPointerDown={(event) => event.stopPropagation()}
           >
             <button
@@ -393,17 +420,23 @@ export function VideoBrowser({
   );
 }
 
+/** Performs the location section operation. */
 function LocationSection({
   title,
   locations,
   emptyLabel,
   onOpen,
 }: {
+  /** The title value. */
   readonly title: string;
+  /** The locations value. */
   readonly locations: readonly VideoLibraryLocation[];
+  /** The empty label value. */
   readonly emptyLabel: string;
+  /** Callback used to handle on open. */
   readonly onOpen: (path: string) => void;
-}) {
+}
+) {
   return (
     <section className="video-browser-location-section">
       <h2>{title}</h2>
@@ -429,6 +462,7 @@ function LocationSection({
   );
 }
 
+/** Formats the file size. */
 function formatFileSize(value: number | undefined): string {
   if (!Number.isFinite(value) || !value) return 'Video';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -441,6 +475,7 @@ function formatFileSize(value: number | undefined): string {
   return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
 }
 
+/** Returns the error message. */
 function getErrorMessage(reason: unknown, fallback: string): string {
   const message = reason instanceof Error ? reason.message.trim() : String(reason ?? '').trim();
   return message || fallback;

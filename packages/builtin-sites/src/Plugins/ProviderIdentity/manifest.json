@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "id": "kawaikara.provider-identity",
-  "name": "Provider Identity",
-  "version": "1.0.0",
-  "apiVersion": 1,
-  "main": "Plugin.js"
-}

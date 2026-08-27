@@ -7,21 +7,33 @@ import {
   type KeyboardEvent,
 } from 'react';
 
+/** Describes the descriptive select option contract. */
 export interface DescriptiveSelectOption {
+  /** The description value. */
   readonly description: string;
+  /** The label value. */
   readonly label: string;
+  /** The value value. */
   readonly value: string;
 }
 
+/** Describes the descriptive select props contract. */
 export interface DescriptiveSelectProps {
+  /** Whether the disabled option is enabled. */
   readonly disabled?: boolean;
+  /** The description value. */
   readonly description?: string;
+  /** The label value. */
   readonly label: string;
+  /** The options value. */
   readonly options: readonly DescriptiveSelectOption[];
+  /** The value value. */
   readonly value: string;
+  /** Callback used to handle on value change. */
   readonly onValueChange: (value: string) => void;
 }
 
+/** Performs the descriptive select operation. */
 export function DescriptiveSelect({
   disabled = false,
   description,
@@ -45,6 +57,7 @@ export function DescriptiveSelect({
 
   useEffect(() => {
     if (!open) return;
+    /** Handles the pointer down. */
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -56,6 +69,7 @@ export function DescriptiveSelect({
     if (open) setActiveIndex(selectedIndex);
   }, [open, selectedIndex]);
 
+  /** Performs the choose operation. */
   const choose = (index: number) => {
     const option = options[index];
     if (!option) return;
@@ -63,6 +77,7 @@ export function DescriptiveSelect({
     setOpen(false);
   };
 
+  /** Opens the list. */
   const openList = () => {
     const trigger = triggerRef.current;
     const boundary = trigger?.closest('.preference-tab-scroll');
@@ -80,6 +95,7 @@ export function DescriptiveSelect({
     setOpen(true);
   };
 
+  /** Handles the key down. */
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Escape' && open) {
       event.preventDefault();
@@ -143,7 +159,8 @@ export function DescriptiveSelect({
             id={`${id}-listbox`}
             role="listbox"
             aria-labelledby={`${id}-label`}
-            style={{ maxHeight: listMaxHeight } as CSSProperties}
+            style={{ maxHeight: listMaxHeight
+            } as CSSProperties}
           >
             {options.map((option, index) => (
               <button

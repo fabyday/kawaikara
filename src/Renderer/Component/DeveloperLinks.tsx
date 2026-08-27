@@ -4,23 +4,37 @@ import type {
   DeveloperYouTubeStatus,
 } from '../../Common/IPC';
 
+/** Describes the developer link messages contract. */
 export interface DeveloperLinkMessages {
+  /** The website value. */
   readonly website: string;
+  /** The github value. */
   readonly github: string;
+  /** The discord value. */
   readonly discord: string;
+  /** The developer you tube value. */
   readonly developerYouTube: string;
+  /** The live now value. */
   readonly liveNow: string;
+  /** The offline value. */
   readonly offline: string;
+  /** The live status unavailable value. */
   readonly liveStatusUnavailable: string;
+  /** The checking live value. */
   readonly checkingLive: string;
 }
 
+/** Describes the developer links props contract. */
 export interface DeveloperLinksProps {
+  /** The messages value. */
   readonly messages: DeveloperLinkMessages;
+  /** The YouTube status value. */
   readonly youtubeStatus?: DeveloperYouTubeStatus;
+  /** Callback used to handle on open. */
   readonly onOpen: (id: ApplicationLinkId) => void | Promise<void>;
 }
 
+/** Performs the developer links operation. */
 export function DeveloperLinks({
   messages,
   youtubeStatus,
@@ -71,6 +85,7 @@ export function DeveloperLinks({
   );
 }
 
+/** Performs the link button operation. */
 function LinkButton({
   className,
   displayLabel,
@@ -78,12 +93,18 @@ function LinkButton({
   label,
   onClick,
 }: {
+  /** The class name value. */
   readonly className?: string;
+  /** The display label value. */
   readonly displayLabel?: string;
+  /** The icon value. */
   readonly icon: React.ReactNode;
+  /** The label value. */
   readonly label: string;
+  /** Callback used to handle on click. */
   readonly onClick: () => void | Promise<void>;
-}) {
+}
+) {
   return (
     <Button
       aria-label={label}
@@ -97,19 +118,46 @@ function LinkButton({
   );
 }
 
+/** Returns the you tube state. */
 function getYouTubeState(
   messages: DeveloperLinkMessages,
   status?: DeveloperYouTubeStatus,
-): { readonly kind: 'checking' | 'live' | 'offline' | 'unavailable'; readonly label: string } {
-  if (!status) return { kind: 'checking', label: messages.checkingLive };
+): {
+  /** The kind value. */
+  readonly kind: 'checking' | 'live' | 'offline' | 'unavailable';
+  /** The label value. */
+  readonly label: string;
+} {
+  if (!status) return {
+    /** The kind value. */
+    kind: 'checking',
+    /** The label value. */
+    label: messages.checkingLive,
+  };
   if (status.error) {
-    return { kind: 'unavailable', label: messages.liveStatusUnavailable };
+    return {
+      /** The kind value. */
+      kind: 'unavailable',
+      /** The label value. */
+      label: messages.liveStatusUnavailable,
+    };
   }
   return status.isLive
-    ? { kind: 'live', label: messages.liveNow }
-    : { kind: 'offline', label: messages.offline };
+    ? {
+      /** The kind value. */
+      kind: 'live',
+      /** The label value. */
+      label: messages.liveNow,
+    }
+    : {
+      /** The kind value. */
+      kind: 'offline',
+      /** The label value. */
+      label: messages.offline,
+    };
 }
 
+/** Performs the website icon operation. */
 function WebsiteIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -119,6 +167,7 @@ function WebsiteIcon() {
   );
 }
 
+/** Performs the git hub icon operation. */
 function GitHubIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -127,6 +176,7 @@ function GitHubIcon() {
   );
 }
 
+/** Performs the discord icon operation. */
 function DiscordIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 127.14 96.36">
@@ -135,6 +185,7 @@ function DiscordIcon() {
   );
 }
 
+/** Performs the you tube icon operation. */
 function YouTubeIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -144,6 +195,7 @@ function YouTubeIcon() {
   );
 }
 
+/** Performs the radio icon operation. */
 function RadioIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 16 16">

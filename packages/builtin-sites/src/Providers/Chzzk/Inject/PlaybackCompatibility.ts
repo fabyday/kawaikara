@@ -1,3 +1,5 @@
+import { serializePageInjection } from '@kawaikara/site-api';
+
 /**
  * CHZZK playback compatibility injections, grouped separately from Clips.
  *
@@ -7,23 +9,20 @@
  * module-level variables because only the function source is sent to the page.
  * Keeping the implementation as TypeScript still gives us DOM autocomplete,
  * strict type checking, navigation, and safe refactoring before serialization.
+ * ChzzkProvider.beforeLoad() in Providers/Chzzk/Provider.ts registers both
+ * exported scripts for all frames. installChzzkAdResponseBlocker() patches
+ * request responses and installChzzkAdSkipper() owns DOM/player ad recovery;
+ * no other file executes these entry points.
  */
-function serializePageInjection(entryPoint: () => void): string {
-  return `(${entryPoint.toString()})();`;
-}
-
-function serializePageInjectionWithOptions<T>(
-  entryPoint: (options: T) => void,
-  options: T,
-): string {
-  return `(${entryPoint.toString()})(${JSON.stringify(options)});`;
-}
-
 function installChzzkAdResponseBlocker(): void {
+  /** Defines the JSON record type. */
   type JsonRecord = Record<string, unknown>;
+  /** Defines the ad patch kind type. */
   type AdPatchKind = 'display-status' | 'ad-schedule';
 
+  /** Describes the ad blocker state contract. */
   interface AdBlockerState {
+    /** Performs the diagnostics operation. */
     diagnostics(): Record<string, unknown>;
   }
 
@@ -44,9 +43,11 @@ function installChzzkAdResponseBlocker(): void {
   let displayStatusPatchCount = 0;
   let schedulePatchCount = 0;
 
+  /** Determines whether the record condition applies. */
   const isRecord = (value: unknown): value is JsonRecord =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+  /** Performs the clone JSON record operation. */
   const cloneJsonRecord = (value: JsonRecord): JsonRecord | undefined => {
     try {
       return JSON.parse(JSON.stringify(value)) as JsonRecord;
@@ -55,11 +56,14 @@ function installChzzkAdResponseBlocker(): void {
     }
   };
 
+  /** Performs the patch JSON payload operation. */
   const patchJsonPayload = (
     url: string,
     value: unknown,
-  ): { value: unknown; kind?: AdPatchKind } => {
-    if (!isRecord(value)) return { value };
+  ): { value: unknown; kind?: AdPatchKind
+  } => {
+    if (!isRecord(value)) return { value
+    };
 
     if (displayStatusPattern.test(url)) {
       const clone = cloneJsonRecord(value);
@@ -70,7 +74,8 @@ function installChzzkAdResponseBlocker(): void {
       if (clone && isRecord(display)) {
         display.preRoll = false;
         display.midRoll = false;
-        return { value: clone, kind: 'display-status' };
+        return { value: clone, kind: 'display-status'
+        };
       }
     }
 
@@ -83,14 +88,17 @@ function installChzzkAdResponseBlocker(): void {
         if (clone) {
           if (hasAds) clone.ads = [];
           if (hasAdBreaks) clone.adBreaks = [];
-          return { value: clone, kind: 'ad-schedule' };
+          return { value: clone, kind: 'ad-schedule'
+          };
         }
       }
     }
 
-    return { value };
+    return { value
+    };
   };
 
+  /** Performs the record patch operation. */
   const recordPatch = (kind: AdPatchKind): void => {
     if (kind === 'display-status') displayStatusPatchCount += 1;
     else schedulePatchCount += 1;
@@ -100,26 +108,33 @@ function installChzzkAdResponseBlocker(): void {
     if (count === 1 || count % 10 === 0) {
       console.info(
         `[Kawaikara/CHZZK][ad:block] neutralized ${kind} response ${JSON.stringify(
-          { count },
+          { count
+          },
         )}`,
       );
     }
   };
 
+  /** Performs the patch JSON text operation. */
   const patchJsonText = (
     url: string,
     text: string,
-  ): { value: string; kind?: AdPatchKind } => {
+  ): { value: string; kind?: AdPatchKind
+  } => {
     if (!displayStatusPattern.test(url) && !schedulePattern.test(url)) {
-      return { value: text };
+      return { value: text
+      };
     }
     try {
       const result = patchJsonPayload(url, JSON.parse(text) as unknown);
       return result.kind
-        ? { value: JSON.stringify(result.value), kind: result.kind }
-        : { value: text };
+        ? { value: JSON.stringify(result.value), kind: result.kind
+        }
+        : { value: text
+        };
     } catch {
-      return { value: text };
+      return { value: text
+      };
     }
   };
 
@@ -133,12 +148,14 @@ function installChzzkAdResponseBlocker(): void {
     Reflect.apply(nativeOpen, this, args);
   } as XMLHttpRequest['open'];
 
+  /** Installs the xhr response patch. */
   const installXhrResponsePatch = (property: 'response' | 'responseText'): boolean => {
     const descriptor = Object.getOwnPropertyDescriptor(nativeXhr.prototype, property);
     if (!descriptor?.get || descriptor.configurable === false) return false;
     const nativeGet = descriptor.get;
     Object.defineProperty(nativeXhr.prototype, property, {
       ...descriptor,
+      /** Returns the operation. */
       get(this: XMLHttpRequest): unknown {
         const original = Reflect.apply(nativeGet, this, []) as unknown;
         const url = xhrUrls.get(this) ?? this.responseURL;
@@ -204,6 +221,7 @@ function installChzzkAdResponseBlocker(): void {
     }
   }) as typeof window.fetch;
 
+  /** Performs the diagnostics operation. */
   const diagnostics = (): Record<string, unknown> => ({
     href: location.href,
     displayStatusPatchCount,
@@ -211,44 +229,67 @@ function installChzzkAdResponseBlocker(): void {
     xhrResponsePatched,
     xhrResponseTextPatched,
   });
-  pageGlobal.__kawaikaraChzzkAdRequestBlocker = { diagnostics };
+  pageGlobal.__kawaikaraChzzkAdRequestBlocker = { diagnostics
+  };
   console.info(
     `[Kawaikara/CHZZK][ad:block] response interception installed ${JSON.stringify(
-      { xhrResponsePatched, xhrResponseTextPatched, fetchPatched: true },
+      { xhrResponsePatched, xhrResponseTextPatched, fetchPatched: true
+      },
     )}`,
   );
 }
 
+/** Describes the CHZZK quality injection options contract. */
 export interface ChzzkQualityInjectionOptions {
+  /** Whether the enable bypass action URL option is enabled. */
   readonly enableBypassActionUrl: string;
+  /** Whether the enable720 bypass action URL option is enabled. */
   readonly enable720BypassActionUrl: string;
+  /** The disable bypass action URL value. */
   readonly disableBypassActionUrl: string;
 }
 
+/** Installs the CHZZK quality enhancement. */
 function installChzzkQualityEnhancement(
   options: ChzzkQualityInjectionOptions,
 ): void {
+  /** Describes the quality injection state contract. */
   interface QualityInjectionState {
+    /** Performs the refresh operation. */
     refresh(force?: boolean): void;
+    /** The observer value. */
     observer: MutationObserver;
+    /** Performs the diagnostics operation. */
     diagnostics(): Record<string, unknown>;
   }
 
+  /** Describes the CHZZK video track contract. */
   interface ChzzkVideoTrack {
+    /** Whether the selected option is enabled. */
     selected?: boolean;
+    /** Maps each supported key to its corresponding value. */
     [property: string]: unknown;
   }
 
+  /** Describes the CHZZK video track list contract. */
   interface ChzzkVideoTrackList {
+    /** The length value. */
     readonly length: number;
+    /** The selected index value. */
     selectedIndex?: number;
+    /** Performs the item operation. */
     item?(index: number): ChzzkVideoTrack | null;
+    /** Performs the dispatch event operation. */
     dispatchEvent?(event: Event): boolean;
+    /** Maps each supported key to its corresponding value. */
     [index: number]: ChzzkVideoTrack | undefined;
   }
 
+  /** Defines the managed quality type. */
   type ManagedQuality = '720' | '1080';
+  /** Defines the native quality type. */
   type NativeQuality = '320' | '360' | '480';
+  /** Defines the quality label type. */
   type QualityLabel = NativeQuality | ManagedQuality;
 
   const pageGlobal = globalThis as typeof globalThis & {
@@ -349,6 +390,7 @@ function installChzzkQualityEnhancement(
   const activatedExtensionGates = new WeakSet<HTMLElement>();
   const attachedManagedQualityItems = new WeakSet<HTMLElement>();
 
+  /** Performs the log quality operation. */
   const logQuality = (
     status: string,
     details?: Record<string, unknown>,
@@ -363,8 +405,10 @@ function installChzzkQualityEnhancement(
     );
   };
 
+  /** Determines whether the live route condition applies. */
   const isLiveRoute = (): boolean => /^\/live(?:\/|$)/.test(location.pathname);
 
+  /** Performs the activate normal quality gate operation. */
   const activateNormalQualityGate = (): boolean => {
     if (!isLiveRoute()) return false;
     const button = Array.from(
@@ -400,6 +444,7 @@ function installChzzkQualityEnhancement(
     return true;
   };
 
+  /** Reads the operation. */
   const read = <T>(target: unknown, property: PropertyKey): T | undefined => {
     if (
       target === null ||
@@ -415,6 +460,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Performs the signal provider quality operation. */
   const signalProviderQuality = (quality: '' | ManagedQuality): void => {
     bypassRequested = quality !== '';
     if (lastProviderQuality === quality) return;
@@ -432,6 +478,7 @@ function installChzzkQualityEnhancement(
     );
   };
 
+  /** Normalizes the quality item. */
   const normalizeQualityItem = (element: Element): HTMLElement | null => {
     const pane = element.closest<HTMLElement>(qualityPaneSelector);
     if (!pane) return null;
@@ -456,6 +503,7 @@ function installChzzkQualityEnhancement(
     return element instanceof HTMLElement ? element : null;
   };
 
+  /** Returns the quality items. */
   const getQualityItems = (): HTMLElement[] => {
     const items = new Set<HTMLElement>();
     for (const candidate of document.querySelectorAll<HTMLElement>(
@@ -469,9 +517,11 @@ function installChzzkQualityEnhancement(
     return Array.from(items);
   };
 
+  /** Determines whether the managed quality condition applies. */
   const isManagedQuality = (quality: string): quality is ManagedQuality =>
     quality === '720' || quality === '1080';
 
+  /** Returns the item source. */
   const getItemSource = (item: HTMLElement): '' | QualityLabel => {
     if (isManagedQuality(item.dataset.kawaikaraQualityBypass ?? '')) {
       return item.dataset.kawaikaraQualityBypass as ManagedQuality;
@@ -481,6 +531,7 @@ function installChzzkQualityEnhancement(
     return match ? match[1] as QualityLabel : '';
   };
 
+  /** Returns the item label target. */
   const getItemLabelTarget = (item: HTMLElement): HTMLElement | null => {
     const knownTarget = item.querySelector<HTMLElement>(
       '.pzp-pc-ui-setting-quality-item__prefix, .pzp-ui-setting-quality-item__prefix, [class*="quality-item__prefix"]',
@@ -496,6 +547,7 @@ function installChzzkQualityEnhancement(
     }) ?? null;
   };
 
+  /** Attaches the managed quality item. */
   const attachManagedQualityItem = (item: HTMLElement): void => {
     if (attachedManagedQualityItems.has(item)) return;
     attachedManagedQualityItems.add(item);
@@ -506,6 +558,7 @@ function installChzzkQualityEnhancement(
     item.addEventListener('keydown', onManagedQualityItemKeyDown, true);
   };
 
+  /** Performs the decorate bypass item operation. */
   const decorateBypassItem = (
     item: HTMLElement,
     quality: ManagedQuality,
@@ -552,6 +605,7 @@ function installChzzkQualityEnhancement(
     labelTarget.textContent = `${quality}p Kawaikara`;
   };
 
+  /** Ensures the quality presentation style. */
   const ensureQualityPresentationStyle = (): void => {
     if (document.getElementById('kawaikara-chzzk-quality-style')) return;
     const style = document.createElement('style');
@@ -603,6 +657,7 @@ function installChzzkQualityEnhancement(
     (document.head ?? document.documentElement).append(style);
   };
 
+  /** Determines whether the menu item selected condition applies. */
   const isMenuItemSelected = (item: HTMLElement | null): boolean => {
     if (!item) return false;
     const values = [
@@ -628,6 +683,7 @@ function installChzzkQualityEnhancement(
     );
   };
 
+  /** Performs the mirror selected indicator operation. */
   const mirrorSelectedIndicator = (
     bypassItem: HTMLElement,
     sourceItem: HTMLElement,
@@ -665,6 +721,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Clears the selected indicator. */
   const clearSelectedIndicator = (
     bypassItem: HTMLElement | null,
     sourceItem: HTMLElement | null,
@@ -698,12 +755,14 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Returns the native quality label. */
   const getNativeQualityLabel = (item: HTMLElement): string | undefined => {
     const text = String(item.textContent ?? '').replace(/\s+/g, ' ').trim();
     const match = qualityLabelPattern.exec(text);
     return match ? `${match[1]}p` : undefined;
   };
 
+  /** Performs the synchronize native selected indicator operation. */
   const synchronizeNativeSelectedIndicator = (label: string): void => {
     const items = getQualityItems();
     const selectedItem = items.find(
@@ -720,6 +779,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Returns the current quality label targets. */
   const getCurrentQualityLabelTargets = (): HTMLElement[] => {
     const targets = new Set<HTMLElement>();
     const candidates = document.querySelectorAll<HTMLElement>([
@@ -762,6 +822,7 @@ function installChzzkQualityEnhancement(
     return Array.from(targets);
   };
 
+  /** Performs the write current quality label operation. */
   const writeCurrentQualityLabel = (
     value: string,
     markAsBypass: boolean,
@@ -781,16 +842,20 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Returns the managed quality label. */
   const getManagedQualityLabel = (): string =>
     `${lastProviderQuality === '720' ? '720' : '1080'}p Kawaikara`;
 
+  /** Returns the expected managed height. */
   const getExpectedManagedHeight = (): 720 | 1080 =>
     lastProviderQuality === '720' ? 720 : 1080;
 
+  /** Updates the current quality label. */
   const updateCurrentQualityLabel = (): void => {
     writeCurrentQualityLabel(getManagedQualityLabel(), true);
   };
 
+  /** Restores the current quality label. */
   const restoreCurrentQualityLabel = (): void => {
     for (const target of document.querySelectorAll<HTMLElement>(
       '[data-kawaikara-quality-summary]',
@@ -802,6 +867,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Updates the quality presentation. */
   const updateQualityPresentation = (
     bypassItem: HTMLElement | null,
     sourceItem: HTMLElement | null,
@@ -823,6 +889,7 @@ function installChzzkQualityEnhancement(
     updateCurrentQualityLabel();
   };
 
+  /** Restores the quality items. */
   const restoreQualityItems = (): void => {
     for (const item of document.querySelectorAll<HTMLElement>(
       '[data-kawaikara-quality-bypass]',
@@ -869,6 +936,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Updates the quality menu. */
   const updateQualityMenu = (): {
     bypassItem: HTMLElement | null;
     sourceItem: HTMLElement | null;
@@ -893,9 +961,11 @@ function installChzzkQualityEnhancement(
     }
     bypassItem ??= fallbackBypassItem;
     updateQualityPresentation(bypassItem, sourceItem);
-    return { bypassItem, sourceItem, selectedNativeLabel };
+    return { bypassItem, sourceItem, selectedNativeLabel
+    };
   };
 
+  /** Returns the visible area. */
   const getVisibleArea = (element: HTMLElement): number => {
     if (!element.isConnected) return 0;
     const rect = element.getBoundingClientRect();
@@ -911,6 +981,7 @@ function installChzzkQualityEnhancement(
     return rect.width * rect.height;
   };
 
+  /** Returns the main video. */
   const getMainVideo = (): HTMLVideoElement | null => {
     const videos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
     const contentVideos = videos.filter((video) => {
@@ -925,17 +996,20 @@ function installChzzkQualityEnhancement(
     return candidates[0] ?? null;
   };
 
+  /** Returns the track list. */
   const getTrackList = (target: unknown): ChzzkVideoTrackList | null => {
     const trackList = read<ChzzkVideoTrackList>(target, 'videoTracks');
     const length = Number(read<number>(trackList, 'length'));
     return trackList && Number.isFinite(length) && length > 0 ? trackList : null;
   };
 
+  /** Collects the track lists. */
   const collectTrackLists = (): ChzzkVideoTrackList[] => {
     const lists: ChzzkVideoTrackList[] = [];
     const seenTargets = new WeakSet<object>();
     const seenLists = new WeakSet<ChzzkVideoTrackList>();
 
+    /** Performs the add target operation. */
     const addTarget = (target: unknown, depth: number): void => {
       if (
         target === null ||
@@ -969,6 +1043,7 @@ function installChzzkQualityEnhancement(
     return lists;
   };
 
+  /** Performs the to track array operation. */
   const toTrackArray = (trackList: ChzzkVideoTrackList): ChzzkVideoTrack[] => {
     const tracks: ChzzkVideoTrack[] = [];
     const length = Number(read<number>(trackList, 'length')) || 0;
@@ -980,8 +1055,10 @@ function installChzzkQualityEnhancement(
     return tracks;
   };
 
+  /** Performs the track text operation. */
   const trackText = (track: ChzzkVideoTrack): string => {
     const parts: string[] = [];
+    /** Performs the add operation. */
     const add = (target: unknown, property: PropertyKey): void => {
       const value = read(target, property);
       if (value !== null && value !== undefined && value !== '') {
@@ -1020,6 +1097,7 @@ function installChzzkQualityEnhancement(
     return parts.join(' ').toLowerCase();
   };
 
+  /** Returns the track height. */
   const getTrackHeight = (track: ChzzkVideoTrack): number | undefined => {
     const height = Number(
       read(track, 'height') ?? read(track, 'videoHeight'),
@@ -1032,9 +1110,11 @@ function installChzzkQualityEnhancement(
     return resolutionMatch ? Number(resolutionMatch[1]) : undefined;
   };
 
+  /** Determines whether the 480 track condition applies. */
   const is480Track = (track: ChzzkVideoTrack): boolean =>
     getTrackHeight(track) === 480;
 
+  /** Returns the selected track height. */
   const getSelectedTrackHeight = (): number | undefined => {
     for (const trackList of collectTrackLists()) {
       const tracks = toTrackArray(trackList);
@@ -1049,6 +1129,7 @@ function installChzzkQualityEnhancement(
     return undefined;
   };
 
+  /** Selects the track. */
   const selectTrack = (
     trackList: ChzzkVideoTrackList,
     tracks: ChzzkVideoTrack[],
@@ -1092,6 +1173,7 @@ function installChzzkQualityEnhancement(
     return selected;
   };
 
+  /** Applies the default track. */
   const applyDefaultTrack = (): boolean => {
     if (routeApplied) return false;
     let foundTrackList = false;
@@ -1113,6 +1195,7 @@ function installChzzkQualityEnhancement(
     return foundTrackList;
   };
 
+  /** Performs the activate internal menu item operation. */
   const activateInternalMenuItem = (
     sourceItem: HTMLElement | null,
     force = false,
@@ -1132,7 +1215,8 @@ function installChzzkQualityEnhancement(
       // React event timing differs enough for that race to surface on one OS
       // while remaining hidden on another.
       activatingInternalBypassItem = true;
-      sourceItem.focus({ preventScroll: true });
+      sourceItem.focus({ preventScroll: true
+      });
       // CHZZK's current React player handles keyboard activation more
       // consistently than HTMLElement.click() for a hidden/internal quality.
       sourceItem.dispatchEvent(
@@ -1171,6 +1255,7 @@ function installChzzkQualityEnhancement(
     return true;
   };
 
+  /** Performs the activate quality bypass operation. */
   const activateQualityBypass = (quality: ManagedQuality): void => {
     // A manual click must work even after the automatic initial selection.
     // Selecting CHZZK's internal 480p track is intentional: the Provider's
@@ -1190,6 +1275,7 @@ function installChzzkQualityEnhancement(
     scheduleRetryBurst();
   };
 
+  /** Resolves the quality item from event. */
   const resolveQualityItemFromEvent = (event: Event): HTMLElement | null => {
     const path = typeof event.composedPath === 'function'
       ? event.composedPath()
@@ -1229,9 +1315,11 @@ function installChzzkQualityEnhancement(
     return null;
   };
 
+  /** Returns the managed quality from event. */
   const getManagedQualityFromEvent = (
     event: Event,
-  ): { item: HTMLElement; quality: ManagedQuality } | null => {
+  ): { item: HTMLElement; quality: ManagedQuality
+  } | null => {
     const bypassItem = event.target instanceof Element
       ? event.target.closest<HTMLElement>(
           '[data-kawaikara-quality-bypass]',
@@ -1240,17 +1328,20 @@ function installChzzkQualityEnhancement(
     if (bypassItem) {
       const quality = bypassItem.dataset.kawaikaraQualityBypass ?? '';
       return isManagedQuality(quality)
-        ? { item: bypassItem, quality }
+        ? { item: bypassItem, quality
+        }
         : null;
     }
     const item = resolveQualityItemFromEvent(event);
     if (!item) return null;
     const source = getItemSource(item);
     return source === '720' || source === '1080'
-      ? { item, quality: source }
+      ? { item, quality: source
+      }
       : null;
   };
 
+  /** Returns the native quality item from event. */
   const getNativeQualityItemFromEvent = (event: Event): HTMLElement | null => {
     const item = resolveQualityItemFromEvent(event);
     if (!item) return null;
@@ -1260,6 +1351,7 @@ function installChzzkQualityEnhancement(
       : null;
   };
 
+  /** Handles the managed quality event. */
   function handleManagedQualityEvent(
     event: Event,
     keyboard = false,
@@ -1281,10 +1373,12 @@ function installChzzkQualityEnhancement(
     }
   }
 
+  /** Handles the managed quality item key down. */
   function onManagedQualityItemKeyDown(event: KeyboardEvent): void {
     handleManagedQualityEvent(event, true);
   }
 
+  /** Determines whether the activate managed quality condition applies. */
   const shouldActivateManagedQuality = (
     target: ManagedQuality,
   ): boolean => {
@@ -1300,6 +1394,7 @@ function installChzzkQualityEnhancement(
     return true;
   };
 
+  /** Handles the bypass pointer start. */
   const onBypassPointerStart = (event: Event): void => {
     // Capture at Window before CHZZK/React sees a locked high-quality row.
     // CHZZK may start opening the extension gate on pointerdown/mousedown,
@@ -1307,14 +1402,17 @@ function installChzzkQualityEnhancement(
     handleManagedQualityEvent(event);
   };
 
+  /** Handles the bypass click. */
   const onBypassClick = (event: MouseEvent): void => {
     handleManagedQualityEvent(event);
   };
 
+  /** Handles the bypass key down. */
   const onBypassKeyDown = (event: KeyboardEvent): void => {
     handleManagedQualityEvent(event, true);
   };
 
+  /** Handles the native quality click. */
   const onNativeQualityClick = (event: MouseEvent): void => {
     if (!isLiveRoute() || !(event.target instanceof Element)) return;
     const item = getNativeQualityItemFromEvent(event);
@@ -1338,6 +1436,7 @@ function installChzzkQualityEnhancement(
     // React applies the clicked native quality after this capture listener.
     // Refresh only after that commit so CHZZK remains authoritative for its
     // native summary and selection marker.
+    /** Performs the synchronize native label operation. */
     const synchronizeNativeLabel = (): void => {
       if (selectionRevision !== qualitySelectionRevision) return;
       // The bypass itself uses CHZZK's 480p state internally. Clicking the
@@ -1359,6 +1458,7 @@ function installChzzkQualityEnhancement(
     }, 0);
   };
 
+  /** Attaches the video. */
   function attachVideo(video: HTMLVideoElement): void {
     if (attachedVideos.has(video)) return;
     attachedVideos.add(video);
@@ -1377,6 +1477,7 @@ function installChzzkQualityEnhancement(
     video.addEventListener('error', schedulePlaybackRecovery, true);
   }
 
+  /** Performs the observe decoded video operation. */
   const observeDecodedVideo = (video: HTMLVideoElement): void => {
     if (
       !isLiveRoute() ||
@@ -1403,12 +1504,14 @@ function installChzzkQualityEnhancement(
     scheduleRefresh();
   };
 
+  /** Performs the observe decoded resolution operation. */
   function observeDecodedResolution(event: Event): void {
     const video = event.currentTarget;
     if (!(video instanceof HTMLVideoElement)) return;
     observeDecodedVideo(video);
   }
 
+  /** Schedules the resolution verification. */
   function scheduleResolutionVerification(event: Event): void {
     const video = event.currentTarget;
     if (!(video instanceof HTMLVideoElement) || video !== getMainVideo()) return;
@@ -1445,6 +1548,7 @@ function installChzzkQualityEnhancement(
     }, 2500);
   }
 
+  /** Clears the playback recovery. */
   function clearPlaybackRecovery(event: Event): void {
     if (!(event.currentTarget instanceof HTMLVideoElement)) return;
     const timer = playbackRecoveryTimers.get(event.currentTarget);
@@ -1454,6 +1558,7 @@ function installChzzkQualityEnhancement(
     playbackRecoveryTimers.delete(event.currentTarget);
   }
 
+  /** Schedules the playback recovery. */
   function schedulePlaybackRecovery(event: Event): void {
     const video = event.currentTarget;
     if (
@@ -1520,6 +1625,7 @@ function installChzzkQualityEnhancement(
     playbackRecoveryTimerIds.add(timer);
   }
 
+  /** Performs the refresh operation. */
   const refresh = (_force = false): void => {
     if (location.pathname !== routeKey) {
       routeKey = location.pathname;
@@ -1622,6 +1728,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Schedules the refresh. */
   const scheduleRefresh = (): void => {
     if (refreshTimer) return;
     refreshTimer = window.setTimeout(() => {
@@ -1630,11 +1737,13 @@ function installChzzkQualityEnhancement(
     }, 60);
   };
 
+  /** Clears the retry timers. */
   const clearRetryTimers = (): void => {
     for (const timer of retryTimers) window.clearTimeout(timer);
     retryTimers.clear();
   };
 
+  /** Schedules the retry burst. */
   const scheduleRetryBurst = (): void => {
     clearRetryTimers();
     // Player internals are created asynchronously. This bounded burst replaces
@@ -1648,6 +1757,7 @@ function installChzzkQualityEnhancement(
     }
   };
 
+  /** Handles the playback source changed. */
   function onPlaybackSourceChanged(): void {
     scheduleRefresh();
     scheduleRetryBurst();
@@ -1663,6 +1773,7 @@ function installChzzkQualityEnhancement(
     '[class*="setting"]',
     '[role="menuitem"]',
   ].join(',');
+  /** Performs the contains relevant node operation. */
   const containsRelevantNode = (node: Node): boolean =>
     node instanceof Element &&
     (node.matches(relevantNodeSelector) ||
@@ -1691,8 +1802,10 @@ function installChzzkQualityEnhancement(
     updateQualityMenu();
     scheduleRefresh();
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { childList: true, subtree: true
+  });
 
+  /** Handles the page show. */
   const onPageShow = (): void => {
     scheduleRefresh();
     scheduleRetryBurst();
@@ -1724,8 +1837,10 @@ function installChzzkQualityEnhancement(
       window.removeEventListener('click', onBypassClick, true);
       window.removeEventListener('keydown', onBypassKeyDown, true);
     },
-    { once: true },
+    { once: true
+    },
   );
+  /** Performs the diagnostics operation. */
   const diagnostics = (): Record<string, unknown> => ({
     href: location.href,
     liveRoute: isLiveRoute(),
@@ -1754,25 +1869,43 @@ function installChzzkQualityEnhancement(
   scheduleRetryBurst();
 }
 
+/** Installs the CHZZK ad skipper. */
 function installChzzkAdSkipper(): void {
+  /** Describes the ad injection state contract. */
   interface AdInjectionState {
+    /** Performs the refresh operation. */
     refresh(): void;
+    /** The observer value. */
     observer: MutationObserver;
+    /** Performs the diagnostics operation. */
     diagnostics(): Record<string, unknown>;
   }
 
+  /** Describes the ad runtime contract. */
   interface AdRuntime {
+    /** The video value. */
     video: HTMLVideoElement;
+    /** The source value. */
     source: string;
+    /** Whether the muted option is enabled. */
     muted: boolean;
+    /** Whether the muted by Kawaikara option is enabled. */
     mutedByKawaikara: boolean;
+    /** The playback rate value. */
     playbackRate: number;
+    /** Whether the playback rate changed option is enabled. */
     playbackRateChanged: boolean;
+    /** Whether the fast forward started option is enabled. */
     fastForwardStarted: boolean;
+    /** The fast forward interval value. */
     fastForwardInterval?: number;
+    /** The fallback timer value. */
     fallbackTimer?: number;
+    /** Whether the fallback armed option is enabled. */
     fallbackArmed: boolean;
+    /** Whether the first seek logged option is enabled. */
     firstSeekLogged: boolean;
+    /** The ticks value. */
     ticks: number;
   }
 
@@ -1792,6 +1925,13 @@ function installChzzkAdSkipper(): void {
     '[class*="ad-video" i]',
     '[class*="advertisement-video" i]',
   ].join(',');
+  const activeAdUiSelector = [
+    '.webplayer-internal-core-ad-ui:not(.wpc-dis-hid)',
+    '[class*="ad-ui" i]:not(.wpc-dis-hid)',
+  ].join(',');
+  // Provider-owned adaptation of the MIT-licensed observer/`button.btn_skip`
+  // strategy from https://github.com/2jun0/chzzk-ad-autoskipper. Keep the
+  // implementation local: Kawaikara never downloads or executes remote code.
   const nativeSkipSelector = [
     'button.btn_skip',
     '[role="button"].btn_skip',
@@ -1866,6 +2006,7 @@ function installChzzkAdSkipper(): void {
     'ended',
   ] as const;
 
+  /** Returns the composed closest. */
   const getComposedClosest = (
     element: Element,
     selector: string,
@@ -1883,8 +2024,29 @@ function installChzzkAdSkipper(): void {
     return null;
   };
 
+  /** Returns the all roots. */
   const getAllRoots = (): ParentNode[] => Array.from(searchableRoots);
 
+  /** Determines whether the visible ad UI condition applies. */
+  const isVisibleAdUi = (element: Element): boolean => {
+    const style = getComputedStyle(element);
+    return (
+      element.getClientRects().length > 0 &&
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      style.opacity !== '0'
+    );
+  };
+
+  /** Determines whether the active ad UI condition applies. */
+  const hasActiveAdUi = (video: HTMLVideoElement): boolean => {
+    const player = getComposedClosest(video, '[id^="wpc-"]') ?? document;
+    return Array.from(player.querySelectorAll(activeAdUiSelector)).some(
+      isVisibleAdUi,
+    );
+  };
+
+  /** Determines whether the separate content video condition applies. */
   const hasSeparateContentVideo = (adVideo: HTMLVideoElement): boolean =>
     getAllRoots().some((root) =>
       Array.from(root.querySelectorAll<HTMLVideoElement>('video')).some(
@@ -1895,6 +2057,7 @@ function installChzzkAdSkipper(): void {
       ),
     );
 
+  /** Returns the ad source. */
   const getAdSource = (video: HTMLVideoElement): string => {
     if (video.ended) return '';
     const sources = [video.currentSrc, video.src];
@@ -1923,12 +2086,14 @@ function installChzzkAdSkipper(): void {
     const adUiText = String(adContainer?.textContent ?? '')
       .replace(/\s+/g, ' ')
       .trim();
+    const activeAdUi = hasActiveAdUi(video);
     if (
-      adContainer &&
+      (adContainer || activeAdUi) &&
       (/\b(?:ad|advertisement)\b/i.test(adIdentity) ||
         /(?:광고|advertisement|sponsored)/i.test(adUiText) ||
-        findNativeSkipButtons(adContainer).length > 0 ||
-        hasSeparateContentVideo(video)) &&
+        (adContainer && findNativeSkipButtons(adContainer).length > 0) ||
+        hasSeparateContentVideo(video) ||
+        activeAdUi) &&
       (sources.some(Boolean) ||
         video.srcObject !== null ||
         video.readyState > HTMLMediaElement.HAVE_NOTHING)
@@ -1939,6 +2104,7 @@ function installChzzkAdSkipper(): void {
     return '';
   };
 
+  /** Determines whether the native skip button condition applies. */
   const isNativeSkipButton = (element: HTMLElement): boolean => {
     if (element.matches(nativeSkipCandidateSelector)) return true;
     const label = `${element.getAttribute('aria-label') ?? ''} ${
@@ -1949,6 +2115,7 @@ function installChzzkAdSkipper(): void {
     return /(?:광고.{0,20}건너|건너.{0,20}광고|건너뛰기|skip\s*(?:this\s*)?ad)/i.test(label);
   };
 
+  /** Finds the native skip buttons. */
   const findNativeSkipButtons = (root: ParentNode = document): HTMLElement[] => {
     const candidates = new Set<HTMLElement>();
     if (root instanceof HTMLElement && isNativeSkipButton(root)) {
@@ -1965,6 +2132,7 @@ function installChzzkAdSkipper(): void {
     return Array.from(candidates);
   };
 
+  /** Resolves the native skip target. */
   const resolveNativeSkipTarget = (candidate: HTMLElement): HTMLElement => {
     if (
       candidate.matches(
@@ -1984,6 +2152,7 @@ function installChzzkAdSkipper(): void {
     );
   };
 
+  /** Returns the native skip label. */
   const getNativeSkipLabel = (candidate: HTMLElement): string => {
     const informationArea = candidate.closest<HTMLElement>(
       '.ad_info_area, [data-role="adInfoArea"], [data-role="adBtnControlEl"]',
@@ -1995,6 +2164,7 @@ function installChzzkAdSkipper(): void {
       .trim();
   };
 
+  /** Determines whether the native skip ready condition applies. */
   const isNativeSkipReady = (candidate: HTMLElement): boolean => {
     const button = resolveNativeSkipTarget(candidate);
     if (!candidate.isConnected || !button.isConnected || button.hidden) return false;
@@ -2027,11 +2197,13 @@ function installChzzkAdSkipper(): void {
     );
   };
 
+  /** Stops the watching fallback button. */
   const stopWatchingFallbackButton = (button: HTMLElement): void => {
     fallbackButtonObservers.get(button)?.disconnect();
     fallbackButtonObservers.delete(button);
   };
 
+  /** Watches the fallback button. */
   const watchFallbackButton = (candidate: HTMLElement): void => {
     if (fallbackButtonObservers.has(candidate)) return;
     const buttonObserver = new MutationObserver(() => {
@@ -2062,6 +2234,7 @@ function installChzzkAdSkipper(): void {
     fallbackButtonObservers.set(candidate, buttonObserver);
   };
 
+  /** Performs the click native skip button operation. */
   const clickNativeSkipButton = (candidate: HTMLElement): boolean => {
     if (!candidate.isConnected) {
       stopWatchingFallbackButton(candidate);
@@ -2121,6 +2294,7 @@ function installChzzkAdSkipper(): void {
     return true;
   };
 
+  /** Schedules the native skip fallback. */
   const scheduleNativeSkipFallback = (button: HTMLElement): void => {
     if (
       clickedFallbackButtons.has(button) ||
@@ -2137,6 +2311,7 @@ function installChzzkAdSkipper(): void {
     fallbackButtonTimers.set(button, timer);
   };
 
+  /** Clears the ad runtime. */
   const clearAdRuntime = (
     video: HTMLVideoElement,
     reason = 'ad source is no longer active',
@@ -2171,6 +2346,7 @@ function installChzzkAdSkipper(): void {
     adRuntimes.delete(video);
   };
 
+  /** Performs the try native skip fallback operation. */
   const tryNativeSkipFallback = (
     runtime: AdRuntime,
     candidate?: HTMLElement,
@@ -2189,6 +2365,7 @@ function installChzzkAdSkipper(): void {
     if (button) clickNativeSkipButton(button);
   };
 
+  /** Performs the arm native skip fallback operation. */
   const armNativeSkipFallback = (runtime: AdRuntime): void => {
     if (adRuntimes.get(runtime.video) !== runtime) return;
     if (getAdSource(runtime.video) !== runtime.source) {
@@ -2202,6 +2379,7 @@ function installChzzkAdSkipper(): void {
     tryNativeSkipFallback(runtime);
   };
 
+  /** Determines whether the usable ad timeline condition applies. */
   const hasUsableAdTimeline = (video: HTMLVideoElement): boolean => {
     if (Number.isFinite(video.duration) && video.duration > 0) return true;
     try {
@@ -2211,6 +2389,7 @@ function installChzzkAdSkipper(): void {
     }
   };
 
+  /** Performs the advance ad video operation. */
   const advanceAdVideo = (runtime: AdRuntime): void => {
     const { video } = runtime;
     if (
@@ -2272,6 +2451,7 @@ function installChzzkAdSkipper(): void {
     }
   };
 
+  /** Starts the fast forward burst. */
   const startFastForwardBurst = (runtime: AdRuntime): void => {
     if (runtime.fastForwardInterval !== undefined) return;
     // `loadstart` commonly identifies the ad while duration is still NaN and
@@ -2302,6 +2482,7 @@ function installChzzkAdSkipper(): void {
     advanceAdVideo(runtime);
   };
 
+  /** Performs the perform skip operation. */
   const performSkip = (video: HTMLVideoElement): void => {
     const source = getAdSource(video);
     if (!source || !video.isConnected) {
@@ -2345,17 +2526,20 @@ function installChzzkAdSkipper(): void {
     advanceAdVideo(runtime);
   };
 
+  /** Performs the inspect video operation. */
   const inspectVideo = (video: HTMLVideoElement): void => {
     if (getAdSource(video)) performSkip(video);
     else clearAdRuntime(video);
   };
 
+  /** Handles the media changed. */
   const onMediaChanged = (event: Event): void => {
     if (event.currentTarget instanceof HTMLVideoElement) {
       inspectVideo(event.currentTarget);
     }
   };
 
+  /** Attaches the video. */
   const attachVideo = (video: HTMLVideoElement): void => {
     if (attachedVideos.has(video)) return;
     attachedVideos.add(video);
@@ -2374,6 +2558,7 @@ function installChzzkAdSkipper(): void {
     inspectVideo(video);
   };
 
+  /** Detaches the video. */
   const detachVideo = (video: HTMLVideoElement): void => {
     for (const eventName of mediaEvents) {
       video.removeEventListener(eventName, onMediaChanged, true);
@@ -2384,6 +2569,7 @@ function installChzzkAdSkipper(): void {
     clearAdRuntime(video);
   };
 
+  /** Ensures the ad block warning style. */
   const ensureAdBlockWarningStyle = (): void => {
     if (document.getElementById(warningStyleId)) return;
     const style = document.createElement('style');
@@ -2398,6 +2584,7 @@ function installChzzkAdSkipper(): void {
     (document.head ?? document.documentElement).append(style);
   };
 
+  /** Determines whether the rendered warning candidate condition applies. */
   const isRenderedWarningCandidate = (element: HTMLElement): boolean => {
     if (element.getAttribute(hiddenWarningAttribute) === 'hidden') return false;
     const style = getComputedStyle(element);
@@ -2406,6 +2593,7 @@ function installChzzkAdSkipper(): void {
     return rect.width > 0 && rect.height > 0;
   };
 
+  /** Finds the warning backdrop. */
   const findWarningBackdrop = (popup: HTMLElement): HTMLElement | null => {
     const direct = popup.closest<HTMLElement>(warningBackdropSelector);
     if (direct) return direct;
@@ -2420,6 +2608,7 @@ function installChzzkAdSkipper(): void {
     return null;
   };
 
+  /** Performs the unlock body after warning operation. */
   const unlockBodyAfterWarning = (): void => {
     const delays = [0, 80, 250, 800];
     for (const delay of delays) {
@@ -2442,6 +2631,7 @@ function installChzzkAdSkipper(): void {
     }
   };
 
+  /** Performs the hide ad block warning operation. */
   const hideAdBlockWarning = (element: HTMLElement): void => {
     if (element.getAttribute(hiddenWarningAttribute) === 'hidden') return;
     const text = String(element.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -2458,14 +2648,17 @@ function installChzzkAdSkipper(): void {
     unlockBodyAfterWarning();
   };
 
+  /** Performs the observe shadow root operation. */
   function observeShadowRoot(root: ShadowRoot): void {
     if (observedShadowRoots.has(root)) return;
     observedShadowRoots.add(root);
     searchableRoots.add(root);
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true
+    });
     for (const child of root.children) inspectNode(child);
   }
 
+  /** Performs the inspect node operation. */
   function inspectNode(node: Node): void {
     // Text inside an existing button can be replaced without adding a new
     // Element. Inspect its parent as well so a late "광고 건너뛰기" label is seen.
@@ -2509,6 +2702,7 @@ function installChzzkAdSkipper(): void {
     }
   }
 
+  /** Performs the scan for native skip buttons operation. */
   const scanForNativeSkipButtons = (): void => {
     fallbackScanCount += 1;
     let found = false;
@@ -2531,6 +2725,7 @@ function installChzzkAdSkipper(): void {
     }
   };
 
+  /** Schedules the startup fallback scan. */
   const scheduleStartupFallbackScan = (): void => {
     if (Date.now() >= fallbackScanDeadline) return;
     const timer = window.setTimeout(() => {
@@ -2541,6 +2736,7 @@ function installChzzkAdSkipper(): void {
     fallbackScanTimers.add(timer);
   };
 
+  /** Resets the removed node. */
   const resetRemovedNode = (node: Node): void => {
     if (!(node instanceof Element)) return;
     for (const button of findNativeSkipButtons(node)) {
@@ -2568,6 +2764,7 @@ function installChzzkAdSkipper(): void {
     }
   };
 
+  /** Performs the refresh operation. */
   const refresh = (): void => {
     ensureAdBlockWarningStyle();
     inspectNode(document.documentElement);
@@ -2590,6 +2787,7 @@ function installChzzkAdSkipper(): void {
     childList: true,
     subtree: true,
   });
+  /** Performs the diagnostics operation. */
   const diagnostics = (): Record<string, unknown> => ({
     href: location.href,
     detectedAdCount,
@@ -2605,9 +2803,11 @@ function installChzzkAdSkipper(): void {
       for (const timer of fallbackScanTimers) window.clearTimeout(timer);
       fallbackScanTimers.clear();
     },
-    { once: true },
+    { once: true
+    },
   );
-  pageGlobal.__kawaikaraChzzkAdSkipper = { refresh, observer, diagnostics };
+  pageGlobal.__kawaikaraChzzkAdSkipper = { refresh, observer, diagnostics
+  };
   console.info(
     `[Kawaikara/CHZZK][ad] skipper installed ${JSON.stringify({
       startupFallbackWindowMs: 45_000,
@@ -2617,10 +2817,12 @@ function installChzzkAdSkipper(): void {
   scheduleStartupFallbackScan();
 }
 
+/** Defines the shared CHZZK ad response blocker script constant. */
 export const CHZZK_AD_RESPONSE_BLOCKER_SCRIPT = serializePageInjection(
   installChzzkAdResponseBlocker,
 );
 
+/** Defines the shared CHZZK ad skipper script constant. */
 export const CHZZK_AD_SKIPPER_SCRIPT = serializePageInjection(
   installChzzkAdSkipper,
 );

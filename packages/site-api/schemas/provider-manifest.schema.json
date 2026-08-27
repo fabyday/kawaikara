@@ -1,0 +1,218 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "provider-manifest.schema.json",
+  "title": "Kawaikara Provider Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "apiVersion",
+    "main",
+    "permissions",
+    "contributes"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "definitions.schema.json#/definitions/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "version": { "$ref": "definitions.schema.json#/definitions/semver" },
+    "apiVersion": { "const": 1 },
+    "main": {
+      "allOf": [
+        { "$ref": "definitions.schema.json#/definitions/safeRelativePath" },
+        { "pattern": "\\.(?:cjs|js)$" }
+      ]
+    },
+    "permissions": { "$ref": "definitions.schema.json#/definitions/permissions" },
+    "plugins": { "$ref": "definitions.schema.json#/definitions/safeRelativePaths" },
+    "contributes": {
+      "$ref": "#/definitions/contributes"
+    }
+  },
+  "definitions": {
+    "contributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["menu"],
+      "properties": {
+        "address": { "$ref": "#/definitions/address" },
+        "browserIdentity": { "$ref": "#/definitions/browserIdentity" },
+        "isolation": { "$ref": "#/definitions/isolation" },
+        "locale": { "$ref": "#/definitions/locale" },
+        "menu": { "$ref": "#/definitions/menu" },
+        "pictureInPicture": { "$ref": "#/definitions/pictureInPicture" },
+        "shortcut": { "$ref": "#/definitions/shortcut" },
+        "shortFormVideo": { "$ref": "#/definitions/shortFormVideo" }
+      }
+    },
+    "address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hosts"],
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "definitions.schema.json#/definitions/nonEmptyString" }
+        }
+      }
+    },
+    "browserIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userAgent"],
+      "properties": {
+        "userAgent": {
+          "description": "Use chromium to remove Electron product tokens, or provide a complete user agent.",
+          "type": "string",
+          "minLength": 1,
+          "default": "chromium"
+        },
+        "requestHosts": {
+          "$ref": "definitions.schema.json#/definitions/stringArray"
+        },
+        "clientHints": {
+          "description": "Use auto to derive matching Chromium client hints, or provide a complete value.",
+          "type": "string",
+          "minLength": 1,
+          "default": "auto"
+        }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultBrowserProfile": { "$ref": "definitions.schema.json#/definitions/id" },
+        "drm": { "type": "boolean" }
+      }
+    },
+    "locale": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resource": {
+          "allOf": [
+            { "$ref": "definitions.schema.json#/definitions/safeRelativePath" },
+            { "pattern": "\\.json$" }
+          ],
+          "description": "Provider-relative locale resource containing locale -> message key -> text."
+        },
+        "supportedLocales": { "$ref": "definitions.schema.json#/definitions/stringArray" },
+        "defaultLocale": { "$ref": "definitions.schema.json#/definitions/nonEmptyString" }
+      }
+    },
+    "menu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category"],
+      "properties": {
+        "category": { "$ref": "definitions.schema.json#/definitions/nonEmptyString" },
+        "order": { "type": "number" },
+        "icon": { "type": "string", "minLength": 1 },
+        "panel": {
+          "description": "Deprecated. Use panels.",
+          "type": "string",
+          "minLength": 1,
+          "deprecated": true
+        },
+        "panels": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/panel" }
+        }
+      }
+    },
+    "panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "content"],
+      "properties": {
+        "id": { "$ref": "definitions.schema.json#/definitions/id" },
+        "title": { "$ref": "definitions.schema.json#/definitions/localizedText" },
+        "order": { "type": "number" },
+        "content": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "viewId"],
+              "properties": {
+                "kind": { "const": "internal" },
+                "viewId": { "$ref": "definitions.schema.json#/definitions/id" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "html"],
+              "properties": {
+                "kind": { "const": "html" },
+                "html": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "pictureInPicture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "shortcut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultKey": { "type": "string", "minLength": 1 },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "defaultKey", "action"],
+            "properties": {
+              "id": { "$ref": "definitions.schema.json#/definitions/id" },
+              "title": { "$ref": "definitions.schema.json#/definitions/localizedText" },
+              "description": { "$ref": "definitions.schema.json#/definitions/localizedText" },
+              "defaultKey": { "type": "string", "minLength": 1 },
+              "action": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "shortFormVideo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "previous": { "type": "boolean" },
+        "next": { "type": "boolean" },
+        "autoAdvance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["settingKey", "defaultValue"],
+          "properties": {
+            "settingKey": { "$ref": "definitions.schema.json#/definitions/id" },
+            "defaultValue": { "type": "boolean" }
+          }
+        },
+        "publisherBan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["settingKey"],
+          "properties": {
+            "settingKey": { "$ref": "definitions.schema.json#/definitions/id" }
+          }
+        }
+      }
+    }
+  }
+}

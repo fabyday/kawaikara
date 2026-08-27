@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "plugin-manifest.schema.json",
+  "title": "Kawaikara Plugin Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "version", "apiVersion", "main"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "definitions.schema.json#/definitions/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "version": { "$ref": "definitions.schema.json#/definitions/semver" },
+    "apiVersion": { "const": 1 },
+    "main": {
+      "allOf": [
+        { "$ref": "definitions.schema.json#/definitions/safeRelativePath" },
+        { "pattern": "\\.(?:cjs|js)$" }
+      ]
+    },
+    "providerIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "definitions.schema.json#/definitions/id" }
+    }
+  }
+}

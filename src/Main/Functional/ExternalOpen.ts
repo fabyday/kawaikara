@@ -1,38 +1,18 @@
+/** Defines the shared Kawaikara protocol constant. */
 export const KAWAIKARA_PROTOCOL = 'kawaikara';
 
+/** Defines the shared max deep link length constant. */
 const MAX_DEEP_LINK_LENGTH = 16_384;
+/** Defines the shared max target URL length constant. */
 const MAX_TARGET_URL_LENGTH = 8_192;
 
-interface SupportedSiteRule {
-  readonly id: string;
-  readonly domains: readonly string[];
-}
-
-const SUPPORTED_SITE_RULES: readonly SupportedSiteRule[] = [
-  { id: 'kawaikara.youtube-music', domains: ['music.youtube.com'] },
-  { id: 'kawaikara.apple-music', domains: ['music.apple.com'] },
-  { id: 'kawaikara.apple-tv', domains: ['tv.apple.com'] },
-  { id: 'kawaikara.chzzk', domains: ['chzzk.naver.com'] },
-  { id: 'kawaikara.spotify', domains: ['open.spotify.com'] },
-  { id: 'kawaikara.youtube', domains: ['youtube.com', 'youtu.be'] },
-  { id: 'kawaikara.netflix', domains: ['netflix.com'] },
-  { id: 'kawaikara.laftel', domains: ['laftel.net'] },
-  { id: 'kawaikara.disneyplus', domains: ['disneyplus.com'] },
-  { id: 'kawaikara.amazon-prime-video', domains: ['primevideo.com'] },
-  { id: 'kawaikara.wavve', domains: ['wavve.com'] },
-  { id: 'kawaikara.watcha', domains: ['watcha.com'] },
-  { id: 'kawaikara.coupang-play', domains: ['coupangplay.com'] },
-  { id: 'kawaikara.tving', domains: ['tving.com'] },
-  { id: 'kawaikara.crunchyroll', domains: ['crunchyroll.com'] },
-  { id: 'kawaikara.twitch', domains: ['twitch.tv'] },
-  { id: 'kawaikara.ridibooks', domains: ['ridibooks.com'] },
-] as const;
-
+/** Describes the external open request contract. */
 export interface ExternalOpenRequest {
-  readonly siteId: string;
+  /** The target URL value. */
   readonly targetUrl: string;
 }
 
+/** Parses the external open URL. */
 export function parseExternalOpenUrl(
   value: string,
 ): ExternalOpenRequest | undefined {
@@ -69,13 +49,20 @@ export function parseExternalOpenUrl(
       return undefined;
     }
 
-    const siteId = resolveSupportedSiteId(target.hostname);
-    return siteId ? { siteId, targetUrl: target.href } : undefined;
+    // Provider availability is intentionally resolved after Bundle discovery.
+    // ExternalOpen is used before Electron is ready, when installed and
+    // development Bundle manifests have not been loaded yet. SiteManager later
+    // matches this URL against each live Provider's contributes.address.hosts.
+    return {
+      /** The target URL value. */
+      targetUrl: target.href,
+    };
   } catch {
     return undefined;
   }
 }
 
+/** Parses the external open arguments. */
 export function parseExternalOpenArguments(
   args: readonly string[],
 ): ExternalOpenRequest[] {
@@ -84,15 +71,3 @@ export function parseExternalOpenArguments(
     return request ? [request] : [];
   });
 }
-
-function resolveSupportedSiteId(hostname: string): string | undefined {
-  const normalizedHostname = hostname.toLowerCase();
-  return SUPPORTED_SITE_RULES.find(({ domains }) =>
-    domains.some(
-      (domain) =>
-        normalizedHostname === domain ||
-        normalizedHostname.endsWith(`.${domain}`),
-    ),
-  )?.id;
-}
-

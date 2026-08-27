@@ -1,31 +1,54 @@
-import { serializePageInjectionWithOptions } from '../../../Inject/Serialize';
+import { serializePageInjectionWithOptions } from '@kawaikara/site-api';
+
+/**
+ * CHZZK quality-menu page-world implementation. ChzzkProvider.beforeLoad() in
+ * Providers/Chzzk/Provider.ts constructs the action URLs and registers
+ * createChzzkQualityEnhancementScript() with SitePagePipeline. No Main-process
+ * Manager or other Provider executes this injection.
+ */
 
 export interface ChzzkQualityInjectionOptions {
+  /** Whether the enable bypass action URL option is enabled. */
   readonly enableBypassActionUrl: string;
+  /** Whether the enable720 bypass action URL option is enabled. */
   readonly enable720BypassActionUrl: string;
+  /** The disable bypass action URL value. */
   readonly disableBypassActionUrl: string;
 }
 
+/** Installs the CHZZK quality menu. */
 function installChzzkQualityMenu(
   options: ChzzkQualityInjectionOptions,
 ): void {
+  /** Defines the public quality type. */
   type PublicQuality = '320' | '480' | '720' | '1080';
 
+  /** Describes the quality menu state contract. */
   interface QualityMenuState {
+    /** Performs the refresh operation. */
     refresh(): void;
+    /** The observer value. */
     observer: MutationObserver;
+    /** Performs the diagnostics operation. */
     diagnostics(): Record<string, unknown>;
   }
 
+  /** Describes the native quality vue component contract. */
   interface NativeQualityVueComponent {
+    /** The vnode value. */
     _vnode?: {
+      /** The data value. */
       data?: {
+        /** The on value. */
         on?: {
+          /** Callback used to handle click. */
           click?: (event: MouseEvent) => unknown;
         };
       };
     };
+    /** The listeners value. */
     $listeners?: {
+      /** Callback used to handle click. */
       click?: (event: MouseEvent) => unknown;
     };
   }
@@ -85,13 +108,16 @@ function installChzzkQualityMenu(
   const nativeClickTimers = new Set<number>();
   const bypassedGateButtons = new WeakSet<HTMLElement>();
 
+  /** Performs the normalized text operation. */
   const normalizedText = (element: Element | null): string =>
     String(element?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
+  /** Determines whether the high quality condition applies. */
   const isHighQuality = (
     quality: PublicQuality,
   ): quality is '720' | '1080' => highQualities.has(quality);
 
+  /** Ensures the style. */
   const ensureStyle = (): void => {
     if (document.getElementById('kawaikara-chzzk-quality-menu-style')) return;
     const style = document.createElement('style');
@@ -128,11 +154,13 @@ function installChzzkQualityMenu(
     (document.head ?? document.documentElement).append(style);
   };
 
+  /** Performs the native pane operation. */
   const nativePane = (): HTMLElement | null =>
     Array.from(document.querySelectorAll<HTMLElement>(nativePaneSelector)).find(
       (pane) => pane.dataset.kawaikaraQualityPane !== 'true',
     ) ?? null;
 
+  /** Performs the native items operation. */
   const nativeItems = (): HTMLElement[] => {
     const pane = nativePane();
     if (!pane) return [];
@@ -140,12 +168,15 @@ function installChzzkQualityMenu(
       .filter((item) => /(?:320|360|480|720|1080)\s*p/i.test(normalizedText(item)));
   };
 
+  /** Performs the quality of native item operation. */
   const qualityOfNativeItem = (item: HTMLElement): string =>
     /(?:^|\D)(320|360|480|720|1080)\s*p/i.exec(normalizedText(item))?.[1] ?? '';
 
+  /** Finds the native item. */
   const findNativeItem = (quality: string): HTMLElement | null =>
     nativeItems().find((item) => qualityOfNativeItem(item) === quality) ?? null;
 
+  /** Determines whether the native item selected condition applies. */
   const isNativeItemSelected = (item: HTMLElement | null): boolean =>
     Boolean(
       item &&
@@ -154,6 +185,7 @@ function installChzzkQualityMenu(
           item.getAttribute('aria-selected') === 'true'),
     );
 
+  /** Performs the click native item operation. */
   const clickNativeItem = (item: HTMLElement | null): boolean => {
     if (!item || !item.isConnected) return false;
     // CHZZK's Vue event wrapper ignores HTMLElement.click() while its native
@@ -176,6 +208,7 @@ function installChzzkQualityMenu(
     return true;
   };
 
+  /** Schedules the native click. */
   const scheduleNativeClick = (
     callback: () => void,
     delay: number,
@@ -187,6 +220,7 @@ function installChzzkQualityMenu(
     nativeClickTimers.add(timer);
   };
 
+  /** Performs the signal provider operation. */
   const signalProvider = (quality: PublicQuality): void => {
     const providerQuality = isHighQuality(quality) ? quality : '';
     if (lastProviderQuality === providerQuality) return;
@@ -199,6 +233,7 @@ function installChzzkQualityMenu(
     window.location.assign(actionUrl);
   };
 
+  /** Removes the IDs. */
   const removeIds = (root: HTMLElement): void => {
     root.removeAttribute('id');
     for (const element of root.querySelectorAll<HTMLElement>('[id]')) {
@@ -206,6 +241,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Clears the inherited hidden state. */
   const clearInheritedHiddenState = (root: HTMLElement): void => {
     for (const element of [root, ...root.querySelectorAll<HTMLElement>('*')]) {
       if (element.style.display === 'none') element.style.removeProperty('display');
@@ -219,6 +255,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Sets the badge. */
   const setBadge = (
     container: HTMLElement | null,
     text: string,
@@ -233,6 +270,7 @@ function installChzzkQualityMenu(
     container.append(badge);
   };
 
+  /** Updates the home. */
   const updateHome = (home: HTMLElement): void => {
     let value = home.querySelector<HTMLElement>(
       '.pzp-ui-setting-home-item__value, [class*="setting-home-item__value"]',
@@ -262,6 +300,7 @@ function installChzzkQualityMenu(
     );
   };
 
+  /** Updates the rows. */
   const updateRows = (pane: HTMLElement): void => {
     for (const row of pane.querySelectorAll<HTMLElement>(
       '[data-kawaikara-quality]',
@@ -274,6 +313,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Performs the synchronize presentation operation. */
   const synchronizePresentation = (): void => {
     for (const home of document.querySelectorAll<HTMLElement>(
       '[data-kawaikara-quality-home="true"]',
@@ -287,6 +327,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Closes the menu. */
   const closeMenu = (root?: HTMLElement | null): void => {
     const settings = root ?? document.querySelector<HTMLElement>(
       '.pzp-settings.pzp-pc-settings, .pzp-pc__settings',
@@ -294,6 +335,7 @@ function installChzzkQualityMenu(
     if (settings) delete settings.dataset.kawaikaraQualityOpen;
   };
 
+  /** Opens the menu. */
   const openMenu = (home: HTMLElement): void => {
     const settings = home.parentElement;
     if (!settings) return;
@@ -301,9 +343,11 @@ function installChzzkQualityMenu(
     const selected = settings.querySelector<HTMLElement>(
       `[data-kawaikara-quality="${selectedQuality}"]`,
     );
-    selected?.focus({ preventScroll: true });
+    selected?.focus({ preventScroll: true
+    });
   };
 
+  /** Performs the restart internal480 operation. */
   const restartInternal480 = (revision: number): void => {
     const source = findNativeItem('480');
     if (!source) return;
@@ -319,6 +363,7 @@ function installChzzkQualityMenu(
     clickNativeItem(source);
   };
 
+  /** Applies the selection. */
   const applySelection = (quality: PublicQuality): void => {
     selectedQuality = quality;
     const revision = ++selectionRevision;
@@ -346,6 +391,7 @@ function installChzzkQualityMenu(
     });
   };
 
+  /** Performs the guard native high quality operation. */
   const guardNativeHighQuality = (event: Event): void => {
     if (!(event.target instanceof Element)) return;
     const item = event.target.closest<HTMLElement>(nativeItemSelector);
@@ -368,6 +414,7 @@ function installChzzkQualityMenu(
     applySelection(quality);
   };
 
+  /** Creates the row. */
   const createRow = (
     quality: PublicQuality,
     template: HTMLElement,
@@ -411,6 +458,7 @@ function installChzzkQualityMenu(
     return row;
   };
 
+  /** Builds the custom pane. */
   const buildCustomPane = (
     sourcePane: HTMLElement,
     settings: HTMLElement,
@@ -456,6 +504,7 @@ function installChzzkQualityMenu(
     return pane;
   };
 
+  /** Installs the menu. */
   const installMenu = (): void => {
     const sourceHome = Array.from(
       document.querySelectorAll<HTMLElement>(nativeHomeSelector),
@@ -516,6 +565,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Performs the bypass extension gate operation. */
   const bypassExtensionGate = (): void => {
     const candidates = document.querySelectorAll<HTMLElement>(
       'button, a, [role="button"]',
@@ -545,6 +595,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Performs the refresh operation. */
   const refresh = (): void => {
     if (location.pathname !== routeKey) {
       routeKey = location.pathname;
@@ -563,6 +614,7 @@ function installChzzkQualityMenu(
     }
   };
 
+  /** Schedules the refresh. */
   const scheduleRefresh = (): void => {
     if (refreshTimer) return;
     refreshTimer = window.setTimeout(() => {
@@ -589,8 +641,10 @@ function installChzzkQualityMenu(
     nativeClickTimers.clear();
     window.removeEventListener('pointerdown', guardNativeHighQuality, true);
     window.removeEventListener('click', guardNativeHighQuality, true);
-  }, { once: true });
+  }, { once: true
+  });
 
+  /** Performs the diagnostics operation. */
   const diagnostics = (): Record<string, unknown> => ({
     selectedQuality: `${selectedQuality}p`,
     bypassTarget: isHighQuality(selectedQuality) ? `${selectedQuality}p` : null,
@@ -599,13 +653,15 @@ function installChzzkQualityMenu(
     customPanes: document.querySelectorAll('[data-kawaikara-quality-pane]').length,
     gateBypassCount,
   });
-  pageGlobal.__kawaikaraChzzkQualityMenu = { refresh, observer, diagnostics };
+  pageGlobal.__kawaikaraChzzkQualityMenu = { refresh, observer, diagnostics
+  };
   console.info(
     '[Kawaikara/CHZZK][quality] custom menu installed; default is 1080p Kawaikara',
   );
   refresh();
 }
 
+/** Creates the CHZZK quality enhancement script. */
 export function createChzzkQualityEnhancementScript(
   options: ChzzkQualityInjectionOptions,
 ): string {

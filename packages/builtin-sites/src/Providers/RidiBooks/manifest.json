@@ -8,6 +8,10 @@
   "permissions": ["navigation", "network-interception"],
   "contributes": {
     "address": { "hosts": ["ridibooks.com"] },
+    "browserIdentity": {
+      "userAgent": "chromium",
+      "clientHints": "auto"
+    },
     "shortcut": { "defaultKey": "Control+Alt+R" },
     "locale": {
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],

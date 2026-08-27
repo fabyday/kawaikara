@@ -23,13 +23,20 @@ import type {
   SiteRequestDetails,
   SiteRequestHeaders,
   SiteRequestRedirect,
-  SiteCookieStore,
+  SiteBrowserIdentityOptions,
   SiteExternalBrowser,
+  SiteLogger,
   SiteViewer,
+} from '@kawaikara/site-api';
+import {
+  createChromiumClientHints,
+  createChromiumUserAgent,
+  matchesSiteUrlHost,
+  setRequestHeader,
 } from '@kawaikara/site-api';
 import { ExternalBrowserManager } from './ExternalBrowserManager';
 import { UnifiedPictureInPictureManager } from './UnifiedPictureInPictureManager';
-import type { SiteRuntimeProfile } from './SiteManager';
+import type { SiteRuntimeProfile } from '../Functional/SiteRuntime';
 import {
   IPC_CHANNELS,
   type ApplicationUpdatePanelState,
@@ -37,6 +44,7 @@ import {
   type AppTheme,
   type DisplayInfo,
   type DevToolsMode,
+  type DevelopmentState,
   type OverlayView,
   type VideoPlaybackCapabilities,
   type VideoOpenRequest,
@@ -52,21 +60,32 @@ import {
   type PictureInPicturePlacementPreference,
   type PictureInPictureSizePreference,
 } from '../../Common/PictureInPicture';
-import {
-  getExternalLoginViewData,
-  resolveAppLocale,
-} from '../Functional/Locale';
+import { getExternalLoginViewData } from '../Functional/Locale';
+import { getAppMessages } from '../Functional/RendererMessages';
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
-import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
+import { createSitePagePipeline } from '../Functional/SitePagePipeline';
+import type {
+  InternalVideoPictureInPictureState,
+  PictureInPictureManagerFactory,
+} from '../Functional/WindowRuntime';
 import { createRemoteThemeBridgeInjectionScript } from '../Inject/RemoteTheme';
 import type { LoggingManager } from './LoggingManager';
 import {
   disableMacOSFullScreenAuxiliary,
   enableMacOSFullScreenAuxiliary,
 } from '../Functional/MacOSWindowSpaces';
+import {
+  captureInternalVideoPictureInPicturePlacement,
+  createSiteCookieStore,
+  handleNativeEditingShortcut,
+  loadURLWithNavigationRecovery,
+  normalizeVideoDimension,
+  prepareCurrentDocumentForNavigation,
+  resolveInternalVideoPictureInPictureBounds,
+  resolveMpvAddonPath,
+} from '../Functional/WindowOperations';
 
-const NAVIGATION_HANDOFF_SETTLE_MS = 180;
-const INTERNAL_VIDEO_PIP_MARGIN = 20;
+/** Defines the shared video file extensions constant. */
 const VIDEO_FILE_EXTENSIONS = new Set([
   '.3gp',
   '.avi',
@@ -84,6 +103,7 @@ const VIDEO_FILE_EXTENSIONS = new Set([
   '.webm',
   '.wmv',
 ]);
+/** Defines the shared remote scrollbar CSS constant. */
 const REMOTE_SCROLLBAR_CSS = `
   :root {
     scrollbar-color: transparent transparent !important;
@@ -123,93 +143,162 @@ const REMOTE_SCROLLBAR_CSS = `
   }
 `;
 
-export type PictureInPictureManagerFactory = (
-  ...args: ConstructorParameters<typeof UnifiedPictureInPictureManager>
-) => UnifiedPictureInPictureManager;
-
-interface InternalVideoPictureInPictureState {
-  readonly minimumSize: readonly [number, number];
-  readonly movable: boolean;
-  readonly resizable: boolean;
-  readonly visibleOnAllWorkspaces: boolean;
-}
-
+/** Coordinates window behavior. */
 export class WindowManager {
+  /** The external browser value. */
   private readonly externalBrowser: ExternalBrowserManager;
+  /** The MPV value. */
   private readonly mpv: MpvMain = createMpvMain({
+    /** The addon path value. */
     addonPath: resolveMpvAddonPath(),
   });
-  // The previous native/Game PiP implementation remains in
-  // PictureInPictureManager.ts as a legacy fallback while the unified,
-  // dedicated-window PiP is evaluated.
+  // Provider PiP has one application-owned implementation. Site-specific
+  // policy is supplied through the Provider API, never a parallel manager.
+  /** The picture in picture value. */
   private readonly pictureInPicture: UnifiedPictureInPictureManager;
+  /** The editing web contents IDs value. */
   private readonly editingWebContentsIds = new Set<number>();
+  /** The site popup Windows value. */
   private readonly sitePopupWindows = new Set<BrowserWindow>();
-  private appTitle = 'Kawaikara';
+  /** The app title value. */
+  private appTitle = getAppMessages('system', app.getLocale()).title;
+  /** The app locale value. */
   private appLocale: AppLocale = 'system';
+  /** The app theme value. */
   private appTheme: AppTheme = 'dark';
+  /** The system locale value. */
   private systemLocale = 'en-US';
+  /** The viewer window value. */
   private viewerWindow?: BrowserWindow;
+  /** The video window value. */
   private videoWindow?: BrowserWindow;
+  /** The video window loading value. */
   private videoWindowLoading?: Promise<BrowserWindow>;
+  /** The video software renderer value. */
   private videoSoftwareRenderer = false;
+  /** The video renderer recovery value. */
   private videoRendererRecovery?: Promise<boolean>;
+  /** The overlay window value. */
   private overlayWindow?: BrowserWindow;
+  /** The site view value. */
   private siteView?: WebContentsView;
+  /** The site view attached value. */
   private siteViewAttached = false;
+  /** The internal video visible value. */
   private internalVideoVisible = false;
+  /** The internal video presentation value. */
   private internalVideoPresentation: VideoPresentationState = {
+    /** Whether the ready option is enabled. */
     ready: false,
+    /** The width value. */
     width: 0,
+    /** The height value. */
     height: 0,
   };
+  /** The internal video picture in picture value. */
   private internalVideoPictureInPicture?: InternalVideoPictureInPictureState;
+  /** The app always on top value. */
   private appAlwaysOnTop = false;
+  /** The picture in picture placement value. */
   private pictureInPicturePlacement = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
+  /** The picture in picture portrait size value. */
   private pictureInPicturePortraitSize =
     DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE;
+  /** The picture in picture size value. */
   private pictureInPictureSize = DEFAULT_PICTURE_IN_PICTURE_SIZE;
+  /** The configured site sessions value. */
   private readonly configuredSiteSessions = new WeakSet<Session>();
+  /** The overlay visible value. */
   private overlayVisible = false;
+  /** The overlay view value. */
   private overlayView: OverlayView = 'menu';
+  /** The restore menu after picture in picture value. */
   private restoreMenuAfterPictureInPicture = false;
+  /** The close menu on escape value. */
   private closeMenuOnEscape = true;
+  /** The close menu on outside click value. */
   private closeMenuOnOutsideClick = true;
+  /** The dev tools mode value. */
+  private devToolsMode: DevToolsMode = 'detach';
+  /** The open dev tools on initial site value. */
+  private openDevToolsOnInitialSite = false;
+  /** The keep site dev tools open value. */
+  private keepSiteDevToolsOpen = false;
+  /** The detached dev tools bounds value. */
+  private detachedDevToolsBounds?: Rectangle;
+  /** The configured dev tools contents value. */
+  private readonly configuredDevToolsContents = new WeakSet<WebContents>();
+  /** The configured dev tools Windows value. */
+  private readonly configuredDevToolsWindows = new WeakSet<BrowserWindow>();
+  /** The current video open request value. */
   private currentVideoOpenRequest: VideoOpenRequest | null = null;
+  /** The pending video open request value. */
   private pendingVideoOpenRequest?: VideoOpenRequest;
+  /** The last local video open request value. */
   private lastLocalVideoOpenRequest?: Extract<
     VideoOpenRequest,
-    { readonly kind: 'local' }
+    {
+      /** The kind value. */
+      readonly kind: 'local';
+    }
   >;
+  /** The external login generation value. */
   private externalLoginGeneration = 0;
+  /** Callback used to handle new window policy resolver. */
   private newWindowPolicyResolver?: (url: string) => NewWindowPolicy;
+  /** Callback used to handle site action handler. */
   private siteActionHandler?: (action: string) => Promise<boolean>;
+  /** Callback used to handle navigation guard. */
   private navigationGuard?: (url: string) => boolean;
+  /** Callback used to handle picture in picture guard. */
   private pictureInPictureGuard?: (url: string) => boolean;
+  /** Callback used to handle picture in picture content overlay selectors. */
   private pictureInPictureContentOverlaySelectors?: () => readonly string[];
+  /** Callback used to handle picture in picture state handler. */
   private pictureInPictureStateHandler?: (active: boolean) => void;
+  /** Callback used to handle shortcut handler. */
   private shortcutHandler?: (input: Input, editing: boolean) => boolean;
+  /** Callback used to handle request headers transformer. */
   private requestHeadersTransformer?: (
     details: SiteRequestDetails,
   ) => SiteRequestHeaders | undefined;
+  /** Callback used to handle request transformer. */
   private requestTransformer?: (
     details: SiteRequestDetails,
   ) => SiteRequestRedirect | undefined;
+  /** The site browser identity value. */
+  private siteBrowserIdentity?: {
+    /** The user agent value. */
+    readonly userAgent: string;
+    /** The request hosts value. */
+    readonly requestHosts?: readonly string[];
+    /** The client hints value. */
+    readonly clientHints?: string;
+  };
+  /** Callback used to handle picture in picture placement recorder. */
   private pictureInPicturePlacementRecorder?: (
     placement: PictureInPictureLastPlacement,
   ) => Promise<void> | void;
+  /** The restoring picture in picture value. */
   private restoringPictureInPicture = false;
+  /** The disposing value. */
   private disposing = false;
+  /** The viewer close prepared value. */
   private viewerClosePrepared = false;
+  /** The viewer close preparation value. */
   private viewerClosePreparation?: Promise<void>;
+  /** The internal video picture in picture reassert timers value. */
   private readonly internalVideoPictureInPictureReassertTimers = new Set<
     ReturnType<typeof setTimeout>
   >();
+  /** The overlay reveal timer value. */
   private overlayRevealTimer?: ReturnType<typeof setTimeout>;
 
+  /** Creates an instance of WindowManager. */
   constructor(
     externalBrowser: ExternalBrowserManager,
     createPictureInPicture: PictureInPictureManagerFactory,
+    /** The logging value. */
     private readonly logging: LoggingManager,
   ) {
     this.externalBrowser = externalBrowser;
@@ -235,7 +324,7 @@ export class WindowManager {
       },
       () => {
         const viewer = this.viewerWindow;
-        if (viewer && !viewer.isDestroyed()) {
+        if (!this.disposing && viewer && !viewer.isDestroyed()) {
           this.focusViewer();
           this.restoreOverlayAfterPictureInPicture();
         }
@@ -244,6 +333,7 @@ export class WindowManager {
     );
   }
 
+  /** Creates the Windows. */
   createWindows(): void {
     if (this.viewerWindow) {
       return;
@@ -310,6 +400,7 @@ export class WindowManager {
       this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
+    /** Notifies the full screen changed. */
     const notifyFullScreenChanged = () => {
       const videoWindow = this.videoWindow;
       if (videoWindow && !videoWindow.isDestroyed()) {
@@ -327,14 +418,6 @@ export class WindowManager {
       this.syncOverlayBounds();
     });
     viewerWindow.on('close', (event) => {
-      if (
-        this.pictureInPicture.isActive() ||
-        this.internalVideoPictureInPicture
-      ) {
-        event.preventDefault();
-        void this.restorePictureInPicture();
-        return;
-      }
       if (!this.disposing && !this.viewerClosePrepared) {
         event.preventDefault();
         if (!this.viewerClosePreparation) {
@@ -418,6 +501,7 @@ export class WindowManager {
         this.overlayVisible &&
         this.overlayView === 'menu' &&
         this.closeMenuOnEscape &&
+        !editing &&
         input.type === 'keyDown' &&
         !input.isAutoRepeat &&
         !input.isComposing &&
@@ -459,17 +543,26 @@ export class WindowManager {
     });
   }
 
+  /** Sets the site handlers. */
   setSiteHandlers(handlers: {
+    /** Resolves the new window policy. */
     resolveNewWindowPolicy(url: string): NewWindowPolicy;
+    /** Handles the action. */
     handleAction(action: string): Promise<boolean>;
+    /** Performs the allow navigation operation. */
     allowNavigation(url: string): boolean;
+    /** Performs the allow picture in picture operation. */
     allowPictureInPicture(url: string): boolean;
+    /** Returns the picture in picture content overlay selectors. */
     getPictureInPictureContentOverlaySelectors(): readonly string[];
+    /** Performs the transform request operation. */
     transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined;
+    /** Performs the transform request headers operation. */
     transformRequestHeaders(
       details: SiteRequestDetails,
     ): SiteRequestHeaders | undefined;
-  }): void {
+  }
+  ): void {
     this.newWindowPolicyResolver = handlers.resolveNewWindowPolicy;
     this.siteActionHandler = handlers.handleAction;
     this.navigationGuard = handlers.allowNavigation;
@@ -480,10 +573,12 @@ export class WindowManager {
     this.requestHeadersTransformer = handlers.transformRequestHeaders;
   }
 
+  /** Sets the shortcut handler. */
   setShortcutHandler(handler: (input: Input, editing: boolean) => boolean): void {
     this.shortcutHandler = handler;
   }
 
+  /** Sets the picture in picture state handler. */
   setPictureInPictureStateHandler(handler: (active: boolean) => void): void {
     this.pictureInPictureStateHandler = handler;
     handler(
@@ -492,10 +587,12 @@ export class WindowManager {
     );
   }
 
+  /** Determines whether the picture in picture active condition applies. */
   isPictureInPictureActive(): boolean {
     return this.isAnyPictureInPictureActive();
   }
 
+  /** Releases the operation. */
   async dispose(): Promise<void> {
     this.disposing = true;
     await this.exitInternalVideoPictureInPicture(false);
@@ -513,8 +610,11 @@ export class WindowManager {
     this.shortcutHandler = undefined;
     this.destroySiteView();
     await this.mpv.dispose();
+    const viewer = this.viewerWindow;
+    if (viewer && !viewer.isDestroyed()) viewer.destroy();
   }
 
+  /** Performs the queue dropped video files operation. */
   async queueDroppedVideoFiles(value: unknown): Promise<boolean> {
     if (!Array.isArray(value)) {
       return false;
@@ -534,7 +634,8 @@ export class WindowManager {
       } catch {
         continue;
       }
-      const request: Extract<VideoOpenRequest, { readonly kind: 'local' }> = {
+      const request: Extract<VideoOpenRequest, { readonly kind: 'local'
+      }> = {
         kind: 'local',
         displayName: path.basename(filePath),
         directory: path.dirname(filePath),
@@ -548,6 +649,7 @@ export class WindowManager {
     return false;
   }
 
+  /** Selects the local video. */
   async selectLocalVideo(): Promise<VideoOpenRequest | null> {
     const viewer = this.requireViewerWindow();
     const result = await dialog.showOpenDialog(viewer, {
@@ -560,7 +662,8 @@ export class WindowManager {
             extension.slice(1),
           ),
         },
-        { name: 'All files', extensions: ['*'] },
+        { name: 'All files', extensions: ['*']
+        },
       ],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
@@ -583,27 +686,37 @@ export class WindowManager {
     return request;
   }
 
+  /** Returns the video playback capabilities. */
   getVideoPlaybackCapabilities(): VideoPlaybackCapabilities {
     const nativePlatform =
       (process.platform === 'win32' && process.arch === 'x64') ||
       (process.platform === 'darwin' && process.arch === 'arm64');
     return {
+      /** The platform value. */
       platform: process.platform,
+      /** The arch value. */
       arch: process.arch,
+      /** The native backend available value. */
       nativeBackendAvailable: nativePlatform && existsSync(resolveMpvAddonPath()),
+      /** The Electron GPU acceleration enabled value. */
       electronGpuAccelerationEnabled: app.isHardwareAccelerationEnabled(),
+      /** The hardware acceleration disabled value. */
       hardwareAccelerationDisabled: process.env.MPV_HWDEC === 'no',
     };
   }
 
+  /** Performs the queue you tube downloader operation. */
   queueYouTubeDownloader(url: string): void {
-    this.pendingVideoOpenRequest = { kind: 'youtube', url };
+    this.pendingVideoOpenRequest = { kind: 'youtube', url
+    };
   }
 
+  /** Returns the current video open request. */
   getCurrentVideoOpenRequest(): VideoOpenRequest | null {
     return this.currentVideoOpenRequest;
   }
 
+  /** Returns the current site address. */
   getCurrentSiteAddress(): string {
     const webContents = this.siteView?.webContents;
     if (!webContents || webContents.isDestroyed()) return '';
@@ -615,9 +728,13 @@ export class WindowManager {
     }
   }
 
+  /** Performs the activate video open request operation. */
   activateVideoOpenRequest(
     webContentsId: number,
-    request: Extract<VideoOpenRequest, { readonly kind: 'local' }>,
+    request: Extract<VideoOpenRequest, {
+      /** The kind value. */
+      readonly kind: 'local';
+    }>,
   ): boolean {
     const video = this.videoWindow;
     if (
@@ -633,6 +750,7 @@ export class WindowManager {
     return true;
   }
 
+  /** Performs the recover video playback renderer operation. */
   recoverVideoPlaybackRenderer(webContentsId: number): Promise<boolean> {
     if (this.videoSoftwareRenderer) return Promise.resolve(false);
     if (this.videoRendererRecovery) return this.videoRendererRecovery;
@@ -657,6 +775,7 @@ export class WindowManager {
     return recovery;
   }
 
+  /** Performs the recreate video window with software renderer operation. */
   private async recreateVideoWindowWithSoftwareRenderer(
     video: BrowserWindow,
   ): Promise<boolean> {
@@ -664,7 +783,8 @@ export class WindowManager {
       'The shared-texture Video renderer did not initialize; retrying with the libmpv WebGL renderer.',
     );
     this.videoSoftwareRenderer = true;
-    this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+    this.internalVideoPresentation = { ready: false, width: 0, height: 0
+    };
     video.hide();
     await this.mpv.detachWindow(video);
     if (this.videoWindow === video) this.videoWindow = undefined;
@@ -681,11 +801,13 @@ export class WindowManager {
     return true;
   }
 
+  /** Performs the queue video open request operation. */
   queueVideoOpenRequest(request: VideoOpenRequest): void {
     this.pendingVideoOpenRequest = request;
     if (request.kind === 'local') this.lastLocalVideoOpenRequest = request;
   }
 
+  /** Performs the dispatch site action operation. */
   private dispatchSiteAction(action: string): void {
     const handler = this.siteActionHandler;
     if (!handler) {
@@ -702,46 +824,84 @@ export class WindowManager {
     });
   }
 
+  /** Loads the overlay. */
   async loadOverlay(): Promise<void> {
     const overlay = this.requireOverlayWindow();
     await overlay.loadFile(path.resolve(__dirname, '../renderer/index.html'));
   }
 
+  /** Creates the site context. */
   async createSiteContext(
     runtime: SiteRuntimeProfile,
     permissions: ReadonlySet<string>,
   ): Promise<SiteContext> {
     const { siteSession, webContents } = await this.activateSiteView(runtime);
-    const viewer = this.createSiteViewer(webContents);
+    const viewer = this.createSiteViewer(webContents, permissions);
+    this.siteBrowserIdentity = undefined;
+    const logger: SiteLogger = {
+      debug: (message, ...args) => console.debug(message, ...args),
+      info: (message, ...args) => console.info(message, ...args),
+      warn: (message, ...args) => console.warn(message, ...args),
+      error: (message, ...args) => console.error(message, ...args),
+    };
     const externalBrowser: SiteExternalBrowser = {
-      login: (options) =>
-        this.runExternalLogin(options, webContents, siteSession, viewer),
-      close: () => this.cancelExternalLogin(),
+      login: (options) => {
+        if (!permissions.has('external-browser')) {
+          throw new Error('This Provider does not have the external-browser permission.');
+        }
+        return this.runExternalLogin(options, webContents, siteSession, viewer);
+      },
+      close: () => permissions.has('external-browser')
+        ? this.cancelExternalLogin()
+        : Promise.resolve(),
     };
     return {
+      /** The viewer value. */
       viewer,
+      // SiteManager keeps this core pipeline for application-owned policies
+      // and removes it from the Provider view when permission is not granted.
+      /** The page value. */
+      page: createSitePagePipeline(webContents, logger),
+      /** The browser value. */
+      browser: permissions.has('network-interception')
+        ? {
+            /** The use identity value. */
+            useIdentity: (options) =>
+              this.useSiteBrowserIdentity(webContents, options),
+          }
+        : undefined,
+      /** The actions value. */
       actions: {
+        /** The create URL value. */
         createUrl: (action) => {
+          if (!permissions.has('script-injection')) {
+            throw new Error('Site action URLs require script-injection permission.');
+          }
           if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(action)) {
             throw new Error(`Invalid site action: ${action}`);
           }
           return `kawaikara-action://invoke/${encodeURIComponent(action)}`;
         },
       },
+      /** The external browser value. */
       externalBrowser,
+      /** The cookies value. */
       cookies: permissions.has('cookies')
         ? createSiteCookieStore(siteSession)
         : undefined,
-      logger: {
-        debug: (message, ...args) => console.debug(message, ...args),
-        info: (message, ...args) => console.info(message, ...args),
-        warn: (message, ...args) => console.warn(message, ...args),
-        error: (message, ...args) => console.error(message, ...args),
+      /** The logger value. */
+      logger,
+      /** The open external value. */
+      openExternal: (url) => {
+        if (!permissions.has('navigation')) {
+          throw new Error('Opening an external URL requires navigation permission.');
+        }
+        return openInDefaultBrowser(url);
       },
-      openExternal: (url) => openInDefaultBrowser(url),
     };
   }
 
+  /** Sets the always on top. */
   setAlwaysOnTop(enabled: boolean): void {
     this.appAlwaysOnTop = enabled;
     if (!this.isAnyPictureInPictureActive()) {
@@ -752,8 +912,15 @@ export class WindowManager {
     }
   }
 
+  /** Prepares the viewer window close. */
   private async prepareViewerWindowClose(viewer: BrowserWindow): Promise<void> {
+    this.disposing = true;
     try {
+      // The title-bar close button means application shutdown on every
+      // platform. Close both PiP modes first so their native windows cannot
+      // keep the macOS process alive after the viewer disappears.
+      await this.exitInternalVideoPictureInPicture(false);
+      await this.pictureInPicture.exitAllModes();
       // electron-mpv-video's closed listener reads webContents.id. Detach while
       // the BrowserWindow is still alive so that listener never observes a
       // destroyed Electron object during an ordinary title-bar close.
@@ -775,26 +942,53 @@ export class WindowManager {
     }
   }
 
+  /** Applies the always on top. */
   private applyAlwaysOnTop(viewer: BrowserWindow, enabled: boolean): void {
     viewer.setAlwaysOnTop(enabled);
+    const overlay = this.overlayWindow;
+    if (overlay && !overlay.isDestroyed()) {
+      // The menu is a separate native child window. Giving it the same level
+      // as the viewer prevents macOS from placing the two windows in different
+      // display/Space layers during an AOT drag.
+      overlay.setAlwaysOnTop(enabled);
+    }
     if (process.platform === 'darwin') {
       // Normal AOT intentionally stays out of another application's native
-      // fullscreen Space. Dedicated PiP windows retain fullscreen visibility.
-      viewer.setVisibleOnAllWorkspaces(enabled, { visibleOnFullScreen: false });
+      // fullscreen Space. Skipping Electron's process-type transformation
+      // prevents each toggle from hiding and re-registering the Dock icon.
+      if (viewer.isVisibleOnAllWorkspaces() !== enabled) {
+        viewer.setVisibleOnAllWorkspaces(enabled, {
+          visibleOnFullScreen: false,
+          skipTransformProcessType: true,
+        });
+      }
+      if (
+        overlay &&
+        !overlay.isDestroyed() &&
+        overlay.isVisibleOnAllWorkspaces() !== enabled
+      ) {
+        overlay.setVisibleOnAllWorkspaces(enabled, {
+          visibleOnFullScreen: false,
+          skipTransformProcessType: true,
+        });
+      }
     }
   }
 
+  /** Determines whether the any picture in picture active condition applies. */
   private isAnyPictureInPictureActive(): boolean {
     return Boolean(
       this.internalVideoPictureInPicture || this.pictureInPicture.isActive(),
     );
   }
 
+  /** Performs the suspend viewer always on top for picture in picture operation. */
   private suspendViewerAlwaysOnTopForPictureInPicture(): void {
     const viewer = this.viewerWindow;
     if (viewer && !viewer.isDestroyed()) this.applyAlwaysOnTop(viewer, false);
   }
 
+  /** Restores the viewer always on top after picture in picture. */
   private restoreViewerAlwaysOnTopAfterPictureInPicture(): void {
     if (this.disposing || this.isAnyPictureInPictureActive()) return;
     const viewer = this.viewerWindow;
@@ -802,6 +996,7 @@ export class WindowManager {
     this.applyAlwaysOnTop(viewer, this.appAlwaysOnTop);
   }
 
+  /** Sets the menu dismiss behavior. */
   setMenuDismissBehavior(
     closeOnEscape: boolean,
     closeOnOutsideClick: boolean,
@@ -810,6 +1005,7 @@ export class WindowManager {
     this.closeMenuOnOutsideClick = closeOnOutsideClick;
   }
 
+  /** Lists the displays. */
   listDisplays(): DisplayInfo[] {
     const viewerBounds = this.requireViewerWindow().getBounds();
     const currentDisplayId = String(screen.getDisplayMatching(viewerBounds).id);
@@ -825,19 +1021,36 @@ export class WindowManager {
     }));
   }
 
+  /** Opens the dev tools. */
   openDevTools(mode: DevToolsMode): void {
     const webContents = this.getActiveViewerWebContents();
     if (!webContents || webContents.isDestroyed()) {
       throw new Error('There is no active site view to inspect.');
     }
-    webContents.openDevTools({ mode, activate: true });
+    this.devToolsMode = mode;
+    this.keepSiteDevToolsOpen = true;
+    webContents.openDevTools({ mode, activate: true
+    });
   }
 
+  /** Performs the configure startup dev tools operation. */
+  configureStartupDevTools(openOnStartup: boolean, mode: DevToolsMode): void {
+    this.openDevToolsOnInitialSite = openOnStartup;
+    this.devToolsMode = mode;
+  }
+
+  /** Sets the dev tools mode. */
+  setDevToolsMode(mode: DevToolsMode): void {
+    this.devToolsMode = mode;
+  }
+
+  /** Sets the picture in picture size. */
   setPictureInPictureSize(preference: PictureInPictureSizePreference): void {
     this.pictureInPictureSize = preference;
     this.pictureInPicture.setWindowSize(preference);
   }
 
+  /** Sets the picture in picture portrait size. */
   setPictureInPicturePortraitSize(
     preference: PictureInPictureSizePreference,
   ): void {
@@ -845,6 +1058,7 @@ export class WindowManager {
     this.pictureInPicture.setPortraitWindowSize(preference);
   }
 
+  /** Sets the picture in picture placement. */
   setPictureInPicturePlacement(
     preference: PictureInPicturePlacementPreference,
   ): void {
@@ -852,6 +1066,7 @@ export class WindowManager {
     this.pictureInPicture.setWindowPlacement(preference);
   }
 
+  /** Sets the picture in picture placement recorder. */
   setPictureInPicturePlacementRecorder(
     recorder: (
       placement: PictureInPictureLastPlacement,
@@ -860,30 +1075,43 @@ export class WindowManager {
     this.pictureInPicturePlacementRecorder = recorder;
   }
 
+  /** Toggles the picture in picture. */
   async togglePictureInPicture() {
     if (this.internalVideoVisible) {
       return this.toggleInternalVideoPictureInPicture();
     }
     if (!this.canEnterPictureInPicture()) {
-      return { status: 'no-video' as const, mode: 'video' as const };
+      return {
+        /** The status value. */
+        status: 'no-video' as const,
+        /** The mode value. */
+        mode: 'video' as const,
+      };
     }
-    return this.togglePictureInPictureWithOverlay(() =>
-      this.pictureInPicture.toggle(),
+    return this.togglePictureInPictureWithOverlay((beforeEnter) =>
+      this.pictureInPicture.toggle(beforeEnter),
     );
   }
 
+  /** Toggles the game picture in picture. */
   async toggleGamePictureInPicture() {
     if (this.internalVideoVisible) {
       return this.toggleInternalVideoPictureInPicture();
     }
     if (!this.canEnterPictureInPicture()) {
-      return { status: 'no-video' as const, mode: 'window' as const };
+      return {
+        /** The status value. */
+        status: 'no-video' as const,
+        /** The mode value. */
+        mode: 'window' as const,
+      };
     }
-    return this.togglePictureInPictureWithOverlay(() =>
-      this.pictureInPicture.toggle(),
+    return this.togglePictureInPictureWithOverlay((beforeEnter) =>
+      this.pictureInPicture.toggle(beforeEnter),
     );
   }
 
+  /** Determines whether the enter picture in picture condition applies. */
   private canEnterPictureInPicture(): boolean {
     if (this.internalVideoPictureInPicture) return true;
     if (this.pictureInPicture.isActive()) return true;
@@ -891,29 +1119,40 @@ export class WindowManager {
     return this.pictureInPictureGuard?.(webContents.getURL()) ?? true;
   }
 
+  /** Toggles the picture in picture with overlay. */
   private async togglePictureInPictureWithOverlay(
-    toggle: () => ReturnType<UnifiedPictureInPictureManager['toggle']>,
+    toggle: (
+      beforeEnter: () => boolean,
+    ) => ReturnType<UnifiedPictureInPictureManager['toggle']>,
   ) {
     const entering = !this.pictureInPicture.isActive();
-    if (entering && !this.prepareOverlayForPictureInPicture()) {
-      return { status: 'disabled' as const, mode: 'video' as const };
-    }
-    if (entering) this.suspendViewerAlwaysOnTopForPictureInPicture();
+    let prepared = false;
+    /** Performs the before enter operation. */
+    const beforeEnter = (): boolean => {
+      if (!entering) return true;
+      if (!this.prepareOverlayForPictureInPicture()) return false;
+      prepared = true;
+      this.suspendViewerAlwaysOnTopForPictureInPicture();
+      return true;
+    };
     let result;
     try {
-      result = await toggle();
+      result = await toggle(beforeEnter);
     } catch (error) {
-      this.restoreViewerAlwaysOnTopAfterPictureInPicture();
-      if (entering) this.restoreOverlayAfterPictureInPicture();
+      if (prepared) {
+        this.restoreViewerAlwaysOnTopAfterPictureInPicture();
+        this.restoreOverlayAfterPictureInPicture();
+      }
       throw error;
     }
-    if (result.status !== 'entered') {
+    if (prepared && result.status !== 'entered') {
       this.restoreViewerAlwaysOnTopAfterPictureInPicture();
-      if (entering) this.restoreOverlayAfterPictureInPicture();
+      this.restoreOverlayAfterPictureInPicture();
     }
     return result;
   }
 
+  /** Restores the picture in picture. */
   private async restorePictureInPicture(): Promise<void> {
     if (this.restoringPictureInPicture) return;
     this.restoringPictureInPicture = true;
@@ -933,23 +1172,26 @@ export class WindowManager {
     }
   }
 
+  /** Sets the app locale. */
   setAppLocale(locale: AppLocale, systemLocale: string): void {
     this.appLocale = locale;
     this.systemLocale = systemLocale;
-    const resolvedLocale = resolveAppLocale(locale, systemLocale);
-    this.appTitle = resolveLocalizedAppTitle(resolvedLocale);
+    this.appTitle = getAppMessages(locale, systemLocale).title;
     this.viewerWindow?.setTitle(this.appTitle);
   }
 
+  /** Toggles the app full screen. */
   toggleAppFullScreen(): void {
     const viewer = this.requireViewerWindow();
     viewer.setFullScreen(!viewer.isFullScreen());
   }
 
+  /** Performs the reload viewer operation. */
   reloadViewer(): void {
     this.requireActiveViewerWebContents().reload();
   }
 
+  /** Sets the app theme. */
   setAppTheme(theme: AppTheme): void {
     this.appTheme = theme;
     // Electron propagates this value to every current and future renderer as
@@ -959,6 +1201,7 @@ export class WindowManager {
     nativeTheme.themeSource = theme;
   }
 
+  /** Sets the internal video presentation. */
   setInternalVideoPresentation(webContentsId: number, value: unknown): boolean {
     const video = this.videoWindow;
     if (
@@ -982,18 +1225,34 @@ export class WindowManager {
     return true;
   }
 
+  /** Toggles the internal video picture in picture. */
   private async toggleInternalVideoPictureInPicture() {
     if (this.internalVideoPictureInPicture) {
       await this.exitInternalVideoPictureInPicture();
       this.focusViewer();
       this.restoreOverlayAfterPictureInPicture();
-      return { status: 'exited' as const, mode: 'window' as const };
+      return {
+        /** The status value. */
+        status: 'exited' as const,
+        /** The mode value. */
+        mode: 'window' as const,
+      };
     }
     if (!this.internalVideoPresentation.ready) {
-      return { status: 'no-video' as const, mode: 'window' as const };
+      return {
+        /** The status value. */
+        status: 'no-video' as const,
+        /** The mode value. */
+        mode: 'window' as const,
+      };
     }
     if (!this.prepareOverlayForPictureInPicture()) {
-      return { status: 'disabled' as const, mode: 'window' as const };
+      return {
+        /** The status value. */
+        status: 'disabled' as const,
+        /** The mode value. */
+        mode: 'window' as const,
+      };
     }
 
     const viewer = this.requireViewerWindow();
@@ -1039,7 +1298,8 @@ export class WindowManager {
     video.setBounds(bounds, false);
     if (process.platform === 'darwin') {
       video.setAlwaysOnTop(true, 'screen-saver');
-      video.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      video.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true
+      });
     } else {
       video.setAlwaysOnTop(true, 'screen-saver');
     }
@@ -1056,10 +1316,17 @@ export class WindowManager {
       video.focus();
       video.webContents.focus();
     }
-    this.notifyPictureInPictureChanged({ status: 'entered', mode: 'window' });
-    return { status: 'entered' as const, mode: 'window' as const };
+    this.notifyPictureInPictureChanged({ status: 'entered', mode: 'window'
+    });
+    return {
+      /** The status value. */
+      status: 'entered' as const,
+      /** The mode value. */
+      mode: 'window' as const,
+    };
   }
 
+  /** Performs the exit internal video picture in picture operation. */
   private async exitInternalVideoPictureInPicture(notify = true): Promise<void> {
     const state = this.internalVideoPictureInPicture;
     if (!state) return;
@@ -1099,19 +1366,23 @@ export class WindowManager {
       video.setMovable(state.movable);
       video.setResizable(state.resizable);
       video.setParentWindow(viewer);
-      viewer.show();
-      this.syncVideoWindowBounds();
-      if (this.internalVideoVisible) {
-        video.show();
-        video.moveTop();
+      if (!this.disposing) {
+        viewer.show();
+        this.syncVideoWindowBounds();
+        if (this.internalVideoVisible) {
+          video.show();
+          video.moveTop();
+        }
       }
     }
     this.restoreViewerAlwaysOnTopAfterPictureInPicture();
     if (notify) {
-      this.notifyPictureInPictureChanged({ status: 'exited', mode: 'window' });
+      this.notifyPictureInPictureChanged({ status: 'exited', mode: 'window'
+      });
     }
   }
 
+  /** Performs the present internal video picture in picture operation. */
   private presentInternalVideoPictureInPicture(video: BrowserWindow): void {
     if (video.isDestroyed()) return;
     this.prepareMacApplicationForInternalVideoPictureInPicture();
@@ -1125,6 +1396,7 @@ export class WindowManager {
     video.moveTop();
   }
 
+  /** Prepares the mac application for internal video picture in picture. */
   private prepareMacApplicationForInternalVideoPictureInPicture(): void {
     // AppKit's FullScreenAuxiliary behavior requires an accessory process.
     // The native bridge then adds the existing true fullscreen Space that
@@ -1133,6 +1405,7 @@ export class WindowManager {
     app.dock?.hide();
   }
 
+  /** Schedules the internal video picture in picture reassertion. */
   private scheduleInternalVideoPictureInPictureReassertion(): void {
     if (process.platform !== 'darwin' || !this.internalVideoPictureInPicture) {
       return;
@@ -1155,6 +1428,7 @@ export class WindowManager {
     }
   }
 
+  /** Clears the internal video picture in picture reassertions. */
   private clearInternalVideoPictureInPictureReassertions(): void {
     for (const timer of this.internalVideoPictureInPictureReassertTimers) {
       clearTimeout(timer);
@@ -1162,10 +1436,14 @@ export class WindowManager {
     this.internalVideoPictureInPictureReassertTimers.clear();
   }
 
+  /** Notifies the picture in picture changed. */
   private notifyPictureInPictureChanged(result: {
+    /** The status value. */
     readonly status: 'entered' | 'exited';
+    /** The mode value. */
     readonly mode: 'window';
-  }): void {
+  }
+  ): void {
     const overlay = this.overlayWindow;
     if (overlay && !overlay.isDestroyed()) {
       overlay.webContents.send(
@@ -1176,26 +1454,43 @@ export class WindowManager {
     this.pictureInPictureStateHandler?.(result.status === 'entered');
   }
 
+  /** Determines whether the app full screen condition applies. */
   isAppFullScreen(): boolean {
     return !this.internalVideoPictureInPicture &&
       this.requireViewerWindow().isFullScreen();
   }
 
+  /** Performs the exit app full screen operation. */
   exitAppFullScreen(): void {
     const viewer = this.requireViewerWindow();
     if (viewer.isFullScreen()) viewer.setFullScreen(false);
   }
 
-  goBack(): void {
-    const navigation = this.requireActiveViewerWebContents().navigationHistory;
-    if (navigation.canGoBack()) navigation.goBack();
+  /** Notifies the development state changed. */
+  notifyDevelopmentStateChanged(state: DevelopmentState): void {
+    const overlay = this.overlayWindow;
+    if (overlay && !overlay.isDestroyed()) {
+      overlay.webContents.send(IPC_CHANNELS.development.stateChanged, state);
+    }
   }
 
-  goForward(): void {
+  /** Performs the go back operation. */
+  goBack(): boolean {
     const navigation = this.requireActiveViewerWebContents().navigationHistory;
-    if (navigation.canGoForward()) navigation.goForward();
+    if (!navigation.canGoBack()) return false;
+    navigation.goBack();
+    return true;
   }
 
+  /** Performs the go forward operation. */
+  goForward(): boolean {
+    const navigation = this.requireActiveViewerWebContents().navigationHistory;
+    if (!navigation.canGoForward()) return false;
+    navigation.goForward();
+    return true;
+  }
+
+  /** Sets the editing state. */
   setEditingState(webContentsId: number, editing: boolean): boolean {
     const viewerId = this.siteView?.webContents.id;
     const internalViewerId = this.videoWindow?.webContents.id;
@@ -1215,6 +1510,7 @@ export class WindowManager {
     return true;
   }
 
+  /** Performs the show overlay operation. */
   showOverlay(): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'menu';
@@ -1224,6 +1520,7 @@ export class WindowManager {
     this.revealOverlay(overlay);
   }
 
+  /** Performs the show preferences overlay operation. */
   showPreferencesOverlay(): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'preference';
@@ -1233,6 +1530,7 @@ export class WindowManager {
     this.revealOverlay(overlay);
   }
 
+  /** Performs the show update overlay operation. */
   showUpdateOverlay(state: ApplicationUpdatePanelState): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'update';
@@ -1242,6 +1540,7 @@ export class WindowManager {
     this.revealOverlay(overlay);
   }
 
+  /** Updates the update overlay. */
   updateUpdateOverlay(state: ApplicationUpdatePanelState): void {
     const overlay = this.overlayWindow;
     if (!overlay || overlay.isDestroyed()) return;
@@ -1251,6 +1550,7 @@ export class WindowManager {
     );
   }
 
+  /** Performs the hide overlay operation. */
   hideOverlay(): void {
     this.overlayVisible = false;
     const overlay = this.overlayWindow;
@@ -1273,6 +1573,7 @@ export class WindowManager {
     }
   }
 
+  /** Prepares the overlay for picture in picture. */
   private prepareOverlayForPictureInPicture(): boolean {
     if (this.overlayVisible && this.overlayView !== 'menu') return false;
     this.restoreMenuAfterPictureInPicture =
@@ -1281,12 +1582,14 @@ export class WindowManager {
     return true;
   }
 
+  /** Restores the overlay after picture in picture. */
   private restoreOverlayAfterPictureInPicture(): void {
     if (!this.restoreMenuAfterPictureInPicture) return;
     this.restoreMenuAfterPictureInPicture = false;
     this.showOverlay();
   }
 
+  /** Toggles the overlay. */
   toggleOverlay(): void {
     if (this.overlayVisible) {
       const overlay = this.requireOverlayWindow();
@@ -1296,6 +1599,7 @@ export class WindowManager {
     }
   }
 
+  /** Performs the focus viewer operation. */
   focusViewer(): void {
     const viewer = this.requireViewerWindow();
     this.hideOverlay();
@@ -1309,7 +1613,8 @@ export class WindowManager {
     viewer.show();
     this.syncSiteViewBounds();
     this.syncVideoWindowBounds();
-    if (process.platform === 'darwin') app.focus({ steal: true });
+    if (process.platform === 'darwin') app.focus({ steal: true
+    });
     viewer.moveTop();
     viewer.focus();
     if (this.internalVideoVisible) {
@@ -1323,14 +1628,21 @@ export class WindowManager {
     } else this.siteView?.webContents.focus();
   }
 
+  /** Performs the activate site view operation. */
   private async activateSiteView(
     runtime: SiteRuntimeProfile,
-  ): Promise<{ readonly siteSession: Session; readonly webContents: WebContents }> {
+  ): Promise<{
+    /** The site session value. */
+    readonly siteSession: Session;
+    /** The web contents value. */
+    readonly webContents: WebContents;
+  }> {
     const viewerWindow = this.requireViewerWindow();
     if (this.internalVideoVisible) {
       await this.exitInternalVideoPictureInPicture();
       this.internalVideoVisible = false;
-      this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+      this.internalVideoPresentation = { ready: false, width: 0, height: 0
+      };
       const video = this.videoWindow;
       if (video && !video.isDestroyed()) {
         video.webContents.send(IPC_CHANNELS.video.visibilityChanged, false);
@@ -1382,14 +1694,21 @@ export class WindowManager {
     console.info(
       `Activated ${runtime.siteId} in browser profile ${runtime.id} (${runtime.partition}).`,
     );
-    return { siteSession, webContents: siteView.webContents };
+    return {
+      /** The site session value. */
+      siteSession,
+      /** The web contents value. */
+      webContents: siteView.webContents,
+    };
   }
 
+  /** Attaches the site web contents. */
   private attachSiteWebContents(
     webContents: WebContents,
     siteSession: Session,
   ): void {
     const webContentsId = webContents.id;
+    /** Performs the refresh site surface operation. */
     const refreshSiteSurface = (reason: string): void => {
       setTimeout(() => {
         const siteView = this.siteView;
@@ -1413,7 +1732,8 @@ export class WindowManager {
     webContents.on('dom-ready', () => {
       this.installRemoteThemeBridge(webContents);
       void webContents
-        .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user' })
+        .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user'
+        })
         .catch((error: unknown) => {
           console.debug('The site scrollbar theme could not be applied.', error);
         });
@@ -1449,6 +1769,7 @@ export class WindowManager {
       }
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
+    /** Performs the guard navigation operation. */
     const guardNavigation = (event: Electron.Event, url: string): void => {
       const action = this.parseSiteAction(url);
       if (action !== undefined) {
@@ -1463,18 +1784,38 @@ export class WindowManager {
     };
     webContents.on('will-navigate', guardNavigation);
     webContents.on('will-redirect', guardNavigation);
+    webContents.on('will-frame-navigate', (details) => {
+      // Provider action URLs may originate in a cross-origin media iframe
+      // (for example CHZZK's m.naver.com Shorts carousel). Only intercept the
+      // application-owned scheme here; ordinary subframe navigation remains
+      // outside the main-frame navigation guard.
+      const action = this.parseSiteAction(details.url);
+      if (action === undefined) return;
+      details.preventDefault();
+      this.dispatchSiteAction(action);
+    });
     webContents.on('did-start-loading', () => {
       this.editingWebContentsIds.delete(webContentsId);
     });
-    webContents.on(
-      'did-start-navigation',
-      (_event, _url, isInPlace, isMainFrame) => {
-        // YouTube Shorts and other SPAs reuse the active video element while
-        // updating the URL with the History API. Keep PiP attached for those
-        // same-document transitions; a real document navigation still exits.
-        if (isMainFrame && !isInPlace) void this.pictureInPicture.exitAllModes();
-      },
-    );
+    /** Performs the finish picture in picture navigation operation. */
+    const finishPictureInPictureNavigation = (url: string): void => {
+      // Decide from the committed route, not did-start-navigation. CHZZK can
+      // briefly announce a non-video/intermediate URL while its Shorts router
+      // replaces the current clip. Exiting at that point drops PiP even though
+      // the committed destination is another Provider-approved video.
+      if (
+        this.pictureInPicture.isActive() &&
+        this.pictureInPictureGuard?.(url) !== true
+      ) {
+        void this.pictureInPicture.exitAllModes();
+      }
+    };
+    webContents.on('did-navigate', (_event, url) => {
+      finishPictureInPictureNavigation(url);
+    });
+    webContents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
+      if (isMainFrame) finishPictureInPictureNavigation(url);
+    });
     webContents.on('page-title-updated', (event) => {
       event.preventDefault();
       this.viewerWindow?.setTitle(this.appTitle);
@@ -1482,16 +1823,28 @@ export class WindowManager {
     webContents.on('destroyed', () => {
       this.editingWebContentsIds.delete(webContentsId);
     });
+    webContents.on('devtools-opened', () => {
+      this.keepSiteDevToolsOpen = true;
+      this.configureDevToolsWebContents(webContents);
+    });
+    webContents.on('devtools-closed', () => {
+      const currentSiteWebContentsId = this.siteView?.webContents.id;
+      if (currentSiteWebContentsId === webContentsId) {
+        this.keepSiteDevToolsOpen = false;
+      }
+    });
 
     webContents.setWindowOpenHandler(({ url }) => {
       const action = this.parseSiteAction(url);
       if (action !== undefined) {
         this.dispatchSiteAction(action);
-        return { action: 'deny' };
+        return { action: 'deny'
+        };
       }
       if (this.navigationGuard && !this.navigationGuard(url)) {
         console.debug(`Blocked guarded site window open: ${url}`);
-        return { action: 'deny' };
+        return { action: 'deny'
+        };
       }
 
       const policy = this.newWindowPolicyResolver?.(url) ?? 'viewer';
@@ -1500,14 +1853,17 @@ export class WindowManager {
           void openInDefaultBrowser(url).catch((error: unknown) => {
             console.error(`Failed to open ${url} in the default browser.`, error);
           });
-          return { action: 'deny' };
+          return { action: 'deny'
+          };
         case 'viewer':
           void webContents.loadURL(url).catch((error: unknown) => {
             console.error(`Failed to open ${url} in the site viewer.`, error);
           });
-          return { action: 'deny' };
+          return { action: 'deny'
+          };
         case 'deny':
-          return { action: 'deny' };
+          return { action: 'deny'
+          };
         case 'popup':
           return {
             action: 'allow',
@@ -1524,7 +1880,8 @@ export class WindowManager {
             },
           };
         case 'default':
-          return { action: 'allow' };
+          return { action: 'allow'
+          };
       }
     });
 
@@ -1542,8 +1899,92 @@ export class WindowManager {
         this.sitePopupWindows.delete(popupWindow);
       });
     });
+
+    if (this.openDevToolsOnInitialSite) {
+      this.openDevToolsOnInitialSite = false;
+      this.keepSiteDevToolsOpen = true;
+    }
+    if (this.keepSiteDevToolsOpen) {
+      // A site switch replaces the WebContentsView. Reattach DevTools to the
+      // replacement instead of making developers reopen it for every Provider.
+      queueMicrotask(() => this.openActiveSiteDevTools(false));
+    }
   }
 
+  /** Opens the active site dev tools. */
+  private openActiveSiteDevTools(activate: boolean): void {
+    const webContents = this.getActiveViewerWebContents();
+    if (
+      !webContents ||
+      webContents.isDestroyed() ||
+      webContents.isDevToolsOpened()
+    ) {
+      return;
+    }
+    webContents.openDevTools({ mode: this.devToolsMode, activate
+    });
+  }
+
+  /** Performs the configure dev tools web contents operation. */
+  private configureDevToolsWebContents(
+    inspectedContents: WebContents,
+    windowLookupAttempt = 0,
+  ): void {
+    const devToolsContents = inspectedContents.devToolsWebContents;
+    if (!devToolsContents || devToolsContents.isDestroyed()) return;
+    if (!this.configuredDevToolsContents.has(devToolsContents)) {
+      this.configuredDevToolsContents.add(devToolsContents);
+      // Menu.setApplicationMenu(null) removes Electron's default edit menu,
+      // including the accelerator that DevTools normally inherits. Restore
+      // native editing commands directly on the DevTools WebContents.
+      devToolsContents.on('before-input-event', (event, input) => {
+        if (handleNativeEditingShortcut(devToolsContents, input, true)) {
+          event.preventDefault();
+        }
+      });
+    }
+
+    if (this.devToolsMode !== 'detach') return;
+    const devToolsWindow = BrowserWindow.fromWebContents(devToolsContents);
+    if (!devToolsWindow) {
+      // On macOS the devtools-opened event can precede registration of the
+      // detached native window by one or two event-loop turns.
+      if (windowLookupAttempt < 8) {
+        setImmediate(() => {
+          if (!inspectedContents.isDestroyed()) {
+            this.configureDevToolsWebContents(
+              inspectedContents,
+              windowLookupAttempt + 1,
+            );
+          }
+        });
+      }
+      return;
+    }
+    if (devToolsWindow === this.viewerWindow) return;
+    if (!this.configuredDevToolsWindows.has(devToolsWindow)) {
+      this.configuredDevToolsWindows.add(devToolsWindow);
+      /** Performs the remember bounds operation. */
+      const rememberBounds = () => {
+        if (!devToolsWindow.isDestroyed()) {
+          this.detachedDevToolsBounds = devToolsWindow.getBounds();
+        }
+      };
+      devToolsWindow.on('move', rememberBounds);
+      devToolsWindow.on('resize', rememberBounds);
+    }
+    const bounds = this.detachedDevToolsBounds;
+    if (bounds) {
+      // DevTools creates its native window asynchronously. Applying the saved
+      // rectangle on the next turn keeps its exact monitor and position when
+      // a site switch replaces the inspected WebContents.
+      setImmediate(() => {
+        if (!devToolsWindow.isDestroyed()) devToolsWindow.setBounds(bounds, false);
+      });
+    }
+  }
+
+  /** Installs the remote theme bridge. */
   private installRemoteThemeBridge(webContents: WebContents): void {
     if (webContents.isDestroyed()) return;
     void webContents
@@ -1553,6 +1994,7 @@ export class WindowManager {
       });
   }
 
+  /** Performs the configure site session operation. */
   private configureSiteSession(siteSession: Session): void {
     if (this.configuredSiteSessions.has(siteSession)) return;
     this.configuredSiteSessions.add(siteSession);
@@ -1565,20 +2007,50 @@ export class WindowManager {
       callback(transformed ?? {});
     });
     siteSession.webRequest.onBeforeSendHeaders((details, callback) => {
-      const requestHeaders = this.requestHeadersTransformer?.({
+      let requestHeaders = this.requestHeadersTransformer?.({
         url: details.url,
         method: details.method,
         requestHeaders: details.requestHeaders,
+      }) ?? details.requestHeaders;
+      const identity = this.siteBrowserIdentity;
+      if (
+        identity && /^https:\/\//i.test(details.url) &&
+        (!identity.requestHosts?.length ||
+          matchesSiteUrlHost(details.url, identity.requestHosts))
+      ) {
+        requestHeaders = { ...requestHeaders
+        };
+        setRequestHeader(requestHeaders, 'User-Agent', identity.userAgent);
+        if (identity.clientHints) {
+          setRequestHeader(requestHeaders, 'Sec-Ch-Ua', identity.clientHints);
+        }
+      }
+      callback({ requestHeaders
       });
-      callback({ requestHeaders: requestHeaders ?? details.requestHeaders });
     });
   }
 
+  /** Performs the destroy site view operation. */
   private destroySiteView(): void {
     const siteView = this.siteView;
     this.siteView = undefined;
     if (!siteView) return;
     const webContentsId = siteView.webContents.id;
+    if (siteView.webContents.isDevToolsOpened()) {
+      this.keepSiteDevToolsOpen = true;
+      const devToolsContents = siteView.webContents.devToolsWebContents;
+      const devToolsWindow = devToolsContents && !devToolsContents.isDestroyed()
+        ? BrowserWindow.fromWebContents(devToolsContents)
+        : null;
+      if (
+        this.devToolsMode === 'detach' &&
+        devToolsWindow &&
+        devToolsWindow !== this.viewerWindow &&
+        !devToolsWindow.isDestroyed()
+      ) {
+        this.detachedDevToolsBounds = devToolsWindow.getBounds();
+      }
+    }
     this.editingWebContentsIds.delete(webContentsId);
     const viewerWindow = this.viewerWindow;
     if (viewerWindow && !viewerWindow.isDestroyed() && this.siteViewAttached) {
@@ -1588,23 +2060,34 @@ export class WindowManager {
     if (!siteView.webContents.isDestroyed()) siteView.webContents.close();
   }
 
-  private createSiteViewer(webContents: WebContents): SiteViewer {
+  /** Creates the site viewer. */
+  private createSiteViewer(
+    webContents: WebContents,
+    permissions: ReadonlySet<string>,
+  ): SiteViewer {
+    /** Returns the web contents. */
     const getWebContents = () => {
       if (webContents.isDestroyed()) {
         throw new Error('The site WebContents is no longer active.');
       }
       return webContents;
     };
-    const defaultUserAgent = webContents.getUserAgent();
-
     return {
+      /** The load URL value. */
       loadURL: async (url) => {
+        if (!permissions.has('navigation')) {
+          throw new Error('This Provider does not have the navigation permission.');
+        }
         const contents = getWebContents();
         await this.prepareViewerTransition(contents);
         this.currentVideoOpenRequest = null;
         await loadURLWithNavigationRecovery(contents, url);
       },
+      /** The load internal view value. */
       loadInternalView: async (viewId) => {
+        if (!permissions.has('internal-view')) {
+          throw new Error('This Provider does not have the internal-view permission.');
+        }
         if (viewId !== 'video') {
           throw new Error(`Unknown internal view: ${viewId}`);
         }
@@ -1617,7 +2100,8 @@ export class WindowManager {
           this.siteViewAttached = false;
         }
         this.internalVideoVisible = true;
-        this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+        this.internalVideoPresentation = { ready: false, width: 0, height: 0
+        };
         // The Video renderer stays alive while a remote Provider is active.
         // Re-send the last local source when it becomes visible again so
         // libmpv recreates its Windows shared texture instead of retaining a
@@ -1641,82 +2125,50 @@ export class WindowManager {
         video.focus();
         video.webContents.focus();
       },
-      getUserAgent: () => getWebContents().getUserAgent(),
-      setUserAgent: (userAgent) => {
-        getWebContents().setUserAgent(userAgent ?? defaultUserAgent);
-      },
-      executeJavaScript: async <T>(code: string) =>
-        (await getWebContents().executeJavaScript(code)) as T,
-      executeJavaScriptInAllFrames: async <T>(code: string) => {
-        const frames = getWebContents().mainFrame.framesInSubtree.filter(
-          (frame) => !frame.isDestroyed(),
-        );
-        const results = await Promise.allSettled(
-          frames.map((frame) => frame.executeJavaScript(code)),
-        );
-        return results.flatMap((result) =>
-          result.status === 'fulfilled' ? [result.value as T] : [],
-        );
-      },
-      sendKeyPress: (key) => {
-        const contents = getWebContents();
-        contents.sendInputEvent({ type: 'keyDown', keyCode: key });
-        contents.sendInputEvent({ type: 'keyUp', keyCode: key });
-      },
-      onDomReady: (listener): Disposable => {
-        const webContents = getWebContents();
-        const wrapped = () => {
-          void Promise.resolve(listener()).catch((error: unknown) => {
-            console.error('Site dom-ready hook failed.', error);
-          });
-        };
+    };
+  }
 
-        webContents.on('dom-ready', wrapped);
-        return {
-          dispose: () => {
-            if (!webContents.isDestroyed()) {
-              webContents.off('dom-ready', wrapped);
-            }
-          },
-        };
-      },
-      onDidFinishLoad: (listener): Disposable => {
-        const webContents = getWebContents();
-        const wrapped = () => {
-          void Promise.resolve(listener()).catch((error: unknown) => {
-            console.error('Site did-finish-load hook failed.', error);
-          });
-        };
-
-        webContents.on('did-finish-load', wrapped);
-        return {
-          dispose: () => {
-            if (!webContents.isDestroyed()) {
-              webContents.off('did-finish-load', wrapped);
-            }
-          },
-        };
-      },
-      onFrameReady: (listener): Disposable => {
-        const webContents = getWebContents();
-        const wrapped = () => {
-          void Promise.resolve(listener()).catch((error: unknown) => {
-            console.error('Site frame-ready hook failed.', error);
-          });
-        };
-
-        webContents.on('did-frame-finish-load', wrapped);
-        return {
-          dispose: () => {
-            if (!webContents.isDestroyed()) {
-              webContents.off('did-frame-finish-load', wrapped);
-            }
-          },
-        };
+  /** Performs the use site browser identity operation. */
+  private useSiteBrowserIdentity(
+    webContents: WebContents,
+    options: SiteBrowserIdentityOptions,
+  ): Disposable {
+    if (options.requestHosts?.some((host) =>
+      !/^[a-z0-9.-]+$/i.test(host) || host.startsWith('.') || host.endsWith('.'),
+    )) {
+      throw new Error('Browser identity contains an invalid request host.');
+    }
+    const defaultUserAgent = webContents.getUserAgent();
+    const userAgent = options.userAgent === 'chromium'
+      ? createChromiumUserAgent(defaultUserAgent)
+      : options.userAgent.trim();
+    if (!userAgent || /[\r\n]/.test(userAgent)) {
+      throw new Error('Browser identity contains an invalid user agent.');
+    }
+    const clientHints = options.clientHints === 'auto'
+      ? createChromiumClientHints(userAgent)
+      : options.clientHints;
+    if (clientHints && /[\r\n]/.test(clientHints)) {
+      throw new Error('Browser identity contains invalid Client Hints.');
+    }
+    const identity = {
+      userAgent,
+      requestHosts: options.requestHosts,
+      clientHints,
+    };
+    this.siteBrowserIdentity = identity;
+    webContents.setUserAgent(userAgent);
+    return {
+      /** The dispose value. */
+      dispose: () => {
+        if (this.siteBrowserIdentity !== identity) return;
+        this.siteBrowserIdentity = undefined;
+        if (!webContents.isDestroyed()) webContents.setUserAgent(defaultUserAgent);
       },
     };
   }
 
+  /** Prepares the viewer transition. */
   private async prepareViewerTransition(webContents: WebContents): Promise<void> {
     await this.exitInternalVideoPictureInPicture();
     await this.pictureInPicture.exitAllModes();
@@ -1724,6 +2176,7 @@ export class WindowManager {
     await prepareCurrentDocumentForNavigation(webContents);
   }
 
+  /** Runs the external login. */
   private async runExternalLogin(
     options: Parameters<SiteExternalBrowser['login']>[0],
     webContents: WebContents,
@@ -1769,11 +2222,13 @@ export class WindowManager {
     }
   }
 
+  /** Determines whether the cel external login condition applies. */
   private async cancelExternalLogin(): Promise<void> {
     ++this.externalLoginGeneration;
     await this.externalBrowser.close();
   }
 
+  /** Performs the sync site view bounds operation. */
   private syncSiteViewBounds(): void {
     if (
       !this.viewerWindow ||
@@ -1784,9 +2239,11 @@ export class WindowManager {
       return;
     }
     const [width, height] = this.viewerWindow.getContentSize();
-    this.siteView.setBounds({ x: 0, y: 0, width, height });
+    this.siteView.setBounds({ x: 0, y: 0, width, height
+    });
   }
 
+  /** Performs the sync video window bounds operation. */
   private syncVideoWindowBounds(): void {
     const viewer = this.viewerWindow;
     const video = this.videoWindow;
@@ -1803,6 +2260,7 @@ export class WindowManager {
     video.setBounds(viewer.getContentBounds(), false);
   }
 
+  /** Ensures the video window. */
   private ensureVideoWindow(): Promise<BrowserWindow> {
     const existing = this.videoWindow;
     if (existing && !existing.isDestroyed()) return Promise.resolve(existing);
@@ -1829,7 +2287,8 @@ export class WindowManager {
         nodeIntegration: false,
         backgroundThrottling: false,
         ...(this.videoSoftwareRenderer
-          ? { disableBlinkFeatures: 'WebGPU' }
+          ? { disableBlinkFeatures: 'WebGPU'
+          }
           : {}),
         // electron-mpv-video exposes its renderer bridge from this preload.
         sandbox: false,
@@ -1891,7 +2350,8 @@ export class WindowManager {
       if (this.videoWindow === video) {
         this.videoWindow = undefined;
         this.internalVideoVisible = false;
-        this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+        this.internalVideoPresentation = { ready: false, width: 0, height: 0
+        };
       }
     });
 
@@ -1915,11 +2375,18 @@ export class WindowManager {
     return loading;
   }
 
+  /** Performs the sync overlay bounds operation. */
   private syncOverlayBounds(): void {
     if (!this.viewerWindow || !this.overlayWindow) {
       return;
     }
 
+    if (this.overlayWindow.getParentWindow() !== this.viewerWindow) {
+      // macOS can temporarily separate child-window ordering while an AOT
+      // window crosses displays. Reassert the native parent relationship at
+      // every geometry synchronization so the menu follows as one surface.
+      this.overlayWindow.setParentWindow(this.viewerWindow);
+    }
     const contentBounds = this.viewerWindow.getContentBounds();
     const bounds: Rectangle = {
       x: contentBounds.x,
@@ -1930,6 +2397,7 @@ export class WindowManager {
     this.overlayWindow.setBounds(bounds, false);
   }
 
+  /** Performs the reveal overlay operation. */
   private revealOverlay(overlay: BrowserWindow): void {
     this.clearOverlayRevealTimer();
     if (overlay.isVisible()) {
@@ -1953,12 +2421,14 @@ export class WindowManager {
     }, 34);
   }
 
+  /** Clears the overlay reveal timer. */
   private clearOverlayRevealTimer(): void {
     if (this.overlayRevealTimer === undefined) return;
     clearTimeout(this.overlayRevealTimer);
     this.overlayRevealTimer = undefined;
   }
 
+  /** Closes the site popups. */
   private closeSitePopups(): void {
     for (const popupWindow of this.sitePopupWindows) {
       if (!popupWindow.isDestroyed()) {
@@ -1968,6 +2438,7 @@ export class WindowManager {
     this.sitePopupWindows.clear();
   }
 
+  /** Parses the site action. */
   private parseSiteAction(url: string): string | undefined {
     try {
       const parsed = new URL(url);
@@ -1981,6 +2452,7 @@ export class WindowManager {
     }
   }
 
+  /** Performs the require viewer window operation. */
   private requireViewerWindow(): BrowserWindow {
     if (!this.viewerWindow || this.viewerWindow.isDestroyed()) {
       throw new Error('The site viewer window has not been created.');
@@ -1988,11 +2460,13 @@ export class WindowManager {
     return this.viewerWindow;
   }
 
+  /** Returns the active viewer web contents. */
   private getActiveViewerWebContents(): WebContents | undefined {
     if (this.internalVideoVisible) return this.videoWindow?.webContents;
     return this.siteView?.webContents;
   }
 
+  /** Performs the require active viewer web contents operation. */
   private requireActiveViewerWebContents(): WebContents {
     const webContents = this.getActiveViewerWebContents();
     if (!webContents || webContents.isDestroyed()) {
@@ -2001,10 +2475,12 @@ export class WindowManager {
     return webContents;
   }
 
+  /** Performs the require site web contents operation. */
   private requireSiteWebContents(): WebContents {
     return this.requireSiteView().webContents;
   }
 
+  /** Performs the require video window operation. */
   private requireVideoWindow(): BrowserWindow {
     const video = this.videoWindow;
     if (!video || video.isDestroyed()) {
@@ -2013,6 +2489,7 @@ export class WindowManager {
     return video;
   }
 
+  /** Performs the require site view operation. */
   private requireSiteView(): WebContentsView {
     const siteView = this.siteView;
     const webContents = siteView?.webContents;
@@ -2022,371 +2499,11 @@ export class WindowManager {
     return siteView;
   }
 
+  /** Performs the require overlay window operation. */
   private requireOverlayWindow(): BrowserWindow {
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) {
       throw new Error('The renderer overlay window has not been created.');
     }
     return this.overlayWindow;
   }
-}
-
-function resolveMpvAddonPath(): string {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'mpv', 'mpv_addon.node');
-  }
-  return path.resolve(
-    __dirname,
-    '../../node_modules/electron-mpv-video/native/mpv-addon/build/Release/mpv_addon.node',
-  );
-}
-
-function isExpectedSpaNavigationHandoff(
-  error: unknown,
-  requestedUrl: string,
-  currentUrl: string,
-): boolean {
-  if (
-    typeof error !== 'object' ||
-    error === null ||
-    !('code' in error) ||
-    (error as { code?: unknown }).code !== 'ERR_FAILED'
-  ) {
-    return false;
-  }
-
-  try {
-    const requested = new URL(requestedUrl);
-    const current = new URL(currentUrl);
-    return (
-      ['http:', 'https:'].includes(current.protocol) &&
-      normalizeNavigationHost(current.hostname) ===
-        normalizeNavigationHost(requested.hostname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function prepareCurrentDocumentForNavigation(
-  webContents: WebContents,
-): Promise<void> {
-  if (
-    webContents.isDestroyed() ||
-    !isScriptableDocumentUrl(webContents.getURL())
-  ) {
-    return;
-  }
-
-  try {
-    await webContents.executeJavaScript(PAUSE_DOCUMENT_MEDIA_SCRIPT);
-  } catch (error) {
-    console.debug('The previous site document was unavailable during media cleanup.', error);
-  }
-
-  if (!webContents.isDestroyed()) {
-    webContents.stop();
-    await delay(32);
-  }
-}
-
-async function loadURLWithNavigationRecovery(
-  webContents: WebContents,
-  requestedUrl: string,
-): Promise<void> {
-  try {
-    await webContents.loadURL(requestedUrl);
-    return;
-  } catch (error) {
-    let currentUrl = webContents.getURL();
-    if (isExpectedSpaNavigationHandoff(error, requestedUrl, currentUrl)) {
-      logExpectedNavigationHandoff(requestedUrl, currentUrl);
-      return;
-    }
-    if (!isRecoverableCrossSiteNavigationFailure(error, requestedUrl, currentUrl)) {
-      throw error;
-    }
-
-    // Active streaming pages can reject Electron's loadURL promise before the
-    // destination commits. Give that hand-off a moment before replacing the
-    // old document and retrying once.
-    await delay(NAVIGATION_HANDOFF_SETTLE_MS);
-    currentUrl = webContents.getURL();
-    if (isExpectedSpaNavigationHandoff(error, requestedUrl, currentUrl)) {
-      logExpectedNavigationHandoff(requestedUrl, currentUrl);
-      return;
-    }
-
-    console.warn(
-      `Retrying navigation to ${requestedUrl} after the active site rejected the initial hand-off (${currentUrl}).`,
-    );
-    webContents.stop();
-    await webContents.loadURL('about:blank');
-
-    try {
-      await webContents.loadURL(requestedUrl);
-    } catch (retryError) {
-      await delay(NAVIGATION_HANDOFF_SETTLE_MS);
-      const retryUrl = webContents.getURL();
-      if (isExpectedSpaNavigationHandoff(retryError, requestedUrl, retryUrl)) {
-        logExpectedNavigationHandoff(requestedUrl, retryUrl);
-        return;
-      }
-      throw retryError;
-    }
-  }
-}
-
-function isRecoverableCrossSiteNavigationFailure(
-  error: unknown,
-  requestedUrl: string,
-  currentUrl: string,
-): boolean {
-  if (!hasErrorCode(error, 'ERR_FAILED')) {
-    return false;
-  }
-
-  try {
-    const requested = new URL(requestedUrl);
-    const current = new URL(currentUrl);
-    return (
-      ['http:', 'https:'].includes(requested.protocol) &&
-      ['http:', 'https:'].includes(current.protocol) &&
-      normalizeNavigationHost(current.hostname) !==
-        normalizeNavigationHost(requested.hostname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function logExpectedNavigationHandoff(
-  requestedUrl: string,
-  currentUrl: string,
-): void {
-  console.debug(
-    `Navigation to ${requestedUrl} continued after Electron reported ERR_FAILED (${currentUrl}).`,
-  );
-}
-
-function hasErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === code
-  );
-}
-
-function isScriptableDocumentUrl(url: string): boolean {
-  try {
-    return ['file:', 'http:', 'https:'].includes(new URL(url).protocol);
-  } catch {
-    return false;
-  }
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function normalizeNavigationHost(hostname: string): string {
-  return hostname.toLowerCase().replace(/^www\./, '');
-}
-
-function createSiteCookieStore(siteSession: Session): SiteCookieStore {
-  return {
-    list: async ({ domains }) => {
-      const normalizedDomains = normalizeCookieQueryDomains(domains);
-      const cookies = await siteSession.cookies.get({});
-      return cookies
-        .filter((cookie): cookie is Electron.Cookie & { domain: string } =>
-          typeof cookie.domain === 'string' &&
-          cookieMatchesDomains(cookie.domain, normalizedDomains),
-        )
-        .map(({ name, domain }) => ({ name, domain }));
-    },
-    clear: async ({ domains, names }) => {
-      const normalizedDomains = normalizeCookieQueryDomains(domains);
-      const normalizedNames = names === undefined
-        ? undefined
-        : new Set(names.map(validateCookieName));
-      const cookies = await siteSession.cookies.get({});
-      const matchingCookies = cookies.filter(
-        (cookie): cookie is Electron.Cookie & { domain: string } =>
-          typeof cookie.domain === 'string' &&
-          cookieMatchesDomains(cookie.domain, normalizedDomains) &&
-          (normalizedNames === undefined || normalizedNames.has(cookie.name)),
-      );
-      await Promise.all(matchingCookies.map(async (cookie) => {
-        const domain = cookie.domain.replace(/^\./, '');
-        const cookiePath = cookie.path ?? '/';
-        const pathName = cookiePath.startsWith('/') ? cookiePath : `/${cookiePath}`;
-        const protocol = cookie.secure ? 'https:' : 'http:';
-        await siteSession.cookies.remove(
-          `${protocol}//${domain}${pathName}`,
-          cookie.name,
-        );
-      }));
-      return matchingCookies.length;
-    },
-  };
-}
-
-function normalizeCookieQueryDomains(domains: readonly string[]): readonly string[] {
-  if (domains.length === 0 || domains.length > 32) {
-    throw new Error('Cookie queries require between 1 and 32 domains.');
-  }
-  return [...new Set(domains.map((domain) => {
-    const normalized = domain.trim().toLowerCase();
-    if (
-      normalized.length > 253 ||
-      !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(normalized) ||
-      normalized.includes('..')
-    ) {
-      throw new Error(`Invalid cookie query domain: ${domain}`);
-    }
-    return normalized;
-  }))];
-}
-
-function validateCookieName(name: string): string {
-  if (!name || name.length > 256 || /[\u0000-\u0020\u007f;,]/.test(name)) {
-    throw new Error('Invalid cookie name.');
-  }
-  return name;
-}
-
-function cookieMatchesDomains(
-  cookieDomain: string,
-  queryDomains: readonly string[],
-): boolean {
-  const normalized = cookieDomain.replace(/^\./, '').toLowerCase();
-  return queryDomains.some((domain) =>
-    normalized === domain || normalized.endsWith(`.${domain}`),
-  );
-}
-
-/** Restore standard text-editing accelerators after removing Electron's menu. */
-function handleNativeEditingShortcut(
-  webContents: WebContents,
-  input: Input,
-  editing: boolean,
-): boolean {
-  if (
-    !editing ||
-    input.type !== 'keyDown' ||
-    input.isAutoRepeat ||
-    input.isComposing ||
-    input.alt
-  ) {
-    return false;
-  }
-
-  const primaryModifier = process.platform === 'darwin'
-    ? input.meta && !input.control
-    : input.control && !input.meta;
-  if (!primaryModifier) return false;
-
-  switch (input.key.toLowerCase()) {
-    case 'a':
-      if (input.shift) return false;
-      webContents.selectAll();
-      return true;
-    case 'c':
-      if (input.shift) return false;
-      webContents.copy();
-      return true;
-    case 'v':
-      if (input.shift) return false;
-      webContents.paste();
-      return true;
-    case 'x':
-      if (input.shift) return false;
-      webContents.cut();
-      return true;
-    case 'z':
-      if (input.shift) webContents.redo();
-      else webContents.undo();
-      return true;
-    case 'y':
-      if (process.platform === 'darwin' || input.shift) return false;
-      webContents.redo();
-      return true;
-    default:
-      return false;
-  }
-}
-
-function resolveLocalizedAppTitle(locale: string): string {
-  const language = locale.toLowerCase();
-  if (language.startsWith('ko')) return '카와이카라';
-  if (language.startsWith('ja')) return 'カワイカラ';
-  return 'Kawaikara';
-}
-
-function normalizeVideoDimension(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? Math.round(value)
-    : 0;
-}
-
-function resolveInternalVideoPictureInPictureBounds(
-  previousBounds: Rectangle,
-  preferred: { readonly width: number; readonly height: number },
-  preference: PictureInPicturePlacementPreference,
-): Rectangle {
-  const displays = screen.getAllDisplays();
-  const byId = (id: string | undefined) =>
-    id ? displays.find((display) => String(display.id) === id) : undefined;
-  const current = screen.getDisplayMatching(previousBounds);
-  const display = preference.monitor.mode === 'display'
-    ? byId(preference.monitor.displayId) ?? current
-    : preference.monitor.mode === 'last'
-      ? byId(preference.lastPlacement?.displayId) ?? current
-      : current;
-  const workArea = display.workArea;
-  const width = Math.min(preferred.width, workArea.width);
-  const height = Math.min(preferred.height, workArea.height);
-  const availableWidth = Math.max(0, workArea.width - width);
-  const availableHeight = Math.max(0, workArea.height - height);
-  if (preference.position === 'last' && preference.lastPlacement) {
-    return {
-      x: Math.round(workArea.x + availableWidth * preference.lastPlacement.xRatio),
-      y: Math.round(workArea.y + availableHeight * preference.lastPlacement.yRatio),
-      width,
-      height,
-    };
-  }
-  const right = preference.position.endsWith('right');
-  const bottom = preference.position.startsWith('bottom');
-  return {
-    x: right
-      ? workArea.x + workArea.width - width - INTERNAL_VIDEO_PIP_MARGIN
-      : workArea.x + INTERNAL_VIDEO_PIP_MARGIN,
-    y: bottom
-      ? workArea.y + workArea.height - height - INTERNAL_VIDEO_PIP_MARGIN
-      : workArea.y + INTERNAL_VIDEO_PIP_MARGIN,
-    width,
-    height,
-  };
-}
-
-function captureInternalVideoPictureInPicturePlacement(
-  viewer: BrowserWindow,
-): PictureInPictureLastPlacement | undefined {
-  const bounds = viewer.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const availableWidth = Math.max(1, display.workArea.width - bounds.width);
-  const availableHeight = Math.max(1, display.workArea.height - bounds.height);
-  return {
-    displayId: String(display.id),
-    xRatio: Math.min(
-      1,
-      Math.max(0, (bounds.x - display.workArea.x) / availableWidth),
-    ),
-    yRatio: Math.min(
-      1,
-      Math.max(0, (bounds.y - display.workArea.y) / availableHeight),
-    ),
-  };
 }

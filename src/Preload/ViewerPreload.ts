@@ -42,6 +42,7 @@ if (window.location.protocol === 'file:') {
           IPC_CHANNELS.video.recoverPlaybackRenderer,
         ) as Promise<boolean>,
       onFullScreenChanged: (handler) => {
+        /** Performs the listener operation. */
         const listener = (
           _event: Electron.IpcRendererEvent,
           fullScreen: boolean,
@@ -51,6 +52,7 @@ if (window.location.protocol === 'file:') {
           ipcRenderer.off(IPC_CHANNELS.application.fullScreenChanged, listener);
       },
       onPictureInPictureChanged: (handler) => {
+        /** Performs the listener operation. */
         const listener = (
           _event: Electron.IpcRendererEvent,
           active: boolean,
@@ -60,6 +62,7 @@ if (window.location.protocol === 'file:') {
           ipcRenderer.off(IPC_CHANNELS.video.pictureInPictureChanged, listener);
       },
       onVisibilityChanged: (handler) => {
+        /** Performs the listener operation. */
         const listener = (
           _event: Electron.IpcRendererEvent,
           visible: boolean,
@@ -86,8 +89,10 @@ if (window.location.protocol === 'file:') {
         ipcRenderer.invoke(
           IPC_CHANNELS.video.activateLocalFile,
           targetPath,
-        ) as Promise<Extract<VideoOpenRequest, { readonly kind: 'local' }>>,
+        ) as Promise<Extract<VideoOpenRequest, { readonly kind: 'local'
+        }>>,
       onOpenRequest: (handler) => {
+        /** Performs the listener operation. */
         const listener = (
           _event: Electron.IpcRendererEvent,
           request: VideoOpenRequest,
@@ -167,6 +172,7 @@ if (window.location.protocol === 'file:') {
   installYouTubeDownloadMenu();
 }
 
+/** Installs the external login gate. */
 function installExternalLoginGate(): void {
   const hostname = window.location.hostname.toLowerCase().replace(/^www\./, '');
   const configuration = hostname === 'netflix.com' || hostname.endsWith('.netflix.com')
@@ -184,6 +190,7 @@ function installExternalLoginGate(): void {
       : undefined;
   if (!configuration) return;
 
+  /** Determines whether the login control condition applies. */
   const isLoginControl = (target: EventTarget | null): boolean => {
     if (!(target instanceof Element)) return false;
     if (target.closest(configuration.selector)) return true;
@@ -217,6 +224,7 @@ function installExternalLoginGate(): void {
     true,
   );
 
+  /** Installs the waiting style. */
   const installWaitingStyle = () => {
     if (document.getElementById('kawaikara-external-login-gate')) return;
     const style = document.createElement('style');
@@ -229,12 +237,14 @@ function installExternalLoginGate(): void {
     (document.head ?? document.documentElement).append(style);
   };
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installWaitingStyle, { once: true });
+    document.addEventListener('DOMContentLoaded', installWaitingStyle, { once: true
+    });
   } else {
     installWaitingStyle();
   }
 }
 
+/** Installs the you tube download menu. */
 function installYouTubeDownloadMenu(): void {
   const hostname = window.location.hostname.toLowerCase().replace(/^www\./, '');
   if (hostname !== 'youtube.com' && hostname !== 'm.youtube.com') {
@@ -250,10 +260,12 @@ function installYouTubeDownloadMenu(): void {
   );
 }
 
+/** Installs the scrollbar theme. */
 function installScrollbarTheme(): void {
   const styleId = 'kawaikara-scrollbar-theme';
   let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Installs the operation. */
   const install = () => {
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
@@ -300,6 +312,7 @@ function installScrollbarTheme(): void {
     }
   };
 
+  /** Performs the show scrollbar operation. */
   const showScrollbar = () => {
     document.documentElement?.setAttribute('data-kawaikara-scrolling', 'true');
     if (fadeTimer !== undefined) clearTimeout(fadeTimer);
@@ -310,13 +323,15 @@ function installScrollbarTheme(): void {
   };
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', install, { once: true });
+    document.addEventListener('DOMContentLoaded', install, { once: true
+    });
   } else {
     install();
   }
   document.addEventListener('scroll', showScrollbar, true);
 }
 
+/** Schedules the download menu item. */
 function scheduleDownloadMenuItem(attempt = 0): void {
   window.setTimeout(() => {
     if (!appendDownloadMenuItem() && attempt < 12) {
@@ -325,6 +340,7 @@ function scheduleDownloadMenuItem(attempt = 0): void {
   }, attempt === 0 ? 0 : 40);
 }
 
+/** Performs the append download menu item operation. */
 function appendDownloadMenuItem(): boolean {
   const menu = document.querySelector<HTMLElement>(
     '.ytp-popup.ytp-contextmenu .ytp-panel-menu',
@@ -356,6 +372,7 @@ function appendDownloadMenuItem(): boolean {
   content.className = 'ytp-menuitem-content';
   item.append(icon, label, content);
 
+  /** Opens the downloader. */
   const openDownloader = (event: Event) => {
     event.preventDefault();
     event.stopImmediatePropagation();

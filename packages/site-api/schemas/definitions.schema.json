@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "definitions.schema.json",
+  "title": "Kawaikara Schema Definitions",
+  "definitions": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "semver": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "safeRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//).+$"
+    },
+    "permission": {
+      "type": "string",
+      "enum": [
+        "navigation",
+        "internal-view",
+        "plugin-view",
+        "script-injection",
+        "cookies",
+        "network-interception",
+        "external-browser"
+      ]
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/permission" }
+    },
+    "localizedText": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safeRelativePaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/safeRelativePath" }
+    },
+    "stringArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/nonEmptyString" }
+    }
+  }
+}

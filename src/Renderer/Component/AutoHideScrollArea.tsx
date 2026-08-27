@@ -11,12 +11,16 @@ import {
   type ScrollAreaProps,
 } from '@kawaikara/kawai-ui';
 
+/** Defines the shared auto hide scrollbar delay ms constant. */
 export const AUTO_HIDE_SCROLLBAR_DELAY_MS = 850;
 
+/** Describes the auto hide scroll area props contract. */
 interface AutoHideScrollAreaProps extends ScrollAreaProps {
+  /** Whether the force scrollbar visible option is enabled. */
   readonly forceScrollbarVisible?: boolean;
 }
 
+/** Stores the auto hide scroll area value. */
 export const AutoHideScrollArea = forwardRef<
   HTMLDivElement,
   AutoHideScrollAreaProps
@@ -51,6 +55,7 @@ export const AutoHideScrollArea = forwardRef<
     setScrolling(forceScrollbarVisible);
   }, [forceScrollbarVisible]);
 
+  /** Handles the scroll. */
   const handleScroll: UIEventHandler<HTMLDivElement> = (event) => {
     onScroll?.(event);
     setScrolling(true);

@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "bundle-manifest.schema.json",
+  "title": "Kawaikara Bundle Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "apiVersion",
+    "permissions",
+    "providers"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "definitions.schema.json#/definitions/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "version": { "$ref": "definitions.schema.json#/definitions/semver" },
+    "apiVersion": { "const": 1 },
+    "permissions": { "$ref": "definitions.schema.json#/definitions/permissions" },
+    "providers": {
+      "allOf": [
+        { "$ref": "definitions.schema.json#/definitions/safeRelativePaths" },
+        { "minItems": 1 }
+      ]
+    },
+    "plugins": { "$ref": "definitions.schema.json#/definitions/safeRelativePaths" },
+    "update": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "url"],
+          "properties": {
+            "type": { "const": "archive" },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "main"],
+          "properties": {
+            "type": { "const": "resolver" },
+            "main": {
+              "allOf": [
+                { "$ref": "definitions.schema.json#/definitions/safeRelativePath" },
+                { "pattern": "\\.(?:cjs|js)$" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "updateUrl": {
+      "description": "Deprecated. Use update with type archive.",
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "deprecated": true
+    },
+    "locale": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supportedLocales": { "$ref": "definitions.schema.json#/definitions/stringArray" },
+        "defaultLocale": { "$ref": "definitions.schema.json#/definitions/nonEmptyString" }
+      }
+    },
+    "browserProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "$ref": "definitions.schema.json#/definitions/id" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "persistent": { "type": "boolean", "default": true }
+        }
+      }
+    }
+  },
+  "not": { "required": ["update", "updateUrl"] }
+}

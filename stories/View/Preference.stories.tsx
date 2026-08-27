@@ -6,15 +6,26 @@ import {
   STORY_SITES,
 } from '../Mocks/KawaikaraMock';
 
+/** Stores the meta value. */
 const meta = {
+  /** The title value. */
   title: 'View/Preference',
+  /** The component value. */
   component: PreferenceView,
-  parameters: { layout: 'fullscreen' },
+  /** The parameters value. */
+  parameters: {
+    /** The layout value. */
+    layout: 'fullscreen' },
+  /** The args value. */
   args: {
+    /** The initial messages value. */
     initialMessages: STORY_MESSAGES.app,
+    /** The sites value. */
     sites: STORY_SITES,
+    /** The on back value. */
     onBack: () => undefined,
   },
+  /** The decorators value. */
   decorators: [
     (Story) => (
       <div className="storybook-preference-frame">
@@ -25,11 +36,15 @@ const meta = {
 } satisfies Meta<typeof PreferenceView>;
 
 export default meta;
+/** Defines the story type. */
 type Story = StoryObj<typeof meta>;
 
+/** Stores the default value. */
 export const Default = {} satisfies Story;
 
+/** Stores the nightly value. */
 export const Nightly = {
+  /** The decorators value. */
   decorators: [
     (Story) => {
       installKawaikaraMock({ buildChannel: 'nightly' });
@@ -38,7 +53,9 @@ export const Nightly = {
   ],
 } satisfies Story;
 
+/** Stores the update available value. */
 export const UpdateAvailable = {
+  /** The decorators value. */
   decorators: [
     (Story) => {
       installKawaikaraMock({ buildChannel: 'staging', updateAvailable: true });

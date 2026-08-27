@@ -868,6 +868,44 @@ body,
   text-align: center;
 }
 
+.video-live-button {
+  display: inline-flex;
+  min-width: 58px;
+  height: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgb(248 113 113 / 32%);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: rgb(127 29 29 / 18%);
+  color: #fca5a5;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.video-live-button.is-behind {
+  border-color: rgb(248 113 113 / 64%);
+  background: rgb(185 28 28 / 34%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.video-live-button.is-behind:hover {
+  background: rgb(220 38 38 / 48%);
+}
+
+.video-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+
 .video-progress,
 .video-volume-control input {
   --video-range-filled-color: #c084fc;
@@ -891,6 +929,10 @@ body,
 .video-progress:disabled {
   cursor: default;
   opacity: 0.35;
+}
+
+.video-progress.is-hls:disabled {
+  opacity: 1;
 }
 
 .video-progress::-webkit-slider-runnable-track,

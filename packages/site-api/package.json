@@ -8,7 +8,7 @@
   },
   "main": "dist/Index.js",
   "types": "dist/Index.d.ts",
-  "files": ["dist"],
+  "files": ["dist", "schemas"],
   "publishConfig": {
     "access": "public"
   },

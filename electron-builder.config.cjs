@@ -56,6 +56,12 @@ module.exports = {
   appId: channelIdentity.appId,
   productName: channelIdentity.productName,
   asar: true,
+  // The in-app Bundle development host launches esbuild's platform binary.
+  // Executables cannot run from inside app.asar.
+  asarUnpack: [
+    'node_modules/@esbuild/**/*',
+    'node_modules/esbuild/**/*',
+  ],
   files: ['dist/**/*'],
   extraResources: [
     ...mpvExtraResources,

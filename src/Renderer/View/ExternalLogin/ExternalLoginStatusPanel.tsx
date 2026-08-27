@@ -9,14 +9,21 @@ import {
 import type { CSSProperties } from 'react';
 import kawaikaraCharacter from '../../../../resources/icons/kawaikara_banner.png';
 
+/** Describes the external login status panel props contract. */
 export interface ExternalLoginStatusPanelProps {
+  /** The site title value. */
   readonly siteTitle?: string;
+  /** The title value. */
   readonly title: string;
+  /** The description value. */
   readonly description: string;
+  /** The waiting label value. */
   readonly waitingLabel: string;
+  /** The secure label value. */
   readonly secureLabel: string;
 }
 
+/** Performs the external login status panel operation. */
 export function ExternalLoginStatusPanel({
   siteTitle,
   title,
@@ -40,7 +47,8 @@ export function ExternalLoginStatusPanel({
                 <span
                   className="external-login-wave-character"
                   key={`${character}-${index}`}
-                  style={{ '--wave-index': index } as CSSProperties}
+                  style={{ '--wave-index': index
+                  } as CSSProperties}
                 >
                   {character === ' ' ? '\u00a0' : character}
                 </span>

@@ -6,14 +6,21 @@ import type {
 import type { ProviderLocalizedText } from '@kawaikara/site-api';
 import { VideoLibraryMenuPanel } from './VideoLibraryMenuPanel';
 
+/** Describes the plugin view host props contract. */
 interface PluginViewHostProps {
+  /** The locale value. */
   readonly locale: string;
+  /** The panels value. */
   readonly panels: readonly PluginViewPanelInfo[];
+  /** The refresh key value. */
   readonly refreshKey: number;
+  /** The video library labels value. */
   readonly videoLibraryLabels: VideoLibraryMessages;
+  /** Callback used to handle on error. */
   readonly onError: (message: string) => void;
 }
 
+/** Performs the plugin view host operation. */
 export function PluginViewHost({
   locale,
   panels,
@@ -74,6 +81,7 @@ export function PluginViewHost({
   );
 }
 
+/** Performs the plugin view panel operation. */
 function PluginViewPanel({
   labels,
   panel,
@@ -81,12 +89,18 @@ function PluginViewPanel({
   title,
   onError,
 }: {
+  /** The labels value. */
   readonly labels: VideoLibraryMessages;
+  /** The panel value. */
   readonly panel: PluginViewPanelInfo;
+  /** The refresh key value. */
   readonly refreshKey: number;
+  /** The title value. */
   readonly title: string;
+  /** Callback used to handle on error. */
   readonly onError: (message: string) => void;
-}) {
+}
+) {
   if (panel.content.kind === 'html') {
     return (
       <iframe
@@ -109,6 +123,7 @@ function PluginViewPanel({
   return <div className="plugin-view-unsupported">Unknown panel: {title}</div>;
 }
 
+/** Resolves the localized text. */
 function resolveLocalizedText(
   value: ProviderLocalizedText,
   locale: string,
