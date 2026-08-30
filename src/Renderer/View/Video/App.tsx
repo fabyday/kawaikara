@@ -160,7 +160,7 @@ export function VideoView() {
   const [electronGpuAccelerationEnabled, setElectronGpuAccelerationEnabled] =
     useState(true);
   const [mpvRenderMode, setMpvRenderMode] =
-    useState<'shared-texture' | 'canvas2d'>('shared-texture');
+    useState<'shared-texture' | 'webgl' | 'canvas2d'>('shared-texture');
   const [playerState, setPlayerState] = useState(INITIAL_PLAYER_STATE);
   const [source, setSource] = useState<PlayerSource>();
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -173,6 +173,8 @@ export function VideoView() {
   const [lastBrowseDirectory, setLastBrowseDirectory] = useState<string>();
   const [fullScreen, setFullScreen] = useState(false);
   const [pictureInPicture, setPictureInPicture] = useState(false);
+  const [pictureInPicturePointerInside, setPictureInPicturePointerInside] =
+    useState(false);
   const [hlsPanelOpen, setHlsPanelOpen] = useState(false);
   const [downloaderOpen, setDownloaderOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -213,6 +215,7 @@ export function VideoView() {
 
   const labels = localization?.video as VideoMessages;
   if (labels) labelsRef.current = labels;
+  const localizationReady = Boolean(localization);
   const isPlaying = playerState.status === 'Playing';
   const isHls = source?.kind === 'hls';
   const timelineRange = isHls
@@ -311,8 +314,24 @@ export function VideoView() {
 
   useEffect(() =>
     window.kawaikaraVideo.application.onPictureInPictureChanged(
-      setPictureInPicture,
+      (active) => {
+        setPictureInPicture(active);
+        if (!active) setPictureInPicturePointerInside(false);
+      },
     ), []);
+
+  useEffect(() =>
+    window.kawaikaraVideo.application.onPictureInPicturePointerChanged(
+      (inside) => {
+        setPictureInPicturePointerInside(inside);
+        if (inside) {
+          clearControlsHideTimer();
+          setControlsVisible(true);
+        } else {
+          revealControls();
+        }
+      },
+    ), [clearControlsHideTimer, revealControls]);
 
   useEffect(() =>
     window.kawaikaraVideo.application.onVisibilityChanged((visible) => {
@@ -354,16 +373,21 @@ export function VideoView() {
           `[video] Backend selection: ${capabilities.nativeBackendAvailable ? 'libmpv' : 'chromium'} ` +
             `(${capabilities.platform}-${capabilities.arch}); ` +
             `electronGpu=${String(capabilities.electronGpuAccelerationEnabled)}; ` +
-            `libmpvSoftwareDecode=${String(capabilities.hardwareAccelerationDisabled)}.`,
+            `libmpvSoftwareDecode=${String(capabilities.hardwareAccelerationDisabled)}; ` +
+            `nativeRenderMode=${capabilities.nativeRenderMode}.`,
         );
         setHardwareAccelerationDisabled(capabilities.hardwareAccelerationDisabled);
         setElectronGpuAccelerationEnabled(
           capabilities.electronGpuAccelerationEnabled,
         );
+        if (capabilities.nativeRenderMode === 'software') {
+          disableWebGpuForMpvSoftwareRenderer();
+        }
         setMpvRenderMode(
-          capabilities.electronGpuAccelerationEnabled
+          capabilities.electronGpuAccelerationEnabled &&
+            capabilities.nativeRenderMode === 'shared-texture'
             ? 'shared-texture'
-            : 'canvas2d',
+            : 'webgl',
         );
         if (capabilities.nativeBackendAvailable) {
           setBackend('libmpv');
@@ -389,8 +413,13 @@ export function VideoView() {
   }, []);
 
   useEffect(() => {
+    if (backend !== 'chromium') return;
+    window.kawaikaraVideo.application.notifyPlaybackRendererReady();
+  }, [backend]);
+
+  useEffect(() => {
     const host = playerHostRef.current;
-    if (!host || backend !== 'libmpv') return;
+    if (!localizationReady || !host || backend !== 'libmpv') return;
 
     let active = true;
     const initializationTimer = window.setTimeout(() => {
@@ -448,6 +477,7 @@ export function VideoView() {
       const rendererSignature = `${next.renderMode}:${next.rendererName}`;
       if (next.status === 'Ready') {
         window.clearTimeout(initializationTimer);
+        window.kawaikaraVideo.application.notifyPlaybackRendererReady();
         setError(undefined);
       }
       if (
@@ -536,10 +566,16 @@ export function VideoView() {
       host.replaceChildren();
       void player.destroy().catch(() => undefined);
     };
-  }, [backend, clearMpvStateUiTimer, mpvRenderMode, updatePlayerState]);
+  }, [
+    backend,
+    clearMpvStateUiTimer,
+    localizationReady,
+    mpvRenderMode,
+    updatePlayerState,
+  ]);
 
   useEffect(() => {
-    if (backend === 'detecting' || !source) return;
+    if (!localizationReady || backend === 'detecting' || !source) return;
     const generation = ++openGenerationRef.current;
     pendingMpvSeekRef.current = undefined;
     scrubbingRef.current = false;
@@ -638,7 +674,14 @@ export function VideoView() {
         hlsRef.current = null;
       }
     };
-  }, [backend, clearMpvStateUiTimer, source, sourceRevision, updatePlayerState]);
+  }, [
+    backend,
+    clearMpvStateUiTimer,
+    localizationReady,
+    source,
+    sourceRevision,
+    updatePlayerState,
+  ]);
 
   useEffect(() => {
     const video = fallbackVideoRef.current;
@@ -837,7 +880,6 @@ export function VideoView() {
     }
   }, [applyOpenRequest]);
 
-  const localizationReady = Boolean(localization);
   useEffect(() => {
     if (!localizationReady) return;
     let active = true;
@@ -1340,6 +1382,7 @@ export function VideoView() {
     (titleVisible || sourcePanelOpen || hlsPanelOpen || downloaderOpen || !source);
   const showControls =
     controlsLayout === 'inline' ||
+    pictureInPicturePointerInside ||
     controlsVisible ||
     sourcePanelOpen ||
     hlsPanelOpen ||
@@ -2090,6 +2133,14 @@ function isSamePlayerSource(
       current.nativeValue === next.nativeValue &&
       current.chromiumValue === next.chromiumValue,
   );
+}
+
+/** Prevents the package from probing the frozen shared-texture path on retry. */
+function disableWebGpuForMpvSoftwareRenderer(): void {
+  Object.defineProperty(Navigator.prototype, 'gpu', {
+    configurable: true,
+    value: undefined,
+  });
 }
 
 /** Performs the are video preferences equal operation. */

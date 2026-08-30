@@ -45,6 +45,8 @@ export const IPC_CHANNELS = defineIpcChannels({
     list: 'kawaikara:sites:list',
     /** The current address value. */
     currentAddress: 'kawaikara:sites:current-address',
+    /** The navigation state value. */
+    navigationState: 'kawaikara:sites:navigation-state',
     /** The go back value. */
     goBack: 'kawaikara:sites:go-back',
     /** The go forward value. */
@@ -181,10 +183,15 @@ export const IPC_CHANNELS = defineIpcChannels({
     presentationChanged: 'kawaikara:video:presentation-changed',
     /** The picture in picture changed value. */
     pictureInPictureChanged: 'kawaikara:video:picture-in-picture-changed',
+    /** The picture in picture pointer presence changed value. */
+    pictureInPicturePointerChanged:
+      'kawaikara:video:picture-in-picture-pointer-changed',
     /** The visibility changed value. */
     visibilityChanged: 'kawaikara:video:visibility-changed',
     /** The recover playback renderer value. */
     recoverPlaybackRenderer: 'kawaikara:video:recover-playback-renderer',
+    /** The playback renderer ready value. */
+    playbackRendererReady: 'kawaikara:video:playback-renderer-ready',
     /** The set volume preference value. */
     setVolumePreference: 'kawaikara:video:set-volume-preference',
   },
@@ -968,6 +975,16 @@ export interface VideoPlaybackCapabilities {
   readonly electronGpuAccelerationEnabled: boolean;
   /** True only when MPV_HWDEC explicitly disables native hardware decoding. */
   readonly hardwareAccelerationDisabled: boolean;
+  /** The libmpv presentation pipeline selected for this Video window. */
+  readonly nativeRenderMode: 'shared-texture' | 'software';
+}
+
+/** Describes the active site's bounded navigation state. */
+export interface SiteNavigationState {
+  /** Whether the active site can move to an earlier in-site entry. */
+  readonly canGoBack: boolean;
+  /** Whether the active site can move to a later in-site entry. */
+  readonly canGoForward: boolean;
 }
 
 /** Describes the Kawaikara renderer API contract. */
@@ -1043,6 +1060,8 @@ export interface KawaikaraRendererApi {
     list(): Promise<SiteMenuItem[]>;
     /** Performs the current address operation. */
     currentAddress(): Promise<string>;
+    /** Returns the active site's bounded navigation state. */
+    navigationState(): Promise<SiteNavigationState>;
     /** Performs the go back operation. */
     goBack(): Promise<boolean>;
     /** Performs the go forward operation. */
@@ -1131,10 +1150,16 @@ export interface KawaikaraVideoApi {
     togglePictureInPicture(): Promise<PictureInPictureResult>;
     /** Performs the recover playback renderer operation. */
     recoverPlaybackRenderer(): Promise<boolean>;
+    /** Notifies Main that the Video playback renderer is ready. */
+    notifyPlaybackRendererReady(): void;
     /** Handles the full screen changed. */
     onFullScreenChanged(handler: (fullScreen: boolean) => void): () => void;
     /** Handles the picture in picture changed. */
     onPictureInPictureChanged(handler: (active: boolean) => void): () => void;
+    /** Handles pointer presence across the native Video PiP surface. */
+    onPictureInPicturePointerChanged(
+      handler: (inside: boolean) => void,
+    ): () => void;
     /** Handles the visibility changed. */
     onVisibilityChanged(handler: (visible: boolean) => void): () => void;
   };

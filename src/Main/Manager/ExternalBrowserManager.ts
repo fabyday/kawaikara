@@ -252,13 +252,16 @@ export class ExternalBrowserManager {
           error = syncError;
         }
         const activeCleanup = startCleanup();
-        if (result !== 'completed' || error || awaitBrowserCleanup) {
+        if (error || awaitBrowserCleanup) {
           await activeCleanup;
         } else {
-          // Cookie writes are already visible to the target Electron Session.
-          // Do not keep its viewer on the waiting screen while Patchright waits
-          // for the now-hidden browser process to finish shutting down.
+          // Cookie writes (for completion) and the user's cancellation are
+          // already final from the viewer's perspective. In particular,
+          // Windows can keep an app-mode Chrome process alive while its last
+          // native window is closing. Do not leave the viewer on the waiting
+          // screen while Patchright waits for that process to shut down.
           console.info('External login is ready to restore the viewer.', {
+            result,
             durationMs: Date.now() - completionStartedAt,
           });
           void activeCleanup.then(() => {
@@ -339,10 +342,7 @@ export class ExternalBrowserManager {
           // page. Allow a brief hand-off before treating the browser as closed.
           emptyWindowTimer = setTimeout(() => {
             emptyWindowTimer = undefined;
-            if (
-              !settled &&
-              browserContext.pages().every((candidate) => candidate.isClosed())
-            ) {
+            if (!settled && trackedPages.size === 0) {
               void finish('cancelled');
             }
           }, 750);

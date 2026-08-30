@@ -26,6 +26,7 @@ import type {
   PreferenceState,
   RendererMessages,
   SiteMenuItem,
+  SiteNavigationState,
 } from '../../../Common/IPC';
 import { ActivityBorder } from '../../Component/ActivityBorder';
 import { GearIcon } from '../../Component/GearIcon';
@@ -60,6 +61,7 @@ export function App() {
   const [pipFailureKey, setPipFailureKey] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
   const [skipMenuEntryAnimation, setSkipMenuEntryAnimation] = useState(false);
+  const [menuEntrySequence, setMenuEntrySequence] = useState(0);
   const [shortcutTargetCategory, setShortcutTargetCategory] = useState<string>();
   const [sitePanelRefreshKey, setSitePanelRefreshKey] = useState(0);
   const [address, setAddress] = useState('');
@@ -67,6 +69,11 @@ export function App() {
   const [addressError, setAddressError] = useState(false);
   const [addressFailureKey, setAddressFailureKey] = useState(0);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [navigationLoading, setNavigationLoading] = useState(false);
+  const [navigationState, setNavigationState] = useState<SiteNavigationState>({
+    canGoBack: false,
+    canGoForward: false,
+  });
   const [addressSuggestionsDismissed, setAddressSuggestionsDismissed] =
     useState(false);
   const [activeAddressSuggestion, setActiveAddressSuggestion] = useState(0);
@@ -123,12 +130,20 @@ export function App() {
     void Promise.all([
       window.kawaikara.sites.list(),
       window.kawaikara.sites.currentAddress(),
+      window.kawaikara.sites.navigationState(),
       window.kawaikara.preferences.get(),
       window.kawaikara.application.getMessages(),
     ])
-      .then(([nextSites, nextAddress, nextPreferences, nextLocalization]) => {
+      .then(([
+        nextSites,
+        nextAddress,
+        nextNavigationState,
+        nextPreferences,
+        nextLocalization,
+      ]) => {
         setSites(nextSites);
         setAddress(nextAddress);
+        setNavigationState(nextNavigationState);
         setSelectedId(nextSites.find((site) => site.isCurrent)?.id);
         setPreferences(nextPreferences);
         setLocalization(nextLocalization);
@@ -151,16 +166,25 @@ export function App() {
       }
       setView('menu');
       viewRef.current = 'menu';
+      setMenuEntrySequence((current) => current + 1);
       setMenuVisible(true);
       setSitePanelRefreshKey((current) => current + 1);
       void Promise.all([
         window.kawaikara.sites.list(),
         window.kawaikara.sites.currentAddress(),
+        window.kawaikara.sites.navigationState(),
         window.kawaikara.preferences.get(),
         window.kawaikara.application.getMessages(),
-      ]).then(([nextSites, nextAddress, nextPreferences, nextLocalization]) => {
+      ]).then(([
+        nextSites,
+        nextAddress,
+        nextNavigationState,
+        nextPreferences,
+        nextLocalization,
+      ]) => {
         setSites(nextSites);
         setAddress(nextAddress);
+        setNavigationState(nextNavigationState);
         setSelectedId(nextSites.find((site) => site.isCurrent)?.id);
         setPreferences(nextPreferences);
         setLocalization(nextLocalization);
@@ -353,6 +377,7 @@ export function App() {
     setError(undefined);
     try {
       await window.kawaikara.sites.open(id);
+      setNavigationState({ canGoBack: false, canGoForward: false });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setSelectedId(previousId);
@@ -477,19 +502,33 @@ export function App() {
 
   /** Performs the navigate address history operation. */
   const navigateAddressHistory = async (direction: 'back' | 'forward') => {
+    if (navigationLoading) return;
+    setNavigationLoading(true);
     try {
       const moved = direction === 'back'
         ? await window.kawaikara.sites.goBack()
         : await window.kawaikara.sites.goForward();
-      if (!moved) return;
-      setAddressSuggestionsDismissed(true);
-      // NavigationHistory updates immediately, while the committed URL follows
-      // asynchronously. Read it after the next renderer turn.
+      if (moved) setAddressSuggestionsDismissed(true);
+      // NavigationHistory changes synchronously, while the committed URL
+      // follows asynchronously. Refresh both values after the next turn so
+      // the address and the disabled buttons describe the same entry.
       window.setTimeout(() => {
-        void window.kawaikara.sites.currentAddress().then(setAddress);
-      }, 120);
+        void Promise.all([
+          window.kawaikara.sites.currentAddress(),
+          window.kawaikara.sites.navigationState(),
+        ])
+          .then(([nextAddress, nextNavigationState]) => {
+            setAddress(nextAddress);
+            setNavigationState(nextNavigationState);
+          })
+          .catch((reason: unknown) => {
+            setError(reason instanceof Error ? reason.message : String(reason));
+          })
+          .finally(() => setNavigationLoading(false));
+      }, moved ? 120 : 0);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      setNavigationLoading(false);
     }
   };
 
@@ -605,6 +644,7 @@ export function App() {
                   x: reduceMotion ? 0 : '-112%',
                 }
           }
+          key={`menu-rail-${String(menuEntrySequence)}`}
           transition={
             reduceMotion
               ? { duration: 0
@@ -751,7 +791,7 @@ export function App() {
               : { opacity: 0
               }
           }
-          key={selectedSite?.id ?? 'empty-site-panel'}
+          key={`${selectedSite?.id ?? 'empty-site-panel'}-${String(menuEntrySequence)}`}
           onPointerDown={(event) => {
             if (event.target === event.currentTarget) beginMenuClose();
           }}
@@ -772,6 +812,7 @@ export function App() {
               <div className="menu-address-navigation">
                 <button
                   aria-label={messages.goBack}
+                  disabled={navigationLoading || !navigationState.canGoBack}
                   title={messages.goBack}
                   type="button"
                   onClick={() => void navigateAddressHistory('back')}
@@ -780,6 +821,7 @@ export function App() {
                 </button>
                 <button
                   aria-label={messages.goForward}
+                  disabled={navigationLoading || !navigationState.canGoForward}
                   title={messages.goForward}
                   type="button"
                   onClick={() => void navigateAddressHistory('forward')}

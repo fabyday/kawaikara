@@ -186,6 +186,9 @@ const api: KawaikaraRendererApi = {
     /** The current address value. */
     currentAddress: () =>
       ipcRenderer.invoke(IPC_CHANNELS.sites.currentAddress) as Promise<string>,
+    /** The navigation state value. */
+    navigationState: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.sites.navigationState),
     /** The go back value. */
     goBack: () =>
       ipcRenderer.invoke(IPC_CHANNELS.sites.goBack) as Promise<boolean>,

@@ -87,6 +87,21 @@ body,
   pointer-events: none;
 }
 
+.video-pip-overlay::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(0 0 0 / 10%) 0%,
+    rgb(0 0 0 / 18%) 45%,
+    rgb(0 0 0 / 32%) 100%
+  );
+  content: '';
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
 .video-pip-drag-surface {
   position: absolute;
   inset: 0;
@@ -146,6 +161,7 @@ body,
 }
 
 .video-shell[data-controls-visible="true"] .video-pip-button,
+.video-pip-overlay:hover .video-pip-button,
 .video-pip-button:hover,
 .video-pip-button:focus-visible {
   opacity: 1;
@@ -154,9 +170,14 @@ body,
 }
 
 .video-shell[data-controls-visible="true"] .video-pip-playback-button,
+.video-pip-overlay:hover .video-pip-playback-button,
 .video-pip-playback-button:hover,
 .video-pip-playback-button:focus-visible {
   transform: translate(-50%, -50%) scale(1);
+}
+
+.video-pip-overlay:hover::before {
+  opacity: 1;
 }
 
 .video-pip-button:hover {

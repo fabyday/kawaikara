@@ -10,6 +10,7 @@ const {
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 const { loadLocalEnvironment } = require('./lib/env.cjs');
+const { signPackage } = require('./lib/evs.cjs');
 
 const root = path.resolve(__dirname, '..');
 loadLocalEnvironment(root);
@@ -224,6 +225,7 @@ function replaceDevelopmentBuild() {
 
   try {
     runElectronBuilder();
+    signFinalDevelopmentPackage(outputDirectory);
 
     const applicationPath = findApplication(outputDirectory);
     if (!applicationPath) {
@@ -298,6 +300,7 @@ function replaceDevelopmentBuildOnWindows() {
   }
 
   runElectronBuilderWithRetries(stagingOutputDirectory);
+  signFinalDevelopmentPackage(stagingOutputDirectory);
 
   const applicationPath = findApplication(stagingOutputDirectory);
   if (!applicationPath) {
@@ -330,9 +333,23 @@ function runElectronBuilder(packageOutputDirectory = outputDirectory) {
       CSC_IDENTITY_AUTO_DISCOVERY: 'false',
       KAWAIKARA_BUILD_CHANNEL: 'nightly',
       KAWAIKARA_DEV_OUTPUT_DIR: path.relative(root, packageOutputDirectory),
-      KAWAIKARA_VMP_SIGN: '1',
+      // electron-builder may still edit the executable after afterPack. Sign
+      // the completed development package in signFinalDevelopmentPackage().
+      KAWAIKARA_VMP_SIGN: '0',
     },
   );
+}
+
+function signFinalDevelopmentPackage(packageOutputDirectory) {
+  const applicationPath = findApplication(packageOutputDirectory);
+  if (!applicationPath) {
+    throw new Error(
+      `Packaged application was not found before VMP signing in ${packageOutputDirectory}.`,
+    );
+  }
+  const applicationDirectory = path.dirname(applicationPath);
+  console.log(`Signing final development package: ${applicationDirectory}`);
+  signPackage(applicationDirectory);
 }
 
 function runElectronBuilderWithRetries(packageOutputDirectory) {

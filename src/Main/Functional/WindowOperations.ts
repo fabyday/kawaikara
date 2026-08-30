@@ -37,7 +37,12 @@ function isExpectedSpaNavigationHandoff(
   requestedUrl: string,
   currentUrl: string,
 ): boolean {
-  if (!hasErrorCode(error, 'ERR_FAILED')) return false;
+  if (
+    !hasErrorCode(error, 'ERR_FAILED') &&
+    !hasErrorCode(error, 'ERR_ABORTED')
+  ) {
+    return false;
+  }
 
   try {
     const requested = new URL(requestedUrl);
@@ -148,7 +153,7 @@ function logExpectedNavigationHandoff(
   currentUrl: string,
 ): void {
   console.debug(
-    `Navigation to ${requestedUrl} continued after Electron reported ERR_FAILED (${currentUrl}).`,
+    `Navigation to ${requestedUrl} continued after Electron reported a navigation hand-off (${currentUrl}).`,
   );
 }
 

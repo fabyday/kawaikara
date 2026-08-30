@@ -86,6 +86,8 @@ export class SiteManager {
   private readonly currentPagePolicyDisposables: Disposable[] = [];
   /** The plugin browser profiles value. */
   private readonly pluginBrowserProfiles = new Map<string, BrowserProfileInfo>();
+  /** Serializes Provider teardown and activation across every caller. */
+  private siteTransition: Promise<void> = Promise.resolve();
 
   /** Creates an instance of SiteManager. */
   constructor(
@@ -215,24 +217,26 @@ export class SiteManager {
     /** Whether the active URL option is enabled. */
     activeUrl?: string;
   }> {
-    const activeSiteId = this.currentSiteId;
-    const activeRegistration = activeSiteId
-      ? this.sites.get(activeSiteId)
-      : undefined;
-    const ownedActiveSiteId = activeRegistration?.bundleId === bundleId
-      ? activeSiteId
-      : undefined;
-    const activeUrl = ownedActiveSiteId
-      ? this.getCurrentAddress() || undefined
-      : undefined;
-    if (ownedActiveSiteId) await this.unloadCurrent();
-    this.rollbackBundleRegistration(bundleId);
-    return {
-      /** Whether the active site ID option is enabled. */
-      activeSiteId: ownedActiveSiteId,
-      /** Whether the active URL option is enabled. */
-      activeUrl,
-    };
+    return this.runSiteTransition(async () => {
+      const activeSiteId = this.currentSiteId;
+      const activeRegistration = activeSiteId
+        ? this.sites.get(activeSiteId)
+        : undefined;
+      const ownedActiveSiteId = activeRegistration?.bundleId === bundleId
+        ? activeSiteId
+        : undefined;
+      const activeUrl = ownedActiveSiteId
+        ? this.getCurrentAddress() || undefined
+        : undefined;
+      if (ownedActiveSiteId) await this.unloadCurrent();
+      this.rollbackBundleRegistration(bundleId);
+      return {
+        /** Whether the active site ID option is enabled. */
+        activeSiteId: ownedActiveSiteId,
+        /** Whether the active URL option is enabled. */
+        activeUrl,
+      };
+    });
   }
 
   /** Lists the menu items. */
@@ -353,6 +357,11 @@ export class SiteManager {
 
   /** Loads the operation. */
   async load(id: string): Promise<void> {
+    await this.runSiteTransition(() => this.loadSite(id));
+  }
+
+  /** Loads one Provider while the site transition queue is held. */
+  private async loadSite(id: string): Promise<void> {
     const registration = this.sites.get(id);
     if (!registration) {
       throw new Error(`Unknown site: ${id}`);
@@ -379,11 +388,15 @@ export class SiteManager {
     this.currentSiteId = id;
     this.currentLocale = locale;
     this.currentRuntime = runtime;
-    const refreshPagePictureInPicturePolicy =
-      this.installPagePictureInPicturePolicy(
-        context,
-        registration.metadata,
-      );
+    // Internal views have no navigable page to patch. Executing a page-world
+    // policy in their detached, initial about:blank WebContents makes Electron
+    // wait forever for did-stop-loading and leaves the site-open IPC pending.
+    const refreshPagePictureInPicturePolicy = permissions.has('navigation')
+      ? this.installPagePictureInPicturePolicy(
+          context,
+          registration.metadata,
+        )
+      : async () => undefined;
     try {
       this.installBrowserIdentity(providerContext, registration.metadata);
       await provider.onSettingsChanged(this.getProviderSettings(id));
@@ -409,16 +422,18 @@ export class SiteManager {
 
   /** Opens the URL. */
   async openUrl(id: string, url: string): Promise<void> {
-    await this.load(id);
-    try {
-      await this.currentProviderContext().viewer.loadURL(url);
-    } catch (error) {
-      // Streaming SPAs commonly replace the initial navigation. Electron
-      // reports that successful hand-off as ERR_ABORTED.
-      if (!isNavigationAborted(error)) {
-        throw error;
+    await this.runSiteTransition(async () => {
+      await this.loadSite(id);
+      try {
+        await this.currentProviderContext().viewer.loadURL(url);
+      } catch (error) {
+        // Streaming SPAs commonly replace the initial navigation. Electron
+        // reports that successful hand-off as ERR_ABORTED.
+        if (!isNavigationAborted(error)) {
+          throw error;
+        }
       }
-    }
+    });
   }
 
   /** Returns the current site ID. */
@@ -517,15 +532,17 @@ export class SiteManager {
     partition: string,
     operation: () => Promise<T>,
   ): Promise<T> {
-    const siteId = this.currentRuntime?.partition === partition
-      ? this.currentSiteId
-      : undefined;
-    if (siteId) await this.unloadCurrent();
-    try {
-      return await operation();
-    } finally {
-      if (siteId) await this.load(siteId);
-    }
+    return this.runSiteTransition(async () => {
+      const siteId = this.currentRuntime?.partition === partition
+        ? this.currentSiteId
+        : undefined;
+      if (siteId) await this.unloadCurrent();
+      try {
+        return await operation();
+      } finally {
+        if (siteId) await this.loadSite(siteId);
+      }
+    });
   }
 
   /** Resolves the new window policy. */
@@ -663,7 +680,17 @@ export class SiteManager {
 
   /** Releases the operation. */
   async dispose(): Promise<void> {
-    await this.unloadCurrent();
+    await this.runSiteTransition(() => this.unloadCurrent());
+  }
+
+  /** Runs a site transition after every previously requested transition. */
+  private runSiteTransition<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.siteTransition.then(operation, operation);
+    this.siteTransition = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 
   /** Creates the registration. */

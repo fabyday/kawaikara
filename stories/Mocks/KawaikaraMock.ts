@@ -696,6 +696,10 @@ export function installKawaikaraMock(
           isCurrent: site.id === currentSiteId,
         })),
       currentAddress: async () => 'https://www.youtube.com/',
+      navigationState: async () => ({
+        canGoBack: true,
+        canGoForward: true,
+      }),
       goBack: async () => true,
       goForward: async () => true,
       open: async (id) => {
@@ -800,8 +804,10 @@ export function installKawaikaraMock(
         mode: 'window',
       }),
       recoverPlaybackRenderer: async () => false,
+      notifyPlaybackRendererReady: () => undefined,
       onFullScreenChanged: () => () => undefined,
       onPictureInPictureChanged: () => () => undefined,
+      onPictureInPicturePointerChanged: () => () => undefined,
       onVisibilityChanged: () => () => undefined,
     },
     source: {
@@ -812,6 +818,7 @@ export function installKawaikaraMock(
         nativeBackendAvailable: false,
         electronGpuAccelerationEnabled: true,
         hardwareAccelerationDisabled: false,
+        nativeRenderMode: 'shared-texture',
       }),
       getOpenRequest: async () => null,
       activateLocalFile: async (targetPath) => ({

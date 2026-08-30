@@ -46,6 +46,7 @@ import {
   type DevToolsMode,
   type DevelopmentState,
   type OverlayView,
+  type SiteNavigationState,
   type VideoPlaybackCapabilities,
   type VideoOpenRequest,
   type VideoPresentationState,
@@ -103,6 +104,8 @@ const VIDEO_FILE_EXTENSIONS = new Set([
   '.webm',
   '.wmv',
 ]);
+/** Defines the Video renderer initialization timeout constant. */
+const VIDEO_RENDERER_INITIALIZATION_TIMEOUT_MS = 5_000;
 /** Defines the shared remote scrollbar CSS constant. */
 const REMOTE_SCROLLBAR_CSS = `
   :root {
@@ -178,6 +181,12 @@ export class WindowManager {
   private videoSoftwareRenderer = false;
   /** The video renderer recovery value. */
   private videoRendererRecovery?: Promise<boolean>;
+  /** The video renderer initialization timer value. */
+  private videoRendererInitializationTimer?: ReturnType<typeof setTimeout>;
+  /** The Video renderer WebContents currently covered by the timer. */
+  private videoRendererInitializationWebContentsId?: number;
+  /** The Video renderer WebContents that most recently reported ready. */
+  private readyVideoRendererWebContentsId?: number;
   /** The overlay window value. */
   private overlayWindow?: BrowserWindow;
   /** The site view value. */
@@ -291,6 +300,12 @@ export class WindowManager {
   private readonly internalVideoPictureInPictureReassertTimers = new Set<
     ReturnType<typeof setTimeout>
   >();
+  /** Native cursor polling used while the draggable Video PiP is active. */
+  private internalVideoPictureInPicturePointerTimer?: ReturnType<
+    typeof setInterval
+  >;
+  /** Whether the native cursor is currently inside the Video PiP bounds. */
+  private internalVideoPictureInPicturePointerInside = false;
   /** The overlay reveal timer value. */
   private overlayRevealTimer?: ReturnType<typeof setTimeout>;
 
@@ -417,6 +432,13 @@ export class WindowManager {
       this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
+    viewerWindow.on('focus', () => {
+      // A child BrowserWindow can hand focus back to its parent while Windows
+      // restores or activates the app. Reassert the Video child so its Main
+      // before-input-event listener receives Tab even before the user clicks.
+      if (!this.internalVideoVisible || this.overlayVisible) return;
+      setTimeout(() => this.focusInternalVideoWindow(), 0);
+    });
     viewerWindow.on('close', (event) => {
       if (!this.disposing && !this.viewerClosePrepared) {
         event.preventDefault();
@@ -427,7 +449,9 @@ export class WindowManager {
     });
     viewerWindow.on('closed', () => {
       this.clearInternalVideoPictureInPictureReassertions();
+      this.clearInternalVideoPictureInPicturePointerMonitor();
       this.clearOverlayRevealTimer();
+      this.clearVideoRendererInitializationWatchdog();
       this.pictureInPicture.handleViewerClosed();
       const siteWebContentsId = this.siteView?.webContents.id;
       if (siteWebContentsId) this.editingWebContentsIds.delete(siteWebContentsId);
@@ -595,6 +619,7 @@ export class WindowManager {
   /** Releases the operation. */
   async dispose(): Promise<void> {
     this.disposing = true;
+    this.clearVideoRendererInitializationWatchdog();
     await this.exitInternalVideoPictureInPicture(false);
     await this.pictureInPicture.exitAllModes();
     await this.cancelExternalLogin();
@@ -702,6 +727,10 @@ export class WindowManager {
       electronGpuAccelerationEnabled: app.isHardwareAccelerationEnabled(),
       /** The hardware acceleration disabled value. */
       hardwareAccelerationDisabled: process.env.MPV_HWDEC === 'no',
+      /** The native render mode value. */
+      nativeRenderMode: this.videoSoftwareRenderer
+        ? 'software'
+        : 'shared-texture',
     };
   }
 
@@ -756,7 +785,6 @@ export class WindowManager {
     if (this.videoRendererRecovery) return this.videoRendererRecovery;
     const video = this.videoWindow;
     if (
-      !this.internalVideoVisible ||
       this.internalVideoPictureInPicture ||
       !video ||
       video.isDestroyed() ||
@@ -775,6 +803,20 @@ export class WindowManager {
     return recovery;
   }
 
+  /** Records that a Video playback renderer completed initialization. */
+  notifyVideoPlaybackRendererReady(webContentsId: number): void {
+    const video = this.videoWindow;
+    if (
+      !video ||
+      video.isDestroyed() ||
+      video.webContents.id !== webContentsId
+    ) {
+      return;
+    }
+    this.readyVideoRendererWebContentsId = webContentsId;
+    this.clearVideoRendererInitializationWatchdog(webContentsId);
+  }
+
   /** Performs the recreate video window with software renderer operation. */
   private async recreateVideoWindowWithSoftwareRenderer(
     video: BrowserWindow,
@@ -782,6 +824,7 @@ export class WindowManager {
     console.warn(
       'The shared-texture Video renderer did not initialize; retrying with the libmpv WebGL renderer.',
     );
+    this.clearVideoRendererInitializationWatchdog(video.webContents.id);
     this.videoSoftwareRenderer = true;
     this.internalVideoPresentation = { ready: false, width: 0, height: 0
     };
@@ -805,6 +848,25 @@ export class WindowManager {
   queueVideoOpenRequest(request: VideoOpenRequest): void {
     this.pendingVideoOpenRequest = request;
     if (request.kind === 'local') this.lastLocalVideoOpenRequest = request;
+  }
+
+  /** Delivers a queued request to an already active Video view. */
+  presentQueuedVideoOpenRequest(): boolean {
+    const request = this.pendingVideoOpenRequest;
+    const video = this.videoWindow;
+    if (
+      !request ||
+      !this.internalVideoVisible ||
+      !video ||
+      video.isDestroyed()
+    ) {
+      return false;
+    }
+    this.pendingVideoOpenRequest = undefined;
+    this.currentVideoOpenRequest = request;
+    video.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
+    video.webContents.send(IPC_CHANNELS.video.openRequestChanged, request);
+    return true;
   }
 
   /** Performs the dispatch site action operation. */
@@ -1307,6 +1369,7 @@ export class WindowManager {
       IPC_CHANNELS.video.pictureInPictureChanged,
       true,
     );
+    this.startInternalVideoPictureInPicturePointerMonitor(video);
     if (process.platform === 'darwin') {
       this.presentInternalVideoPictureInPicture(video);
       this.scheduleInternalVideoPictureInPictureReassertion();
@@ -1331,6 +1394,7 @@ export class WindowManager {
     const state = this.internalVideoPictureInPicture;
     if (!state) return;
     this.clearInternalVideoPictureInPictureReassertions();
+    this.clearInternalVideoPictureInPicturePointerMonitor();
     const viewer = this.viewerWindow;
     const video = this.videoWindow;
     if (video && !video.isDestroyed()) {
@@ -1436,6 +1500,62 @@ export class WindowManager {
     this.internalVideoPictureInPictureReassertTimers.clear();
   }
 
+  /**
+   * Tracks entry into the native PiP window. The full PiP surface is an
+   * app-region drag target, so Chromium does not reliably emit DOM pointer
+   * events outside the explicit no-drag controls on Windows.
+   */
+  private startInternalVideoPictureInPicturePointerMonitor(
+    video: BrowserWindow,
+  ): void {
+    this.clearInternalVideoPictureInPicturePointerMonitor();
+    /** Publishes a native PiP boundary transition to the Video renderer. */
+    const updatePointerState = () => {
+      if (
+        !this.internalVideoPictureInPicture ||
+        video.isDestroyed() ||
+        this.videoWindow !== video
+      ) {
+        this.clearInternalVideoPictureInPicturePointerMonitor();
+        return;
+      }
+      const cursor = screen.getCursorScreenPoint();
+      const bounds = video.getBounds();
+      const inside =
+        cursor.x >= bounds.x &&
+        cursor.x < bounds.x + bounds.width &&
+        cursor.y >= bounds.y &&
+        cursor.y < bounds.y + bounds.height;
+      if (inside === this.internalVideoPictureInPicturePointerInside) return;
+      this.internalVideoPictureInPicturePointerInside = inside;
+      video.webContents.send(
+        IPC_CHANNELS.video.pictureInPicturePointerChanged,
+        inside,
+      );
+    };
+    updatePointerState();
+    this.internalVideoPictureInPicturePointerTimer = setInterval(
+      updatePointerState,
+      80,
+    );
+  }
+
+  /** Stops native PiP cursor polling and clears the renderer hover state. */
+  private clearInternalVideoPictureInPicturePointerMonitor(): void {
+    if (this.internalVideoPictureInPicturePointerTimer !== undefined) {
+      clearInterval(this.internalVideoPictureInPicturePointerTimer);
+      this.internalVideoPictureInPicturePointerTimer = undefined;
+    }
+    if (!this.internalVideoPictureInPicturePointerInside) return;
+    this.internalVideoPictureInPicturePointerInside = false;
+    const video = this.videoWindow;
+    if (!video || video.isDestroyed()) return;
+    video.webContents.send(
+      IPC_CHANNELS.video.pictureInPicturePointerChanged,
+      false,
+    );
+  }
+
   /** Notifies the picture in picture changed. */
   private notifyPictureInPictureChanged(result: {
     /** The status value. */
@@ -1477,17 +1597,41 @@ export class WindowManager {
   /** Performs the go back operation. */
   goBack(): boolean {
     const navigation = this.requireActiveViewerWebContents().navigationHistory;
-    if (!navigation.canGoBack()) return false;
-    navigation.goBack();
+    if (!this.canNavigateHistory(-1)) return false;
+    navigation.goToOffset(-1);
     return true;
   }
 
   /** Performs the go forward operation. */
   goForward(): boolean {
     const navigation = this.requireActiveViewerWebContents().navigationHistory;
-    if (!navigation.canGoForward()) return false;
-    navigation.goForward();
+    if (!this.canNavigateHistory(1)) return false;
+    navigation.goToOffset(1);
     return true;
+  }
+
+  /** Returns the active site's bounded navigation state. */
+  getNavigationState(): SiteNavigationState {
+    return {
+      /** Whether the can go back option is enabled. */
+      canGoBack: this.canNavigateHistory(-1),
+      /** Whether the can go forward option is enabled. */
+      canGoForward: this.canNavigateHistory(1),
+    };
+  }
+
+  /** Determines whether a history offset remains inside the active site. */
+  private canNavigateHistory(offset: -1 | 1): boolean {
+    if (this.internalVideoVisible) return false;
+    const contents = this.siteView?.webContents;
+    if (!contents || contents.isDestroyed()) return false;
+    const navigation = contents.navigationHistory;
+    if (!navigation.canGoToOffset(offset)) return false;
+    const entry = navigation.getEntryAtIndex(
+      navigation.getActiveIndex() + offset,
+    );
+    if (!entry || !isUserNavigableHistoryUrl(entry.url)) return false;
+    return this.navigationGuard?.(entry.url) === true;
   }
 
   /** Sets the editing state. */
@@ -1564,6 +1708,7 @@ export class WindowManager {
     if (this.internalVideoVisible) {
       const video = this.videoWindow;
       if (video && !video.isDestroyed()) {
+        video.setFocusable(true);
         video.show();
         video.focus();
         video.webContents.focus();
@@ -2082,6 +2227,9 @@ export class WindowManager {
         await this.prepareViewerTransition(contents);
         this.currentVideoOpenRequest = null;
         await loadURLWithNavigationRecovery(contents, url);
+        // A Provider load establishes a new site boundary. Chromium otherwise
+        // keeps the previous Provider's document in this shared WebContents.
+        contents.navigationHistory.clear();
       },
       /** The load internal view value. */
       loadInternalView: async (viewId) => {
@@ -2102,19 +2250,22 @@ export class WindowManager {
         this.internalVideoVisible = true;
         this.internalVideoPresentation = { ready: false, width: 0, height: 0
         };
-        // The Video renderer stays alive while a remote Provider is active.
-        // Re-send the last local source when it becomes visible again so
-        // libmpv recreates its Windows shared texture instead of retaining a
-        // stale surface. macOS happens to preserve that surface, which hid the
-        // lifecycle bug there.
-        const request =
-          this.pendingVideoOpenRequest ?? this.lastLocalVideoOpenRequest;
+        // The Video renderer remains alive and paused while another Provider
+        // is active. Only explicit open actions should reload its source. A
+        // plain return to Video must preserve the existing mpv session and
+        // playback position instead of reopening and auto-playing the file.
+        const existingVideo = Boolean(
+          this.videoWindow && !this.videoWindow.isDestroyed(),
+        );
+        const request = this.pendingVideoOpenRequest ??
+          (!existingVideo ? this.lastLocalVideoOpenRequest : undefined);
         this.pendingVideoOpenRequest = undefined;
-        this.currentVideoOpenRequest = request ?? null;
+        if (request) this.currentVideoOpenRequest = request;
+        else if (!existingVideo) this.currentVideoOpenRequest = null;
         const video = await this.ensureVideoWindow();
         this.syncVideoWindowBounds();
         video.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
-        if (request) {
+        if (existingVideo && request) {
           video.webContents.send(
             IPC_CHANNELS.video.openRequestChanged,
             request,
@@ -2202,6 +2353,9 @@ export class WindowManager {
         },
       },
     );
+    // The waiting document is an application implementation detail, not a
+    // destination the user should revisit with Back or Forward.
+    webContents.navigationHistory.clear();
 
     try {
       return await this.externalBrowser.login(
@@ -2295,6 +2449,7 @@ export class WindowManager {
       },
     });
     this.videoWindow = video;
+    this.readyVideoRendererWebContentsId = undefined;
     this.logging.attachRenderer(video.webContents, 'video');
     this.mpv.attachWindow(video);
     video.setMenu(null);
@@ -2345,6 +2500,10 @@ export class WindowManager {
       }
     });
     video.on('closed', () => {
+      this.clearVideoRendererInitializationWatchdog(webContentsId);
+      if (this.readyVideoRendererWebContentsId === webContentsId) {
+        this.readyVideoRendererWebContentsId = undefined;
+      }
       this.clearInternalVideoPictureInPictureReassertions();
       this.editingWebContentsIds.delete(webContentsId);
       if (this.videoWindow === video) {
@@ -2357,7 +2516,10 @@ export class WindowManager {
 
     const loading = video
       .loadFile(path.resolve(__dirname, '../renderer/video.html'))
-      .then(() => video)
+      .then(() => {
+        this.startVideoRendererInitializationWatchdog(video);
+        return video;
+      })
       .catch(async (error: unknown) => {
         if (!video.isDestroyed()) {
           await this.mpv.detachWindow(video).catch(() => undefined);
@@ -2373,6 +2535,56 @@ export class WindowManager {
       });
     this.videoWindowLoading = loading;
     return loading;
+  }
+
+  /** Starts a Main-process watchdog for a potentially frozen WebGPU renderer. */
+  private startVideoRendererInitializationWatchdog(video: BrowserWindow): void {
+    const webContentsId = video.webContents.id;
+    this.clearVideoRendererInitializationWatchdog();
+    if (
+      this.videoSoftwareRenderer ||
+      !this.getVideoPlaybackCapabilities().nativeBackendAvailable ||
+      this.readyVideoRendererWebContentsId === webContentsId
+    ) {
+      return;
+    }
+    this.videoRendererInitializationWebContentsId = webContentsId;
+    this.videoRendererInitializationTimer = setTimeout(() => {
+      this.videoRendererInitializationTimer = undefined;
+      this.videoRendererInitializationWebContentsId = undefined;
+      if (
+        video.isDestroyed() ||
+        this.videoWindow !== video ||
+        this.readyVideoRendererWebContentsId === webContentsId
+      ) {
+        return;
+      }
+      console.warn(
+        'The Video renderer stopped responding during shared-texture initialization; switching to the libmpv WebGL renderer.',
+      );
+      void this.recoverVideoPlaybackRenderer(webContentsId).catch(
+        (error: unknown) => {
+          console.error('Failed to recover the Video playback renderer.', error);
+        },
+      );
+    }, VIDEO_RENDERER_INITIALIZATION_TIMEOUT_MS);
+  }
+
+  /** Clears the Main-process Video renderer initialization watchdog. */
+  private clearVideoRendererInitializationWatchdog(
+    webContentsId?: number,
+  ): void {
+    if (
+      webContentsId !== undefined &&
+      this.videoRendererInitializationWebContentsId !== webContentsId
+    ) {
+      return;
+    }
+    if (this.videoRendererInitializationTimer !== undefined) {
+      clearTimeout(this.videoRendererInitializationTimer);
+      this.videoRendererInitializationTimer = undefined;
+    }
+    this.videoRendererInitializationWebContentsId = undefined;
   }
 
   /** Performs the sync overlay bounds operation. */
@@ -2400,6 +2612,12 @@ export class WindowManager {
   /** Performs the reveal overlay operation. */
   private revealOverlay(overlay: BrowserWindow): void {
     this.clearOverlayRevealTimer();
+    const video = this.videoWindow;
+    if (this.internalVideoVisible && video && !video.isDestroyed()) {
+      // A visible sibling child BrowserWindow can otherwise stay above the
+      // transparent Menu child on Windows even after moveTop().
+      video.setFocusable(false);
+    }
     if (overlay.isVisible()) {
       overlay.setOpacity(1);
       overlay.moveTop();
@@ -2417,6 +2635,8 @@ export class WindowManager {
       this.overlayRevealTimer = undefined;
       if (!this.overlayVisible || overlay.isDestroyed()) return;
       overlay.setOpacity(1);
+      overlay.show();
+      overlay.moveTop();
       overlay.focus();
     }, 34);
   }
@@ -2499,11 +2719,38 @@ export class WindowManager {
     return siteView;
   }
 
+  /** Gives keyboard focus back to the persistent internal Video child. */
+  private focusInternalVideoWindow(): void {
+    const video = this.videoWindow;
+    if (
+      !this.internalVideoVisible ||
+      this.overlayVisible ||
+      !video ||
+      video.isDestroyed() ||
+      !video.isVisible()
+    ) {
+      return;
+    }
+    video.moveTop();
+    video.focus();
+    video.webContents.focus();
+  }
+
   /** Performs the require overlay window operation. */
   private requireOverlayWindow(): BrowserWindow {
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) {
       throw new Error('The renderer overlay window has not been created.');
     }
     return this.overlayWindow;
+  }
+}
+
+/** Determines whether an address belongs to a user-visible remote page. */
+function isUserNavigableHistoryUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
   }
 }

@@ -54,6 +54,12 @@ export class IpcManager {
   ): void => {
     this.windows.setInternalVideoPresentation(event.sender.id, state);
   };
+  /** The handle video playback renderer ready value. */
+  private readonly handleVideoPlaybackRendererReady = (
+    event: IpcMainEvent,
+  ): void => {
+    this.windows.notifyVideoPlaybackRendererReady(event.sender.id);
+  };
 
   /** Creates an instance of IpcManager. */
   constructor(
@@ -229,6 +235,9 @@ export class IpcManager {
     ipcMain.handle(IPC_CHANNELS.sites.currentAddress, () =>
       this.windows.getCurrentSiteAddress(),
     );
+    ipcMain.handle(IPC_CHANNELS.sites.navigationState, () =>
+      this.windows.getNavigationState(),
+    );
     ipcMain.handle(IPC_CHANNELS.sites.goBack, () => this.windows.goBack());
     ipcMain.handle(IPC_CHANNELS.sites.goForward, () => this.windows.goForward());
     ipcMain.handle(IPC_CHANNELS.sites.open, async (_event, id: unknown) => {
@@ -326,6 +335,10 @@ export class IpcManager {
       IPC_CHANNELS.video.presentationChanged,
       this.handleVideoPresentationChanged,
     );
+    ipcMain.on(
+      IPC_CHANNELS.video.playbackRendererReady,
+      this.handleVideoPlaybackRendererReady,
+    );
     ipcMain.handle(IPC_CHANNELS.video.librarySnapshot, () =>
       this.videoLibrary.getSnapshot(),
     );
@@ -372,6 +385,12 @@ export class IpcManager {
             : result.request,
         );
         this.windows.hideOverlay();
+        if (
+          this.sites.isCurrentSite('kawaikara.video') &&
+          this.windows.presentQueuedVideoOpenRequest()
+        ) {
+          return;
+        }
         await this.sites.load('kawaikara.video');
       },
     );
@@ -528,6 +547,10 @@ export class IpcManager {
       IPC_CHANNELS.video.presentationChanged,
       this.handleVideoPresentationChanged,
     );
+    ipcMain.off(
+      IPC_CHANNELS.video.playbackRendererReady,
+      this.handleVideoPlaybackRendererReady,
+    );
     removeIpcHandlers(IPC_HANDLER_CHANNELS);
   }
 }
@@ -536,6 +559,7 @@ export class IpcManager {
 const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.sites.list,
   IPC_CHANNELS.sites.currentAddress,
+  IPC_CHANNELS.sites.navigationState,
   IPC_CHANNELS.sites.goBack,
   IPC_CHANNELS.sites.goForward,
   IPC_CHANNELS.sites.openAddress,

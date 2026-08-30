@@ -41,6 +41,8 @@ if (window.location.protocol === 'file:') {
         ipcRenderer.invoke(
           IPC_CHANNELS.video.recoverPlaybackRenderer,
         ) as Promise<boolean>,
+      notifyPlaybackRendererReady: () =>
+        ipcRenderer.send(IPC_CHANNELS.video.playbackRendererReady),
       onFullScreenChanged: (handler) => {
         /** Performs the listener operation. */
         const listener = (
@@ -60,6 +62,22 @@ if (window.location.protocol === 'file:') {
         ipcRenderer.on(IPC_CHANNELS.video.pictureInPictureChanged, listener);
         return () =>
           ipcRenderer.off(IPC_CHANNELS.video.pictureInPictureChanged, listener);
+      },
+      onPictureInPicturePointerChanged: (handler) => {
+        /** Performs the listener operation. */
+        const listener = (
+          _event: Electron.IpcRendererEvent,
+          inside: boolean,
+        ) => handler(inside);
+        ipcRenderer.on(
+          IPC_CHANNELS.video.pictureInPicturePointerChanged,
+          listener,
+        );
+        return () =>
+          ipcRenderer.off(
+            IPC_CHANNELS.video.pictureInPicturePointerChanged,
+            listener,
+          );
       },
       onVisibilityChanged: (handler) => {
         /** Performs the listener operation. */
