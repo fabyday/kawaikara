@@ -1,5 +1,5 @@
 const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
-const { existsSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 
 const mpvResourceDirectory =
   'node_modules/electron-mpv-video/native/mpv-addon/build/Release';
@@ -23,6 +23,37 @@ const macOSWindowSpacesExtraResources =
         },
       ]
     : [];
+const windowsForegroundManifest =
+  'dist/native/kawaikara_windows_foreground.json';
+const windowsForegroundExtraResources = resolveWindowsForegroundResources();
+
+function resolveWindowsForegroundResources() {
+  if (process.platform !== 'win32') return [];
+  if (!existsSync(windowsForegroundManifest)) {
+    const legacyAddon = 'dist/native/kawaikara_windows_foreground.node';
+    return existsSync(legacyAddon)
+      ? [{ from: legacyAddon, to: `native/${legacyAddon.split('/').at(-1)}` }]
+      : [];
+  }
+  const manifest = JSON.parse(readFileSync(windowsForegroundManifest, 'utf8'));
+  if (
+    typeof manifest.file !== 'string' ||
+    !/^kawaikara_windows_foreground-[a-f0-9]{16}\.node$/.test(manifest.file)
+  ) {
+    throw new Error(`Invalid Windows native manifest: ${windowsForegroundManifest}`);
+  }
+  const addon = `dist/native/${manifest.file}`;
+  if (!existsSync(addon)) {
+    throw new Error(`Windows native addon selected by manifest is missing: ${addon}`);
+  }
+  return [
+    {
+      from: windowsForegroundManifest,
+      to: `native/${windowsForegroundManifest.split('/').at(-1)}`,
+    },
+    { from: addon, to: `native/${manifest.file}` },
+  ];
+}
 
 const channel = process.env.KAWAIKARA_BUILD_CHANNEL || 'nightly';
 if (!RELEASE_CHANNELS.includes(channel)) {
@@ -65,10 +96,11 @@ module.exports = {
     'node_modules/@esbuild/**/*',
     'node_modules/esbuild/**/*',
   ],
-  files: ['dist/**/*'],
+  files: ['dist/**/*', '!dist/native/**/*'],
   extraResources: [
     ...mpvExtraResources,
     ...macOSWindowSpacesExtraResources,
+    ...windowsForegroundExtraResources,
   ],
   electronDownload: {
     mirror: 'https://github.com/castlabs/electron-releases/releases/download/',

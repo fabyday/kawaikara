@@ -76,6 +76,9 @@ import {
   enableMacOSFullScreenAuxiliary,
 } from '../Functional/MacOSWindowSpaces';
 import {
+  isWindowsExternalFullscreenForeground,
+} from '../Functional/WindowsForegroundWindow';
+import {
   captureInternalVideoPictureInPicturePlacement,
   createSiteCookieStore,
   handleNativeEditingShortcut,
@@ -106,6 +109,8 @@ const VIDEO_FILE_EXTENSIONS = new Set([
 ]);
 /** Defines the Video renderer initialization timeout constant. */
 const VIDEO_RENDERER_INITIALIZATION_TIMEOUT_MS = 5_000;
+/** Defines the Windows fullscreen foreground monitor interval constant. */
+const WINDOWS_FULLSCREEN_FOREGROUND_MONITOR_INTERVAL_MS = 100;
 /** Defines the shared remote scrollbar CSS constant. */
 const REMOTE_SCROLLBAR_CSS = `
   :root {
@@ -208,6 +213,15 @@ export class WindowManager {
   private internalVideoPictureInPicture?: InternalVideoPictureInPictureState;
   /** The app always on top value. */
   private appAlwaysOnTop = false;
+  /** Whether Windows suspended AOT for an external fullscreen app. */
+  private windowsAlwaysOnTopSuspendedForFullscreen = false;
+  /** Desired opacities while Windows temporarily hides AOT windows. */
+  private readonly windowsFullscreenSuppressedWindowOpacities =
+    new Map<BrowserWindow, number>();
+  /** Prevents a stale foreground sample from hiding a newly activated viewer. */
+  private windowsAlwaysOnTopActivationGraceUntil = 0;
+  /** The Windows fullscreen foreground monitor value. */
+  private windowsFullscreenForegroundMonitor?: ReturnType<typeof setInterval>;
   /** The picture in picture placement value. */
   private pictureInPicturePlacement = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
   /** The picture in picture portrait size value. */
@@ -433,11 +447,22 @@ export class WindowManager {
       this.syncOverlayBounds();
     });
     viewerWindow.on('focus', () => {
+      this.restoreWindowsAlwaysOnTopForActivation();
       // A child BrowserWindow can hand focus back to its parent while Windows
       // restores or activates the app. Reassert the Video child so its Main
       // before-input-event listener receives Tab even before the user clicks.
       if (!this.internalVideoVisible || this.overlayVisible) return;
       setTimeout(() => this.focusInternalVideoWindow(), 0);
+    });
+    viewerWindow.on('blur', () => {
+      if (process.platform !== 'win32' || !this.appAlwaysOnTop) return;
+      this.windowsAlwaysOnTopActivationGraceUntil = 0;
+      // GetForegroundWindow can still point at Kawaikara during the blur
+      // callback. Cover both the immediate activation and slower borderless
+      // game transitions instead of depending on another user click.
+      for (const delay of [30, 100, 220]) {
+        setTimeout(() => this.refreshWindowsAlwaysOnTopState(), delay);
+      }
     });
     viewerWindow.on('close', (event) => {
       if (!this.disposing && !this.viewerClosePrepared) {
@@ -451,6 +476,7 @@ export class WindowManager {
       this.clearInternalVideoPictureInPictureReassertions();
       this.clearInternalVideoPictureInPicturePointerMonitor();
       this.clearOverlayRevealTimer();
+      this.stopWindowsFullscreenForegroundMonitor();
       this.clearVideoRendererInitializationWatchdog();
       this.pictureInPicture.handleViewerClosed();
       const siteWebContentsId = this.siteView?.webContents.id;
@@ -619,6 +645,7 @@ export class WindowManager {
   /** Releases the operation. */
   async dispose(): Promise<void> {
     this.disposing = true;
+    this.stopWindowsFullscreenForegroundMonitor();
     this.clearVideoRendererInitializationWatchdog();
     await this.exitInternalVideoPictureInPicture(false);
     await this.pictureInPicture.exitAllModes();
@@ -966,6 +993,12 @@ export class WindowManager {
   /** Sets the always on top. */
   setAlwaysOnTop(enabled: boolean): void {
     this.appAlwaysOnTop = enabled;
+    if (process.platform === 'win32') {
+      if (enabled) this.startWindowsFullscreenForegroundMonitor();
+      else this.stopWindowsFullscreenForegroundMonitor();
+      this.refreshWindowsAlwaysOnTopState(true);
+      return;
+    }
     if (!this.isAnyPictureInPictureActive()) {
       const viewer = this.viewerWindow;
       if (viewer && !viewer.isDestroyed()) {
@@ -1037,6 +1070,126 @@ export class WindowManager {
     }
   }
 
+  /** Starts the Windows fullscreen foreground monitor. */
+  private startWindowsFullscreenForegroundMonitor(): void {
+    if (
+      process.platform !== 'win32' ||
+      this.windowsFullscreenForegroundMonitor
+    ) {
+      return;
+    }
+    this.windowsFullscreenForegroundMonitor = setInterval(
+      () => this.refreshWindowsAlwaysOnTopState(),
+      WINDOWS_FULLSCREEN_FOREGROUND_MONITOR_INTERVAL_MS,
+    );
+  }
+
+  /** Stops the Windows fullscreen foreground monitor. */
+  private stopWindowsFullscreenForegroundMonitor(): void {
+    if (this.windowsFullscreenForegroundMonitor) {
+      clearInterval(this.windowsFullscreenForegroundMonitor);
+      this.windowsFullscreenForegroundMonitor = undefined;
+    }
+    this.restoreWindowsFullscreenSuppressedWindows();
+    this.windowsAlwaysOnTopSuspendedForFullscreen = false;
+    this.windowsAlwaysOnTopActivationGraceUntil = 0;
+  }
+
+  /** Refreshes the effective Windows always on top state. */
+  private refreshWindowsAlwaysOnTopState(force = false): void {
+    if (process.platform !== 'win32') return;
+    const viewer = this.viewerWindow;
+    if (!viewer || viewer.isDestroyed()) return;
+    if (
+      viewer.isFocused() &&
+      Date.now() < this.windowsAlwaysOnTopActivationGraceUntil
+    ) {
+      return;
+    }
+    const suspended = this.appAlwaysOnTop &&
+      isWindowsExternalFullscreenForeground(viewer);
+    if (
+      !force &&
+      suspended === this.windowsAlwaysOnTopSuspendedForFullscreen
+    ) {
+      return;
+    }
+    const stateChanged =
+      suspended !== this.windowsAlwaysOnTopSuspendedForFullscreen;
+    this.windowsAlwaysOnTopSuspendedForFullscreen = suspended;
+    if (stateChanged) {
+      console.info(
+        suspended
+          ? 'Always on top viewer hidden for an external Windows fullscreen app.'
+          : 'Always on top viewer restored after the external Windows fullscreen app.',
+      );
+    }
+    if (!this.isAnyPictureInPictureActive()) {
+      if (suspended) this.suppressWindowsAlwaysOnTopForFullscreen(viewer);
+      else this.restoreWindowsFullscreenSuppressedWindows();
+      this.applyAlwaysOnTop(viewer, this.getEffectiveAppAlwaysOnTop());
+    }
+  }
+
+  /** Restores a Windows AOT viewer selected through Alt+Tab or the taskbar. */
+  private restoreWindowsAlwaysOnTopForActivation(): void {
+    if (process.platform !== 'win32' || !this.appAlwaysOnTop) return;
+    const viewer = this.viewerWindow;
+    if (!viewer || viewer.isDestroyed()) return;
+    const restored = this.windowsAlwaysOnTopSuspendedForFullscreen;
+    this.windowsAlwaysOnTopSuspendedForFullscreen = false;
+    this.windowsAlwaysOnTopActivationGraceUntil = Date.now() + 250;
+    this.restoreWindowsFullscreenSuppressedWindows();
+    if (!this.isAnyPictureInPictureActive()) {
+      this.applyAlwaysOnTop(viewer, true);
+    }
+    if (restored) {
+      console.info('Always on top viewer restored after application activation.');
+    }
+  }
+
+  /** Makes AOT windows invisible and click-through without changing z-order. */
+  private suppressWindowsAlwaysOnTopForFullscreen(viewer: BrowserWindow): void {
+    const windows = [viewer, this.overlayWindow, this.videoWindow];
+    for (const window of windows) {
+      if (!window || window.isDestroyed()) continue;
+      if (!this.windowsFullscreenSuppressedWindowOpacities.has(window)) {
+        this.windowsFullscreenSuppressedWindowOpacities.set(
+          window,
+          window.getOpacity(),
+        );
+      }
+      window.setIgnoreMouseEvents(true);
+      window.setOpacity(0);
+    }
+  }
+
+  /** Restores windows hidden for an external Windows fullscreen app. */
+  private restoreWindowsFullscreenSuppressedWindows(): void {
+    for (const [window, opacity] of
+      this.windowsFullscreenSuppressedWindowOpacities) {
+      if (window.isDestroyed()) continue;
+      window.setOpacity(opacity);
+      window.setIgnoreMouseEvents(false);
+    }
+    this.windowsFullscreenSuppressedWindowOpacities.clear();
+  }
+
+  /** Sets opacity while retaining the desired value across suppression. */
+  private setManagedWindowOpacity(window: BrowserWindow, opacity: number): void {
+    if (this.windowsFullscreenSuppressedWindowOpacities.has(window)) {
+      this.windowsFullscreenSuppressedWindowOpacities.set(window, opacity);
+      window.setOpacity(0);
+      return;
+    }
+    window.setOpacity(opacity);
+  }
+
+  /** Returns the effective application always on top state. */
+  private getEffectiveAppAlwaysOnTop(): boolean {
+    return this.appAlwaysOnTop;
+  }
+
   /** Determines whether the any picture in picture active condition applies. */
   private isAnyPictureInPictureActive(): boolean {
     return Boolean(
@@ -1047,6 +1200,9 @@ export class WindowManager {
   /** Performs the suspend viewer always on top for picture in picture operation. */
   private suspendViewerAlwaysOnTopForPictureInPicture(): void {
     const viewer = this.viewerWindow;
+    if (process.platform === 'win32') {
+      this.restoreWindowsFullscreenSuppressedWindows();
+    }
     if (viewer && !viewer.isDestroyed()) this.applyAlwaysOnTop(viewer, false);
   }
 
@@ -1055,7 +1211,11 @@ export class WindowManager {
     if (this.disposing || this.isAnyPictureInPictureActive()) return;
     const viewer = this.viewerWindow;
     if (!viewer || viewer.isDestroyed()) return;
-    this.applyAlwaysOnTop(viewer, this.appAlwaysOnTop);
+    if (process.platform === 'win32') {
+      this.refreshWindowsAlwaysOnTopState(true);
+      return;
+    }
+    this.applyAlwaysOnTop(viewer, this.getEffectiveAppAlwaysOnTop());
   }
 
   /** Sets the menu dismiss behavior. */
@@ -1700,7 +1860,7 @@ export class WindowManager {
     const overlay = this.overlayWindow;
     if (overlay && !overlay.isDestroyed()) {
       this.clearOverlayRevealTimer();
-      overlay.setOpacity(1);
+      this.setManagedWindowOpacity(overlay, 1);
       overlay.webContents.send(IPC_CHANNELS.overlay.hidden);
       overlay.hide();
     }
@@ -2619,7 +2779,7 @@ export class WindowManager {
       video.setFocusable(false);
     }
     if (overlay.isVisible()) {
-      overlay.setOpacity(1);
+      this.setManagedWindowOpacity(overlay, 1);
       overlay.moveTop();
       overlay.focus();
       return;
@@ -2628,13 +2788,13 @@ export class WindowManager {
     // The renderer stays alive while hidden. Give React/Motion two frames to
     // commit the off-screen entry pose before exposing the child window, so a
     // completed menu frame cannot flash during a site navigation.
-    overlay.setOpacity(0);
+    this.setManagedWindowOpacity(overlay, 0);
     overlay.showInactive();
     overlay.moveTop();
     this.overlayRevealTimer = setTimeout(() => {
       this.overlayRevealTimer = undefined;
       if (!this.overlayVisible || overlay.isDestroyed()) return;
-      overlay.setOpacity(1);
+      this.setManagedWindowOpacity(overlay, 1);
       overlay.show();
       overlay.moveTop();
       overlay.focus();
