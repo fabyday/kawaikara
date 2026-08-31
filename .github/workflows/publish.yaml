@@ -140,7 +140,6 @@ jobs:
           signing_dir="$RUNNER_TEMP/kawaikara-code-signing"
           pfx_path="$signing_dir/certificate.pfx"
           certificate_path="$signing_dir/certificate.pem"
-          trust_keychain="$RUNNER_TEMP/kawaikara-code-signing-trust.keychain-db"
           openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
           mkdir -p "$signing_dir"
 
@@ -153,20 +152,10 @@ jobs:
             exit 1
           fi
 
-          trust_password="$("$openssl_bin" rand -hex 32)"
-          security delete-keychain "$trust_keychain" 2>/dev/null || true
-          security create-keychain -p "$trust_password" "$trust_keychain"
-          security unlock-keychain -p "$trust_password" "$trust_keychain"
-          security set-keychain-settings -lut 21600 "$trust_keychain"
-
-          keychains=()
-          while IFS= read -r keychain; do
-            keychain="${keychain#\"}"
-            keychain="${keychain%\"}"
-            keychains+=("$keychain")
-          done < <(security list-keychains -d user | sed 's/^[[:space:]]*//')
-          security list-keychains -d user -s "$trust_keychain" "${keychains[@]}"
-          security add-trusted-cert -d -r trustRoot -k "$trust_keychain" "$certificate_path"
+          sudo -n security add-trusted-cert \
+            -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain "$certificate_path"
+          security verify-cert -c "$certificate_path" -p codeSign
       - name: Configure MSVC on Windows
         if: matrix.platform == 'windows'
         uses: ilammy/msvc-dev-cmd@v1
