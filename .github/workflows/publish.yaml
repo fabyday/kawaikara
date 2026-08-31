@@ -129,7 +129,44 @@ jobs:
         run: python -m pip install castlabs-evs==1.1.1
       - name: Install libmpv on macOS
         if: matrix.platform == 'mac'
-        run: brew install mpv
+        run: brew install mpv openssl@3
+      - name: Trust macOS self-signed code-signing certificate
+        if: matrix.platform == 'mac'
+        env:
+          CSC_LINK: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC }}
+          CSC_KEY_PASSWORD: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD }}
+        run: |
+          set -euo pipefail
+          signing_dir="$RUNNER_TEMP/kawaikara-code-signing"
+          pfx_path="$signing_dir/certificate.pfx"
+          certificate_path="$signing_dir/certificate.pem"
+          trust_keychain="$RUNNER_TEMP/kawaikara-code-signing-trust.keychain-db"
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          mkdir -p "$signing_dir"
+
+          printf '%s' "$CSC_LINK" | "$openssl_bin" base64 -d -A -out "$pfx_path"
+          "$openssl_bin" pkcs12 -in "$pfx_path" -legacy -clcerts -nokeys \
+            -passin env:CSC_KEY_PASSWORD -out "$certificate_path"
+          if ! "$openssl_bin" x509 -in "$certificate_path" -noout -purpose | \
+            grep -Fqi 'Code signing : Yes'; then
+            echo '::error::SELF_SIGNED_CERT_FOR_MAC is not valid for code signing.'
+            exit 1
+          fi
+
+          trust_password="$("$openssl_bin" rand -hex 32)"
+          security delete-keychain "$trust_keychain" 2>/dev/null || true
+          security create-keychain -p "$trust_password" "$trust_keychain"
+          security unlock-keychain -p "$trust_password" "$trust_keychain"
+          security set-keychain-settings -lut 21600 "$trust_keychain"
+
+          keychains=()
+          while IFS= read -r keychain; do
+            keychain="${keychain#\"}"
+            keychain="${keychain%\"}"
+            keychains+=("$keychain")
+          done < <(security list-keychains -d user | sed 's/^[[:space:]]*//')
+          security list-keychains -d user -s "$trust_keychain" "${keychains[@]}"
+          security add-trusted-cert -d -r trustRoot -k "$trust_keychain" "$certificate_path"
       - name: Configure MSVC on Windows
         if: matrix.platform == 'windows'
         uses: ilammy/msvc-dev-cmd@v1
