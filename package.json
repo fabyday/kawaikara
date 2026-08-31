@@ -19,6 +19,7 @@
     }
   },
   "scripts": {
+    "cert:mac": "bash scripts/create-macos-code-signing-cert.sh",
     "build:packages": "pnpm --filter @kawaikara/site-api build && pnpm --filter @kawaikara/builtin-sites build",
     "build:native": "node scripts/build-native.cjs",
     "build:app": "pnpm build:native && webpack --config webpack.config.cjs --mode production",
