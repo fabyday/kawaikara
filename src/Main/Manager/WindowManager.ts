@@ -844,6 +844,24 @@ export class WindowManager {
     this.clearVideoRendererInitializationWatchdog(webContentsId);
   }
 
+  /** Warms the persistent Windows Video surface before its first activation. */
+  async prepareInternalVideoView(): Promise<void> {
+    if (process.platform !== 'win32' || this.disposing) return;
+    const video = await this.ensureVideoWindow();
+    if (
+      this.disposing ||
+      this.internalVideoVisible ||
+      video.isDestroyed() ||
+      this.videoWindow !== video
+    ) {
+      return;
+    }
+    // The owned window is already pre-shown transparently on Windows. Tell
+    // the renderer it is a background surface as well, so it cannot start or
+    // retain playback before the Video Provider is actually selected.
+    this.setInternalVideoSiteVisibility(video, false);
+  }
+
   /** Performs the recreate video window with software renderer operation. */
   private async recreateVideoWindowWithSoftwareRenderer(
     video: BrowserWindow,

@@ -16,6 +16,13 @@ export async function postInitializeApplication(
   } = application;
 
   await windows.loadOverlay();
+  // Windows hosts Video in a persistent owned BrowserWindow so libmpv can
+  // retain its session across Provider changes. Start that renderer while the
+  // initial Provider is loading; creating it only after the user clicks Video
+  // exposes the native black backing surface for the whole startup interval.
+  void windows.prepareInternalVideoView().catch((error: unknown) => {
+    applicationLog.warn('The Video view could not be prepared in advance.', error);
+  });
   const startupRequest = lifecycle.takeStartupRequest();
   const resolvedStartupRequest = startupRequest
     ? sites.resolveAddress(startupRequest.targetUrl)
