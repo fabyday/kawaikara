@@ -328,11 +328,15 @@ img {
 }
 
 .menu-plugin-host {
+  width: auto;
+  height: 0;
   min-width: 0;
   min-height: 0;
   flex: 1 1 0;
+  margin: 0 10px;
   overflow: hidden;
   border-radius: 18px;
+  background: transparent;
 }
 
 @keyframes address-field-shake {
@@ -362,16 +366,17 @@ img {
 
 .plugin-view-host {
   display: flex;
-  width: min(720px, 100%);
+  width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 11%);
-  border-radius: 16px;
-  background: #18181b;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 42%);
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .plugin-view-tabs {
@@ -439,9 +444,8 @@ img {
 }
 
 .kawai-theme-light .plugin-view-host {
-  border-color: rgb(45 35 65 / 13%);
-  background: #f8f7fb;
-  box-shadow: 0 20px 55px rgb(50 38 74 / 15%);
+  background: transparent;
+  box-shadow: none;
 }
 
 .kawai-theme-light .plugin-view-tabs {

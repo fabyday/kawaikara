@@ -809,6 +809,7 @@ export function installKawaikaraMock(
       onPictureInPictureChanged: () => () => undefined,
       onPictureInPicturePointerChanged: () => () => undefined,
       onVisibilityChanged: () => () => undefined,
+      onPlaybackToggleRequested: () => () => undefined,
     },
     source: {
       selectLocalFile: async () => null,

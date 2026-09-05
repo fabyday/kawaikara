@@ -333,6 +333,7 @@
     "hlsUrl": "HLS 스트림 URL",
     "playHls": "HLS 재생",
     "invalidHls": "올바른 HTTP 또는 HTTPS 스트림 주소를 입력해 주세요.",
+    "hlsPlaybackFailed": "HLS 스트림을 열 수 없습니다. 주소가 실제 재생 가능한 HLS 스트림인지 확인해 주세요.",
     "shortcutHint": "Space 재생·정지  ·  , . 프레임 이동  ·  ← → 위치 이동  ·  ↑ ↓ 음량",
     "loading": "영상을 여는 중",
     "play": "재생",

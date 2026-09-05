@@ -333,6 +333,7 @@
     "hlsUrl": "HLSストリームURL",
     "playHls": "HLSを再生",
     "invalidHls": "有効なHTTPまたはHTTPSストリームURLを入力してください。",
+    "hlsPlaybackFailed": "HLSストリームを開けません。再生可能なHLSストリームのURLか確認してください。",
     "shortcutHint": "Space 再生・一時停止  ·  , . フレーム移動  ·  ← → シーク  ·  ↑ ↓ 音量",
     "loading": "動画を開いています",
     "play": "再生",

@@ -15,7 +15,14 @@ import type {
   VideoLibrarySnapshot,
   VideoOpenRequest,
 } from '../../../Common/IPC';
+import { RightArrowIcon } from '../../Component/RightArrowIcon';
 import { VideoThumbnail } from '../../Component/VideoThumbnail';
+import {
+  VideoHomeIcon,
+  VideoSearchIcon,
+  VideoUpIcon,
+} from '../../Component/VideoIcons';
+import { loadVideoThumbnail } from '../../Domain/VideoThumbnailLoader';
 
 /** Describes the browser folder context menu contract. */
 interface BrowserFolderContextMenu {
@@ -78,6 +85,12 @@ export function VideoBrowser({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [contextMenu, setContextMenu] = useState<BrowserFolderContextMenu>();
+
+  const loadThumbnail = useCallback((path: string) =>
+    loadVideoThumbnail(
+      path,
+      window.kawaikaraVideo.videoLibrary.getThumbnail,
+    ), []);
 
   const refreshSnapshot = useCallback(async () => {
     const next = await window.kawaikaraVideo.videoLibrary.getSnapshot();
@@ -245,7 +258,15 @@ export function VideoBrowser({
             <p>{listing?.directory ?? labels.description}</p>
           </div>
           <div className="video-browser-header-actions">
-            <button type="button" onClick={onOpenHls}>{labels.hls}</button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.currentTarget.blur();
+                onOpenHls();
+              }}
+            >
+              {labels.hls}
+            </button>
             {canClose ? (
               <button type="button" onClick={onClose}>{labels.close}</button>
             ) : null}
@@ -253,14 +274,22 @@ export function VideoBrowser({
         </header>
 
         <div className="video-browser-toolbar">
-          <button type="button" onClick={showHome} aria-label={labels.home}>⌂</button>
           <button
+            aria-label={labels.home}
+            className="video-icon-button"
+            type="button"
+            onClick={showHome}
+          >
+            <VideoHomeIcon className="video-browser-action-icon" />
+          </button>
+          <button
+            className="video-icon-button"
             type="button"
             disabled={!listing?.parent}
             onClick={() => listing?.parent && void loadDirectory(listing.parent)}
             aria-label={labels.up}
           >
-            ↑
+            <VideoUpIcon className="video-browser-action-icon" />
           </button>
           <form className="video-browser-address" onSubmit={submitAddress}>
             <input
@@ -270,7 +299,14 @@ export function VideoBrowser({
               value={address}
               onChange={(event) => setAddress(event.target.value)}
             />
-            <button type="submit">{labels.go}</button>
+            <button
+              aria-label={labels.go}
+              className="video-icon-button"
+              title={labels.go}
+              type="submit"
+            >
+              <RightArrowIcon className="video-browser-action-icon" />
+            </button>
           </form>
           {listing ? (
             <form className="video-browser-search" onSubmit={submitSearch}>
@@ -283,7 +319,13 @@ export function VideoBrowser({
                   if (!event.target.value) setSearchResults(undefined);
                 }}
               />
-              <button type="submit">⌕</button>
+              <button
+                aria-label={labels.search}
+                className="video-icon-button"
+                type="submit"
+              >
+                <VideoSearchIcon className="video-browser-action-icon" />
+              </button>
             </form>
           ) : null}
         </div>
@@ -361,7 +403,7 @@ export function VideoBrowser({
                   ) : (
                     <VideoThumbnail
                       className="video-browser-thumbnail"
-                      loadThumbnail={window.kawaikaraVideo.videoLibrary.getThumbnail}
+                      loadThumbnail={loadThumbnail}
                       path={entry.path}
                     />
                   )}

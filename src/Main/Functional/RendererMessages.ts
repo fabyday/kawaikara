@@ -625,6 +625,8 @@ export interface VideoMessages {
   readonly playHls: string;
   /** The invalid hls value. */
   readonly invalidHls: string;
+  /** The hls playback failed value. */
+  readonly hlsPlaybackFailed: string;
   /** The shortcut hint value. */
   readonly shortcutHint: string;
   /** The loading value. */

@@ -333,6 +333,7 @@
     "hlsUrl": "HLS stream URL",
     "playHls": "Play HLS",
     "invalidHls": "Enter a valid HTTP or HTTPS stream URL.",
+    "hlsPlaybackFailed": "The HLS stream could not be opened. Check that the address points to a playable HLS stream.",
     "shortcutHint": "Space play/pause  ·  , . frame step  ·  ← → seek  ·  ↑ ↓ volume",
     "loading": "Opening video",
     "play": "Play",

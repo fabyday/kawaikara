@@ -89,6 +89,19 @@ if (window.location.protocol === 'file:') {
         return () =>
           ipcRenderer.off(IPC_CHANNELS.video.visibilityChanged, listener);
       },
+      onPlaybackToggleRequested: (handler) => {
+        /** Performs the listener operation. */
+        const listener = () => handler();
+        ipcRenderer.on(
+          IPC_CHANNELS.video.playbackToggleRequested,
+          listener,
+        );
+        return () =>
+          ipcRenderer.off(
+            IPC_CHANNELS.video.playbackToggleRequested,
+            listener,
+          );
+      },
     },
     source: {
       selectLocalFile: () =>

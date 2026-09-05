@@ -188,6 +188,8 @@ export const IPC_CHANNELS = defineIpcChannels({
       'kawaikara:video:picture-in-picture-pointer-changed',
     /** The visibility changed value. */
     visibilityChanged: 'kawaikara:video:visibility-changed',
+    /** The playback toggle requested value. */
+    playbackToggleRequested: 'kawaikara:video:playback-toggle-requested',
     /** The recover playback renderer value. */
     recoverPlaybackRenderer: 'kawaikara:video:recover-playback-renderer',
     /** The playback renderer ready value. */
@@ -1162,6 +1164,8 @@ export interface KawaikaraVideoApi {
     ): () => void;
     /** Handles the visibility changed. */
     onVisibilityChanged(handler: (visible: boolean) => void): () => void;
+    /** Handles an app-routed playback toggle shortcut. */
+    onPlaybackToggleRequested(handler: () => void): () => void;
   };
   /** The source value. */
   source: {

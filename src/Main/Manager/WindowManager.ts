@@ -76,8 +76,8 @@ import {
   enableMacOSFullScreenAuxiliary,
 } from '../Functional/MacOSWindowSpaces';
 import {
-  isWindowsExternalFullscreenForeground,
-} from '../Functional/WindowsForegroundWindow';
+  createExternalFullscreenMonitor,
+} from '../Functional/ExternalFullscreenMonitor';
 import {
   captureInternalVideoPictureInPicturePlacement,
   createSiteCookieStore,
@@ -109,8 +109,8 @@ const VIDEO_FILE_EXTENSIONS = new Set([
 ]);
 /** Defines the Video renderer initialization timeout constant. */
 const VIDEO_RENDERER_INITIALIZATION_TIMEOUT_MS = 5_000;
-/** Defines the Windows fullscreen foreground monitor interval constant. */
-const WINDOWS_FULLSCREEN_FOREGROUND_MONITOR_INTERVAL_MS = 100;
+/** Allows foreground window state to settle after a native platform event. */
+const EXTERNAL_FULLSCREEN_EVENT_SETTLE_MS = 40;
 /** Defines the shared remote scrollbar CSS constant. */
 const REMOTE_SCROLLBAR_CSS = `
   :root {
@@ -213,15 +213,15 @@ export class WindowManager {
   private internalVideoPictureInPicture?: InternalVideoPictureInPictureState;
   /** The app always on top value. */
   private appAlwaysOnTop = false;
-  /** Whether Windows suspended AOT for an external fullscreen app. */
-  private windowsAlwaysOnTopSuspendedForFullscreen = false;
-  /** Desired opacities while Windows temporarily hides AOT windows. */
-  private readonly windowsFullscreenSuppressedWindowOpacities =
-    new Map<BrowserWindow, number>();
-  /** Prevents a stale foreground sample from hiding a newly activated viewer. */
-  private windowsAlwaysOnTopActivationGraceUntil = 0;
-  /** The Windows fullscreen foreground monitor value. */
-  private windowsFullscreenForegroundMonitor?: ReturnType<typeof setInterval>;
+  /** The platform implementation of external fullscreen monitoring. */
+  private readonly externalFullscreenMonitor =
+    createExternalFullscreenMonitor();
+  /** Whether external fullscreen currently blocks the requested AOT state. */
+  private externalFullscreenBlocksAlwaysOnTop = false;
+  /** Whether the external fullscreen monitor is running. */
+  private externalFullscreenMonitoring = false;
+  /** The pending event-driven external fullscreen refresh. */
+  private externalFullscreenRefreshTimer?: ReturnType<typeof setTimeout>;
   /** The picture in picture placement value. */
   private pictureInPicturePlacement = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
   /** The picture in picture portrait size value. */
@@ -374,7 +374,7 @@ export class WindowManager {
       minWidth: 720,
       minHeight: 480,
       title: this.appTitle,
-      backgroundColor: '#09090b',
+      backgroundColor: this.getViewerSurfaceColor(),
       autoHideMenuBar: true,
       webPreferences: {
         preload: path.resolve(__dirname, '../preload/viewer.js'),
@@ -429,6 +429,17 @@ export class WindowManager {
       this.syncVideoWindowBounds();
       this.syncOverlayBounds();
     });
+    viewerWindow.on('moved', () => {
+      // Windows can overwrite topmost z-order changes made while its modal
+      // move loop is active. Evaluate the final display and reassert the
+      // resulting presentation only after the native move has completed.
+      this.refreshExternalFullscreenState(true);
+    });
+    viewerWindow.on('always-on-top-changed', (_event, isAlwaysOnTop) => {
+      console.info(
+        `Electron always-on-top state changed: ${String(isAlwaysOnTop)}.`,
+      );
+    });
     /** Notifies the full screen changed. */
     const notifyFullScreenChanged = () => {
       const videoWindow = this.videoWindow;
@@ -445,24 +456,21 @@ export class WindowManager {
       this.syncSiteViewBounds();
       this.syncVideoWindowBounds();
       this.syncOverlayBounds();
+      this.refreshExternalFullscreenState();
+    });
+    viewerWindow.on('show', () => {
+      this.refreshActiveContentSurface('viewer-show');
+    });
+    viewerWindow.on('restore', () => {
+      this.refreshActiveContentSurface('viewer-restore');
     });
     viewerWindow.on('focus', () => {
-      this.restoreWindowsAlwaysOnTopForActivation();
+      this.refreshExternalFullscreenState();
       // A child BrowserWindow can hand focus back to its parent while Windows
       // restores or activates the app. Reassert the Video child so its Main
       // before-input-event listener receives Tab even before the user clicks.
       if (!this.internalVideoVisible || this.overlayVisible) return;
       setTimeout(() => this.focusInternalVideoWindow(), 0);
-    });
-    viewerWindow.on('blur', () => {
-      if (process.platform !== 'win32' || !this.appAlwaysOnTop) return;
-      this.windowsAlwaysOnTopActivationGraceUntil = 0;
-      // GetForegroundWindow can still point at Kawaikara during the blur
-      // callback. Cover both the immediate activation and slower borderless
-      // game transitions instead of depending on another user click.
-      for (const delay of [30, 100, 220]) {
-        setTimeout(() => this.refreshWindowsAlwaysOnTopState(), delay);
-      }
     });
     viewerWindow.on('close', (event) => {
       if (!this.disposing && !this.viewerClosePrepared) {
@@ -476,7 +484,7 @@ export class WindowManager {
       this.clearInternalVideoPictureInPictureReassertions();
       this.clearInternalVideoPictureInPicturePointerMonitor();
       this.clearOverlayRevealTimer();
-      this.stopWindowsFullscreenForegroundMonitor();
+      this.stopExternalFullscreenMonitoring();
       this.clearVideoRendererInitializationWatchdog();
       this.pictureInPicture.handleViewerClosed();
       const siteWebContentsId = this.siteView?.webContents.id;
@@ -582,6 +590,10 @@ export class WindowManager {
         event.preventDefault();
         return;
       }
+      if (this.handleInternalVideoShortcutFromHost(input, editing)) {
+        event.preventDefault();
+        return;
+      }
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
     });
     viewerWindow.webContents.on('did-start-loading', () => {
@@ -645,7 +657,7 @@ export class WindowManager {
   /** Releases the operation. */
   async dispose(): Promise<void> {
     this.disposing = true;
-    this.stopWindowsFullscreenForegroundMonitor();
+    this.stopExternalFullscreenMonitoring();
     this.clearVideoRendererInitializationWatchdog();
     await this.exitInternalVideoPictureInPicture(false);
     await this.pictureInPicture.exitAllModes();
@@ -881,8 +893,7 @@ export class WindowManager {
     if (!this.internalVideoVisible || this.disposing) return false;
     const replacement = await this.ensureVideoWindow();
     this.syncVideoWindowBounds();
-    replacement.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
-    replacement.show();
+    this.setInternalVideoSiteVisibility(replacement, true);
     replacement.moveTop();
     replacement.focus();
     replacement.webContents.focus();
@@ -1010,17 +1021,26 @@ export class WindowManager {
 
   /** Sets the always on top. */
   setAlwaysOnTop(enabled: boolean): void {
+    const requestedStateChanged = this.appAlwaysOnTop !== enabled;
     this.appAlwaysOnTop = enabled;
-    if (process.platform === 'win32') {
-      if (enabled) this.startWindowsFullscreenForegroundMonitor();
-      else this.stopWindowsFullscreenForegroundMonitor();
-      this.refreshWindowsAlwaysOnTopState(true);
-      return;
+    if (enabled) this.startExternalFullscreenMonitoring();
+    else this.stopExternalFullscreenMonitoring();
+    const pictureInPictureActive = this.isAnyPictureInPictureActive();
+    if (requestedStateChanged) {
+      console.info(
+        `Always on top requested: ${String(enabled)}; ` +
+        `externalFullscreen=${String(this.externalFullscreenBlocksAlwaysOnTop)}; ` +
+        `pictureInPicture=${String(pictureInPictureActive)}.`,
+      );
     }
-    if (!this.isAnyPictureInPictureActive()) {
+    if (!pictureInPictureActive) {
       const viewer = this.viewerWindow;
       if (viewer && !viewer.isDestroyed()) {
-        this.applyAlwaysOnTop(viewer, enabled);
+        this.applyAlwaysOnTop(
+          viewer,
+          this.getEffectiveAppAlwaysOnTop(),
+          enabled && requestedStateChanged,
+        );
       }
     }
   }
@@ -1056,14 +1076,41 @@ export class WindowManager {
   }
 
   /** Applies the always on top. */
-  private applyAlwaysOnTop(viewer: BrowserWindow, enabled: boolean): void {
-    viewer.setAlwaysOnTop(enabled);
+  private applyAlwaysOnTop(
+    viewer: BrowserWindow,
+    enabled: boolean,
+    reassertPresentation = false,
+  ): void {
+    const electronReported = viewer.isAlwaysOnTop();
+    const platformReported =
+      this.externalFullscreenMonitor.isAlwaysOnTopApplied(viewer);
+    const presentationWasLost = process.platform === 'win32' &&
+      enabled &&
+      electronReported &&
+      platformReported === false;
+    const raiseAfterEnabling = process.platform === 'win32' && enabled &&
+      (reassertPresentation || presentationWasLost || !electronReported);
+    if (presentationWasLost) {
+      // Windows can clear WS_EX_TOPMOST while Chromium retains its cached
+      // kFloatingWindow state. Clear that cache through Electron first so the
+      // following enable call reaches the OS again.
+      console.info(
+        'Reasserting always on top after Windows removed the topmost flag.',
+      );
+      viewer.setAlwaysOnTop(false);
+    }
+    const level = process.platform === 'win32' ? 'screen-saver' : 'floating';
+    viewer.setAlwaysOnTop(enabled, level);
     const overlay = this.overlayWindow;
-    if (overlay && !overlay.isDestroyed()) {
+    if (
+      process.platform === 'darwin' &&
+      overlay &&
+      !overlay.isDestroyed()
+    ) {
       // The menu is a separate native child window. Giving it the same level
       // as the viewer prevents macOS from placing the two windows in different
       // display/Space layers during an AOT drag.
-      overlay.setAlwaysOnTop(enabled);
+      overlay.setAlwaysOnTop(enabled, 'floating');
     }
     if (process.platform === 'darwin') {
       // Normal AOT intentionally stays out of another application's native
@@ -1086,126 +1133,141 @@ export class WindowManager {
         });
       }
     }
+    if (
+      raiseAfterEnabling &&
+      viewer.isVisible() &&
+      !viewer.isMinimized()
+    ) {
+      // Re-entering the topmost band does not guarantee that Windows repairs
+      // the existing z-order after an exclusive fullscreen transition.
+      // Raise without activation so a viewer moved to another display becomes
+      // visible again without stealing keyboard focus from the game.
+      viewer.moveTop();
+    }
   }
 
-  /** Starts the Windows fullscreen foreground monitor. */
-  private startWindowsFullscreenForegroundMonitor(): void {
+  /** Starts platform fullscreen monitoring while AOT is requested. */
+  private startExternalFullscreenMonitoring(): void {
     if (
-      process.platform !== 'win32' ||
-      this.windowsFullscreenForegroundMonitor
+      this.externalFullscreenMonitoring ||
+      !this.externalFullscreenMonitor.supported
     ) {
       return;
     }
-    this.windowsFullscreenForegroundMonitor = setInterval(
-      () => this.refreshWindowsAlwaysOnTopState(),
-      WINDOWS_FULLSCREEN_FOREGROUND_MONITOR_INTERVAL_MS,
+    const viewer = this.viewerWindow;
+    if (!viewer || viewer.isDestroyed()) return;
+    this.externalFullscreenMonitoring = true;
+    this.externalFullscreenBlocksAlwaysOnTop =
+      this.externalFullscreenMonitor.start(
+        viewer,
+        () => this.scheduleExternalFullscreenRefresh(),
+      );
+    screen.on('display-added', this.handleDisplayConfigurationChanged);
+    screen.on('display-removed', this.handleDisplayConfigurationChanged);
+    screen.on(
+      'display-metrics-changed',
+      this.handleDisplayConfigurationChanged,
     );
   }
 
-  /** Stops the Windows fullscreen foreground monitor. */
-  private stopWindowsFullscreenForegroundMonitor(): void {
-    if (this.windowsFullscreenForegroundMonitor) {
-      clearInterval(this.windowsFullscreenForegroundMonitor);
-      this.windowsFullscreenForegroundMonitor = undefined;
+  /** Stops platform fullscreen monitoring when AOT is no longer requested. */
+  private stopExternalFullscreenMonitoring(): void {
+    if (this.externalFullscreenRefreshTimer) {
+      clearTimeout(this.externalFullscreenRefreshTimer);
+      this.externalFullscreenRefreshTimer = undefined;
     }
-    this.restoreWindowsFullscreenSuppressedWindows();
-    this.windowsAlwaysOnTopSuspendedForFullscreen = false;
-    this.windowsAlwaysOnTopActivationGraceUntil = 0;
+    if (this.externalFullscreenMonitoring) {
+      this.externalFullscreenMonitor.stop();
+      screen.removeListener(
+        'display-added',
+        this.handleDisplayConfigurationChanged,
+      );
+      screen.removeListener(
+        'display-removed',
+        this.handleDisplayConfigurationChanged,
+      );
+      screen.removeListener(
+        'display-metrics-changed',
+        this.handleDisplayConfigurationChanged,
+      );
+      this.externalFullscreenMonitoring = false;
+    }
+    this.externalFullscreenBlocksAlwaysOnTop = false;
   }
 
-  /** Refreshes the effective Windows always on top state. */
-  private refreshWindowsAlwaysOnTopState(force = false): void {
-    if (process.platform !== 'win32') return;
+  /** Schedules one settled refresh for a burst of native window events. */
+  private scheduleExternalFullscreenRefresh(): void {
+    if (this.externalFullscreenRefreshTimer) {
+      clearTimeout(this.externalFullscreenRefreshTimer);
+    }
+    this.externalFullscreenRefreshTimer = setTimeout(() => {
+      this.externalFullscreenRefreshTimer = undefined;
+      try {
+        this.refreshExternalFullscreenState();
+      } catch (error) {
+        console.warn(
+          'Kawaikara could not apply an external fullscreen state change.',
+          error,
+        );
+      }
+    }, EXTERNAL_FULLSCREEN_EVENT_SETTLE_MS);
+  }
+
+  /** Refreshes the platform fullscreen state after an application-side change. */
+  private refreshExternalFullscreenState(reassertPresentation = false): void {
+    if (!this.appAlwaysOnTop || !this.externalFullscreenMonitoring) return;
     const viewer = this.viewerWindow;
     if (!viewer || viewer.isDestroyed()) return;
-    if (
-      viewer.isFocused() &&
-      Date.now() < this.windowsAlwaysOnTopActivationGraceUntil
-    ) {
-      return;
-    }
-    const suspended = this.appAlwaysOnTop &&
-      isWindowsExternalFullscreenForeground(viewer);
-    if (
-      !force &&
-      suspended === this.windowsAlwaysOnTopSuspendedForFullscreen
-    ) {
-      return;
-    }
+    this.handleExternalFullscreenChanged(
+      this.externalFullscreenMonitor.refresh(viewer),
+      reassertPresentation,
+    );
+  }
+
+  /** Handles a platform external fullscreen state change. */
+  private handleExternalFullscreenChanged(
+    fullscreen: boolean,
+    reassertPresentation = false,
+  ): void {
+    const suspended = this.appAlwaysOnTop && fullscreen;
     const stateChanged =
-      suspended !== this.windowsAlwaysOnTopSuspendedForFullscreen;
-    this.windowsAlwaysOnTopSuspendedForFullscreen = suspended;
+      suspended !== this.externalFullscreenBlocksAlwaysOnTop;
+    const viewer = this.viewerWindow;
+    if (!viewer || viewer.isDestroyed()) return;
+    const presentationWasLost = !suspended &&
+      this.externalFullscreenMonitor.isAlwaysOnTopApplied(viewer) === false;
+    if (!stateChanged && !reassertPresentation && !presentationWasLost) return;
+    this.externalFullscreenBlocksAlwaysOnTop = suspended;
     if (stateChanged) {
       console.info(
         suspended
-          ? 'Always on top viewer hidden for an external Windows fullscreen app.'
-          : 'Always on top viewer restored after the external Windows fullscreen app.',
+          ? 'Always on top disabled for an external fullscreen app on the same display.'
+          : 'Always on top restored after external fullscreen left the display.',
       );
     }
     if (!this.isAnyPictureInPictureActive()) {
-      if (suspended) this.suppressWindowsAlwaysOnTopForFullscreen(viewer);
-      else this.restoreWindowsFullscreenSuppressedWindows();
-      this.applyAlwaysOnTop(viewer, this.getEffectiveAppAlwaysOnTop());
+      this.applyAlwaysOnTop(
+        viewer,
+        this.getEffectiveAppAlwaysOnTop(),
+        reassertPresentation || presentationWasLost,
+      );
     }
   }
 
-  /** Restores a Windows AOT viewer selected through Alt+Tab or the taskbar. */
-  private restoreWindowsAlwaysOnTopForActivation(): void {
-    if (process.platform !== 'win32' || !this.appAlwaysOnTop) return;
-    const viewer = this.viewerWindow;
-    if (!viewer || viewer.isDestroyed()) return;
-    const restored = this.windowsAlwaysOnTopSuspendedForFullscreen;
-    this.windowsAlwaysOnTopSuspendedForFullscreen = false;
-    this.windowsAlwaysOnTopActivationGraceUntil = Date.now() + 250;
-    this.restoreWindowsFullscreenSuppressedWindows();
-    if (!this.isAnyPictureInPictureActive()) {
-      this.applyAlwaysOnTop(viewer, true);
-    }
-    if (restored) {
-      console.info('Always on top viewer restored after application activation.');
-    }
-  }
+  /** Handles display topology changes that can change the relevant monitor. */
+  private readonly handleDisplayConfigurationChanged = (): void => {
+    this.refreshExternalFullscreenState();
+  };
 
-  /** Makes AOT windows invisible and click-through without changing z-order. */
-  private suppressWindowsAlwaysOnTopForFullscreen(viewer: BrowserWindow): void {
-    const windows = [viewer, this.overlayWindow, this.videoWindow];
-    for (const window of windows) {
-      if (!window || window.isDestroyed()) continue;
-      if (!this.windowsFullscreenSuppressedWindowOpacities.has(window)) {
-        this.windowsFullscreenSuppressedWindowOpacities.set(
-          window,
-          window.getOpacity(),
-        );
-      }
-      window.setIgnoreMouseEvents(true);
-      window.setOpacity(0);
-    }
-  }
-
-  /** Restores windows hidden for an external Windows fullscreen app. */
-  private restoreWindowsFullscreenSuppressedWindows(): void {
-    for (const [window, opacity] of
-      this.windowsFullscreenSuppressedWindowOpacities) {
-      if (window.isDestroyed()) continue;
-      window.setOpacity(opacity);
-      window.setIgnoreMouseEvents(false);
-    }
-    this.windowsFullscreenSuppressedWindowOpacities.clear();
-  }
-
-  /** Sets opacity while retaining the desired value across suppression. */
+  /** Sets managed window opacity. */
   private setManagedWindowOpacity(window: BrowserWindow, opacity: number): void {
-    if (this.windowsFullscreenSuppressedWindowOpacities.has(window)) {
-      this.windowsFullscreenSuppressedWindowOpacities.set(window, opacity);
-      window.setOpacity(0);
-      return;
-    }
     window.setOpacity(opacity);
   }
 
   /** Returns the effective application always on top state. */
   private getEffectiveAppAlwaysOnTop(): boolean {
-    return this.appAlwaysOnTop;
+    return this.appAlwaysOnTop &&
+      !this.externalFullscreenBlocksAlwaysOnTop;
   }
 
   /** Determines whether the any picture in picture active condition applies. */
@@ -1218,9 +1280,6 @@ export class WindowManager {
   /** Performs the suspend viewer always on top for picture in picture operation. */
   private suspendViewerAlwaysOnTopForPictureInPicture(): void {
     const viewer = this.viewerWindow;
-    if (process.platform === 'win32') {
-      this.restoreWindowsFullscreenSuppressedWindows();
-    }
     if (viewer && !viewer.isDestroyed()) this.applyAlwaysOnTop(viewer, false);
   }
 
@@ -1229,10 +1288,7 @@ export class WindowManager {
     if (this.disposing || this.isAnyPictureInPictureActive()) return;
     const viewer = this.viewerWindow;
     if (!viewer || viewer.isDestroyed()) return;
-    if (process.platform === 'win32') {
-      this.refreshWindowsAlwaysOnTopState(true);
-      return;
-    }
+    this.refreshExternalFullscreenState();
     this.applyAlwaysOnTop(viewer, this.getEffectiveAppAlwaysOnTop());
   }
 
@@ -1439,6 +1495,13 @@ export class WindowManager {
     // DevTools emulation override: a persistent override prevents renderers
     // from receiving subsequent native theme changes.
     nativeTheme.themeSource = theme;
+    this.viewerWindow?.setBackgroundColor(this.getViewerSurfaceColor());
+    this.siteView?.setBackgroundColor(this.getViewerSurfaceColor());
+  }
+
+  /** Returns the native backing color shown between Provider documents. */
+  private getViewerSurfaceColor(): string {
+    return this.appTheme === 'light' ? '#f4f4f5' : '#09090b';
   }
 
   /** Sets the internal video presentation. */
@@ -1836,8 +1899,8 @@ export class WindowManager {
   showOverlay(): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'menu';
-    this.syncOverlayBounds();
     this.overlayVisible = true;
+    this.syncOverlayBounds();
     overlay.webContents.send(IPC_CHANNELS.overlay.showMenu);
     this.revealOverlay(overlay);
   }
@@ -1846,8 +1909,8 @@ export class WindowManager {
   showPreferencesOverlay(): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'preference';
-    this.syncOverlayBounds();
     this.overlayVisible = true;
+    this.syncOverlayBounds();
     overlay.webContents.send(IPC_CHANNELS.overlay.showPreferences);
     this.revealOverlay(overlay);
   }
@@ -1856,8 +1919,8 @@ export class WindowManager {
   showUpdateOverlay(state: ApplicationUpdatePanelState): void {
     const overlay = this.requireOverlayWindow();
     this.overlayView = 'update';
-    this.syncOverlayBounds();
     this.overlayVisible = true;
+    this.syncOverlayBounds();
     overlay.webContents.send(IPC_CHANNELS.overlay.showUpdate, state);
     this.revealOverlay(overlay);
   }
@@ -1881,6 +1944,14 @@ export class WindowManager {
       this.setManagedWindowOpacity(overlay, 1);
       overlay.webContents.send(IPC_CHANNELS.overlay.hidden);
       overlay.hide();
+      const viewer = this.viewerWindow;
+      if (
+        viewer &&
+        !viewer.isDestroyed() &&
+        overlay.getParentWindow() !== viewer
+      ) {
+        overlay.setParentWindow(viewer);
+      }
     }
     this.viewerWindow?.focus();
     if (this.internalVideoVisible) {
@@ -1968,8 +2039,7 @@ export class WindowManager {
       };
       const video = this.videoWindow;
       if (video && !video.isDestroyed()) {
-        video.webContents.send(IPC_CHANNELS.video.visibilityChanged, false);
-        video.hide();
+        this.setInternalVideoSiteVisibility(video, false);
       }
     }
     if (this.siteView && !this.siteView.webContents.isDestroyed()) {
@@ -1998,6 +2068,11 @@ export class WindowManager {
         disableHtmlFullscreenWindowResize: true,
       },
     });
+    // A new WebContentsView starts on Chromium's white about:blank surface.
+    // Give it an application-colored native backing before it is attached so
+    // Provider changes cannot expose a white transition frame.
+    siteView.setBackgroundColor(this.getViewerSurfaceColor());
+    siteView.setVisible(false);
 
     this.siteView = siteView;
     this.configureSiteSession(siteSession);
@@ -2039,7 +2114,8 @@ export class WindowManager {
           !this.siteViewAttached ||
           !siteView ||
           siteView.webContents.id !== webContentsId ||
-          webContents.isDestroyed()
+          webContents.isDestroyed() ||
+          !siteView.getVisible()
         ) {
           return;
         }
@@ -2405,6 +2481,15 @@ export class WindowManager {
         await this.prepareViewerTransition(contents);
         this.currentVideoOpenRequest = null;
         await loadURLWithNavigationRecovery(contents, url);
+        const siteView = this.siteView;
+        if (
+          siteView &&
+          siteView.webContents === contents &&
+          this.siteViewAttached
+        ) {
+          siteView.setVisible(true);
+          contents.focus();
+        }
         // A Provider load establishes a new site boundary. Chromium otherwise
         // keeps the previous Provider's document in this shared WebContents.
         contents.navigationHistory.clear();
@@ -2442,14 +2527,13 @@ export class WindowManager {
         else if (!existingVideo) this.currentVideoOpenRequest = null;
         const video = await this.ensureVideoWindow();
         this.syncVideoWindowBounds();
-        video.webContents.send(IPC_CHANNELS.video.visibilityChanged, true);
+        this.setInternalVideoSiteVisibility(video, true);
         if (existingVideo && request) {
           video.webContents.send(
             IPC_CHANNELS.video.openRequestChanged,
             request,
           );
         }
-        video.show();
         video.moveTop();
         video.focus();
         video.webContents.focus();
@@ -2575,6 +2659,40 @@ export class WindowManager {
     });
   }
 
+  /** Re-presents the active Chromium surface after native window activation. */
+  private refreshActiveContentSurface(reason: string): void {
+    setTimeout(() => {
+      const viewer = this.viewerWindow;
+      if (!viewer || viewer.isDestroyed() || !viewer.isVisible()) return;
+      this.syncSiteViewBounds();
+      this.syncVideoWindowBounds();
+      viewer.webContents.invalidate();
+
+      if (this.internalVideoVisible) {
+        const video = this.videoWindow;
+        if (video && !video.isDestroyed() && video.isVisible()) {
+          video.webContents.invalidate();
+        }
+      } else {
+        const siteView = this.siteView;
+        if (
+          this.siteViewAttached &&
+          siteView &&
+          !siteView.webContents.isDestroyed() &&
+          siteView.getVisible()
+        ) {
+          // A WebContentsView can lose its compositor surface while its native
+          // parent is occluded by an exclusive fullscreen window. Reasserting
+          // visibility and invalidating it restores the existing document
+          // without reloading the site or restarting media.
+          siteView.setVisible(true);
+          siteView.webContents.invalidate();
+        }
+      }
+      console.debug(`Refreshed the active compositor surface (${reason}).`);
+    }, 0);
+  }
+
   /** Performs the sync video window bounds operation. */
   private syncVideoWindowBounds(): void {
     const viewer = this.viewerWindow;
@@ -2632,6 +2750,16 @@ export class WindowManager {
     this.mpv.attachWindow(video);
     video.setMenu(null);
     video.setMenuBarVisibility(false);
+    if (process.platform === 'win32') {
+      // Pre-show the owned Video host while fully transparent. Windows applies
+      // a native opening/closing animation to a hidden owned BrowserWindow;
+      // keeping this host alive prevents Provider switches from looking like
+      // Video was minimized and restored.
+      this.setManagedWindowOpacity(video, 0);
+      video.setIgnoreMouseEvents(true);
+      video.setFocusable(false);
+      video.showInactive();
+    }
     const webContentsId = video.webContents.id;
     video.webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(webContentsId);
@@ -2639,21 +2767,8 @@ export class WindowManager {
         event.preventDefault();
         return;
       }
-      const plainTab =
-        input.type === 'keyDown' &&
-        !input.isAutoRepeat &&
-        !input.isComposing &&
-        !input.control &&
-        !input.meta &&
-        !input.alt &&
-        !input.shift &&
-        input.key.toLowerCase() === 'tab';
-      if (plainTab) {
+      if (this.handleInternalVideoShortcutFromHost(input, editing)) {
         event.preventDefault();
-        // Video owns several text and range inputs whose focus can outlive the
-        // panel that contained them. Keep the app-level Menu toggle reliable
-        // without allowing Tab to move focus through the Video controls.
-        if (!this.internalVideoPictureInPicture) this.toggleOverlay();
         return;
       }
       if (this.shortcutHandler?.(input, editing)) event.preventDefault();
@@ -2771,11 +2886,20 @@ export class WindowManager {
       return;
     }
 
-    if (this.overlayWindow.getParentWindow() !== this.viewerWindow) {
+    const video = this.videoWindow;
+    const parent = this.overlayVisible &&
+      this.internalVideoVisible &&
+      !this.internalVideoPictureInPicture &&
+      video &&
+      !video.isDestroyed()
+      ? video
+      : this.viewerWindow;
+    if (this.overlayWindow.getParentWindow() !== parent) {
       // macOS can temporarily separate child-window ordering while an AOT
-      // window crosses displays. Reassert the native parent relationship at
-      // every geometry synchronization so the menu follows as one surface.
-      this.overlayWindow.setParentWindow(this.viewerWindow);
+      // window crosses displays. While Video is active, making the overlay a
+      // direct Video child also gives Windows a deterministic z-order instead
+      // of relying on moveTop() between sibling owned windows.
+      this.overlayWindow.setParentWindow(parent);
     }
     const contentBounds = this.viewerWindow.getContentBounds();
     const bounds: Rectangle = {
@@ -2912,6 +3036,76 @@ export class WindowManager {
     video.moveTop();
     video.focus();
     video.webContents.focus();
+  }
+
+  /** Routes Video-owned keys even when Windows has focused the parent host. */
+  private handleInternalVideoShortcutFromHost(
+    input: Input,
+    editing: boolean,
+  ): boolean {
+    if (
+      !this.internalVideoVisible ||
+      input.type !== 'keyDown' ||
+      input.isAutoRepeat ||
+      input.isComposing ||
+      input.control ||
+      input.meta ||
+      input.alt ||
+      input.shift
+    ) {
+      return false;
+    }
+
+    const key = input.key.toLowerCase();
+    if (key === 'tab') {
+      // PiP deliberately owns no Menu. In the full Video view, Tab must toggle
+      // the overlay regardless of whether Windows focused the child or parent.
+      if (!this.internalVideoPictureInPicture) this.toggleOverlay();
+      return true;
+    }
+    if (
+      !editing &&
+      (input.code === 'Space' || key === ' ' || key === 'space')
+    ) {
+      const video = this.videoWindow;
+      if (video && !video.isDestroyed()) {
+        video.webContents.send(IPC_CHANNELS.video.playbackToggleRequested);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** Presents Video like a Provider surface without native window animation. */
+  private setInternalVideoSiteVisibility(
+    video: BrowserWindow,
+    visible: boolean,
+  ): void {
+    video.webContents.send(IPC_CHANNELS.video.visibilityChanged, visible);
+    if (process.platform !== 'win32') {
+      if (visible) video.show();
+      else video.hide();
+      return;
+    }
+
+    if (visible) {
+      if (!video.isVisible()) {
+        this.setManagedWindowOpacity(video, 0);
+        video.setIgnoreMouseEvents(true);
+        video.setFocusable(false);
+        video.showInactive();
+      }
+      video.setFocusable(true);
+      video.setIgnoreMouseEvents(false);
+      this.setManagedWindowOpacity(video, 1);
+      return;
+    }
+
+    // Keep the libmpv renderer and its playback position alive behind the next
+    // Provider, but make the owned window both invisible and input-transparent.
+    this.setManagedWindowOpacity(video, 0);
+    video.setIgnoreMouseEvents(true);
+    video.setFocusable(false);
   }
 
   /** Performs the require overlay window operation. */

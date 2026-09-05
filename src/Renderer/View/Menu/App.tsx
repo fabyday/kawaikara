@@ -35,6 +35,7 @@ import {
   AutoHideScrollArea,
 } from '../../Component/AutoHideScrollArea';
 import { PictureInPictureButton } from '../../Component/PictureInPictureButton';
+import { RightArrowIcon } from '../../Component/RightArrowIcon';
 import { SiteIcon, SiteIconCache } from '../../Component/SiteIcon';
 import { SiteMenuButton } from '../../Component/SiteMenuButton';
 import {
@@ -907,7 +908,7 @@ export function App() {
                 title={messages.addressGo}
                 type="submit"
               >
-                <span aria-hidden="true">↗</span>
+                <RightArrowIcon className="menu-address-action-icon" />
               </button>
               <button
                 aria-label={messages.copyAddress}
