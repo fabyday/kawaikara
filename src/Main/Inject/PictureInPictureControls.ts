@@ -16,6 +16,8 @@ import {
 interface UnifiedPictureInPicturePageState {
   /** The backdrop value. */
   readonly backdrop: HTMLElement;
+  /** Callback used to cancel a pending intrinsic video-size report. */
+  readonly cancelVideoSizeReport: () => void;
   /** Whether the controls option is enabled. */
   readonly controls: boolean;
   /** The controls style value. */
@@ -33,6 +35,8 @@ interface UnifiedPictureInPicturePageState {
   readonly overlay: HTMLElement;
   /** Callback used to handle render playback button. */
   readonly renderPlaybackButton: () => void;
+  /** Callback used to report intrinsic video size changes. */
+  readonly reportVideoSize: () => void;
   /** The shadow observer value. */
   readonly shadowObserver?: MutationObserver;
   /** The shadow styles value. */
@@ -104,6 +108,8 @@ async function exitUnifiedPictureInPicture(): Promise<{
   state.video.removeEventListener('play', state.renderPlaybackButton);
   state.video.removeEventListener('pause', state.renderPlaybackButton);
   state.video.removeEventListener('ended', state.renderPlaybackButton);
+  state.video.removeEventListener('resize', state.reportVideoSize);
+  state.cancelVideoSizeReport();
   for (const { element, marker, style } of state.elements) {
     if (style === null) element.removeAttribute('style');
     else element.setAttribute('style', style);

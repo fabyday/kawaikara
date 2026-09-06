@@ -322,6 +322,8 @@ export class WindowManager {
   private internalVideoPictureInPicturePointerInside = false;
   /** The overlay reveal timer value. */
   private overlayRevealTimer?: ReturnType<typeof setTimeout>;
+  /** The registered window manager logger value. */
+  private readonly logger;
 
   /** Creates an instance of WindowManager. */
   constructor(
@@ -330,6 +332,7 @@ export class WindowManager {
     /** The logging value. */
     private readonly logging: LoggingManager,
   ) {
+    this.logger = logging.getLogger('windowManager');
     this.externalBrowser = externalBrowser;
     this.pictureInPicture = createPictureInPicture(
       () => this.requireViewerWindow(),
@@ -414,8 +417,8 @@ export class WindowManager {
     this.overlayWindow = overlayWindow;
     this.disposing = false;
     this.viewerClosePrepared = false;
-    this.logging.attachRenderer(viewerWindow.webContents, 'viewer');
-    this.logging.attachRenderer(overlayWindow.webContents, 'overlay');
+    this.logging.attachRenderer(viewerWindow.webContents, 'rendererViewer');
+    this.logging.attachRenderer(overlayWindow.webContents, 'rendererOverlay');
     viewerWindow.setMenu(null);
     viewerWindow.setMenuBarVisibility(false);
     const overlayWebContentsId = overlayWindow.webContents.id;
@@ -436,7 +439,7 @@ export class WindowManager {
       this.refreshExternalFullscreenState(true);
     });
     viewerWindow.on('always-on-top-changed', (_event, isAlwaysOnTop) => {
-      console.info(
+      this.logger.info(
         `Electron always-on-top state changed: ${String(isAlwaysOnTop)}.`,
       );
     });
@@ -878,7 +881,7 @@ export class WindowManager {
   private async recreateVideoWindowWithSoftwareRenderer(
     video: BrowserWindow,
   ): Promise<boolean> {
-    console.warn(
+    this.logger.warn(
       'The shared-texture Video renderer did not initialize; retrying with the libmpv WebGL renderer.',
     );
     this.clearVideoRendererInitializationWatchdog(video.webContents.id);
@@ -929,16 +932,16 @@ export class WindowManager {
   private dispatchSiteAction(action: string): void {
     const handler = this.siteActionHandler;
     if (!handler) {
-      console.warn(`No site action handler is registered for: ${action}`);
+      this.logger.warn(`No site action handler is registered for: ${action}`);
       return;
     }
 
     void handler(action).then((handled) => {
       if (!handled) {
-        console.warn(`The current site did not handle action: ${action}`);
+        this.logger.warn(`The current site did not handle action: ${action}`);
       }
     }).catch((error: unknown) => {
-      console.error(`Site action failed: ${action}`, error);
+      this.logger.error(`Site action failed: ${action}`, error);
     });
   }
 
@@ -957,10 +960,10 @@ export class WindowManager {
     const viewer = this.createSiteViewer(webContents, permissions);
     this.siteBrowserIdentity = undefined;
     const logger: SiteLogger = {
-      debug: (message, ...args) => console.debug(message, ...args),
-      info: (message, ...args) => console.info(message, ...args),
-      warn: (message, ...args) => console.warn(message, ...args),
-      error: (message, ...args) => console.error(message, ...args),
+      debug: (message, ...args) => this.logger.debug(message, ...args),
+      info: (message, ...args) => this.logger.info(message, ...args),
+      warn: (message, ...args) => this.logger.warn(message, ...args),
+      error: (message, ...args) => this.logger.error(message, ...args),
     };
     const externalBrowser: SiteExternalBrowser = {
       login: (options) => {
@@ -1027,7 +1030,7 @@ export class WindowManager {
     else this.stopExternalFullscreenMonitoring();
     const pictureInPictureActive = this.isAnyPictureInPictureActive();
     if (requestedStateChanged) {
-      console.info(
+      this.logger.info(
         `Always on top requested: ${String(enabled)}; ` +
         `externalFullscreen=${String(this.externalFullscreenBlocksAlwaysOnTop)}; ` +
         `pictureInPicture=${String(pictureInPictureActive)}.`,
@@ -1064,9 +1067,9 @@ export class WindowManager {
         this.videoWindow = undefined;
       }
     } catch (error) {
-      console.error('Failed to detach MPV before closing the Video window.', error);
+      this.logger.error('Failed to detach MPV before closing the Video window.', error);
       await this.mpv.dispose().catch((disposeError: unknown) => {
-        console.error('Failed to dispose MPV after detach failed.', disposeError);
+        this.logger.error('Failed to dispose MPV after detach failed.', disposeError);
       });
     } finally {
       this.viewerClosePrepared = true;
@@ -1094,7 +1097,7 @@ export class WindowManager {
       // Windows can clear WS_EX_TOPMOST while Chromium retains its cached
       // kFloatingWindow state. Clear that cache through Electron first so the
       // following enable call reaches the OS again.
-      console.info(
+      this.logger.info(
         'Reasserting always on top after Windows removed the topmost flag.',
       );
       viewer.setAlwaysOnTop(false);
@@ -1205,7 +1208,7 @@ export class WindowManager {
       try {
         this.refreshExternalFullscreenState();
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           'Kawaikara could not apply an external fullscreen state change.',
           error,
         );
@@ -1239,7 +1242,7 @@ export class WindowManager {
     if (!stateChanged && !reassertPresentation && !presentationWasLost) return;
     this.externalFullscreenBlocksAlwaysOnTop = suspended;
     if (stateChanged) {
-      console.info(
+      this.logger.info(
         suspended
           ? 'Always on top disabled for an external fullscreen app on the same display.'
           : 'Always on top restored after external fullscreen left the display.',
@@ -1462,7 +1465,7 @@ export class WindowManager {
         this.restoreOverlayAfterPictureInPicture();
       }
     } catch (error) {
-      console.error('PiP could not restore the viewer window.', error);
+      this.logger.error('PiP could not restore the viewer window.', error);
     } finally {
       this.restoringPictureInPicture = false;
     }
@@ -2081,15 +2084,16 @@ export class WindowManager {
     // the application log useful when diagnosing quality/ad playback.
     this.logging.attachRenderer(
       siteView.webContents,
-      `site:${runtime.siteId}`,
+      'rendererSite',
       (message) => message.includes('[Kawaikara/'),
+      runtime.siteId,
     );
     this.attachSiteWebContents(siteView.webContents, siteSession);
     viewerWindow.contentView.addChildView(siteView);
     this.siteViewAttached = true;
     this.syncSiteViewBounds();
     siteView.webContents.focus();
-    console.info(
+    this.logger.info(
       `Activated ${runtime.siteId} in browser profile ${runtime.id} (${runtime.partition}).`,
     );
     return {
@@ -2125,7 +2129,7 @@ export class WindowManager {
         // or reset the stream.
         siteView.setVisible(true);
         webContents.invalidate();
-        console.debug(`Refreshed the site compositor surface (${reason}).`);
+        this.logger.debug(`Refreshed the site compositor surface (${reason}).`);
       }, 0);
     };
     webContents.on('dom-ready', () => {
@@ -2134,7 +2138,7 @@ export class WindowManager {
         .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user'
         })
         .catch((error: unknown) => {
-          console.debug('The site scrollbar theme could not be applied.', error);
+          this.logger.debug('The site scrollbar theme could not be applied.', error);
         });
       refreshSiteSurface('dom-ready');
     });
@@ -2146,7 +2150,7 @@ export class WindowManager {
       'did-fail-load',
       (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
         if (!isMainFrame || errorCode === -3) return;
-        console.warn('Site main-frame load failed.', {
+        this.logger.warn('Site main-frame load failed.', {
           errorCode,
           errorDescription,
           url: validatedURL,
@@ -2154,7 +2158,7 @@ export class WindowManager {
       },
     );
     webContents.on('render-process-gone', (_event, details) => {
-      console.error('Site renderer process exited.', details);
+      this.logger.error('Site renderer process exited.', details);
       if (details.reason === 'clean-exit' || webContents.isDestroyed()) return;
       setTimeout(() => {
         if (!webContents.isDestroyed()) webContents.reload();
@@ -2178,7 +2182,7 @@ export class WindowManager {
       }
       if (this.navigationGuard && !this.navigationGuard(url)) {
         event.preventDefault();
-        console.debug(`Blocked guarded site navigation: ${url}`);
+        this.logger.debug(`Blocked guarded site navigation: ${url}`);
       }
     };
     webContents.on('will-navigate', guardNavigation);
@@ -2241,7 +2245,7 @@ export class WindowManager {
         };
       }
       if (this.navigationGuard && !this.navigationGuard(url)) {
-        console.debug(`Blocked guarded site window open: ${url}`);
+        this.logger.debug(`Blocked guarded site window open: ${url}`);
         return { action: 'deny'
         };
       }
@@ -2250,13 +2254,13 @@ export class WindowManager {
       switch (policy) {
         case 'external':
           void openInDefaultBrowser(url).catch((error: unknown) => {
-            console.error(`Failed to open ${url} in the default browser.`, error);
+            this.logger.error(`Failed to open ${url} in the default browser.`, error);
           });
           return { action: 'deny'
           };
         case 'viewer':
           void webContents.loadURL(url).catch((error: unknown) => {
-            console.error(`Failed to open ${url} in the site viewer.`, error);
+            this.logger.error(`Failed to open ${url} in the site viewer.`, error);
           });
           return { action: 'deny'
           };
@@ -2389,7 +2393,7 @@ export class WindowManager {
     void webContents
       .executeJavaScript(createRemoteThemeBridgeInjectionScript(), true)
       .catch((error: unknown) => {
-        console.debug('The live site theme bridge could not be installed.', error);
+        this.logger.debug('The live site theme bridge could not be installed.', error);
       });
   }
 
@@ -2632,7 +2636,7 @@ export class WindowManager {
         returnUrl
       ) {
         await viewer.loadURL(returnUrl).catch((error: unknown) => {
-          console.error(`Failed to restore ${returnUrl} after external login.`, error);
+          this.logger.error(`Failed to restore ${returnUrl} after external login.`, error);
         });
       }
     }
@@ -2689,7 +2693,7 @@ export class WindowManager {
           siteView.webContents.invalidate();
         }
       }
-      console.debug(`Refreshed the active compositor surface (${reason}).`);
+      this.logger.debug(`Refreshed the active compositor surface (${reason}).`);
     }, 0);
   }
 
@@ -2746,7 +2750,7 @@ export class WindowManager {
     });
     this.videoWindow = video;
     this.readyVideoRendererWebContentsId = undefined;
-    this.logging.attachRenderer(video.webContents, 'video');
+    this.logging.attachRenderer(video.webContents, 'rendererVideo');
     this.mpv.attachWindow(video);
     video.setMenu(null);
     video.setMenuBarVisibility(false);
@@ -2852,12 +2856,12 @@ export class WindowManager {
       ) {
         return;
       }
-      console.warn(
+      this.logger.warn(
         'The Video renderer stopped responding during shared-texture initialization; switching to the libmpv WebGL renderer.',
       );
       void this.recoverVideoPlaybackRenderer(webContentsId).catch(
         (error: unknown) => {
-          console.error('Failed to recover the Video playback renderer.', error);
+          this.logger.error('Failed to recover the Video playback renderer.', error);
         },
       );
     }, VIDEO_RENDERER_INITIALIZATION_TIMEOUT_MS);

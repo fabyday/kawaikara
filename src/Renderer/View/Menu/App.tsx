@@ -1010,6 +1010,8 @@ export function App() {
             }
           >
             <PreferenceView
+              initialLocale={localization.locale}
+              initialLogViewerMessages={localization.logViewer}
               initialMessages={messages}
               sites={sites}
               onBackHandlerChange={(handler) => {

@@ -79,12 +79,14 @@ const PIP_PLAYBACK_MESSAGE = `__kawaikara_pip_playback_${randomUUID()}`;
 const PIP_CONTROL_ACTION_DEBOUNCE_MS = 300;
 /** Defines the shared PiP playback button size constant. */
 const PIP_PLAYBACK_BUTTON_SIZE = 54;
-/** Defines the shared PiP native drag style constant. */
-const PIP_NATIVE_DRAG_STYLE =
-  process.platform === 'win32' ? '-webkit-app-region:drag;' : '';
-/** Defines the shared PiP native no drag style constant. */
-const PIP_NATIVE_NO_DRAG_STYLE =
-  process.platform === 'win32' ? '-webkit-app-region:no-drag;' : '';
+/** Defines the unified PiP video-size console message prefix. */
+const PIP_VIDEO_SIZE_MESSAGE = `__kawaikara_pip_video_size_${randomUUID()}`;
+/** Defines the minimum relative aspect-ratio change worth resizing for. */
+const PIP_ASPECT_RATIO_CHANGE_THRESHOLD = 0.015;
+/** Defines the smooth PiP resize duration. */
+const PIP_RESIZE_ANIMATION_DURATION_MS = 260;
+/** Defines the smooth PiP resize frame interval. */
+const PIP_RESIZE_ANIMATION_FRAME_MS = 16;
 
 /** Coordinates unified picture in picture behavior. */
 export class UnifiedPictureInPictureManager {
@@ -102,6 +104,8 @@ export class UnifiedPictureInPictureManager {
   private portraitSizePreference = DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE;
   /** The size preference value. */
   private sizePreference = DEFAULT_PICTURE_IN_PICTURE_SIZE;
+  /** The registered picture-in-picture manager logger value. */
+  private readonly logger;
 
   /** Creates an instance of UnifiedPictureInPictureManager. */
   constructor(
@@ -121,7 +125,9 @@ export class UnifiedPictureInPictureManager {
     private readonly onLastPlacementChanged?: (
       placement: PictureInPictureLastPlacement,
     ) => Promise<void> | void,
-  ) {}
+  ) {
+    this.logger = logging.getLogger('pictureInPicture');
+  }
 
   /** Sets the window size. */
   setWindowSize(preference: PictureInPictureSizePreference): void {
@@ -175,6 +181,7 @@ export class UnifiedPictureInPictureManager {
     this.stopHoverTracking(state);
     this.clearFullscreenReassertions(state);
     this.clearVideoRefreshes(state);
+    this.clearResizeAnimation(state);
     state.siteView.webContents.off('console-message', state.consoleListener);
     state.siteView.webContents.off('before-input-event', state.inputListener);
     state.siteView.webContents.off('input-event', state.pointerInputListener);
@@ -224,11 +231,9 @@ export class UnifiedPictureInPictureManager {
         return withPictureInPictureWindowMode(result.status);
       }
 
-      const bounds = this.resolveInitialBounds(
-        viewerWindow,
-        result.aspectRatio ?? candidate.aspectRatio,
-      );
-      pipWindow = this.createPipWindow(bounds, result.aspectRatio);
+      const initialAspectRatio = result.aspectRatio ?? candidate.aspectRatio;
+      const bounds = this.resolveInitialBounds(viewerWindow, initialAspectRatio);
+      pipWindow = this.createPipWindow(bounds, initialAspectRatio);
 
       /** Performs the input listener operation. */
       const inputListener = (event: Electron.Event, input: Input): void => {
@@ -263,6 +268,11 @@ export class UnifiedPictureInPictureManager {
           this.activateControl(activeState, 'restore');
         } else if (details.message === PIP_PLAYBACK_MESSAGE) {
           this.activateControl(activeState, 'playback');
+        } else {
+          const aspectRatio = parseVideoSizeMessage(details.message);
+          if (aspectRatio !== undefined) {
+            this.updateAspectRatio(activeState, aspectRatio);
+          }
         }
       };
       /** Performs the pointer input listener operation. */
@@ -287,6 +297,7 @@ export class UnifiedPictureInPictureManager {
         this.scheduleVideoRefresh(activeState);
       };
       const state: UnifiedPictureInPictureState = {
+        aspectRatio: initialAspectRatio,
         closing: false,
         consoleListener,
         controlsVisible: false,
@@ -339,7 +350,7 @@ export class UnifiedPictureInPictureManager {
       this.onStateChanged(entered);
       return entered;
     } catch (error) {
-      console.error('Unified PiP could not be started.', error);
+      this.logger.error('Unified PiP could not be started.', error);
       const state = this.state;
       this.state = undefined;
       if (state) {
@@ -347,6 +358,7 @@ export class UnifiedPictureInPictureManager {
         this.stopHoverTracking(state);
         this.clearFullscreenReassertions(state);
         this.clearVideoRefreshes(state);
+        this.clearResizeAnimation(state);
         state.siteView.webContents.off(
           'console-message',
           state.consoleListener,
@@ -400,6 +412,7 @@ export class UnifiedPictureInPictureManager {
     this.stopHoverTracking(state);
     this.clearFullscreenReassertions(state);
     this.clearVideoRefreshes(state);
+    this.clearResizeAnimation(state);
     state.siteView.webContents.off('console-message', state.consoleListener);
     state.siteView.webContents.off('before-input-event', state.inputListener);
     state.siteView.webContents.off('input-event', state.pointerInputListener);
@@ -460,7 +473,10 @@ export class UnifiedPictureInPictureManager {
         sandbox: true,
       },
     });
-    this.logging.attachRenderer(pipWindow.webContents, 'picture-in-picture');
+    this.logging.attachRenderer(
+      pipWindow.webContents,
+      'rendererPictureInPicture',
+    );
     pipWindow.setMenu(null);
     pipWindow.setMenuBarVisibility(false);
     pipWindow.setMinimumSize(
@@ -521,7 +537,7 @@ export class UnifiedPictureInPictureManager {
       // behavior and keep the application-owned PiP lifecycle alive.
       event.preventDefault();
       this.logging
-        .createLogger('picture-in-picture')
+        .getLogger('pictureInPicture', 'attachWindowEvents')
         .debug('Ignored a page-originated close request for unified PiP.');
     });
     state.pipWindow.on('closed', () => {
@@ -559,10 +575,14 @@ export class UnifiedPictureInPictureManager {
     }
 
     const mouseInput = input as Electron.MouseInputEvent;
+    // Hover and drag must use the same WebContents-wide input surface. A
+    // CSS app-region inside a frequently replaced CHZZK iframe can remain
+    // visually present while no longer participating in native hit testing.
+    if (input.type !== 'mouseLeave') {
+      this.setControlsVisible(state, true);
+    }
     if (input.type === 'mouseDown') {
       if (mouseInput.button && mouseInput.button !== 'left') return;
-      // The renderer hides controls independently from this native fallback.
-      // Never leave an invisible native hit target active after hover exits.
       if (
         state.controlsVisible &&
         isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)
@@ -583,17 +603,11 @@ export class UnifiedPictureInPictureManager {
         this.activateControl(state, 'playback');
         return;
       }
-    }
-
-    if (process.platform === 'win32') {
-      // Crossing between a native draggable region and a no-drag button can
-      // emit a transient mouseLeave on Windows. The screen-coordinate poll is
-      // authoritative for hiding; input events only reveal controls eagerly.
-      if (input.type !== 'mouseLeave') this.setControlsVisible(state, true);
-      return;
-    }
-
-    if (input.type === 'mouseDown') {
+      const interruptedAspectRatio = state.resizeAnimation?.targetAspectRatio;
+      this.clearResizeAnimation(state);
+      if (interruptedAspectRatio !== undefined) {
+        state.pendingAspectRatio = interruptedAspectRatio;
+      }
       const cursor = resolveGlobalMousePoint(mouseInput);
       const [windowX, windowY] = state.pipWindow.getPosition();
       state.dragState = {
@@ -607,6 +621,11 @@ export class UnifiedPictureInPictureManager {
 
     if (input.type === 'mouseUp' || input.type === 'mouseLeave') {
       state.dragState = undefined;
+      const pendingAspectRatio = state.pendingAspectRatio;
+      state.pendingAspectRatio = undefined;
+      if (pendingAspectRatio !== undefined) {
+        this.updateAspectRatio(state, pendingAspectRatio);
+      }
       return;
     }
 
@@ -650,13 +669,13 @@ export class UnifiedPictureInPictureManager {
           result.status === 'failed'
         ) {
           this.logging
-            .createLogger('picture-in-picture')
+            .getLogger('pictureInPicture', 'activateControl')
             .debug('Unified PiP playback control was rejected.', result);
         }
       })
       .catch((error: unknown) => {
         this.logging
-          .createLogger('picture-in-picture')
+          .getLogger('pictureInPicture', 'activateControl')
           .debug('Unified PiP playback control failed.', error);
       });
   }
@@ -757,10 +776,14 @@ export class UnifiedPictureInPictureManager {
       }
 
       if (candidate.frame === state.frame && !state.frame.isDestroyed()) {
-        await state.frame.executeJavaScript(
+        const result = await state.frame.executeJavaScript(
           createRefreshUnifiedPictureInPictureVideoScript(),
           true,
         );
+        const aspectRatio = readVideoAspectRatio(result);
+        if (aspectRatio !== undefined) {
+          this.updateAspectRatio(state, aspectRatio);
+        }
         return;
       }
 
@@ -787,6 +810,9 @@ export class UnifiedPictureInPictureManager {
       }
       state.frame = candidate.frame;
       state.hostFrames = nextHostFrames;
+      if (result.aspectRatio !== undefined) {
+        this.updateAspectRatio(state, result.aspectRatio);
+      }
       // A replacement iframe owns a newly injected overlay. Reapply the
       // current native hover state even when the boolean did not change;
       // otherwise its buttons remain at their default hidden opacity.
@@ -800,7 +826,7 @@ export class UnifiedPictureInPictureManager {
       await this.restoreInjectedVideo(previousFrame);
     } catch (error) {
       if (this.state === state && !state.closing) {
-        console.debug('Unified PiP could not refresh its active video.', error);
+        this.logger.debug('Unified PiP could not refresh its active video.', error);
       }
     } finally {
       state.refreshingVideo = false;
@@ -811,6 +837,119 @@ export class UnifiedPictureInPictureManager {
   private clearVideoRefreshes(state: UnifiedPictureInPictureState): void {
     for (const timer of state.videoRefreshTimers) clearTimeout(timer);
     state.videoRefreshTimers.clear();
+  }
+
+  /** Applies a meaningful video aspect-ratio change to the active PiP. */
+  private updateAspectRatio(
+    state: UnifiedPictureInPictureState,
+    aspectRatio: number,
+  ): void {
+    if (
+      this.state !== state ||
+      state.closing ||
+      state.pipWindow.isDestroyed() ||
+      !Number.isFinite(aspectRatio) ||
+      aspectRatio < 0.1 ||
+      aspectRatio > 10
+    ) {
+      return;
+    }
+    const comparedAspectRatio = state.resizeAnimation?.targetAspectRatio ??
+      state.pendingAspectRatio ??
+      state.aspectRatio;
+    if (
+      comparedAspectRatio !== undefined &&
+      Math.abs(aspectRatio / comparedAspectRatio - 1) <
+        PIP_ASPECT_RATIO_CHANGE_THRESHOLD
+    ) {
+      return;
+    }
+    if (state.dragState) {
+      state.pendingAspectRatio = aspectRatio;
+      return;
+    }
+    state.pendingAspectRatio = undefined;
+    this.animateAspectRatio(state, aspectRatio);
+  }
+
+  /** Smoothly resizes the PiP while retaining its nearest screen edges. */
+  private animateAspectRatio(
+    state: UnifiedPictureInPictureState,
+    aspectRatio: number,
+  ): void {
+    const pipWindow = state.pipWindow;
+    const initialBounds = pipWindow.getBounds();
+    const display = screen.getDisplayMatching(initialBounds);
+    const portrait = aspectRatio < 1;
+    const preferredSize = resolvePictureInPictureSize(
+      portrait ? this.portraitSizePreference : this.sizePreference,
+      aspectRatio,
+      portrait ? 'portrait' : 'landscape',
+    );
+    const fittedSize = fitPictureInPictureSize(preferredSize, display.workArea);
+    const targetBounds = resolveAnchoredResizeBounds(
+      initialBounds,
+      display.workArea,
+      fittedSize.width,
+      fittedSize.height,
+    );
+    this.clearResizeAnimation(state);
+    pipWindow.setAspectRatio(0);
+    if (rectanglesMatch(initialBounds, targetBounds)) {
+      state.aspectRatio = aspectRatio;
+      pipWindow.setAspectRatio(aspectRatio);
+      return;
+    }
+
+    const animation: NonNullable<
+      UnifiedPictureInPictureState['resizeAnimation']
+    > = {
+      /** The aspect ratio reached at the end of the animation. */
+      targetAspectRatio: aspectRatio,
+    };
+    state.resizeAnimation = animation;
+    const startedAt = Date.now();
+    /** Advances one resize animation frame. */
+    const advance = () => {
+      if (
+        this.state !== state ||
+        state.closing ||
+        pipWindow.isDestroyed() ||
+        state.resizeAnimation !== animation
+      ) {
+        return;
+      }
+      const progress = Math.min(
+        1,
+        (Date.now() - startedAt) / PIP_RESIZE_ANIMATION_DURATION_MS,
+      );
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      pipWindow.setBounds(interpolateBounds(
+        initialBounds,
+        targetBounds,
+        easedProgress,
+      ), false);
+      if (progress >= 1) {
+        state.resizeAnimation = undefined;
+        state.aspectRatio = aspectRatio;
+        pipWindow.setAspectRatio(aspectRatio);
+        this.syncSiteViewBounds(state);
+        return;
+      }
+      animation.timer = setTimeout(
+        advance,
+        PIP_RESIZE_ANIMATION_FRAME_MS,
+      );
+    };
+    advance();
+  }
+
+  /** Stops the current smooth PiP resize without moving it again. */
+  private clearResizeAnimation(state: UnifiedPictureInPictureState): void {
+    if (state.resizeAnimation?.timer !== undefined) {
+      clearTimeout(state.resizeAnimation.timer);
+    }
+    state.resizeAnimation = undefined;
   }
 
   /** Restores the mac application presentation. */
@@ -829,7 +968,7 @@ export class UnifiedPictureInPictureManager {
       app.setActivationPolicy('regular');
       await app.dock?.show();
     } catch (error) {
-      console.warn('Kawaikara could not restore its macOS Dock state.', error);
+      this.logger.warn('Kawaikara could not restore its macOS Dock state.', error);
     }
   }
 
@@ -847,7 +986,7 @@ export class UnifiedPictureInPictureManager {
       .executeJavaScript(createSetPictureInPictureControlsVisibleScript(visible))
       .catch((error: unknown) => {
         if (this.state === state && !state.closing) {
-          console.debug('Unified PiP hover state could not be updated.', error);
+          this.logger.debug('Unified PiP hover state could not be updated.', error);
         }
       });
   }
@@ -907,7 +1046,7 @@ export class UnifiedPictureInPictureManager {
         candidate = result ? { frame, ...result
         } : undefined;
       } catch (error) {
-        console.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
+        this.logger.debug(`Unified PiP could not inspect frame ${frame.url}.`, error);
       }
       if (!candidate || (best && candidate.score <= best.score)) continue;
       best = candidate;
@@ -953,7 +1092,7 @@ export class UnifiedPictureInPictureManager {
       .then(() => this.onLastPlacementChanged?.(placement))
       .then(() => undefined)
       .catch((error: unknown) => {
-        console.warn('The last unified PiP position could not be saved.', error);
+        this.logger.warn('The last unified PiP position could not be saved.', error);
       });
     await this.placementWrite;
   }
@@ -964,7 +1103,7 @@ export class UnifiedPictureInPictureManager {
     await frame.executeJavaScript(
       createExitUnifiedPictureInPictureScript(),
     ).catch((error: unknown) => {
-      console.debug('Unified PiP video styles were already unavailable.', error);
+      this.logger.debug('Unified PiP video styles were already unavailable.', error);
     });
   }
 
@@ -973,16 +1112,14 @@ export class UnifiedPictureInPictureManager {
     return createEnterUnifiedPictureInPictureScript({
       /** The content overlay selectors value. */
       contentOverlaySelectors: this.getContentOverlaySelectors(),
-      /** The native drag style value. */
-      nativeDragStyle: PIP_NATIVE_DRAG_STYLE,
-      /** The native no drag style value. */
-      nativeNoDragStyle: PIP_NATIVE_NO_DRAG_STYLE,
       /** The playback button size value. */
       playbackButtonSize: PIP_PLAYBACK_BUTTON_SIZE,
       /** The playback message value. */
       playbackMessage: PIP_PLAYBACK_MESSAGE,
       /** The restore message value. */
       restoreMessage: PIP_RESTORE_MESSAGE,
+      /** The intrinsic video-size message prefix value. */
+      videoSizeMessage: PIP_VIDEO_SIZE_MESSAGE,
     });
   }
 
@@ -1033,4 +1170,112 @@ export class UnifiedPictureInPictureManager {
       ),
     );
   }
+}
+
+/** Parses a trusted in-page video-size notification into an aspect ratio. */
+function parseVideoSizeMessage(message: string): number | undefined {
+  const prefix = `${PIP_VIDEO_SIZE_MESSAGE}:`;
+  if (!message.startsWith(prefix)) return undefined;
+  const [widthValue, heightValue, extra] = message.slice(prefix.length).split(':');
+  if (extra !== undefined) return undefined;
+  return createVideoAspectRatio(Number(widthValue), Number(heightValue));
+}
+
+/** Reads an aspect ratio from a page-script result. */
+function readVideoAspectRatio(value: unknown): number | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as { videoHeight?: unknown; videoWidth?: unknown
+  };
+  return createVideoAspectRatio(
+    Number(candidate.videoWidth),
+    Number(candidate.videoHeight),
+  );
+}
+
+/** Creates a bounded video aspect ratio from intrinsic dimensions. */
+function createVideoAspectRatio(
+  width: number,
+  height: number,
+): number | undefined {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0
+  ) {
+    return undefined;
+  }
+  const aspectRatio = width / height;
+  return aspectRatio >= 0.1 && aspectRatio <= 10
+    ? aspectRatio
+    : undefined;
+}
+
+/** Resolves resized PiP bounds while retaining the nearest screen edges. */
+function resolveAnchoredResizeBounds(
+  current: Rectangle,
+  workArea: Rectangle,
+  width: number,
+  height: number,
+): Rectangle {
+  const workRight = workArea.x + workArea.width;
+  const workBottom = workArea.y + workArea.height;
+  const currentRight = current.x + current.width;
+  const currentBottom = current.y + current.height;
+  const anchorRight = Math.abs(workRight - currentRight) <
+    Math.abs(current.x - workArea.x);
+  const anchorBottom = Math.abs(workBottom - currentBottom) <
+    Math.abs(current.y - workArea.y);
+  const maximumX = workRight - width;
+  const maximumY = workBottom - height;
+  return {
+    /** The x value. */
+    x: clampNumber(
+      anchorRight ? currentRight - width : current.x,
+      workArea.x,
+      maximumX,
+    ),
+    /** The y value. */
+    y: clampNumber(
+      anchorBottom ? currentBottom - height : current.y,
+      workArea.y,
+      maximumY,
+    ),
+    /** The width value. */
+    width,
+    /** The height value. */
+    height,
+  };
+}
+
+/** Interpolates integer native window bounds for one animation frame. */
+function interpolateBounds(
+  from: Rectangle,
+  to: Rectangle,
+  progress: number,
+): Rectangle {
+  /** Interpolates one rectangle field. */
+  const interpolate = (start: number, end: number): number =>
+    Math.round(start + (end - start) * progress);
+  return {
+    /** The x value. */
+    x: interpolate(from.x, to.x),
+    /** The y value. */
+    y: interpolate(from.y, to.y),
+    /** The width value. */
+    width: interpolate(from.width, to.width),
+    /** The height value. */
+    height: interpolate(from.height, to.height),
+  };
+}
+
+/** Determines whether two native window rectangles match. */
+function rectanglesMatch(left: Rectangle, right: Rectangle): boolean {
+  return left.x === right.x && left.y === right.y &&
+    left.width === right.width && left.height === right.height;
+}
+
+/** Clamps and rounds a native window coordinate. */
+function clampNumber(value: number, minimum: number, maximum: number): number {
+  return Math.round(Math.min(Math.max(minimum, maximum), Math.max(minimum, value)));
 }

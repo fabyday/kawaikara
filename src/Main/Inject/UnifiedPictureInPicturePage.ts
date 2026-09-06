@@ -17,6 +17,8 @@ interface UnifiedPictureInPictureElementSnapshot {
 interface UnifiedPictureInPicturePageState {
   /** The backdrop value. */
   readonly backdrop: HTMLElement;
+  /** Callback used to cancel a pending intrinsic video-size report. */
+  readonly cancelVideoSizeReport: () => void;
   /** Whether the controls option is enabled. */
   controls: boolean;
   /** The controls style value. */
@@ -37,6 +39,8 @@ interface UnifiedPictureInPicturePageState {
   readonly overlay: HTMLElement;
   /** The playback button value. */
   readonly playbackButton: HTMLButtonElement;
+  /** Callback used to report intrinsic video size changes. */
+  readonly reportVideoSize: () => void;
   /** Callback used to handle release layout for navigation. */
   readonly releaseLayoutForNavigation: () => void;
   /** Callback used to handle render playback button. */
@@ -65,16 +69,14 @@ interface UnifiedPictureInPicturePageGlobal extends Window {
 interface EnterUnifiedPictureInPictureOptions {
   /** The content overlay selectors value. */
   readonly contentOverlaySelectors: readonly string[];
-  /** The native drag style value. */
-  readonly nativeDragStyle: string;
-  /** The native no drag style value. */
-  readonly nativeNoDragStyle: string;
   /** The playback button size value. */
   readonly playbackButtonSize: number;
   /** The playback message value. */
   readonly playbackMessage: string;
   /** The restore message value. */
   readonly restoreMessage: string;
+  /** The intrinsic video-size message prefix value. */
+  readonly videoSizeMessage: string;
 }
 
 /** Describes the unified picture in picture page result contract. */
@@ -452,14 +454,14 @@ function enterUnifiedPictureInPicture(
   overlayStyle.textContent =
     ':host{all:initial;display:block!important;visibility:visible!important;' +
     'opacity:1!important}.drag-surface{position:absolute;inset:0;cursor:move;' +
-    options.nativeDragStyle + '}' +
+    'touch-action:none;user-select:none}' +
     'button{position:absolute;width:40px;height:40px;padding:0;' +
     'border:1px solid rgba(255,255,255,.2);border-radius:12px;' +
     'background:rgba(12,12,14,.82);color:#fff;z-index:1;display:grid;' +
     'place-items:center;cursor:pointer;opacity:0;transform:scale(.92);' +
     'pointer-events:none;transition:opacity 140ms ease,transform 140ms ease,' +
     'background 140ms ease;box-shadow:0 8px 24px rgba(0,0,0,.35);' +
-    'backdrop-filter:blur(12px);' + options.nativeNoDragStyle + '}' +
+    'backdrop-filter:blur(12px)}' +
     '.restore-button{top:12px;left:12px}.playback-button{top:50%;left:50%;' +
     `width:${String(options.playbackButtonSize)}px;` +
     `height:${String(options.playbackButtonSize)}px;border-radius:50%;` +
@@ -502,6 +504,28 @@ function enterUnifiedPictureInPicture(
   /** Performs the active playback video operation. */
   const activePlaybackVideo = (): HTMLVideoElement =>
     pageWindow.__kawaikaraUnifiedPictureInPicture?.video ?? video;
+  let videoSizeReportTimer: number | undefined;
+  /** Cancels a pending intrinsic video-size report. */
+  const cancelVideoSizeReport = (): void => {
+    if (videoSizeReportTimer === undefined) return;
+    window.clearTimeout(videoSizeReportTimer);
+    videoSizeReportTimer = undefined;
+  };
+  /** Reports a changed intrinsic video size to the native PiP manager. */
+  const reportVideoSize = (): void => {
+    cancelVideoSizeReport();
+    // Short-form players can expose intermediate dimensions while swapping
+    // sources. Waiting briefly keeps the native resize animation intentional.
+    videoSizeReportTimer = window.setTimeout(() => {
+      videoSizeReportTimer = undefined;
+      const activeVideo = activePlaybackVideo();
+      if (activeVideo.videoWidth <= 0 || activeVideo.videoHeight <= 0) return;
+      console.debug(
+        `${options.videoSizeMessage}:${String(activeVideo.videoWidth)}:` +
+          String(activeVideo.videoHeight),
+      );
+    }, 120);
+  };
   /** Renders the playback button. */
   const renderPlaybackButton = (): void => {
     const activeVideo = activePlaybackVideo();
@@ -522,6 +546,7 @@ function enterUnifiedPictureInPicture(
   video.addEventListener('play', renderPlaybackButton);
   video.addEventListener('pause', renderPlaybackButton);
   video.addEventListener('ended', renderPlaybackButton);
+  video.addEventListener('resize', reportVideoSize);
   renderPlaybackButton();
   shadow.append(overlayStyle, dragSurface, restoreButton, playbackButton);
   restoreButton.addEventListener('click', (event) => {
@@ -540,6 +565,7 @@ function enterUnifiedPictureInPicture(
 
   pageWindow.__kawaikaraUnifiedPictureInPicture = {
     backdrop,
+    cancelVideoSizeReport,
     controls: video.controls,
     controlsStyle,
     controlsStyleText,
@@ -550,6 +576,7 @@ function enterUnifiedPictureInPicture(
     navigationOffsetY: 0,
     overlay,
     playbackButton,
+    reportVideoSize,
     releaseLayoutForNavigation,
     renderPlaybackButton,
     restoreLayoutAfterNavigation,
@@ -643,6 +670,8 @@ function refreshUnifiedPictureInPictureVideo(): UnifiedPictureInPicturePageResul
   state.video.removeEventListener('play', state.renderPlaybackButton);
   state.video.removeEventListener('pause', state.renderPlaybackButton);
   state.video.removeEventListener('ended', state.renderPlaybackButton);
+  state.video.removeEventListener('resize', state.reportVideoSize);
+  state.cancelVideoSizeReport();
   state.elements.forEach(({ element, marker, style }) => {
     if (style === null) element.removeAttribute('style');
     else element.setAttribute('style', style);
@@ -717,6 +746,7 @@ function refreshUnifiedPictureInPictureVideo(): UnifiedPictureInPicturePageResul
   video.addEventListener('play', state.renderPlaybackButton);
   video.addEventListener('pause', state.renderPlaybackButton);
   video.addEventListener('ended', state.renderPlaybackButton);
+  video.addEventListener('resize', state.reportVideoSize);
   state.renderPlaybackButton();
   return {
     /** The status value. */

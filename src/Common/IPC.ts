@@ -17,6 +17,7 @@ import type {
 } from '@kawaikara/site-api';
 export type {
   AppMessages,
+  LogViewerMessages,
   RendererMessages,
   VideoBrowserMessages,
   VideoLibraryMessages,
@@ -68,6 +69,25 @@ export const IPC_CHANNELS = defineIpcChannels({
     openDevTools: 'kawaikara:application:open-dev-tools',
     /** The open log directory value. */
     openLogDirectory: 'kawaikara:application:open-log-directory',
+    /** The open log repository directory value. */
+    openLogRepositoryDirectory:
+      'kawaikara:application:open-log-repository-directory',
+    /** The list log files value. */
+    listLogFiles: 'kawaikara:application:list-log-files',
+    /** The list log groups value. */
+    listLogGroups: 'kawaikara:application:list-log-groups',
+    /** The read log file value. */
+    readLogFile: 'kawaikara:application:read-log-file',
+    /** The export log files value. */
+    exportLogFiles: 'kawaikara:application:export-log-files',
+    /** The delete log files value. */
+    deleteLogFiles: 'kawaikara:application:delete-log-files',
+    /** The select log import files value. */
+    selectLogImportFiles: 'kawaikara:application:select-log-import-files',
+    /** The import log files value. */
+    importLogFiles: 'kawaikara:application:import-log-files',
+    /** The cancel log import value. */
+    cancelLogImport: 'kawaikara:application:cancel-log-import',
     /** The developer you tube status value. */
     developerYouTubeStatus: 'kawaikara:application:developer-youtube-status',
     /** The check for updates value. */
@@ -981,6 +1001,208 @@ export interface VideoPlaybackCapabilities {
   readonly nativeRenderMode: 'shared-texture' | 'software';
 }
 
+/** Defines the application log level type. */
+export type ApplicationLogLevel =
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'verbose'
+  | 'debug'
+  | 'silly'
+  | 'unknown';
+
+/** Defines an application log repository type. */
+export type ApplicationLogRepository = 'application' | 'external';
+
+/** Describes one registered application log source. */
+export interface ApplicationLogSourceDefinition {
+  /** The stable source ID value. */
+  readonly id: string;
+  /** The serialized logger scope value. */
+  readonly scope: string;
+  /** The user-facing source label value. */
+  readonly label: string;
+}
+
+/** Describes the runtime versions captured for a log session. */
+export interface ApplicationLogRuntimeMetadata {
+  /** The Electron version value. */
+  readonly electron: string;
+  /** The Chrome version value. */
+  readonly chrome: string;
+  /** The Node.js version value. */
+  readonly node: string;
+  /** The V8 version value. */
+  readonly v8: string;
+}
+
+/** Describes the trusted metadata header of a Kawaikara log. */
+export interface ApplicationLogMetadata {
+  /** The metadata schema version value. */
+  readonly schemaVersion: 1;
+  /** The session ID value. */
+  readonly sessionId: string;
+  /** The application name value. */
+  readonly applicationName: string;
+  /** The application version value. */
+  readonly version: string;
+  /** The build channel value. */
+  readonly channel: ReleaseChannel;
+  /** The operating system label value. */
+  readonly platform: string;
+  /** The processor architecture value. */
+  readonly arch: string;
+  /** The Site API version value. */
+  readonly siteApiVersion: number;
+  /** The session creation timestamp value. */
+  readonly createdAt: string;
+  /** The readable installation ID value, when recorded. */
+  readonly deviceId?: string;
+  /** The runtime version values. */
+  readonly runtime: ApplicationLogRuntimeMetadata;
+  /** The registered log source values. */
+  readonly sources: readonly ApplicationLogSourceDefinition[];
+}
+
+/** Describes an application log file summary. */
+export interface ApplicationLogFileSummary {
+  /** The repository value. */
+  readonly repository: ApplicationLogRepository;
+  /** The file name value. */
+  readonly fileName: string;
+  /** The owning external group ID value. */
+  readonly groupId?: string;
+  /** The byte size value. */
+  readonly size: number;
+  /** The modified timestamp value. */
+  readonly modifiedAt: string;
+  /** Whether this is the active session log. */
+  readonly active: boolean;
+}
+
+/** Describes one external log import group. */
+export interface ApplicationLogGroupSummary {
+  /** The stable group ID value. */
+  readonly id: string;
+  /** The user-assigned alias value. */
+  readonly alias: string;
+  /** The source installation ID values. */
+  readonly sourceDeviceIds: readonly string[];
+  /** The import timestamp value. */
+  readonly importedAt: string;
+  /** The number of contained log files. */
+  readonly fileCount: number;
+}
+
+/** Identifies one log file selected for an operation. */
+export interface ApplicationLogFileReference {
+  /** The repository value. */
+  readonly repository: ApplicationLogRepository;
+  /** The file name value. */
+  readonly fileName: string;
+  /** The owning external group ID value. */
+  readonly groupId?: string;
+}
+
+/** Describes a parsed application log entry. */
+export interface ApplicationLogEntry {
+  /** The stable entry ID value. */
+  readonly id: string;
+  /** The timestamp value as written by the logger. */
+  readonly timestamp?: string;
+  /** The normalized log level value. */
+  readonly level: ApplicationLogLevel;
+  /** The registered source ID value. */
+  readonly source: string;
+  /** The user-facing source or call location value. */
+  readonly location: string;
+  /** The log message value, including continuation lines. */
+  readonly message: string;
+}
+
+/** Describes an application log document. */
+export interface ApplicationLogDocument {
+  /** The source file summary value. */
+  readonly file: ApplicationLogFileSummary;
+  /** The validated Kawaikara metadata header, when present. */
+  readonly metadata?: ApplicationLogMetadata;
+  /** The parsed entries value. */
+  readonly entries: readonly ApplicationLogEntry[];
+  /** Whether older entries were omitted to keep rendering responsive. */
+  readonly truncated: boolean;
+}
+
+/** Describes the application log export result. */
+export type ApplicationLogExportResult =
+  | {
+      /** The status value. */
+      readonly status: 'cancelled';
+    }
+  | {
+      /** The status value. */
+      readonly status: 'exported';
+      /** The exported file path value. */
+      readonly path: string;
+    };
+
+/** Describes the result of deleting selected log files. */
+export interface ApplicationLogDeleteResult {
+  /** The number of deleted log files. */
+  readonly deleted: number;
+  /** The log files skipped because they are active or unavailable. */
+  readonly skipped: readonly ApplicationLogFileReference[];
+}
+
+/** Defines an external log import failure reason. */
+export type ApplicationLogImportFailureReason =
+  | 'too-large'
+  | 'invalid-encoding'
+  | 'invalid-format'
+  | 'unsafe-file'
+  | 'copy-failed';
+
+/** Describes one rejected external log import. */
+export interface ApplicationLogImportFailure {
+  /** The selected file name value. */
+  readonly fileName: string;
+  /** The rejection reason value. */
+  readonly reason: ApplicationLogImportFailureReason;
+}
+
+/** Describes a pending external log file selection. */
+export type ApplicationLogImportSelection =
+  | {
+      /** The status value. */
+      readonly status: 'cancelled';
+    }
+  | {
+      /** The status value. */
+      readonly status: 'ready';
+      /** The opaque pending import token value. */
+      readonly token: string;
+      /** The number of selected input files. */
+      readonly inputCount: number;
+      /** The suggested alias recovered from an archive, when available. */
+      readonly suggestedAlias?: string;
+    };
+
+/** Describes the external log import result. */
+export type ApplicationLogImportResult =
+  | {
+      /** The status value. */
+      readonly status: 'cancelled';
+    }
+  | {
+      /** The status value. */
+      readonly status: 'completed';
+      /** The created external log group value. */
+      readonly group?: ApplicationLogGroupSummary;
+      /** The safely imported log file values. */
+      readonly imported: readonly ApplicationLogFileSummary[];
+      /** The rejected log file values. */
+      readonly rejected: readonly ApplicationLogImportFailure[];
+    };
+
 /** Describes the active site's bounded navigation state. */
 export interface SiteNavigationState {
   /** Whether the active site can move to an earlier in-site entry. */
@@ -1005,6 +1227,41 @@ export interface KawaikaraRendererApi {
     openDevTools(mode: DevToolsMode): Promise<void>;
     /** Opens the log directory. */
     openLogDirectory(): Promise<void>;
+    /** Lists the external log import groups. */
+    listLogGroups(): Promise<ApplicationLogGroupSummary[]>;
+    /** Lists the application log files. */
+    listLogFiles(
+      repository: ApplicationLogRepository,
+      groupId?: string,
+    ): Promise<ApplicationLogFileSummary[]>;
+    /** Reads and parses an application log file. */
+    readLogFile(
+      repository: ApplicationLogRepository,
+      fileName: string,
+      groupId?: string,
+    ): Promise<ApplicationLogDocument>;
+    /** Opens one repository or external group directory. */
+    openLogRepositoryDirectory(
+      repository: ApplicationLogRepository,
+      groupId?: string,
+    ): Promise<void>;
+    /** Exports selected logs as one verified Kawai log archive. */
+    exportLogFiles(
+      files: readonly ApplicationLogFileReference[],
+    ): Promise<ApplicationLogExportResult>;
+    /** Deletes selected inactive logs. */
+    deleteLogFiles(
+      files: readonly ApplicationLogFileReference[],
+    ): Promise<ApplicationLogDeleteResult>;
+    /** Opens the native picker and stages selected external logs. */
+    selectLogImportFiles(): Promise<ApplicationLogImportSelection>;
+    /** Imports staged Kawaikara logs into a new external group. */
+    importLogFiles(
+      token: string,
+      alias: string,
+    ): Promise<ApplicationLogImportResult>;
+    /** Cancels and forgets a staged external log import. */
+    cancelLogImport(token: string): Promise<void>;
     /** Returns the developer you tube status. */
     getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus>;
     /** Performs the check for updates operation. */

@@ -2593,6 +2593,17 @@ img {
   flex: none;
 }
 
+.app-log-actions {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.app-log-actions > button {
+  flex: 0 0 auto;
+  justify-content: center;
+  text-align: center;
+}
+
 .developer-link-grid {
   display: grid;
   grid-template-columns: repeat(4, 76px);
@@ -2945,8 +2956,9 @@ img {
     flex-direction: column;
   }
 
-  .app-log-row > button {
+  .app-log-actions {
     width: 100%;
+    justify-content: flex-end;
   }
 
   .shortcut-row {

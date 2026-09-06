@@ -8,7 +8,7 @@ import { configureUserDataPaths, getKawaiDataPath } from './UserDataPaths';
 /** Describes the pre initialized application contract. */
 export interface PreInitializedApplication {
   /** The application log value. */
-  readonly applicationLog: ReturnType<LoggingManager['createLogger']>;
+  readonly applicationLog: ReturnType<LoggingManager['getLogger']>;
   /** The logging value. */
   readonly logging: LoggingManager;
   /** The preference file path value. */
@@ -22,7 +22,7 @@ export function preInitializeApplication(): PreInitializedApplication {
 
   const logging = new LoggingManager();
   logging.initialize();
-  const applicationLog = logging.createLogger('application');
+  const applicationLog = logging.getLogger('application');
   const preferenceFilePath = getKawaiDataPath('preferences.json');
 
   configureGraphics(preferenceFilePath, applicationLog);
@@ -40,7 +40,7 @@ export function preInitializeApplication(): PreInitializedApplication {
 /** Performs the configure graphics operation. */
 function configureGraphics(
   preferenceFilePath: string,
-  applicationLog: ReturnType<LoggingManager['createLogger']>,
+  applicationLog: ReturnType<LoggingManager['getLogger']>,
 ): void {
   const forceSoftwareRendering =
     process.env.KAWAIKARA_FORCE_SOFTWARE_RENDERING === '1';

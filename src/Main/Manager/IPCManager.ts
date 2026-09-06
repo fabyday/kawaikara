@@ -1,7 +1,10 @@
 import { app, clipboard, ipcMain, type IpcMainEvent } from 'electron';
+import path from 'node:path';
 import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
 import {
   IPC_CHANNELS,
+  type ApplicationLogFileReference,
+  type ApplicationLogRepository,
   type IpcChannel,
 } from '../../Common/IPC';
 import { BUILD_CHANNEL } from '../../Common/BuildConfig';
@@ -32,6 +35,7 @@ import {
   requireSearchQuery,
 } from '../Functional/IPCValidation';
 import { getRendererMessages } from '../Functional/RendererMessages';
+import { getOperatingSystemLabel } from '../Functional/PlatformInfo';
 
 /** Coordinates IPC behavior. */
 export class IpcManager {
@@ -104,7 +108,7 @@ export class IpcManager {
       siteApiVersion: KAWAIKARA_SITE_API_VERSION,
       electronVersion: process.versions.electron,
       chromeVersion: process.versions.chrome,
-      platform: process.platform,
+      platform: getOperatingSystemLabel(),
       arch: process.arch,
       buildChannel: BUILD_CHANNEL,
       updateChannelLocked: true,
@@ -142,6 +146,76 @@ export class IpcManager {
     ipcMain.handle(
       IPC_CHANNELS.application.openLogDirectory,
       () => this.logging.openDirectory(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.openLogRepositoryDirectory,
+      (_event, repository: unknown, groupId: unknown) =>
+        this.logging.openRepositoryDirectory(
+          requireLogRepository(repository),
+          requireOptionalLogGroupId(groupId),
+        ),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.listLogGroups,
+      () => this.logging.listGroups(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.listLogFiles,
+      (_event, repository: unknown, groupId: unknown) =>
+        this.logging.listFiles(
+          requireLogRepository(repository),
+          requireOptionalLogGroupId(groupId),
+        ),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.readLogFile,
+      (
+        _event,
+        repository: unknown,
+        fileName: unknown,
+        groupId: unknown,
+      ) => {
+        if (typeof fileName !== 'string') {
+          throw new TypeError('A log file name is required.');
+        }
+        return this.logging.readFile(
+          requireLogRepository(repository),
+          fileName,
+          requireOptionalLogGroupId(groupId),
+        );
+      },
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.exportLogFiles,
+      (_event, references: unknown) =>
+        this.logging.exportFiles(requireLogFileReferences(references)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.deleteLogFiles,
+      (_event, references: unknown) =>
+        this.logging.deleteFiles(requireLogFileReferences(references)),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.selectLogImportFiles,
+      () => this.logging.selectImportFiles(),
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.importLogFiles,
+      (_event, token: unknown, alias: unknown) => {
+        if (typeof token !== 'string' || typeof alias !== 'string') {
+          throw new TypeError('A pending import token and alias are required.');
+        }
+        return this.logging.importFiles(token, alias);
+      },
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.application.cancelLogImport,
+      (_event, token: unknown) => {
+        if (typeof token !== 'string') {
+          throw new TypeError('A pending import token is required.');
+        }
+        this.logging.cancelImport(token);
+      },
     );
     ipcMain.handle(IPC_CHANNELS.application.developerYouTubeStatus, () =>
       this.developerLinks.getDeveloperYouTubeStatus(),
@@ -515,7 +589,9 @@ export class IpcManager {
         // The preference is already durable. A simultaneous site navigation
         // may destroy the old document before its live update is delivered;
         // the Provider receives the stored value before its next load.
-        console.debug('Live Provider settings refresh was skipped.', error);
+        this.logging
+          .getLogger('ipcManager', 'updatePreferences')
+          .debug('Live Provider settings refresh was skipped.', error);
       });
       this.updates.configure(preferences);
       await this.development.configure(preferences);
@@ -569,6 +645,15 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.application.openLink,
   IPC_CHANNELS.application.openDevTools,
   IPC_CHANNELS.application.openLogDirectory,
+  IPC_CHANNELS.application.openLogRepositoryDirectory,
+  IPC_CHANNELS.application.listLogGroups,
+  IPC_CHANNELS.application.listLogFiles,
+  IPC_CHANNELS.application.readLogFile,
+  IPC_CHANNELS.application.exportLogFiles,
+  IPC_CHANNELS.application.deleteLogFiles,
+  IPC_CHANNELS.application.selectLogImportFiles,
+  IPC_CHANNELS.application.importLogFiles,
+  IPC_CHANNELS.application.cancelLogImport,
   IPC_CHANNELS.application.developerYouTubeStatus,
   IPC_CHANNELS.application.checkForUpdates,
   IPC_CHANNELS.application.getUpdateState,
@@ -621,3 +706,58 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.preferences.previewTheme,
   IPC_CHANNELS.preferences.update,
 ] as const satisfies readonly IpcChannel[];
+
+/** Requires a supported application log repository. */
+function requireLogRepository(value: unknown): ApplicationLogRepository {
+  if (value === 'application' || value === 'external') return value;
+  throw new TypeError('Unknown application log repository.');
+}
+
+/** Requires an optional bounded external log group ID. */
+function requireOptionalLogGroupId(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value === 'string' &&
+    (value === 'ungrouped' || /^LOGSET-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(value))
+  ) {
+    return value;
+  }
+  throw new TypeError('Invalid external log group ID.');
+}
+
+/** Requires a bounded list of application log file references. */
+function requireLogFileReferences(
+  value: unknown,
+): readonly ApplicationLogFileReference[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 128) {
+    throw new TypeError('A bounded log file selection is required.');
+  }
+  return value.map((entry) => {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      !('repository' in entry) ||
+      !('fileName' in entry)
+    ) {
+      throw new TypeError('Invalid log file reference.');
+    }
+    const repository = requireLogRepository(entry.repository);
+    if (
+      typeof entry.fileName !== 'string' ||
+      entry.fileName !== path.basename(entry.fileName) ||
+      !entry.fileName.toLowerCase().endsWith('.log')
+    ) {
+      throw new TypeError('Invalid log file name.');
+    }
+    return {
+      /** The repository value. */
+      repository,
+      /** The file name value. */
+      fileName: entry.fileName,
+      /** The owning external group ID value. */
+      groupId: requireOptionalLogGroupId(
+        'groupId' in entry ? entry.groupId : undefined,
+      ),
+    };
+  });
+}

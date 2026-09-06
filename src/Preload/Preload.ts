@@ -4,6 +4,15 @@ import {
   type ApplicationLinkId,
   type ApplicationInfo,
   type ApplicationDataActionResult,
+  type ApplicationLogDocument,
+  type ApplicationLogDeleteResult,
+  type ApplicationLogExportResult,
+  type ApplicationLogFileReference,
+  type ApplicationLogFileSummary,
+  type ApplicationLogGroupSummary,
+  type ApplicationLogImportResult,
+  type ApplicationLogImportSelection,
+  type ApplicationLogRepository,
   type ApplicationUpdateCheckResult,
   type ApplicationUpdatePanelState,
   type AppLocale,
@@ -64,6 +73,66 @@ const api: KawaikaraRendererApi = {
     /** The open log directory value. */
     openLogDirectory: () =>
       ipcRenderer.invoke(IPC_CHANNELS.application.openLogDirectory),
+    /** The open log repository directory value. */
+    openLogRepositoryDirectory: (
+      repository: ApplicationLogRepository,
+      groupId?: string,
+    ) => ipcRenderer.invoke(
+      IPC_CHANNELS.application.openLogRepositoryDirectory,
+      repository,
+      groupId,
+    ),
+    /** The list log groups value. */
+    listLogGroups: () => ipcRenderer.invoke(
+      IPC_CHANNELS.application.listLogGroups,
+    ) as Promise<ApplicationLogGroupSummary[]>,
+    /** The list log files value. */
+    listLogFiles: (repository: ApplicationLogRepository, groupId?: string) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.listLogFiles,
+        repository,
+        groupId,
+      ) as Promise<ApplicationLogFileSummary[]>,
+    /** The read log file value. */
+    readLogFile: (
+      repository: ApplicationLogRepository,
+      fileName: string,
+      groupId?: string,
+    ) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.readLogFile,
+        repository,
+        fileName,
+        groupId,
+      ) as Promise<ApplicationLogDocument>,
+    /** The export log files value. */
+    exportLogFiles: (files: readonly ApplicationLogFileReference[]) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.exportLogFiles,
+        files,
+      ) as Promise<ApplicationLogExportResult>,
+    /** The delete log files value. */
+    deleteLogFiles: (files: readonly ApplicationLogFileReference[]) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.deleteLogFiles,
+        files,
+      ) as Promise<ApplicationLogDeleteResult>,
+    /** The select log import files value. */
+    selectLogImportFiles: () => ipcRenderer.invoke(
+      IPC_CHANNELS.application.selectLogImportFiles,
+    ) as Promise<ApplicationLogImportSelection>,
+    /** The import log files value. */
+    importLogFiles: (token: string, alias: string) =>
+      ipcRenderer.invoke(
+        IPC_CHANNELS.application.importLogFiles,
+        token,
+        alias,
+      ) as Promise<ApplicationLogImportResult>,
+    /** The cancel log import value. */
+    cancelLogImport: (token: string) => ipcRenderer.invoke(
+      IPC_CHANNELS.application.cancelLogImport,
+      token,
+    ),
     /** The get developer you tube status value. */
     getDeveloperYouTubeStatus: () =>
       ipcRenderer.invoke(

@@ -72,6 +72,7 @@ import type {
   DisplayInfo,
   BundleRuntimeInfo,
   GraphicsMode,
+  LogViewerMessages,
   PreferencePatch,
   PreferenceState,
   SiteMenuItem,
@@ -89,6 +90,7 @@ import { PictureInPictureSizeControl } from '../../Component/PictureInPictureSiz
 import { PictureInPicturePlacementControl } from '../../Component/PictureInPicturePlacementControl';
 import { NumberInput } from '../../Component/NumberInput';
 import { SiteIcon } from '../../Component/SiteIcon';
+import { LogViewer } from '../LogViewer/App';
 import {
   createOrderedSiteGroups,
   getDefaultMenuCategoryShortcut,
@@ -99,8 +101,12 @@ import kawaikaraIcon from '../../../../resources/icons/app-kawaikara.png';
 
 /** Describes the preference view props contract. */
 export interface PreferenceViewProps {
+  /** The initial resolved locale value. */
+  readonly initialLocale: string;
   /** The initial messages value. */
   readonly initialMessages: AppMessages;
+  /** The initial log viewer messages value. */
+  readonly initialLogViewerMessages: LogViewerMessages;
   /** The sites value. */
   readonly sites: readonly SiteMenuItem[];
   /** Callback used to handle on back. */
@@ -184,7 +190,9 @@ const PREFERENCE_ACTION_POLICIES = {
 
 /** Performs the preference view operation. */
 export function PreferenceView({
+  initialLocale,
   initialMessages,
+  initialLogViewerMessages,
   sites,
   onBack,
   onBackHandlerChange,
@@ -221,6 +229,11 @@ export function PreferenceView({
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const [bundleTabActivation, setBundleTabActivation] = useState(0);
   const [messages, setMessages] = useState(initialMessages);
+  const [logViewerMessages, setLogViewerMessages] = useState(
+    initialLogViewerMessages,
+  );
+  const [resolvedLocale, setResolvedLocale] = useState(initialLocale);
+  const [logViewerOpen, setLogViewerOpen] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -266,6 +279,8 @@ export function PreferenceView({
       .then((next) => {
         if (!active) return;
         setMessages(next.app);
+        setLogViewerMessages(next.logViewer);
+        setResolvedLocale(next.locale);
         onMessagesChange?.(next.app);
       })
       .catch((reason: unknown) => {
@@ -440,16 +455,21 @@ export function PreferenceView({
         .catch(() => undefined);
     }
     setDiscardConfirmationOpen(false);
+    setLogViewerOpen(false);
     onBack();
   }, [onBack, onThemePreview, savedPreferences]);
 
   const requestBack = useCallback(() => {
+    if (logViewerOpen) {
+      setLogViewerOpen(false);
+      return;
+    }
     if (hasChanges) {
       setDiscardConfirmationOpen(true);
       return;
     }
     completeBack();
-  }, [completeBack, hasChanges]);
+  }, [completeBack, hasChanges, logViewerOpen]);
 
   useEffect(() => {
     onBackHandlerChange?.(requestBack);
@@ -901,7 +921,7 @@ export function PreferenceView({
         if (event.target === event.currentTarget) requestBack();
       }}
     >
-      <div className="preference-surface">
+      <div className="preference-surface" inert={logViewerOpen ? true : undefined}>
         <Flex className="preference-header" align="center" justify="between" gap="md">
           <div>
             <Head level={1} size="md">
@@ -1113,6 +1133,7 @@ export function PreferenceView({
                     updateCheckResult={updateCheckResult}
                     onCheckForUpdates={checkForUpdates}
                     onOpenLogDirectory={openLogDirectory}
+                    onOpenLogViewer={() => setLogViewerOpen(true)}
                     onOpenLink={openApplicationLink}
                     onUpdate={updateDraft}
                   />
@@ -1164,6 +1185,28 @@ export function PreferenceView({
           ) : null}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {logViewerOpen ? (
+          <motion.div
+            animate={{ opacity: 1, scale: 1, y: 0
+            }}
+            className="log-viewer-motion-shell"
+            exit={{ opacity: 0, scale: 0.985, y: 10
+            }}
+            initial={{ opacity: 0, scale: 0.985, y: 10
+            }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1]
+            }}
+          >
+            <LogViewer
+              locale={resolvedLocale}
+              messages={logViewerMessages}
+              onClose={() => setLogViewerOpen(false)}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {menuOrderEditorOpen && draftPreferences ? (
@@ -3747,6 +3790,7 @@ function AppInfoTab({
   updateCheckResult,
   onCheckForUpdates,
   onOpenLogDirectory,
+  onOpenLogViewer,
   onOpenLink,
   onUpdate,
 }: {
@@ -3768,6 +3812,8 @@ function AppInfoTab({
   readonly onCheckForUpdates: () => void | Promise<void>;
   /** Callback used to handle on open log directory. */
   readonly onOpenLogDirectory: () => void | Promise<void>;
+  /** Callback used to handle on open log viewer. */
+  readonly onOpenLogViewer: () => void;
   /** Callback used to handle on open link. */
   readonly onOpenLink: (id: ApplicationLinkId) => void | Promise<void>;
   /** Callback used to handle on update. */
@@ -3863,13 +3909,18 @@ function AppInfoTab({
                 {messages.diagnosticLogsDescription}
               </Text>
             </Stack>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void onOpenLogDirectory()}
-            >
-              {messages.openLogDirectory}
-            </Button>
+            <Flex className="app-log-actions" align="center" justify="end" gap="xs" wrap>
+              <Button size="sm" variant="secondary" onClick={onOpenLogViewer}>
+                {messages.logViewer}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void onOpenLogDirectory()}
+              >
+                {messages.openLogDirectory}
+              </Button>
+            </Flex>
           </Flex>
         </div>
       ) : null}

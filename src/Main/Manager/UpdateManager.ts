@@ -26,7 +26,7 @@ const CHECK_TIMEOUT_MS = 60_000;
 /** Coordinates update behavior. */
 export class UpdateManager {
   /** The update log value. */
-  private readonly updateLog: ReturnType<LoggingManager['createLogger']>;
+  private readonly updateLog: ReturnType<LoggingManager['getLogger']>;
   /** The preferences value. */
   private preferences?: PreferenceState;
   /** The check request value. */
@@ -44,7 +44,7 @@ export class UpdateManager {
     private readonly windows: WindowManager,
     logging: LoggingManager,
   ) {
-    this.updateLog = logging.createLogger('updates');
+    this.updateLog = logging.getLogger('updates');
     autoUpdater.logger = logging.updaterLogger;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;

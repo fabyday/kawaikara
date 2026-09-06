@@ -31,7 +31,7 @@ export class ApplicationLifecycleManager {
     /** The logging value. */
     private readonly logging: LoggingManager,
     /** The application log value. */
-    private readonly applicationLog: ReturnType<LoggingManager['createLogger']>,
+    private readonly applicationLog: ReturnType<LoggingManager['getLogger']>,
   ) {}
 
   /** Starts the operation. */

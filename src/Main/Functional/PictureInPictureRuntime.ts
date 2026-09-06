@@ -40,6 +40,8 @@ export interface PictureInPictureVideoCandidate {
 
 /** Describes the unified picture in picture state contract. */
 export interface UnifiedPictureInPictureState {
+  /** The currently applied video aspect ratio value. */
+  aspectRatio?: number;
   /** Whether the closing option is enabled. */
   closing: boolean;
   /** Whether the controls visible option is enabled. */
@@ -62,6 +64,8 @@ export interface UnifiedPictureInPictureState {
     /** The window y value. */
     readonly windowY: number;
   };
+  /** The aspect ratio waiting for an active drag to finish. */
+  pendingAspectRatio?: number;
   /** Callback used to handle console listener. */
   readonly consoleListener: (
     details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
@@ -93,6 +97,13 @@ export interface UnifiedPictureInPictureState {
   readonly videoRefreshTimers: Set<ReturnType<typeof setTimeout>>;
   /** Whether the refreshing video option is enabled. */
   refreshingVideo: boolean;
+  /** The active smooth resize animation value. */
+  resizeAnimation?: {
+    /** The scheduled animation timer value. */
+    timer?: ReturnType<typeof setTimeout>;
+    /** The aspect ratio reached at the end of the animation. */
+    readonly targetAspectRatio: number;
+  };
   /** The hover timer value. */
   hoverTimer?: ReturnType<typeof setInterval>;
 }

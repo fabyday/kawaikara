@@ -18,8 +18,12 @@ const meta = {
     layout: 'fullscreen' },
   /** The args value. */
   args: {
+    /** The initial locale value. */
+    initialLocale: STORY_MESSAGES.locale,
     /** The initial messages value. */
     initialMessages: STORY_MESSAGES.app,
+    /** The initial log viewer messages value. */
+    initialLogViewerMessages: STORY_MESSAGES.logViewer,
     /** The sites value. */
     sites: STORY_SITES,
     /** The on back value. */

@@ -577,6 +577,8 @@ export interface AppMessages {
   readonly diagnosticLogsDescription: string;
   /** The open log directory value. */
   readonly openLogDirectory: string;
+  /** The log viewer value. */
+  readonly logViewer: string;
   /** The developer links value. */
   readonly developerLinks: string;
   /** The website value. */
@@ -601,6 +603,138 @@ export interface AppMessages {
   readonly plugins: string;
   /** The sites value. */
   readonly sites: string;
+}
+
+/** Describes the log viewer messages contract. */
+export interface LogViewerMessages {
+  /** The title value. */
+  readonly title: string;
+  /** The description value. */
+  readonly description: string;
+  /** The close value. */
+  readonly close: string;
+  /** The search value. */
+  readonly search: string;
+  /** The search placeholder value. */
+  readonly searchPlaceholder: string;
+  /** The log levels value. */
+  readonly levels: string;
+  /** The log sources value. */
+  readonly sources: string;
+  /** The select all value. */
+  readonly selectAll: string;
+  /** The clear all value. */
+  readonly clearAll: string;
+  /** The current log value. */
+  readonly current: string;
+  /** The loading value. */
+  readonly loading: string;
+  /** The no files value. */
+  readonly noFiles: string;
+  /** The no entries value. */
+  readonly noEntries: string;
+  /** The truncated value. */
+  readonly truncated: string;
+  /** The refresh value. */
+  readonly refresh: string;
+  /** The application repository value. */
+  readonly applicationRepository: string;
+  /** The external repository value. */
+  readonly externalRepository: string;
+  /** The import logs value. */
+  readonly importLogs: string;
+  /** The import result value. */
+  readonly importResult: string;
+  /** The external group search value. */
+  readonly groupSearch: string;
+  /** The external group search placeholder value. */
+  readonly groupSearchPlaceholder: string;
+  /** The unnamed external group value. */
+  readonly unnamedGroup: string;
+  /** The empty external group list value. */
+  readonly noGroups: string;
+  /** The external group log count value. */
+  readonly groupLogCount: string;
+  /** The export one log value. */
+  readonly exportLog: string;
+  /** The export multiple logs value. */
+  readonly exportLogs: string;
+  /** The open selected log folder value. */
+  readonly openLogFolder: string;
+  /** The delete one log value. */
+  readonly deleteLog: string;
+  /** The delete multiple logs value. */
+  readonly deleteLogs: string;
+  /** The active log deletion unavailable value. */
+  readonly activeLogDeleteUnavailable: string;
+  /** The delete confirmation title value. */
+  readonly deleteConfirmTitle: string;
+  /** The delete confirmation description value. */
+  readonly deleteConfirmDescription: string;
+  /** The delete confirmation action value. */
+  readonly deleteConfirm: string;
+  /** The generic cancel action value. */
+  readonly cancel: string;
+  /** The import alias title value. */
+  readonly importAliasTitle: string;
+  /** The import alias description value. */
+  readonly importAliasDescription: string;
+  /** The import alias label value. */
+  readonly importAliasLabel: string;
+  /** The import alias placeholder value. */
+  readonly importAliasPlaceholder: string;
+  /** The staged import input count value. */
+  readonly importInputCount: string;
+  /** The confirm import action value. */
+  readonly confirmImport: string;
+  /** The stop import confirmation title value. */
+  readonly stopImportTitle: string;
+  /** The stop import confirmation description value. */
+  readonly stopImportDescription: string;
+  /** The stop import action value. */
+  readonly stopImport: string;
+  /** The continue import action value. */
+  readonly continueImport: string;
+  /** The log deletion result value. */
+  readonly deleteResult: string;
+  /** The log export completed value. */
+  readonly exportCompleted: string;
+  /** The time display mode toggle value. */
+  readonly changeTimeFormat: string;
+  /** The time column value. */
+  readonly timeColumn: string;
+  /** The log type column value. */
+  readonly typeColumn: string;
+  /** The location column value. */
+  readonly locationColumn: string;
+  /** The message column value. */
+  readonly messageColumn: string;
+  /** The metadata value. */
+  readonly metadata: string;
+  /** The metadata unavailable value. */
+  readonly metadataUnavailable: string;
+  /** The copy value. */
+  readonly copy: string;
+  /** The copied value. */
+  readonly copied: string;
+  /** The application name metadata value. */
+  readonly metadataApplication: string;
+  /** The version metadata value. */
+  readonly metadataVersion: string;
+  /** The channel metadata value. */
+  readonly metadataChannel: string;
+  /** The platform metadata value. */
+  readonly metadataPlatform: string;
+  /** The Site API metadata value. */
+  readonly metadataSiteApi: string;
+  /** The runtime metadata value. */
+  readonly metadataRuntime: string;
+  /** The session metadata value. */
+  readonly metadataSession: string;
+  /** The created at metadata value. */
+  readonly metadataCreatedAt: string;
+  /** The device ID metadata value. */
+  readonly metadataDeviceId: string;
 }
 
 /** Describes the video messages contract. */
@@ -771,6 +905,8 @@ export interface RendererMessages {
   readonly locale: string;
   /** The app value. */
   readonly app: AppMessages;
+  /** The log viewer value. */
+  readonly logViewer: LogViewerMessages;
   /** The video value. */
   readonly video: VideoMessages;
   /** The video browser value. */
@@ -783,6 +919,8 @@ export interface RendererMessages {
 interface RendererLocaleMessages {
   /** The app value. */
   readonly app: AppMessages;
+  /** The log viewer value. */
+  readonly logViewer: LogViewerMessages;
   /** The video value. */
   readonly video: VideoMessages;
   /** The video browser value. */
@@ -821,6 +959,8 @@ export function getRendererMessages(
     locale: resolved,
     /** The app value. */
     app: messages.app,
+    /** The log viewer value. */
+    logViewer: messages.logViewer,
     /** The video value. */
     video: messages.video,
     /** The video browser value. */

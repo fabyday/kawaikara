@@ -360,6 +360,8 @@ export interface KawaikaraMockOptions {
   readonly currentSiteId?: string;
   /** Whether the update available option is enabled. */
   readonly updateAvailable?: boolean;
+  /** The number of application log files returned to stories. */
+  readonly logFileCount?: number;
 }
 
 /** Installs the Kawaikara mock. */
@@ -383,6 +385,22 @@ export function installKawaikaraMock(
   };
   let overlayVisible = false;
   let currentSiteId = options.currentSiteId ?? 'kawaikara.youtube';
+  const applicationLogFiles = Array.from(
+    { length: options.logFileCount ?? 2
+    },
+    (_value, index) => ({
+      /** The repository value. */
+      repository: 'application' as const,
+      /** The file name value. */
+      fileName: `2026-09-05-${String((options.logFileCount ?? 2) - index - 1)}.log`,
+      /** The byte size value. */
+      size: 18_420 - Math.min(index * 120, 8_000),
+      /** The modified timestamp value. */
+      modifiedAt: new Date(Date.now() - index * 60_000).toISOString(),
+      /** Whether this is the active log value. */
+      active: index === 0,
+    }),
+  );
   const hiddenHandlers = new Set<() => void>();
   const menuHandlers = new Set<() => void>();
   const preferenceHandlers = new Set<() => void>();
@@ -495,7 +513,7 @@ export function installKawaikaraMock(
         siteApiVersion: 1,
         electronVersion: '35.2.2',
         chromeVersion: '134.0.0.0',
-        platform: 'darwin',
+        platform: 'macOS 15.4',
         arch: 'arm64',
         buildChannel,
         updateChannelLocked: true,
@@ -525,6 +543,156 @@ export function installKawaikaraMock(
       openLink: async () => undefined,
       openDevTools: async () => undefined,
       openLogDirectory: async () => undefined,
+      openLogRepositoryDirectory: async () => undefined,
+      listLogGroups: async () => [
+        {
+          id: 'LOGSET-A1B2-C3D4',
+          alias: 'Support Mac',
+          sourceDeviceIds: ['KAWA-12AB-34CD'],
+          importedAt: new Date(Date.now() - 3_600_000).toISOString(),
+          fileCount: 2,
+        },
+        {
+          id: 'LOGSET-E5F6-G7H8',
+          alias: '',
+          sourceDeviceIds: [],
+          importedAt: new Date(Date.now() - 86_400_000).toISOString(),
+          fileCount: 1,
+        },
+      ],
+      listLogFiles: async (repository, groupId) => repository === 'application'
+        ? applicationLogFiles
+        : groupId === 'LOGSET-A1B2-C3D4'
+          ? [
+              {
+                repository,
+                groupId,
+                fileName: 'support-session.log',
+                size: 12_280,
+                modifiedAt: new Date(Date.now() - 3_600_000).toISOString(),
+                active: false,
+              },
+              {
+                repository,
+                groupId,
+                fileName: 'support-renderer.log',
+                size: 8_120,
+                modifiedAt: new Date(Date.now() - 3_660_000).toISOString(),
+                active: false,
+              },
+            ]
+          : groupId
+            ? [{
+                repository,
+                groupId,
+                fileName: 'raw.log',
+                size: 4_280,
+                modifiedAt: new Date(Date.now() - 86_400_000).toISOString(),
+                active: false,
+              }]
+            : [],
+      readLogFile: async (repository, fileName, groupId) => ({
+        file: {
+          repository,
+          fileName,
+          groupId,
+          size: 18_420,
+          modifiedAt: new Date().toISOString(),
+          active:
+            repository === 'application' &&
+            fileName === applicationLogFiles[0]?.fileName,
+        },
+        metadata: {
+          schemaVersion: 1,
+          sessionId: 'storybook-log-session',
+          applicationName: 'Kawaikara',
+          version: appVersion,
+          channel: buildChannel,
+          platform: 'macOS 15.4',
+          arch: 'arm64',
+          siteApiVersion: 1,
+          createdAt: new Date().toISOString(),
+          deviceId: 'KAWA-12AB-34CD',
+          runtime: {
+            electron: '35.2.2',
+            chrome: '134.0.0.0',
+            node: '22.14.0',
+            v8: '13.4.114.16',
+          },
+          sources: [
+            { id: 'application', scope: 'application', label: 'Application'
+            },
+            {
+              id: 'renderer-viewer',
+              scope: 'renderer:viewer',
+              label: 'Viewer Renderer',
+            },
+            {
+              id: 'window-manager',
+              scope: 'window-manager',
+              label: 'WindowManager',
+            },
+          ],
+        },
+        entries: [
+          {
+            id: '1',
+            timestamp: '2026-09-05 14:32:00.120',
+            level: 'info',
+            source: 'application',
+            location: 'Application',
+            message: 'Log session started.',
+          },
+          {
+            id: '2',
+            timestamp: '2026-09-05 14:32:01.480',
+            level: 'debug',
+            source: 'renderer-viewer',
+            location: 'Viewer Renderer.viewer.js:2',
+            message: 'Viewer renderer loaded.',
+          },
+          {
+            id: '3',
+            timestamp: '2026-09-05 14:32:03.015',
+            level: 'warn',
+            source: 'window-manager',
+            location: 'WindowManager',
+            message: 'Example diagnostic warning.',
+          },
+        ],
+        truncated: false,
+      }),
+      exportLogFiles: async () => ({ status: 'exported', path: 'C:\\Logs\\support.kawailog'
+      }),
+      deleteLogFiles: async (files) => ({ deleted: files.length, skipped: []
+      }),
+      selectLogImportFiles: async () => ({
+        status: 'ready',
+        token: 'storybook-import-token',
+        inputCount: 3,
+      }),
+      importLogFiles: async (_token, alias) => ({
+        status: 'completed',
+        group: {
+          id: 'LOGSET-I9J0-K1L2',
+          alias,
+          sourceDeviceIds: ['KAWA-56EF-78GH'],
+          importedAt: new Date().toISOString(),
+          fileCount: 1,
+        },
+        imported: [
+          {
+            repository: 'external',
+            groupId: 'LOGSET-I9J0-K1L2',
+            fileName: 'support-session.log',
+            size: 12_280,
+            modifiedAt: new Date().toISOString(),
+            active: false,
+          },
+        ],
+        rejected: [],
+      }),
+      cancelLogImport: async () => undefined,
       getDeveloperYouTubeStatus: async () => ({
         isLive: true,
         checkedAt: new Date().toISOString(),

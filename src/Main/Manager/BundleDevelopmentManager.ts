@@ -60,7 +60,7 @@ export class BundleDevelopmentManager {
     private readonly stateFilePath: string,
     logging: LoggingManager,
   ) {
-    this.logger = logging.createLogger('bundle-development');
+    this.logger = logging.getLogger('bundleDevelopment');
   }
 
   /** Initializes the operation. */
