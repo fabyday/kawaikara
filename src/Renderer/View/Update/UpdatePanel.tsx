@@ -138,8 +138,7 @@ export function UpdatePanel({
 
           <UpdateActions
             labels={labels}
-            origin={state.origin}
-            phase={state.phase}
+            state={state}
             onDismiss={onDismiss}
             onDownload={onDownload}
             onInstall={onInstall}
@@ -191,6 +190,16 @@ interface UpdatePanelLabels {
   readonly errorTitle: string;
   /** The error description value. */
   readonly errorDescription: string;
+  /** The download error title value. */
+  readonly downloadErrorTitle: string;
+  /** The download error description value. */
+  readonly downloadErrorDescription: string;
+  /** The signature error description value. */
+  readonly signatureErrorDescription: string;
+  /** The installation error title value. */
+  readonly installErrorTitle: string;
+  /** The installation error description value. */
+  readonly installErrorDescription: string;
   /** The release notes value. */
   readonly releaseNotes: string;
   /** The no release notes value. */
@@ -306,8 +315,7 @@ function ReleaseNotesContent({ notes }: {
 /** Updates the actions. */
 function UpdateActions({
   labels,
-  origin,
-  phase,
+  state,
   onDismiss,
   onDownload,
   onInstall,
@@ -315,10 +323,8 @@ function UpdateActions({
 }: {
   /** The labels value. */
   readonly labels: UpdatePanelLabels;
-  /** The origin value. */
-  readonly origin: ApplicationUpdatePanelState['origin'];
-  /** The phase value. */
-  readonly phase: ApplicationUpdatePanelState['phase'];
+  /** The state value. */
+  readonly state: ApplicationUpdatePanelState;
   /** Callback used to handle on dismiss. */
   readonly onDismiss: () => void;
   /** Callback used to handle on download. */
@@ -329,6 +335,7 @@ function UpdateActions({
   readonly onRetry: () => void | Promise<void>;
 }
 ) {
+  const { phase } = state;
   if (phase === 'available') {
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
@@ -338,7 +345,7 @@ function UpdateActions({
     );
   }
   if (phase === 'downloaded') {
-    if (origin === 'automatic') return null;
+    if (state.origin === 'automatic') return null;
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
         <Button variant="ghost" onClick={onDismiss}>{labels.later}</Button>
@@ -347,12 +354,16 @@ function UpdateActions({
     );
   }
   if (phase === 'error') {
+    const canRetry = state.errorStage !== 'install'
+      && state.errorCode !== 'ERR_UPDATER_INVALID_SIGNATURE';
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
         <Button variant="ghost" onClick={onDismiss}>{labels.close}</Button>
-        <Button variant="secondary" onClick={() => void onRetry()}>
-          {labels.retry}
-        </Button>
+        {canRetry ? (
+          <Button variant="secondary" onClick={() => void onRetry()}>
+            {labels.retry}
+          </Button>
+        ) : null}
       </Flex>
     );
   }
@@ -428,6 +439,24 @@ function getPhaseCopy(
         description: labels.unsupportedDescription,
       };
     case 'error':
+      if (state.errorStage === 'install') {
+        return {
+          /** The title value. */
+          title: labels.installErrorTitle,
+          /** The description value. */
+          description: labels.installErrorDescription,
+        };
+      }
+      if (state.errorStage === 'download') {
+        return {
+          /** The title value. */
+          title: labels.downloadErrorTitle,
+          /** The description value. */
+          description: state.errorCode === 'ERR_UPDATER_INVALID_SIGNATURE'
+            ? labels.signatureErrorDescription
+            : labels.downloadErrorDescription,
+        };
+      }
       return {
         /** The title value. */
         title: labels.errorTitle,
@@ -557,6 +586,16 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
       errorTitle: '업데이트를 확인하지 못했습니다',
         /** The error description value. */
         errorDescription: '네트워크 연결을 확인한 뒤 다시 시도해 주세요.',
+      /** The download error title value. */
+      downloadErrorTitle: '업데이트 다운로드에 실패했습니다',
+      /** The download error description value. */
+      downloadErrorDescription: '다운로드 또는 파일 검증에 실패했습니다. 오류를 확인한 뒤 다시 시도해 주세요.',
+      /** The signature error description value. */
+      signatureErrorDescription: '설치 파일의 서명을 검증하지 못했습니다. 동일한 파일을 다시 받아도 해결되지 않으므로 인증서와 오류 로그를 확인해 주세요.',
+      /** The installation error title value. */
+      installErrorTitle: '업데이트 설치를 시작하지 못했습니다',
+      /** The installation error description value. */
+      installErrorDescription: '앱은 계속 사용할 수 있습니다. 오류 로그를 확인한 뒤 다시 시도해 주세요.',
       /** The release notes value. */
       releaseNotes: '업데이트 내역',
         /** The no release notes value. */
@@ -621,6 +660,16 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
       errorTitle: 'アップデートを確認できませんでした',
         /** The error description value. */
         errorDescription: '接続を確認してもう一度お試しください。',
+      /** The download error title value. */
+      downloadErrorTitle: 'アップデートのダウンロードに失敗しました',
+      /** The download error description value. */
+      downloadErrorDescription: 'ダウンロードまたはファイル検証に失敗しました。エラーを確認してください。',
+      /** The signature error description value. */
+      signatureErrorDescription: 'インストーラーの署名を検証できませんでした。同じファイルを再度ダウンロードしても解決しないため、証明書とログを確認してください。',
+      /** The installation error title value. */
+      installErrorTitle: 'アップデートのインストールを開始できませんでした',
+      /** The installation error description value. */
+      installErrorDescription: 'アプリは引き続き使用できます。ログを確認してから再試行してください。',
       /** The release notes value. */
       releaseNotes: '更新内容',
         /** The no release notes value. */
@@ -684,6 +733,16 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
     errorTitle: 'Unable to check for updates',
       /** The error description value. */
       errorDescription: 'Check your connection and try again.',
+    /** The download error title value. */
+    downloadErrorTitle: 'Unable to download the update',
+    /** The download error description value. */
+    downloadErrorDescription: 'The download or file verification failed. Check the error before retrying.',
+    /** The signature error description value. */
+    signatureErrorDescription: 'The installer signature could not be verified. Downloading the same file again will not help; check the certificate and update log.',
+    /** The installation error title value. */
+    installErrorTitle: 'Unable to start update installation',
+    /** The installation error description value. */
+    installErrorDescription: 'You can keep using the app. Check the update log before trying again.',
     /** The release notes value. */
     releaseNotes: 'What is new',
       /** The no release notes value. */

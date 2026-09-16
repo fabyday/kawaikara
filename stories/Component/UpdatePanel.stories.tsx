@@ -238,3 +238,31 @@ export const Error = {
     },
   },
 } satisfies Story;
+
+/** Reproduces the long Windows signature-verification error after download. */
+export const SignatureVerificationError = {
+  /** The args value. */
+  args: {
+    /** The locale value. */
+    locale: 'ko-KR',
+    /** The state value. */
+    state: {
+      /** The phase value. */
+      phase: 'error',
+      /** The origin value. */
+      origin: 'automatic',
+      /** The channel value. */
+      channel: 'nightly',
+      /** The current version value. */
+      currentVersion: '3.0.0-nightly.local.1',
+      /** The latest version value. */
+      latestVersion: '3.0.0-nightly.local.2',
+      /** The error stage value. */
+      errorStage: 'download',
+      /** The error code value. */
+      errorCode: 'ERR_UPDATER_INVALID_SIGNATURE',
+      /** The error value. */
+      error: `New version is not signed by the application owner:\n${'publisherNames: CN=Kawaikara, raw info: signature is not trusted. '.repeat(35)}`,
+    },
+  },
+} satisfies Story;

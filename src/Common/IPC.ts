@@ -715,6 +715,10 @@ export interface ApplicationUpdatePanelState {
   readonly progress?: ApplicationUpdateProgress;
   /** The error value. */
   readonly error?: string;
+  /** The update step that failed. */
+  readonly errorStage?: 'check' | 'download' | 'install';
+  /** A machine-readable updater error code, when provided. */
+  readonly errorCode?: string;
 }
 
 /** Defines the app locale type. */

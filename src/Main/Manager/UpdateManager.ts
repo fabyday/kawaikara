@@ -17,6 +17,7 @@ import {
   normalizeUpdateProgress,
   type ApplicationUpdateSignal,
 } from '../Functional/ApplicationUpdates';
+import { resolveLocalUpdateFeed } from '../Functional/LocalUpdateFeed';
 import type { LoggingManager } from './LoggingManager';
 import type { WindowManager } from './WindowManager';
 
@@ -58,13 +59,24 @@ export class UpdateManager {
 
   /** Applies the build channel. */
   private applyBuildChannel(): void {
-    const repository = UPDATE_REPOSITORIES[BUILD_CHANNEL];
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: repository.owner,
-      repo: repository.repo,
-      channel: toUpdaterChannel(BUILD_CHANNEL),
-    });
+    const localFeed = resolveLocalUpdateFeed(process.env.KAWAIKARA_LOCAL_UPDATE_URL);
+    if (localFeed) {
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: localFeed,
+        channel: toUpdaterChannel(BUILD_CHANNEL),
+        useMultipleRangeRequest: false,
+      });
+      this.updateLog.info(`Using local ${BUILD_CHANNEL} update feed: ${localFeed}`);
+    } else {
+      const repository = UPDATE_REPOSITORIES[BUILD_CHANNEL];
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: repository.owner,
+        repo: repository.repo,
+        channel: toUpdaterChannel(BUILD_CHANNEL),
+      });
+    }
     autoUpdater.channel = toUpdaterChannel(BUILD_CHANNEL);
     autoUpdater.allowPrerelease = BUILD_CHANNEL !== 'stable';
     // A package can only advance inside the repository/channel it was built
@@ -120,8 +132,41 @@ export class UpdateManager {
     if (this.currentState?.phase !== 'downloaded' || this.installingUpdate) {
       return;
     }
+    const downloaded = this.currentState;
     this.installingUpdate = true;
-    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    const isSilent = downloaded.origin === 'automatic' && process.platform === 'win32';
+    this.updateLog.info('Starting application update installation.', {
+      currentVersion: downloaded.currentVersion,
+      targetVersion: downloaded.latestVersion,
+      channel: downloaded.channel,
+      platform: process.platform,
+      isSilent,
+    });
+    /** Restores the panel if the updater cannot start the installer. */
+    const onInstallError = (reason: Error) => {
+      if (!this.installingUpdate) return;
+      this.installingUpdate = false;
+      const error = reason instanceof Error ? reason.message : String(reason);
+      this.updateLog.error('Update installer failed to start.', error);
+      this.updateState({
+        ...downloaded,
+        phase: 'error',
+        errorStage: 'install',
+        errorCode: getUpdaterErrorCode(reason),
+        error,
+      });
+    };
+    autoUpdater.once('error', onInstallError);
+    setImmediate(() => {
+      try {
+        // Silent NSIS installation is required for an unattended automatic
+        // update. Manual checks still show the installer UI on Windows.
+        autoUpdater.quitAndInstall(isSilent, true);
+      } catch (reason) {
+        autoUpdater.off('error', onInstallError);
+        onInstallError(reason instanceof Error ? reason : new Error(String(reason)));
+      }
+    });
   }
 
   /** Performs the check for updates internal operation. */
@@ -226,6 +271,8 @@ export class UpdateManager {
         channel: BUILD_CHANNEL,
         currentVersion,
         error,
+        errorStage: 'check',
+        errorCode: getUpdaterErrorCode(reason),
       };
       this.finishCheckState(failedState);
       return {
@@ -354,6 +401,8 @@ export class UpdateManager {
         ...available,
         phase: 'error',
         error,
+        errorStage: 'download',
+        errorCode: getUpdaterErrorCode(reason),
       };
       this.updateState(failed);
       return failed;
@@ -387,4 +436,10 @@ export class UpdateManager {
     // update panel. Keep the result available for diagnostics only.
     this.currentState = state;
   }
+}
+
+/** Returns the updater's machine-readable error code when present. */
+function getUpdaterErrorCode(reason: unknown): string | undefined {
+  if (!reason || typeof reason !== 'object' || !('code' in reason)) return undefined;
+  return typeof reason.code === 'string' ? reason.code : undefined;
 }

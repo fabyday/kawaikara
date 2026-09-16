@@ -41,6 +41,8 @@
     "update:publish:stable": "node scripts/package-channel.cjs stable always",
     "update:publish:staging": "node scripts/package-channel.cjs staging always",
     "update:publish:nightly": "node scripts/package-channel.cjs nightly always",
+    "update:test:server": "node scripts/local-update-server.cjs",
+    "update:test:unit": "node --experimental-strip-types --test tests/local-update-server.test.cjs tests/local-update-feed.test.cjs",
     "dist:stable": "pnpm update:build:stable",
     "dist:staging": "pnpm update:build:staging",
     "dist:nightly": "pnpm update:build:nightly",
