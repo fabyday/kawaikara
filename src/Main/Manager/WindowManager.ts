@@ -27,6 +27,8 @@ import type {
   SiteExternalBrowser,
   SiteLogger,
   SiteViewer,
+  PictureInPictureSubtitleController,
+  ProviderPictureInPictureSession,
 } from '@kawaikara/site-api';
 import {
   createChromiumClientHints,
@@ -620,6 +622,11 @@ export class WindowManager {
     allowPictureInPicture(url: string): boolean;
     /** Returns the picture in picture content overlay selectors. */
     getPictureInPictureContentOverlaySelectors(): readonly string[];
+    /** Create a frame-scoped Provider subtitle adapter. */
+    createPictureInPictureSubtitleController(
+      session: ProviderPictureInPictureSession,
+    ): PictureInPictureSubtitleController | undefined |
+      Promise<PictureInPictureSubtitleController | undefined>;
     /** Performs the transform request operation. */
     transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined;
     /** Performs the transform request headers operation. */
@@ -634,6 +641,9 @@ export class WindowManager {
     this.pictureInPictureGuard = handlers.allowPictureInPicture;
     this.pictureInPictureContentOverlaySelectors =
       handlers.getPictureInPictureContentOverlaySelectors;
+    this.pictureInPicture.setSubtitleControllerFactory(
+      (session) => handlers.createPictureInPictureSubtitleController(session),
+    );
     this.requestTransformer = handlers.transformRequest;
     this.requestHeadersTransformer = handlers.transformRequestHeaders;
   }
@@ -671,6 +681,7 @@ export class WindowManager {
     this.navigationGuard = undefined;
     this.pictureInPictureGuard = undefined;
     this.pictureInPictureContentOverlaySelectors = undefined;
+    this.pictureInPicture.setSubtitleControllerFactory(undefined);
     this.pictureInPictureStateHandler = undefined;
     this.requestTransformer = undefined;
     this.requestHeadersTransformer = undefined;
@@ -1048,6 +1059,60 @@ export class WindowManager {
     }
   }
 
+  /** Flushes Chromium data and releases MPV without destroying interactive app managers. */
+  async prepareForUpdateInstallation(): Promise<void> {
+    await this.exitInternalVideoPictureInPicture(false);
+    await this.pictureInPicture.exitAllModes();
+    const sessions = new Set([session.defaultSession]);
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) sessions.add(window.webContents.session);
+    }
+    if (this.siteView && !this.siteView.webContents.isDestroyed()) {
+      sessions.add(this.siteView.webContents.session);
+    }
+    await Promise.all([...sessions].map(async (current) => {
+      current.flushStorageData();
+      await current.cookies.flushStore();
+    }));
+    const video = this.videoWindow;
+    if (video && !video.isDestroyed()) {
+      await this.mpv.detachWindow(video);
+      this.videoWindow = undefined;
+      // Unlink first so the closed handler does not clear Provider visibility;
+      // recovery needs to know which surface the user was interacting with.
+      video.destroy();
+      this.internalVideoPresentation = { ready: false, width: 0, height: 0 };
+    }
+    // Native installer quit must not be cancelled by the ordinary asynchronous
+    // title-bar close path. Reset this gate when installer startup fails.
+    this.viewerClosePrepared = true;
+  }
+
+  /** Recreates detached Video resources and leaves the error overlay dismissible. */
+  async recoverAfterFailedUpdate(): Promise<void> {
+    this.viewerClosePrepared = false;
+    if (this.disposing) return;
+    const existing = this.videoWindow;
+    if (existing && !existing.isDestroyed()) {
+      // detachWindow can fail after removing its ownership listener. Recreate
+      // that surface as well instead of leaving its renderer bound to dead MPV.
+      await this.mpv.detachWindow(existing).catch((reason: unknown) => {
+        this.logger.warn('Could not detach the failed update Video surface.', reason);
+      });
+      this.videoWindow = undefined;
+      existing.destroy();
+    }
+    if (this.internalVideoVisible) {
+      // The new renderer reads currentVideoOpenRequest through normal IPC;
+      // do not enqueue an older local file over the user's current HLS source.
+      const video = await this.ensureVideoWindow();
+      this.syncVideoWindowBounds();
+      this.setInternalVideoSiteVisibility(video, true);
+    } else {
+      await this.prepareInternalVideoView();
+    }
+  }
+
   /** Prepares the viewer window close. */
   private async prepareViewerWindowClose(viewer: BrowserWindow): Promise<void> {
     this.disposing = true;
@@ -1355,6 +1420,11 @@ export class WindowManager {
   ): void {
     this.pictureInPicturePortraitSize = preference;
     this.pictureInPicture.setPortraitWindowSize(preference);
+  }
+
+  /** Apply the common subtitle multiplier to Provider-managed PiP. */
+  setPictureInPictureSubtitleScale(scale: number): Promise<void> {
+    return this.pictureInPicture.setSubtitleScale(scale);
   }
 
   /** Sets the picture in picture placement. */

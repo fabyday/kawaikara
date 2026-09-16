@@ -1,12 +1,23 @@
-import { AbstractUrlProvider, provider } from '@kawaikara/site-api';
+import {
+    AbstractUrlProvider,
+    provider,
+    type PictureInPictureSubtitleController,
+    type ProviderPictureInPictureSession,
+} from '@kawaikara/site-api';
 
 /** Implements the disney plus site provider. */
-@provider({
-  pictureInPicture: {
-    contentOverlaySelectors: ['[class*="dss-subtitle" i]'],
-  },
-})
+@provider({})
 export class DisneyPlusProvider extends AbstractUrlProvider {
-  /** The URL value. */
-  protected readonly url = 'https://www.disneyplus.com/';
+    /** The URL value. */
+    protected readonly url = 'https://www.disneyplus.com/';
+
+    /** Configure this player's captions through the shared, reversible PiP API. */
+    createPictureInPictureSubtitleController(
+        session: ProviderPictureInPictureSession,
+    ): PictureInPictureSubtitleController {
+        return session.createDomSubtitleController({
+            /** Caption layers specific to this player. */
+            overlaySelectors: ['[class*="dss-subtitle" i]'],
+        });
+    }
 }

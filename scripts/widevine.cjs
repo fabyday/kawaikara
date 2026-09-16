@@ -1,5 +1,6 @@
 const path = require('node:path');
-const { existsSync, readdirSync } = require('node:fs');
+const { existsSync } = require('node:fs');
+const { findPackageDirectories } = require('./lib/packaged-apps.cjs');
 const {
   describeEvsRunner,
   resolveEvsRunner,
@@ -15,9 +16,9 @@ const command = process.argv[2];
 if (command === 'auth') {
   authenticate();
 } else if (command === 'verify') {
-  verifyDevelopmentPackage();
+  verifyPackages(process.argv[3]);
 } else {
-  throw new Error('Usage: node scripts/widevine.cjs <auth|verify>');
+  throw new Error('Usage: node scripts/widevine.cjs <auth|verify [package-output-directory]>');
 }
 
 function authenticate() {
@@ -40,11 +41,11 @@ function authenticate() {
   console.log('Castlabs EVS authentication completed.');
 }
 
-function verifyDevelopmentPackage() {
+function verifyPackages(requestedDirectory) {
   const platform = { darwin: 'mac', linux: 'linux', win32: 'win' }[
     process.platform
   ];
-  const packageDirectory = path.join(
+  const packageDirectory = requestedDirectory ? path.resolve(root, requestedDirectory) : path.join(
     root,
     'builds',
     'dev',
@@ -53,37 +54,15 @@ function verifyDevelopmentPackage() {
   );
   if (!existsSync(packageDirectory)) {
     throw new Error(
-      `Development package not found at ${packageDirectory}. Run \`pnpm package:dev\` first.`,
+      `Package output not found at ${packageDirectory}. Build the requested package first.`,
     );
   }
-  const executableDirectory = findExecutableDirectory(packageDirectory);
-  if (!executableDirectory) {
+  const executableDirectories = findPackageDirectories(packageDirectory, process.platform);
+  if (executableDirectories.length === 0) {
     throw new Error(`Packaged executable not found below ${packageDirectory}.`);
   }
-  verifyPackage(executableDirectory);
-  console.log(`Widevine VMP package verified: ${executableDirectory}`);
-}
-
-function findExecutableDirectory(directory) {
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const entryPath = path.join(directory, entry.name);
-    if (
-      (process.platform === 'darwin' &&
-        entry.isDirectory() &&
-        entry.name === 'Kawaikara Dev.app') ||
-      (process.platform === 'win32' &&
-        entry.isFile() &&
-        entry.name === 'Kawaikara Dev.exe') ||
-      (process.platform === 'linux' &&
-        entry.isFile() &&
-        entry.name === 'kawaikara')
-    ) {
-      return directory;
-    }
-    if (entry.isDirectory()) {
-      const nested = findExecutableDirectory(entryPath);
-      if (nested) return nested;
-    }
+  for (const executableDirectory of executableDirectories) {
+    verifyPackage(executableDirectory);
+    console.log(`Widevine VMP package verified: ${executableDirectory}`);
   }
-  return undefined;
 }

@@ -48,6 +48,51 @@ export default meta;
 /** Defines the story type. */
 type Story = StoryObj<typeof meta>;
 
+/** Shows native validation separately from a completed download. */
+export const PreparingInstallation: Story = {
+  /** The component arguments. */
+  args: {
+    /** The update status. */
+    state: {
+      ...meta.args.state,
+      /** The native verification phase. */
+      phase: 'preparing',
+    },
+  },
+};
+
+/** Shows the final installer handoff without another restart button. */
+export const Installing: Story = {
+  /** The component arguments. */
+  args: {
+    /** The update status. */
+    state: {
+      ...meta.args.state,
+      /** The installer handoff phase. */
+      phase: 'installing',
+    },
+  },
+};
+
+/** Shows a retry that reuses the cached package instead of downloading again. */
+export const RecoverableInstallError: Story = {
+  /** The component arguments. */
+  args: {
+    /** The update status. */
+    state: {
+      ...meta.args.state,
+      /** The failed status. */
+      phase: 'error',
+      /** The installer startup stage. */
+      errorStage: 'install',
+      /** The diagnostic message. */
+      error: 'The installer could not be started. The app is still usable.',
+      /** Reuses the existing download for another handoff. */
+      canRetryInstall: true,
+    },
+  },
+};
+
 /** Stores the update available value. */
 export const UpdateAvailable = {} satisfies Story;
 

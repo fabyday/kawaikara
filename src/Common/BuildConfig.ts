@@ -7,6 +7,13 @@ declare const __KAWAIKARA_BUILD_CHANNEL__: ReleaseChannel;
 declare const __KAWAIKARA_DISTRIBUTION_BUILD__: boolean;
 /** Stores the Kawaikara discord app ID value. */
 declare const __KAWAIKARA_DISCORD_APP_ID__: string;
+/** Embeds an isolated local-update profile only in explicitly built test packages. */
+declare const __KAWAIKARA_UPDATE_TEST_PROFILE__: {
+  /** The test-only application data root. */
+  readonly stateRoot: string;
+  /** The loopback update feed retained across installer relaunches. */
+  readonly feedUrl: string;
+} | null;
 
 /** Defines the shared build channel constant. */
 export const BUILD_CHANNEL = __KAWAIKARA_BUILD_CHANNEL__;
@@ -14,6 +21,8 @@ export const BUILD_CHANNEL = __KAWAIKARA_BUILD_CHANNEL__;
 export const IS_DISTRIBUTION_BUILD = __KAWAIKARA_DISTRIBUTION_BUILD__;
 /** Defines the shared discord app ID constant. */
 export const DISCORD_APP_ID = __KAWAIKARA_DISCORD_APP_ID__;
+/** Local update tests cannot change the production app's identity, profile, or protocol registration. */
+export const UPDATE_TEST_PROFILE = __KAWAIKARA_UPDATE_TEST_PROFILE__;
 
 /** Defines the shared update repositories constant. */
 export const UPDATE_REPOSITORIES: Readonly<

@@ -81,6 +81,8 @@ export class ExternalBrowserManager {
         options.awaitBrowserCleanup === true,
         options.cookieSettleMs,
         options.autoActivate,
+        options.requiredCookies,
+        options.strictCookieSynchronization,
       );
       return result;
     } catch (error) {
@@ -138,6 +140,8 @@ export class ExternalBrowserManager {
     awaitBrowserCleanup = false,
     cookieSettleMs = 0,
     autoActivate?: ExternalLoginOptions['autoActivate'],
+    requiredCookies: ExternalLoginOptions['requiredCookies'] = [],
+    strictCookieSynchronization = false,
   ): Promise<ExternalLoginResult> {
     let settled = false;
     let emptyWindowTimer: ReturnType<typeof setTimeout> | undefined;
@@ -242,6 +246,8 @@ export class ExternalBrowserManager {
               resetSessionOrigins,
               replaceSessionCookies,
               cookieImportMode,
+              requiredCookies,
+              strictCookieSynchronization,
             );
             console.info('External login Session synchronization completed.', {
               cookieCount: cookies.length,
@@ -446,6 +452,7 @@ export class ExternalBrowserManager {
     targetSession: Session,
     targetWebContents: WebContents,
     cookieImportMode: ExternalLoginOptions['cookieImportMode'],
+    strict = false,
   ): Promise<void> {
     const supportedCookies = cookies.filter((cookie) => !cookie.partitionKey);
     const partitionedCookies = cookies.filter((cookie) => cookie.partitionKey);
@@ -466,7 +473,10 @@ export class ExternalBrowserManager {
       await this.syncPartitionedCookies(partitionedCookies, targetWebContents);
     }
     await targetSession.cookies.flushStore();
-    await this.verifyCookieSynchronization(supportedCookies, targetSession);
+    await this.verifyCookieSynchronization(supportedCookies, targetSession, strict);
+    if (strict && failures.length > 0) {
+      throw new Error(`External login cookie synchronization failed for ${failures.length} cookie(s).`);
+    }
   }
 
   /** Performs the capture settled cookies operation. */
@@ -550,8 +560,16 @@ export class ExternalBrowserManager {
     resetSessionOrigins?: readonly string[],
     replaceSessionCookies = false,
     cookieImportMode: ExternalLoginOptions['cookieImportMode'] = 'preserve-source',
+    requiredCookies: ExternalLoginOptions['requiredCookies'] = [],
+    strictCookieSynchronization = false,
   ): Promise<void> {
     const origins = validateResetOrigins(resetSessionOrigins ?? []);
+    // A completion URL alone does not prove that authentication cookies arrived.
+    // Validate before any destructive reset, including the existing replace-all path.
+    this.assertRequiredCookies(cookies, requiredCookies);
+    if ((origins.length > 0 || replaceSessionCookies) && cookies.length === 0) {
+      throw new Error('External login completed without cookies; the Electron Session was left unchanged.');
+    }
     if (origins.length > 0 || replaceSessionCookies) {
       await targetSession.closeAllConnections();
     }
@@ -569,11 +587,6 @@ export class ExternalBrowserManager {
       });
     }
     if (replaceSessionCookies) {
-      if (cookies.length === 0) {
-        throw new Error(
-          'External login completed without cookies; the Electron Session was left unchanged.',
-        );
-      }
       const previousCookieCount = (await targetSession.cookies.get({})).length;
       await targetSession.clearData({ dataTypes: ['cookies']
       });
@@ -586,9 +599,26 @@ export class ExternalBrowserManager {
       targetSession,
       targetWebContents,
       cookieImportMode,
+      strictCookieSynchronization,
     );
     await targetSession.flushStorageData();
     await targetSession.closeAllConnections();
+  }
+
+  /** Check essential cookie identity/presence without logging any credential values. */
+  private assertRequiredCookies(
+    cookies: readonly Cookie[],
+    requiredCookies: NonNullable<ExternalLoginOptions['requiredCookies']>,
+  ): void {
+    const missing = requiredCookies.filter((required) => !cookies.some((cookie) =>
+      cookie.name === required.name &&
+      normalizeCookieDomain(cookie.domain) === normalizeCookieDomain(required.domain) &&
+      !cookie.partitionKey && cookie.value.length > 0 &&
+      (cookie.expires <= 0 || cookie.expires > Date.now() / 1_000),
+    ));
+    if (missing.length > 0) {
+      throw new Error(`External login is missing ${missing.length} required authentication cookie(s); the Electron Session was left unchanged.`);
+    }
   }
 
   /** Performs the to Electron cookie operation. */
@@ -615,7 +645,7 @@ export class ExternalBrowserManager {
     // Patchright preserves a leading dot for domain cookies. Omitting the
     // Domain attribute for host-only cookies is required for __Host- cookies
     // and preserves the source cookie's scope.
-    if (useDomainScopedHttps || cookie.domain.startsWith('.')) {
+    if (!cookie.name.startsWith('__Host-') && (useDomainScopedHttps || cookie.domain.startsWith('.'))) {
       details.domain = cookie.domain;
     }
 
@@ -630,6 +660,7 @@ export class ExternalBrowserManager {
   private async verifyCookieSynchronization(
     expectedCookies: readonly Cookie[],
     targetSession: Session,
+    strict = false,
   ): Promise<void> {
     const storedCookies = await targetSession.cookies.get({});
     let matchedCount = 0;
@@ -662,8 +693,11 @@ export class ExternalBrowserManager {
       duplicateIdentityCount,
       storedCookieCount: storedCookies.length,
     };
-    if (missingCount > 0 || valueMismatchCount > 0) {
+    if (missingCount > 0 || valueMismatchCount > 0 || duplicateIdentityCount > 0) {
       console.warn('External login cookie verification found differences.', statistics);
+      if (strict) {
+        throw new Error('External login cookie verification failed; captured and stored cookie identities/values differ.');
+      }
     } else {
       console.info('External login cookie verification completed.', statistics);
     }

@@ -583,6 +583,9 @@ export class IpcManager {
       this.windows.setPictureInPicturePortraitSize(
         preferences.pictureInPicturePortraitSize,
       );
+      await this.windows.setPictureInPictureSubtitleScale(
+        preferences.pictureInPictureSubtitleScale,
+      );
       this.logging.configureLevel(preferences.logLevel);
       this.shortcuts.refreshGlobalShortcut();
       await this.sites.applyCurrentProviderSettings().catch((error: unknown) => {

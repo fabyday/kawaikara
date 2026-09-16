@@ -681,6 +681,8 @@ export type ApplicationUpdatePhase =
   | 'available'
   | 'downloading'
   | 'downloaded'
+  | 'preparing'
+  | 'installing'
   | 'up-to-date'
   | 'unsupported'
   | 'error';
@@ -719,6 +721,8 @@ export interface ApplicationUpdatePanelState {
   readonly errorStage?: 'check' | 'download' | 'install';
   /** A machine-readable updater error code, when provided. */
   readonly errorCode?: string;
+  /** Whether the existing download can be handed to the installer again without redownloading. */
+  readonly canRetryInstall?: boolean;
 }
 
 /** Defines the app locale type. */
@@ -786,6 +790,8 @@ export interface PreferenceState {
   readonly pictureInPicturePortraitSize: PictureInPictureSizePreference;
   /** The picture in picture size value. */
   readonly pictureInPictureSize: PictureInPictureSizePreference;
+  /** Shared subtitle multiplier for Provider-managed picture in picture. */
+  readonly pictureInPictureSubtitleScale: number;
   /** @deprecated Locale overrides are cleared when global preferences are saved. */
   readonly pluginLocales: Readonly<Record<string, ScopedLocale>>;
   /** @deprecated Locale overrides are cleared when global preferences are saved. */

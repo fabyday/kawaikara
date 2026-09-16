@@ -10,6 +10,8 @@ import {
 export class PreferenceManager {
   /** The state value. */
   private state: PreferenceState = DEFAULT_PREFERENCES;
+  /** Serializes writes so installation can wait for a complete latest snapshot. */
+  private pendingWrite: Promise<void> = Promise.resolve();
 
   /** Creates an instance of PreferenceManager. */
   constructor(
@@ -96,9 +98,18 @@ export class PreferenceManager {
       ...this.state,
       ...(patch as PreferencePatch),
     });
-    await mkdir(path.dirname(this.filePath), { recursive: true
+    const snapshot = `${JSON.stringify(this.state, null, 2)}\n`;
+    const write = this.pendingWrite.catch(() => undefined).then(async () => {
+      await mkdir(path.dirname(this.filePath), { recursive: true });
+      await writeFile(this.filePath, snapshot, 'utf8');
     });
-    await writeFile(this.filePath, `${JSON.stringify(this.state, null, 2)}\n`, 'utf8');
+    this.pendingWrite = write;
+    await write;
     return this.get();
+  }
+
+  /** Waits for all queued preference writes before the installer exits this process. */
+  async flush(): Promise<void> {
+    await this.pendingWrite;
   }
 }

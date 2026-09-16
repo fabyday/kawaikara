@@ -1366,6 +1366,14 @@ img {
   line-height: 1.45;
 }
 
+.number-preference-copy .number-preference-error {
+  color: #fda4af;
+}
+
+.kawai-theme-light .number-preference-copy .number-preference-error {
+  color: #b42318;
+}
+
 .number-preference-field {
   display: grid;
   grid-template-columns: minmax(94px, 116px) auto;
@@ -2722,6 +2730,10 @@ img {
   color: #e4e4e7;
 }
 
+.kawai-theme-light .github-link .developer-link-icon {
+  color: #18181b;
+}
+
 .github-link .developer-link-icon svg,
 .discord-link .developer-link-icon svg {
   fill: currentColor;
@@ -2799,6 +2811,25 @@ img {
   border-radius: inherit;
   background: rgb(251 113 133 / 60%);
   animation: youtube-live-pulse 1.6s ease-out infinite;
+}
+
+.kawai-theme-light .developer-youtube-link.is-live {
+  border-color: rgb(185 28 28 / 32%);
+  background: linear-gradient(120deg, rgb(185 28 28 / 6%), #fff 58%);
+}
+
+.kawai-theme-light .developer-youtube-link.is-live:hover {
+  border-color: rgb(185 28 28 / 48%);
+  background: linear-gradient(120deg, rgb(185 28 28 / 10%), #fff1f2 58%);
+}
+
+.kawai-theme-light .developer-youtube-link.is-live .developer-youtube-status {
+  color: #be123c;
+}
+
+.kawai-theme-light .youtube-live-dot {
+  border-color: #fff;
+  background: #e11d48;
 }
 
 @keyframes youtube-live-pulse {

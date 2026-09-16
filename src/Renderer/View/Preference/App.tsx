@@ -89,6 +89,7 @@ import { DescriptiveSelect } from '../../Component/DescriptiveSelect';
 import { PictureInPictureSizeControl } from '../../Component/PictureInPictureSizeControl';
 import { PictureInPicturePlacementControl } from '../../Component/PictureInPicturePlacementControl';
 import { NumberInput } from '../../Component/NumberInput';
+import { SubtitleScaleControl } from '../../Component/SubtitleScaleControl';
 import { SiteIcon } from '../../Component/SiteIcon';
 import { LogViewer } from '../LogViewer/App';
 import {
@@ -2012,6 +2013,18 @@ function GeneralTab({
               onChange={(pictureInPicturePlacement) =>
                 onUpdate({ pictureInPicturePlacement
                 })
+              }
+            />
+          </div>
+          <div className="pip-preference-placement">
+            <SubtitleScaleControl
+              disabled={saving}
+              label={messages.pictureInPictureSubtitleSize}
+              description={messages.pictureInPictureSubtitleSizeDescription}
+              rangeMessage={messages.pictureInPictureSubtitleSizeRange}
+              value={preferences.pictureInPictureSubtitleScale}
+              onChange={(pictureInPictureSubtitleScale) =>
+                onUpdate({ pictureInPictureSubtitleScale })
               }
             />
           </div>

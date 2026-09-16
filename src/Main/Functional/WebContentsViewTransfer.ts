@@ -36,8 +36,10 @@ export async function transferWebContentsView({
   if (sourceWindow && !sourceWindow.isDestroyed()) {
     sourceWindow.contentView.removeChildView(view);
   }
-  targetWindow.contentView.addChildView(view);
+  // Never attach a source-sized view to the visible PiP surface. Chromium's
+  // first target frame should already use the target content dimensions.
   view.setBounds(getWindowContentViewBounds(targetWindow));
+  targetWindow.contentView.addChildView(view);
   view.webContents.invalidate();
 
   await waitForVisibleRendererFrames(view);

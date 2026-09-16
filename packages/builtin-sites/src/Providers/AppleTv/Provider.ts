@@ -3,20 +3,28 @@ import {
   provider,
   type NewWindowPolicy,
   webPopupPolicy,
+  type PictureInPictureSubtitleController,
+  type ProviderPictureInPictureSession,
 } from '@kawaikara/site-api';
 import { createAppleStorefrontPersistenceScript } from './Inject/StorefrontPersistence';
 
 /** Implements the apple tv site provider. */
-@provider({
-  pictureInPicture: {
-    contentOverlaySelectors: [
-      '[class*="apple-web-player" i] [class*="caption" i]',
-    ],
-  },
-})
+@provider({})
 export class AppleTvProvider extends AbstractUrlProvider {
   /** The URL value. */
   protected readonly url = 'https://tv.apple.com/';
+
+  /** Configure this player's captions through the shared, reversible PiP API. */
+  createPictureInPictureSubtitleController(
+    session: ProviderPictureInPictureSession,
+  ): PictureInPictureSubtitleController {
+    return session.createDomSubtitleController({
+      /** Caption layers specific to this player. */
+      overlaySelectors: [
+        '[class*="apple-web-player" i] [class*="caption" i]',
+      ],
+    });
+  }
 
   /** Handles the new window. */
   onNewWindow(url: string): NewWindowPolicy {

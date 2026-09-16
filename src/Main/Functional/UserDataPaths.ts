@@ -11,17 +11,17 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { app } from 'electron';
-import { BUILD_CHANNEL } from '../../Common/BuildConfig';
+import { BUILD_CHANNEL, UPDATE_TEST_PROFILE } from '../../Common/BuildConfig';
 
 /** Stores the legacy user data path value. */
 const legacyUserDataPath = app.getPath('userData');
 /** Stores the user root path value. */
-const userRootPath = BUILD_CHANNEL === 'stable'
+const userRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (BUILD_CHANNEL === 'stable'
   ? legacyUserDataPath
   : path.join(
       path.dirname(legacyUserDataPath),
       `${path.basename(legacyUserDataPath)} ${capitalize(BUILD_CHANNEL)}`,
-    );
+    ));
 /** Stores the Electron data path value. */
 const electronDataPath = path.join(userRootPath, 'Electron');
 /** Stores the kawai data path value. */
@@ -103,7 +103,7 @@ export async function initializeUserDataLayout(): Promise<void> {
     mkdir(kawaiDataPath, { recursive: true
     }),
   ]);
-  if (BUILD_CHANNEL === 'stable') {
+  if (BUILD_CHANNEL === 'stable' && !UPDATE_TEST_PROFILE) {
     await Promise.all(
       ['preferences.json', 'video-library.json'].map((fileName) =>
         copyLegacyFileIfNeeded(

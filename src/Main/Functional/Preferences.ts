@@ -13,6 +13,8 @@ import {
   DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
   DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   DEFAULT_PICTURE_IN_PICTURE_SIZE,
+  DEFAULT_PICTURE_IN_PICTURE_SUBTITLE_SCALE,
+  validatePictureInPictureSubtitleScale,
   validatePictureInPicturePlacement,
   validatePictureInPicturePortraitSize,
   validatePictureInPictureSize,
@@ -62,6 +64,8 @@ export const DEFAULT_PREFERENCES: PreferenceState = {
   pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   /** The picture in picture size value. */
   pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
+  /** Shared PiP subtitle size multiplier. */
+  pictureInPictureSubtitleScale: DEFAULT_PICTURE_IN_PICTURE_SUBTITLE_SCALE,
   /** The plugin locales value. */
   pluginLocales: {},
   /** The site locales value. */
@@ -169,6 +173,10 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
     /** The picture in picture size value. */
     pictureInPictureSize: validatePictureInPictureSize(
       candidate.pictureInPictureSize,
+    ),
+    /** Shared PiP subtitle size multiplier. */
+    pictureInPictureSubtitleScale: validatePictureInPictureSubtitleScale(
+      candidate.pictureInPictureSubtitleScale,
     ),
     /** The plugin locales value. */
     pluginLocales: validateLocaleRecord(candidate.pluginLocales),

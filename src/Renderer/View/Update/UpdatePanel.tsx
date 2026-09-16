@@ -176,6 +176,12 @@ interface UpdatePanelLabels {
   readonly downloadedTitle: string;
   /** The downloaded description value. */
   readonly downloadedDescription: string;
+  /** The native verification title. */
+  readonly preparingTitle: string;
+  /** The native verification description. */
+  readonly preparingDescription: string;
+  /** The installer handoff title. */
+  readonly installingTitle: string;
   /** The automatic restart description value. */
   readonly automaticRestartDescription: string;
   /** The current title value. */
@@ -336,6 +342,7 @@ function UpdateActions({
 }
 ) {
   const { phase } = state;
+  if (phase === 'preparing' || phase === 'installing') return null;
   if (phase === 'available') {
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
@@ -364,6 +371,9 @@ function UpdateActions({
             {labels.retry}
           </Button>
         ) : null}
+        {state.canRetryInstall ? (
+          <Button onClick={() => void onInstall()}>{labels.restart}</Button>
+        ) : null}
       </Flex>
     );
   }
@@ -382,6 +392,7 @@ function UpdateActions({
 
 /** Returns the progress value. */
 function getProgressValue(state: ApplicationUpdatePanelState): number | null {
+  if (state.phase === 'preparing' || state.phase === 'installing') return null;
   if (state.phase === 'checking') return null;
   if (state.phase === 'downloading') return state.progress?.percent ?? 0;
   if (state.phase === 'downloaded' || state.phase === 'up-to-date') return 100;
@@ -394,6 +405,20 @@ function getPhaseCopy(
   labels: UpdatePanelLabels,
 ) {
   switch (state.phase) {
+    case 'preparing':
+      return {
+        /** The verification title. */
+        title: labels.preparingTitle,
+        /** The verification description. */
+        description: labels.preparingDescription,
+      };
+    case 'installing':
+      return {
+        /** The handoff title. */
+        title: labels.installingTitle,
+        /** The handoff description. */
+        description: labels.automaticRestartDescription,
+      };
     case 'checking':
       return {
         /** The title value. */
@@ -444,7 +469,9 @@ function getPhaseCopy(
           /** The title value. */
           title: labels.installErrorTitle,
           /** The description value. */
-          description: labels.installErrorDescription,
+          description: state.errorCode === 'ERR_UPDATER_INVALID_SIGNATURE'
+            ? labels.signatureErrorDescription
+            : labels.installErrorDescription,
         };
       }
       if (state.errorStage === 'download') {
@@ -570,6 +597,12 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
         downloadingDescription: 'Kawaikara를 계속 사용해도 됩니다.',
       /** The downloaded title value. */
       downloadedTitle: '업데이트 준비 완료',
+      /** The native preparation title. */
+      preparingTitle: '업데이트 설치 준비 중',
+      /** The native preparation description. */
+      preparingDescription: '다운로드한 파일을 검증하고 앱을 안전하게 종료할 준비를 합니다.',
+      /** The handoff title. */
+      installingTitle: '업데이트 적용 중',
         /** The downloaded description value. */
         downloadedDescription: '앱을 다시 시작하면 업데이트가 적용됩니다.',
       /** The automatic restart description value. */
@@ -644,6 +677,12 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
         downloadingDescription: 'ダウンロード中もKawaikaraを使用できます。',
       /** The downloaded title value. */
       downloadedTitle: 'アップデートの準備完了',
+      /** The native preparation title. */
+      preparingTitle: 'インストールの準備中',
+      /** The native preparation description. */
+      preparingDescription: 'ダウンロードを検証し、安全に終了する準備をしています。',
+      /** The handoff title. */
+      installingTitle: 'アップデートを適用中',
         /** The downloaded description value. */
         downloadedDescription: '再起動するとアップデートが適用されます。',
       /** The automatic restart description value. */
@@ -717,6 +756,12 @@ function getUpdatePanelLabels(locale: AppLocale | string): UpdatePanelLabels {
       downloadingDescription: 'You can continue using Kawaikara while it downloads.',
     /** The downloaded title value. */
     downloadedTitle: 'Update ready',
+    /** The native preparation title. */
+    preparingTitle: 'Preparing installation',
+    /** The native preparation description. */
+    preparingDescription: 'Verifying the download and preparing to close the app safely.',
+    /** The handoff title. */
+    installingTitle: 'Installing update',
       /** The downloaded description value. */
       downloadedDescription: 'Restart Kawaikara to finish installing the update.',
     /** The automatic restart description value. */

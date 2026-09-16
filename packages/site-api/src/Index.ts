@@ -1,4 +1,10 @@
 export { DisposableStore, type Disposable } from './Disposable';
+export type {
+  PictureInPictureSubtitleController,
+  PictureInPictureSubtitleAlignment,
+  PictureInPictureDomSubtitleOptions,
+  ProviderPictureInPictureSession,
+} from './PictureInPictureSubtitles';
 export {
   createGitHubReleaseBundleUpdateResolver,
   type GitHubReleaseBundleUpdateOptions,

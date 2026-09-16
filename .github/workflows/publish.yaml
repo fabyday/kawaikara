@@ -167,6 +167,8 @@ jobs:
         run: ./scripts/setup-windows-libmpv.ps1
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - name: Test Netflix login and VMP packaging regressions
+        run: node --test tests/external-login.test.cjs tests/widevine-packaging.test.cjs
       - name: Authenticate Widevine signing
         env:
           KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
@@ -182,6 +184,8 @@ jobs:
           KAWAIKARA_REQUIRE_CODE_SIGNING: '1'
           KAWAIKARA_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: pnpm dist:stable
+      - name: Verify final Widevine VMP signatures
+        run: pnpm widevine:verify "builds/stable/${{ matrix.output_os }}"
       - name: Verify macOS update signature
         if: matrix.platform == 'mac'
         run: |

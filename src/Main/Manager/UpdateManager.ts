@@ -1,8 +1,11 @@
-import { app, BrowserWindow } from 'electron';
+import { app, autoUpdater as nativeAutoUpdater, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   BUILD_CHANNEL,
   IS_DISTRIBUTION_BUILD,
+  UPDATE_TEST_PROFILE,
   UPDATE_REPOSITORIES,
   toUpdaterChannel,
 } from '../../Common/BuildConfig';
@@ -18,6 +21,7 @@ import {
   type ApplicationUpdateSignal,
 } from '../Functional/ApplicationUpdates';
 import { resolveLocalUpdateFeed } from '../Functional/LocalUpdateFeed';
+import { waitForNativeUpdate, type UpdateInstallLifecycle } from '../Functional/UpdateInstallation';
 import type { LoggingManager } from './LoggingManager';
 import type { WindowManager } from './WindowManager';
 
@@ -38,6 +42,14 @@ export class UpdateManager {
   private currentState?: ApplicationUpdatePanelState;
   /** The installing update value. */
   private installingUpdate = false;
+  /** The pending preparation request, distinct from a committed installer handoff. */
+  private installRequest?: Promise<void>;
+  /** Retains a verified download so a recoverable installation failure need not redownload it. */
+  private downloadedState?: ApplicationUpdatePanelState;
+  /** Whether Squirrel has finished staging the current download. */
+  private nativeUpdateReady = false;
+  /** Reversible application-specific install preparation. */
+  private installLifecycle?: UpdateInstallLifecycle;
 
   /** Creates an instance of UpdateManager. */
   constructor(
@@ -49,6 +61,16 @@ export class UpdateManager {
     autoUpdater.logger = logging.updaterLogger;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
+    // Late native/proxy errors can arrive outside a check/download Promise.
+    // Keep a permanent observer so EventEmitter never throws an unhandled error.
+    autoUpdater.on('error', (reason: Error) => {
+      this.updateLog.error('Updater error.', { message: reason.message, code: getUpdaterErrorCode(reason) });
+    });
+  }
+
+  /** Connects reversible shutdown preparation after the other managers are initialized. */
+  setInstallLifecycle(lifecycle: UpdateInstallLifecycle): void {
+    this.installLifecycle = lifecycle;
   }
 
   /** Performs the configure operation. */
@@ -59,7 +81,7 @@ export class UpdateManager {
 
   /** Applies the build channel. */
   private applyBuildChannel(): void {
-    const localFeed = resolveLocalUpdateFeed(process.env.KAWAIKARA_LOCAL_UPDATE_URL);
+    const localFeed = resolveLocalUpdateFeed(UPDATE_TEST_PROFILE?.feedUrl ?? process.env.KAWAIKARA_LOCAL_UPDATE_URL);
     if (localFeed) {
       autoUpdater.setFeedURL({
         provider: 'generic',
@@ -118,7 +140,7 @@ export class UpdateManager {
       throw new Error('No checked update is ready to download.');
     }
 
-    const request = this.performDownload(state);
+    const request = this.performDownload({ ...state, origin: 'manual' });
     this.downloadRequest = request;
     try {
       return await request;
@@ -128,12 +150,22 @@ export class UpdateManager {
   }
 
   /** Installs the update. */
-  installUpdate(): void {
-    if (this.currentState?.phase !== 'downloaded' || this.installingUpdate) {
-      return;
+  async installUpdate(): Promise<void> {
+    if (this.installRequest) return this.installRequest;
+    const state = this.currentState;
+    const retryable = state?.phase === 'error' && state.canRetryInstall === true;
+    if (this.installingUpdate || (!retryable && state?.phase !== 'downloaded') || !this.downloadedState) return;
+    const request = this.performInstallation(this.downloadedState);
+    this.installRequest = request;
+    try {
+      await request;
+    } finally {
+      if (this.installRequest === request) this.installRequest = undefined;
     }
-    const downloaded = this.currentState;
-    this.installingUpdate = true;
+  }
+
+  /** Validates native staging before any application resources are released. */
+  private async performInstallation(downloaded: ApplicationUpdatePanelState): Promise<void> {
     const isSilent = downloaded.origin === 'automatic' && process.platform === 'win32';
     this.updateLog.info('Starting application update installation.', {
       currentVersion: downloaded.currentVersion,
@@ -142,31 +174,55 @@ export class UpdateManager {
       platform: process.platform,
       isSilent,
     });
-    /** Restores the panel if the updater cannot start the installer. */
-    const onInstallError = (reason: Error) => {
-      if (!this.installingUpdate) return;
+    this.updateState({ ...downloaded, phase: 'preparing' });
+    let preparationStarted = false;
+    let failed = false;
+    /** Recovers once, even when an emitted error is followed by a thrown error. */
+    const fail = async (reason: unknown) => {
+      if (failed) return;
+      failed = true;
       this.installingUpdate = false;
+      autoUpdater.off('error', onInstallError);
       const error = reason instanceof Error ? reason.message : String(reason);
       this.updateLog.error('Update installer failed to start.', error);
-      this.updateState({
+      if (preparationStarted) {
+        await this.installLifecycle?.recover().catch((recoveryError: unknown) => {
+          this.updateLog.error('Update failure recovery failed.', recoveryError);
+        });
+      }
+      this.presentState({
         ...downloaded,
         phase: 'error',
         errorStage: 'install',
         errorCode: getUpdaterErrorCode(reason),
         error,
+        canRetryInstall: getUpdaterErrorCode(reason) !== 'ERR_UPDATER_INVALID_SIGNATURE',
       });
     };
-    autoUpdater.once('error', onInstallError);
-    setImmediate(() => {
-      try {
-        // Silent NSIS installation is required for an unattended automatic
-        // update. Manual checks still show the installer UI on Windows.
-        autoUpdater.quitAndInstall(isSilent, true);
-      } catch (reason) {
-        autoUpdater.off('error', onInstallError);
-        onInstallError(reason instanceof Error ? reason : new Error(String(reason)));
+    /** Handles asynchronous installer startup errors without leaving the app disposed. */
+    const onInstallError = (reason: Error) => {
+      if (this.installingUpdate) void fail(reason);
+    };
+    try {
+      if (process.platform === 'darwin' && !this.nativeUpdateReady) {
+        // MacUpdater.downloadUpdate() only prepares its loopback ZIP proxy when
+        // autoInstallOnAppQuit=false. Calling quitAndInstall before Squirrel is
+        // ready installs a persistent native quit listener, including on failure.
+        // Stage explicitly instead: failed/late events can never trigger a quit.
+        await waitForNativeUpdate(nativeAutoUpdater, () => nativeAutoUpdater.checkForUpdates());
+        this.nativeUpdateReady = true;
       }
-    });
+      preparationStarted = true;
+      await this.installLifecycle?.prepare();
+      this.updateState({ ...downloaded, phase: 'installing' });
+      autoUpdater.on('error', onInstallError);
+      this.installingUpdate = true;
+      // Only now may before-quit bypass ordinary app.exit teardown, allowing
+      // Squirrel/NSIS to finish their own quit/relaunch negotiation.
+      autoUpdater.quitAndInstall(isSilent, true);
+    } catch (reason) {
+      await fail(reason);
+    }
   }
 
   /** Performs the check for updates internal operation. */
@@ -174,6 +230,9 @@ export class UpdateManager {
     origin: ApplicationUpdatePanelState['origin'],
     downloadAutomatically: boolean,
   ): Promise<ApplicationUpdateCheckResult> {
+    if (this.installRequest || this.installingUpdate || this.downloadRequest || this.currentState?.phase === 'downloading') {
+      throw new Error('An update is already downloading or being installed.');
+    }
     if (this.checkRequest) {
       if (this.currentState?.origin === 'manual') {
         this.windows.showUpdateOverlay(this.currentState);
@@ -376,6 +435,7 @@ export class UpdateManager {
 
     try {
       await autoUpdater.downloadUpdate();
+      this.nativeUpdateReady = false;
       const total = this.currentState?.progress?.total ?? 0;
       const downloaded: ApplicationUpdatePanelState = {
         ...available,
@@ -388,10 +448,13 @@ export class UpdateManager {
         },
       };
       this.updateState(downloaded);
+      this.downloadedState = downloaded;
       if (available.origin === 'automatic') {
         // Automatic updates are opt-in. Once the opted-in download completes,
         // briefly publish the completed state and restart into the new build.
-        setTimeout(() => this.installUpdate(), 750);
+        setTimeout(() => {
+          if (this.currentState === downloaded) void this.installUpdate();
+        }, 750);
       }
       return downloaded;
     } catch (reason) {
@@ -417,13 +480,29 @@ export class UpdateManager {
   /** Performs the present state operation. */
   private presentState(state: ApplicationUpdatePanelState): void {
     this.currentState = state;
+    this.recordTestState(state);
     this.windows.showUpdateOverlay(state);
   }
 
   /** Updates the state. */
   private updateState(state: ApplicationUpdatePanelState): void {
     this.currentState = state;
+    this.recordTestState(state);
     this.windows.updateUpdateOverlay(state);
+  }
+
+  /** Exposes test-only phase diagnostics without adding a production IPC/debug endpoint. */
+  private recordTestState(state: ApplicationUpdatePanelState): void {
+    if (!UPDATE_TEST_PROFILE) return;
+    try {
+      writeFileSync(path.join(UPDATE_TEST_PROFILE.stateRoot, 'KawaiData/update-test-status.json'), JSON.stringify({
+        ...state,
+        pid: process.pid,
+        updatedAt: new Date().toISOString(),
+      }));
+    } catch (reason) {
+      this.updateLog.error('Could not write local update-test diagnostics.', reason);
+    }
   }
 
   /** Performs the finish check state operation. */
@@ -440,6 +519,14 @@ export class UpdateManager {
 
 /** Returns the updater's machine-readable error code when present. */
 function getUpdaterErrorCode(reason: unknown): string | undefined {
-  if (!reason || typeof reason !== 'object' || !('code' in reason)) return undefined;
-  return typeof reason.code === 'string' ? reason.code : undefined;
+  if (!reason || typeof reason !== 'object') return undefined;
+  if ('code' in reason && typeof reason.code === 'string') return reason.code;
+  // Electron's Squirrel error event exposes only the localized message, not
+  // NSError's domain/code. Recognize its explicit code-signature failure so
+  // the panel doesn't offer a doomed cached-install retry on macOS either.
+  if ('message' in reason && typeof reason.message === 'string'
+    && /code signature.*(?:did not pass validation|could not|invalid)|failed to satisfy specified code requirement/i.test(reason.message)) {
+    return 'ERR_UPDATER_INVALID_SIGNATURE';
+  }
+  return undefined;
 }

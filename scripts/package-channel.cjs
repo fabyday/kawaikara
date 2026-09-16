@@ -43,6 +43,7 @@ const environment = {
   ...process.env,
   KAWAIKARA_BUILD_CHANNEL: channel,
   KAWAIKARA_DISTRIBUTION_BUILD: '1',
+  KAWAIKARA_UPDATE_TEST_BUILD: '0',
   KAWAIKARA_VMP_SIGN: '1',
 };
 

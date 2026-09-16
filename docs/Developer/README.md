@@ -26,6 +26,7 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 - [Overlay and preferences](./Features/2.OverlayAndPreferences.md): full-window preferences, menu ordering, profiles, locales, shortcuts, and app information
 - [Unified Picture in Picture](./Features/3.PictureInPicture.md): dedicated frameless PiP, video selection, placement, focus restoration, and shortcut scope
 - [Video view and external downloader](./Features/4.VideoAndDownloads.md): file drops, local/HLS playback, and YT Section Downloader integration
+- [Local update testing](./Features/5.UpdateTesting.md): isolated Nightly packages, macOS installation/relaunch tests, Windows NSIS, and failure recovery
 
 ## Build and UI development
 

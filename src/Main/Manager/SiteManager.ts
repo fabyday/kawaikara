@@ -23,6 +23,8 @@ import {
   type SiteRequestDetails,
   type SiteRequestHeaders,
   type SiteRequestRedirect,
+  type PictureInPictureSubtitleController,
+  type ProviderPictureInPictureSession,
 } from '@kawaikara/site-api';
 import type {
   BrowserProfileInfo,
@@ -36,6 +38,7 @@ import {
   shouldSuppressPagePictureInPicture,
 } from '../Functional/PagePictureInPicturePolicy';
 import { resolvePictureInPictureOverlaySelectors } from '../Functional/PictureInPictureOverlays';
+import { createProviderPictureInPictureSubtitleController } from '../Functional/PictureInPictureSubtitleRuntime';
 import {
   resolveGlobalLocale,
   resolveProviderLocaleContributions,
@@ -645,6 +648,18 @@ export class SiteManager {
     return resolvePictureInPictureOverlaySelectors(
       this.sites.get(this.currentSiteId)?.metadata.pictureInPicture
         ?.contentOverlaySelectors ?? []
+    );
+  }
+
+  /** Resolve Provider behavior while preserving the existing page permission boundary. */
+  createPictureInPictureSubtitleController(
+    session: ProviderPictureInPictureSession,
+  ): PictureInPictureSubtitleController | undefined |
+    Promise<PictureInPictureSubtitleController | undefined> {
+    return createProviderPictureInPictureSubtitleController(
+      this.currentProvider,
+      session,
+      this.currentProviderHasPermission('script-injection'),
     );
   }
 

@@ -64,6 +64,10 @@ export interface ExternalLoginOptions {
   readonly awaitBrowserCleanup?: boolean;
   /** Milliseconds the captured cookie jar must remain unchanged before import. */
   readonly cookieSettleMs?: number;
+  /** Required unpartitioned name/domain cookies, checked before clearing existing site data. */
+  readonly requiredCookies?: readonly SiteCookieMetadata[];
+  /** Reject cookie write/verification failures instead of reporting login completion. */
+  readonly strictCookieSynchronization?: boolean;
 }
 
 /** Describes the site external browser contract. */

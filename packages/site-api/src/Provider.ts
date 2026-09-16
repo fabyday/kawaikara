@@ -1,4 +1,8 @@
 import { DisposableStore } from './Disposable';
+import type {
+  PictureInPictureSubtitleController,
+  ProviderPictureInPictureSession,
+} from './PictureInPictureSubtitles';
 import { webPopupPolicy } from './SiteUtilities';
 import type {
   NewWindowPolicy,
@@ -198,7 +202,8 @@ export interface SitePictureInPictureContribution {
   readonly pageControlSelectors?: readonly string[];
   /**
    * Page-rendered overlays that remain visible above the video in unified PiP.
-   * Use this for subtitle/caption containers rendered outside the video element.
+   * @deprecated Implement createPictureInPictureSubtitleController instead.
+   * Retained for existing external bundles; built-in Providers use the method API.
    */
   readonly contentOverlaySelectors?: readonly string[];
 }
@@ -376,6 +381,18 @@ export abstract class AbstractProvider {
   /** Decide whether PiP may start for the current page URL. */
   allowPictureInPicture(_url: string): boolean {
     return true;
+  }
+
+  /**
+   * Override for site-specific caption targets or arbitrary subtitle logic.
+   * The App applies the common preference and disposes this adapter on exit,
+   * failed entry, navigation, or player replacement. Returning undefined opts out.
+   */
+  createPictureInPictureSubtitleController(
+    session: ProviderPictureInPictureSession,
+  ): PictureInPictureSubtitleController | undefined |
+    Promise<PictureInPictureSubtitleController | undefined> {
+    return session.createDomSubtitleController();
   }
 
   /** Optionally replace request headers for the current site. */

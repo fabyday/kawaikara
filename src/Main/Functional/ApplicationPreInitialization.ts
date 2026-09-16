@@ -1,4 +1,5 @@
 import { app, Menu } from 'electron';
+import { UPDATE_TEST_PROFILE } from '../../Common/BuildConfig';
 import path from 'node:path';
 import { readStartupGraphicsMode } from './Preferences';
 import { LoggingManager } from '../Manager/LoggingManager';
@@ -98,6 +99,7 @@ function appendDisabledChromiumFeature(feature: string): void {
 
 /** Registers the protocol client. */
 function registerProtocolClient(): void {
+  if (UPDATE_TEST_PROFILE) return;
   if (process.defaultApp && process.argv[1]) {
     app.setAsDefaultProtocolClient(KAWAIKARA_PROTOCOL, process.execPath, [
       path.resolve(process.argv[1]),

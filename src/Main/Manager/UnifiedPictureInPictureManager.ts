@@ -20,6 +20,10 @@ import {
   type PictureInPictureSizePreference,
 } from '../../Common/PictureInPicture';
 import type { LoggingManager } from './LoggingManager';
+import {
+  PictureInPictureSubtitleRuntime,
+  type PictureInPictureSubtitleFactory,
+} from '../Functional/PictureInPictureSubtitleRuntime';
 import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
 import {
   capturePictureInPicturePlacement,
@@ -94,6 +98,8 @@ export class UnifiedPictureInPictureManager {
   private enterPromise?: Promise<PictureInPictureResult>;
   /** The exit promise value. */
   private exitPromise?: Promise<PictureInPictureResult>;
+  /** Finish in-flight frame rebinding before restoring the viewer on exit. */
+  private videoRefresh?: Promise<void>;
   /** The state value. */
   private state?: UnifiedPictureInPictureState;
   /** The placement preference value. */
@@ -106,6 +112,8 @@ export class UnifiedPictureInPictureManager {
   private sizePreference = DEFAULT_PICTURE_IN_PICTURE_SIZE;
   /** The registered picture-in-picture manager logger value. */
   private readonly logger;
+  /** Frame-scoped subtitle lifecycle, isolated from native window errors. */
+  private readonly subtitles;
 
   /** Creates an instance of UnifiedPictureInPictureManager. */
   constructor(
@@ -127,6 +135,20 @@ export class UnifiedPictureInPictureManager {
     ) => Promise<void> | void,
   ) {
     this.logger = logging.getLogger('pictureInPicture');
+    this.subtitles = new PictureInPictureSubtitleRuntime(
+      getContentOverlaySelectors,
+      (error) => this.logger.debug('PiP subtitle adapter failed.', error),
+    );
+  }
+
+  /** Connect the Provider method without expanding decorator metadata. */
+  setSubtitleControllerFactory(factory: PictureInPictureSubtitleFactory | undefined): void {
+    this.subtitles.setFactory(factory);
+  }
+
+  /** Apply common subtitle settings to the current player and future PiP entries. */
+  setSubtitleScale(scale: number): Promise<void> {
+    return this.subtitles.setScale(scale);
   }
 
   /** Sets the window size. */
@@ -178,6 +200,7 @@ export class UnifiedPictureInPictureManager {
     this.state = undefined;
     if (!state) return;
     state.closing = true;
+    void this.subtitles.dispose();
     this.stopHoverTracking(state);
     this.clearFullscreenReassertions(state);
     this.clearVideoRefreshes(state);
@@ -228,6 +251,7 @@ export class UnifiedPictureInPictureManager {
         ),
       );
       if (result.status !== 'entered') {
+        await this.restoreHostFrames(hostFrames);
         return withPictureInPictureWindowMode(result.status);
       }
 
@@ -346,6 +370,11 @@ export class UnifiedPictureInPictureManager {
       this.startHoverTracking(state);
       this.scheduleFullscreenReassertion(state);
 
+      // Fit and paint the video at the final native viewport before any
+      // Provider subtitle factory can scan/reflow the page or await a player
+      // API. Captions must measure PiP geometry, not the old viewer geometry.
+      await this.subtitles.bind(state.frame, () => this.state === state && !state.closing);
+
       const entered = withPictureInPictureWindowMode('entered');
       this.onStateChanged(entered);
       return entered;
@@ -381,6 +410,7 @@ export class UnifiedPictureInPictureManager {
           state.navigationListener,
         );
       }
+      await this.subtitles.dispose();
       await this.restoreInjectedVideo(candidate.frame);
       await this.restoreHostFrames(hostFrames);
       await this.restoreSiteView(viewerWindow, siteView, pipWindow);
@@ -426,6 +456,8 @@ export class UnifiedPictureInPictureManager {
       state.navigationListener,
     );
 
+    await this.videoRefresh;
+    await this.subtitles.dispose();
     await this.rememberCurrentPlacement(state.pipWindow);
     await this.restoreInjectedVideo(state.frame);
     await this.restoreHostFrames(state.hostFrames);
@@ -752,7 +784,14 @@ export class UnifiedPictureInPictureManager {
         if (this.state !== state || state.closing) {
           return;
         }
-        void this.refreshActiveVideo(state);
+        if (state.refreshingVideo) return;
+        const operation = this.refreshActiveVideo(state);
+        this.videoRefresh = operation;
+        /** Avoid clearing a newer player's refresh operation. */
+        const clear = () => {
+          if (this.videoRefresh === operation) this.videoRefresh = undefined;
+        };
+        void operation.then(clear, clear);
       }, delayMilliseconds);
       state.videoRefreshTimers.add(timer);
     }
@@ -776,13 +815,22 @@ export class UnifiedPictureInPictureManager {
       }
 
       if (candidate.frame === state.frame && !state.frame.isDestroyed()) {
-        const result = await state.frame.executeJavaScript(
+        let result: unknown = await state.frame.executeJavaScript(
           createRefreshUnifiedPictureInPictureVideoScript(),
           true,
         );
+        if (readPageResultStatus(result) === 'missing') {
+          result = await state.frame.executeJavaScript(this.createEnterPageScript(), true);
+          this.setControlsVisible(state, state.controlsVisible, true);
+        }
         const aspectRatio = readVideoAspectRatio(result);
         if (aspectRatio !== undefined) {
           this.updateAspectRatio(state, aspectRatio);
+        }
+        if (['entered', 'refreshed'].includes(readPageResultStatus(result) ?? '')) {
+          // Keep the controller on ordinary refreshes. Replace it only when
+          // the selected video or its document actually changed.
+          await this.subtitles.bind(state.frame, () => this.state === state && !state.closing);
         }
         return;
       }
@@ -810,6 +858,7 @@ export class UnifiedPictureInPictureManager {
       }
       state.frame = candidate.frame;
       state.hostFrames = nextHostFrames;
+      await this.subtitles.bind(state.frame, () => this.state === state && !state.closing);
       if (result.aspectRatio !== undefined) {
         this.updateAspectRatio(state, result.aspectRatio);
       }
@@ -1179,6 +1228,12 @@ function parseVideoSizeMessage(message: string): number | undefined {
   const [widthValue, heightValue, extra] = message.slice(prefix.length).split(':');
   if (extra !== undefined) return undefined;
   return createVideoAspectRatio(Number(widthValue), Number(heightValue));
+}
+
+/** Read page lifecycle status without trusting untyped remote values. */
+function readPageResultStatus(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object' || !('status' in value)) return undefined;
+  return typeof value.status === 'string' ? value.status : undefined;
 }
 
 /** Reads an aspect ratio from a page-script result. */

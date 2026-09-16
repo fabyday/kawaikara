@@ -44,14 +44,23 @@ module.exports = (_environment, arguments_) => {
   const mode = arguments_.mode || process.env.NODE_ENV || 'production';
   const common = createCommon(mode);
   const buildChannel = resolveBuildChannel();
+  const updateTest = process.env.KAWAIKARA_UPDATE_TEST_BUILD === '1';
+  const testPort = Number(process.env.KAWAIKARA_UPDATE_TEST_PORT || 18080);
+  if (updateTest && (!Number.isInteger(testPort) || testPort < 1 || testPort > 65535)) {
+    throw new Error('Invalid KAWAIKARA_UPDATE_TEST_PORT.');
+  }
   const buildDefinitions = new webpack.DefinePlugin({
     __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify(buildChannel),
     __KAWAIKARA_DISTRIBUTION_BUILD__: JSON.stringify(
       process.env.KAWAIKARA_DISTRIBUTION_BUILD === '1',
     ),
     __KAWAIKARA_DISCORD_APP_ID__: JSON.stringify(
-      process.env.DISCORD_APP_ID || '',
+      updateTest ? '' : process.env.DISCORD_APP_ID || '',
     ),
+    __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateTest ? {
+      stateRoot: path.join(root, 'tests/Release/state/nightly'),
+      feedUrl: `http://127.0.0.1:${testPort}/`,
+    } : null),
   });
 
   return [

@@ -78,3 +78,59 @@ export const Offline = {
 
 /** Stores the checking value. */
 export const Checking = {} satisfies Story;
+
+/** Preview a failed live-status request without changing the link destination. */
+export const Unavailable = {
+  /** Failed YouTube status. */
+  args: {
+    /** Status error returned by the developer-links service. */
+    youtubeStatus: {
+      /** No live stream could be confirmed. */
+      isLive: false,
+      /** Last attempted status refresh. */
+      checkedAt: new Date().toISOString(),
+      /** Safe status failure message. */
+      error: 'Live status unavailable',
+    },
+  },
+} satisfies Story;
+
+/** Exercise the actual light-theme selectors inside the default dark canvas. */
+const lightThemeDecorators: NonNullable<Story['decorators']> = [
+  (Story) => (
+    <div
+      className="kawai-theme-light"
+      style={{ background: '#f5f5f5', color: 'var(--kawai-color-foreground)', padding: 16 }}
+    >
+      <Story />
+    </div>
+  ),
+];
+
+/** Light theme with the YouTube live highlight and readable GitHub mark. */
+export const LightLive = {
+  ...Live,
+  /** Scoped light-theme preview. */
+  decorators: lightThemeDecorators,
+} satisfies Story;
+
+/** Light theme with an offline YouTube channel. */
+export const LightOffline = {
+  ...Offline,
+  /** Scoped light-theme preview. */
+  decorators: lightThemeDecorators,
+} satisfies Story;
+
+/** Light theme while the YouTube status is loading. */
+export const LightChecking = {
+  ...Checking,
+  /** Scoped light-theme preview. */
+  decorators: lightThemeDecorators,
+} satisfies Story;
+
+/** Light theme when the YouTube status request fails. */
+export const LightUnavailable = {
+  ...Unavailable,
+  /** Scoped light-theme preview. */
+  decorators: lightThemeDecorators,
+} satisfies Story;

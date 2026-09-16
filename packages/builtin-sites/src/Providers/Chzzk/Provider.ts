@@ -10,6 +10,8 @@ import {
   type SiteRequestRedirect,
   webAuthenticationPolicy,
   matchesSiteUrlHost,
+  type PictureInPictureSubtitleController,
+  type ProviderPictureInPictureSession,
 } from '@kawaikara/site-api';
 import {
   CHZZK_AD_RESPONSE_BLOCKER_SCRIPT,
@@ -58,16 +60,25 @@ const CHZZK_SKIP_SHORTS_ADVERTISEMENT_ACTION = 'chzzk:clips:skip-advertisement';
       '.pzp-pc__setting-button[aria-label="PIP" i]',
       'button[label="PIP" i]',
     ],
-    contentOverlaySelectors: [
-      '.pzp-pc__subtitle',
-      '.pzp-pc-subtitle',
-      '.pzp-pc__caption',
-    ],
   },
 })
 export class ChzzkProvider extends AbstractUrlProvider {
   /** The URL value. */
   protected readonly url = 'https://chzzk.naver.com/';
+
+  /** Configure this player's captions through the shared, reversible PiP API. */
+  createPictureInPictureSubtitleController(
+    session: ProviderPictureInPictureSession,
+  ): PictureInPictureSubtitleController {
+    return session.createDomSubtitleController({
+      /** Caption layers specific to this player. */
+      overlaySelectors: [
+        '.pzp-pc__subtitle',
+        '.pzp-pc-subtitle',
+        '.pzp-pc__caption',
+      ],
+    });
+  }
   /** The quality redirect count value. */
   private qualityRedirectCount = 0;
   /** The quality bypass target value. */

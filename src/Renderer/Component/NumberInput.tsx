@@ -30,6 +30,8 @@ export interface NumberInputProps
   readonly min: number;
   /** Callback used to handle on value change. */
   readonly onValueChange: (value: number) => void;
+  /** Reject out-of-range drafts with this message instead of silently clamping. */
+  readonly rangeMessage?: string;
   /** The step value. */
   readonly step?: number;
   /** The unit value. */
@@ -54,6 +56,7 @@ export function NumberInput({
   onBlur,
   onKeyDown,
   onValueChange,
+  rangeMessage,
   step = 1,
   unit,
   value,
@@ -62,12 +65,19 @@ export function NumberInput({
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const descriptionId = description ? `${inputId}-description` : undefined;
+  const rangeMessageId = `${inputId}-range-message`;
   const [draft, setDraft] = useState(String(value));
+  const [rangeError, setRangeError] = useState(false);
 
-  useEffect(() => setDraft(String(value)), [value]);
+  useEffect(() => { setDraft(String(value)); setRangeError(false); }, [value]);
 
   /** Performs the commit operation. */
   const commit = (candidate: number) => {
+    if (rangeMessage && (!Number.isFinite(candidate) || candidate < min || candidate > max)) {
+      setRangeError(true);
+      return;
+    }
+    setRangeError(false);
     const next = normalizeNumber(candidate, value, min, max, step);
     setDraft(String(next));
     onValueChange(next);
@@ -88,12 +98,16 @@ export function NumberInput({
       <span className="number-preference-copy">
         <strong>{label}</strong>
         {description ? <small id={descriptionId}>{description}</small> : null}
+        {rangeError && rangeMessage ? (
+          <small className="number-preference-error" id={rangeMessageId} role="alert">{rangeMessage}</small>
+        ) : null}
       </span>
       <span className="number-preference-field">
         <span className="number-preference-input-group">
           <input
             {...props}
-            aria-describedby={descriptionId}
+            aria-describedby={[descriptionId, rangeError ? rangeMessageId : undefined].filter(Boolean).join(' ') || undefined}
+            aria-invalid={rangeError || undefined}
             aria-label={props['aria-label'] ?? accessibleLabel}
             aria-valuemax={max}
             aria-valuemin={min}
@@ -107,22 +121,28 @@ export function NumberInput({
             type="text"
             value={draft}
             onBlur={(event) => {
-              commit(Number(event.currentTarget.value));
+              const candidate = event.currentTarget.value;
+              commit(rangeMessage && !candidate.trim() ? NaN : Number(candidate));
               onBlur?.(event);
             }}
             onChange={(event) => {
               const next = event.currentTarget.value;
-              if (/^-?(?:\d+(?:\.\d*)?|\.\d*)?$/.test(next)) setDraft(next);
+              if (/^-?(?:\d+(?:\.\d*)?|\.\d*)?$/.test(next)) {
+                setDraft(next);
+                const candidate = Number(next);
+                setRangeError(Boolean(rangeMessage && next.trim() && Number.isFinite(candidate) &&
+                  (candidate < min || candidate > max)));
+              }
             }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.currentTarget.blur();
               if (event.key === 'ArrowUp') {
                 event.preventDefault();
-                commit(value + step);
+                if (value < max) commit(Math.min(max, value + step));
               }
               if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                commit(value - step);
+                if (value > min) commit(Math.max(min, value - step));
               }
               onKeyDown?.(event);
             }}

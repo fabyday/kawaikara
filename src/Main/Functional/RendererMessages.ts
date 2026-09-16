@@ -47,6 +47,12 @@ export interface AppMessages {
   readonly pictureInPicturePortraitSize: string;
   /** The picture in picture portrait size description value. */
   readonly pictureInPicturePortraitSizeDescription: string;
+  /** Common PiP subtitle typography preference. */
+  readonly pictureInPictureSubtitleSize: string;
+  /** Explains multiplier semantics and unsupported burned-in captions. */
+  readonly pictureInPictureSubtitleSizeDescription: string;
+  /** Localized supported subtitle-size range, with shared-limit placeholders. */
+  readonly pictureInPictureSubtitleSizeRange: string;
   /** The PiP size compact value. */
   readonly pipSizeCompact: string;
   /** The PiP size medium value. */

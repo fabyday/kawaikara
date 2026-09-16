@@ -273,6 +273,8 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
   /** The picture in picture size value. */
   pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
+  /** Common PiP caption multiplier. */
+  pictureInPictureSubtitleScale: 1,
   /** The plugin locales value. */
   pluginLocales: {},
   /** The site locales value. */

@@ -113,6 +113,7 @@ module.exports = {
     output: `builds/${channel}/\${os}`,
   },
   afterPack: 'packaging/after-pack.cjs',
+  afterSign: 'packaging/after-sign.cjs',
   protocols: [
     {
       name: 'Kawaikara URL',

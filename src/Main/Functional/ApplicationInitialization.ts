@@ -1,4 +1,5 @@
 import { app, components } from 'electron';
+import { UPDATE_TEST_PROFILE } from '../../Common/BuildConfig';
 import { builtinBundle } from '@kawaikara/builtin-sites';
 import { rm } from 'node:fs/promises';
 import {
@@ -59,7 +60,7 @@ export async function initializeApplication(
 
   // Castlabs ECS installs or updates Widevine on first launch. Viewer creation
   // must wait so DRM providers never start without the component.
-  await components.whenReady([components.WIDEVINE_CDM_ID]);
+  if (!UPDATE_TEST_PROFILE) await components.whenReady([components.WIDEVINE_CDM_ID]);
 
   const managers = createApplicationManagerContainer({
     bundleDirectoryPath: getKawaiDataPath('Bundles'),
@@ -107,6 +108,19 @@ export async function initializeApplication(
   const updates = managers.resolve(MANAGER_TOKENS.updates);
   updates.configure(preferences.get());
   const discordPresence = managers.resolve(MANAGER_TOKENS.discordPresence);
+  updates.setInstallLifecycle({
+    /** Releases native surfaces only after Squirrel has accepted the download. */
+    prepare: async () => {
+      await windows.prepareForUpdateInstallation();
+      await preferences.flush();
+      shortcuts.dispose();
+    },
+    /** Keeps IPC, sites, and windows alive and restores shortcuts on a failed handoff. */
+    recover: async () => {
+      shortcuts.refreshGlobalShortcut();
+      await windows.recoverAfterFailedUpdate();
+    },
+  });
   const ipc = managers.resolve(MANAGER_TOKENS.ipc);
   ipc.initialize();
 
@@ -162,6 +176,7 @@ function configureWindows(
   windows.setPictureInPicturePlacement(current.pictureInPicturePlacement);
   windows.setPictureInPictureSize(current.pictureInPictureSize);
   windows.setPictureInPicturePortraitSize(current.pictureInPicturePortraitSize);
+  void windows.setPictureInPictureSubtitleScale(current.pictureInPictureSubtitleScale);
   windows.setPictureInPicturePlacementRecorder(async (lastPlacement) => {
     const placement = preferences.get().pictureInPicturePlacement;
     const next = await preferences.update({
@@ -181,6 +196,8 @@ function connectSites(windows: WindowManager, sites: SiteManager): void {
     allowPictureInPicture: (url) => sites.allowPictureInPicture(url),
     getPictureInPictureContentOverlaySelectors: () =>
       sites.getPictureInPictureContentOverlaySelectors(),
+    createPictureInPictureSubtitleController: (session) =>
+      sites.createPictureInPictureSubtitleController(session),
     transformRequest: (details) => sites.transformRequest(details),
     transformRequestHeaders: (details) => sites.transformRequestHeaders(details),
   });

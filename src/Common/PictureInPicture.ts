@@ -1,3 +1,27 @@
+/** Common subtitle multiplier; original site typography is preserved at 100%. */
+export const DEFAULT_PICTURE_IN_PICTURE_SUBTITLE_SCALE = 1;
+
+/** Common subtitle size preference bounds. */
+export const PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS = {
+  /** Smallest supported multiplier. */
+  min: 0.5,
+  /** Largest supported multiplier. */
+  max: 3,
+  /** Preference control increment. */
+  step: 0.1,
+} as const;
+
+/** Reject invalid persisted values and clamp finite values to the supported range. */
+export function validatePictureInPictureSubtitleScale(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PICTURE_IN_PICTURE_SUBTITLE_SCALE;
+  }
+  return Math.max(
+    PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS.min,
+    Math.min(PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS.max, value),
+  );
+}
+
 /** Defines the shared picture in picture size limits constant. */
 export const PICTURE_IN_PICTURE_SIZE_LIMITS = {
   /** The min width value. */

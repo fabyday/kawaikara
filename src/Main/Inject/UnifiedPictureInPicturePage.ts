@@ -210,6 +210,7 @@ function enterUnifiedPictureInPicture(
     video.style.setProperty('padding', '0', 'important');
     video.style.setProperty('border', '0', 'important');
     video.style.setProperty('object-fit', 'contain', 'important');
+    video.style.setProperty('object-position', '50% 50%', 'important');
     video.style.setProperty('background', '#000', 'important');
     video.style.setProperty('visibility', 'visible', 'important');
     video.style.setProperty('z-index', '2147483646', 'important');
@@ -286,7 +287,7 @@ function enterUnifiedPictureInPicture(
     'width:100%!important;height:100%!important;margin:0!important;' +
     'padding:0!important;border:0!important;max-width:none!important;' +
     'max-height:none!important;' +
-    'object-fit:contain!important;background:#000!important;' +
+    'object-fit:contain!important;object-position:50% 50%!important;background:#000!important;' +
     'visibility:visible!important;pointer-events:none!important;' +
     'z-index:2147483646!important';
   const shadowControlsStyleText =
@@ -731,7 +732,7 @@ function refreshUnifiedPictureInPictureVideo(): UnifiedPictureInPicturePageResul
     'width:100%!important;height:100%!important;margin:0!important;' +
     'padding:0!important;border:0!important;max-width:none!important;' +
     'max-height:none!important;' +
-    'object-fit:contain!important;background:#000!important;' +
+    'object-fit:contain!important;object-position:50% 50%!important;background:#000!important;' +
     'visibility:visible!important;z-index:2147483646!important';
 
   state.video = video;

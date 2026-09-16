@@ -4,20 +4,28 @@ import {
   isSiteLoginNavigation,
   provider,
   type SiteExternalLoginFlow,
+  type PictureInPictureSubtitleController,
+  type ProviderPictureInPictureSession,
 } from '@kawaikara/site-api';
 /** Implements the Netflix site provider. */
-@provider({
-  pictureInPicture: {
-    contentOverlaySelectors: [
-      '.player-timedtext',
-      '.player-timedtext-text-container',
-      '[data-uia="player-subtitle"]',
-    ],
-  },
-})
+@provider({})
 export class NetflixProvider extends AbstractUrlProvider {
   /** The URL value. */
   protected readonly url = 'https://www.netflix.com/';
+
+  /** Configure this player's captions through the shared, reversible PiP API. */
+  createPictureInPictureSubtitleController(
+    session: ProviderPictureInPictureSession,
+  ): PictureInPictureSubtitleController {
+    return session.createDomSubtitleController({
+      /** Caption layers specific to this player. */
+      overlaySelectors: [
+        '.player-timedtext',
+        '.player-timedtext-text-container',
+        '[data-uia="player-subtitle"]',
+      ],
+    });
+  }
   /** The login flow value. */
   private loginFlow?: SiteExternalLoginFlow;
   /** Whether Netflix redirected the stored Session to its blocked login page. */
@@ -73,6 +81,15 @@ export class NetflixProvider extends AbstractUrlProvider {
         // its login cookies to be written from an HTTPS domain scope; keeping
         // Patchright host-only scope can leave a conflicting Electron cookie.
         cookieImportMode: 'domain-scoped-https',
+        // Replace Netflix's stale device/session state, not unrelated sites in
+        // a user-assigned shared profile. Validate both auth cookies first.
+        resetSessionOrigins: ['https://netflix.com', 'https://www.netflix.com'],
+        cookieSettleMs: 750,
+        requiredCookies: [
+          { name: 'NetflixId', domain: 'netflix.com' },
+          { name: 'SecureNetflixId', domain: 'netflix.com' },
+        ],
+        strictCookieSynchronization: true,
         siteTitle: 'Netflix',
         locale: this.context.locale?.app,
       }),
