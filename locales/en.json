@@ -2,6 +2,8 @@
   "app": {
     "title": "Kawaikara",
     "chooseSite": "Choose a site to load",
+    "siteTransitionFailed": "The site could not be loaded",
+    "siteTransitionRecovery": "Choose a site again from the site menu to retry.",
     "openPreferences": "Open preferences",
     "closeMenu": "Close menu",
     "menuHint": "Press a number to jump to a category. Tab closes the menu.",
@@ -472,6 +474,15 @@
     "pin": "Pin folder",
     "unpin": "Unpin folder",
     "remove": "Remove from list"
+  },
+  "applicationData": {
+    "clearAllProfiles": {
+      "title": "Clear all profile data",
+      "message": "Clear sign-in and cached data from every browser profile?",
+      "detail": "Cookies, local storage, IndexedDB, and caches in isolated, Bundle, and user profiles will be removed. Preferences and Bundles are kept. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Clear all"
+    }
   },
   "externalLogin": {
     "title": "Signing in through your external browser",

@@ -104,8 +104,8 @@ export interface UnifiedPictureInPictureState {
     /** The aspect ratio reached at the end of the animation. */
     readonly targetAspectRatio: number;
   };
-  /** The hover timer value. */
-  hoverTimer?: ReturnType<typeof setInterval>;
+  /** App-level native hover subscription shared with internal Video PiP. */
+  controlsVisibility?: import('./PictureInPictureVisibility').PictureInPictureVisibilityTracker;
 }
 
 /** Resolves the picture in picture display. */

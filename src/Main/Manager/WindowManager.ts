@@ -65,6 +65,15 @@ import {
 } from '../../Common/PictureInPicture';
 import { getExternalLoginViewData } from '../Functional/Locale';
 import { getAppMessages } from '../Functional/RendererMessages';
+import type { SiteTransitionState } from '../../Common/SiteTransition';
+import {
+  createSiteTransitionSurfaceHtml,
+  createUpdateSiteTransitionSurfaceScript,
+} from '../Inject/SiteTransitionSurface';
+import {
+  trackPictureInPictureVisibility,
+  type PictureInPictureVisibilityTracker,
+} from '../Functional/PictureInPictureVisibility';
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 import { createSitePagePipeline } from '../Functional/SitePagePipeline';
 import type {
@@ -198,6 +207,16 @@ export class WindowManager {
   private overlayWindow?: BrowserWindow;
   /** The site view value. */
   private siteView?: WebContentsView;
+  /** Provider identity associated with the currently attached native view. */
+  private siteViewSiteId?: string;
+  /** Latest queued Provider lifecycle feedback. */
+  private siteTransitionState?: SiteTransitionState;
+  /** Initial app-owned backing-page navigation, independent of remote sites. */
+  private siteTransitionSurfaceReady?: Promise<boolean>;
+  /** Rejects stale asynchronous backing-page updates. */
+  private siteTransitionSurfaceRevision = 0;
+  /** Start time used to diagnose blank-surface latency without logging URLs. */
+  private siteTransitionStartedAt = 0;
   /** The site view attached value. */
   private siteViewAttached = false;
   /** The internal video visible value. */
@@ -233,6 +252,8 @@ export class WindowManager {
   private pictureInPictureSize = DEFAULT_PICTURE_IN_PICTURE_SIZE;
   /** The configured site sessions value. */
   private readonly configuredSiteSessions = new WeakSet<Session>();
+  /** Reject late requests from retired views without excluding a popup's first request. */
+  private readonly retiredSiteWebContentsIds = new Set<number>();
   /** The overlay visible value. */
   private overlayVisible = false;
   /** The overlay view value. */
@@ -316,12 +337,8 @@ export class WindowManager {
   private readonly internalVideoPictureInPictureReassertTimers = new Set<
     ReturnType<typeof setTimeout>
   >();
-  /** Native cursor polling used while the draggable Video PiP is active. */
-  private internalVideoPictureInPicturePointerTimer?: ReturnType<
-    typeof setInterval
-  >;
-  /** Whether the native cursor is currently inside the Video PiP bounds. */
-  private internalVideoPictureInPicturePointerInside = false;
+  /** Shared app-level native visibility policy for the internal Video PiP. */
+  private internalVideoPictureInPictureVisibility?: PictureInPictureVisibilityTracker;
   /** The overlay reveal timer value. */
   private overlayRevealTimer?: ReturnType<typeof setTimeout>;
   /** The registered window manager logger value. */
@@ -420,6 +437,13 @@ export class WindowManager {
     this.disposing = false;
     this.viewerClosePrepared = false;
     this.logging.attachRenderer(viewerWindow.webContents, 'rendererViewer');
+    this.siteTransitionSurfaceReady = viewerWindow.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(createSiteTransitionSurfaceHtml(this.appTheme))}`,
+    ).then(() => true, (error: unknown) => {
+      this.logger.warn('The app-owned site transition surface could not be loaded.', error);
+      return false;
+    });
+    void this.siteTransitionSurfaceReady.then(() => this.renderSiteTransitionSurface());
     this.logging.attachRenderer(overlayWindow.webContents, 'rendererOverlay');
     viewerWindow.setMenu(null);
     viewerWindow.setMenuBarVisibility(false);
@@ -476,6 +500,9 @@ export class WindowManager {
       // before-input-event listener receives Tab even before the user clicks.
       if (!this.internalVideoVisible || this.overlayVisible) return;
       setTimeout(() => this.focusInternalVideoWindow(), 0);
+    });
+    viewerWindow.on('app-command', (_event, command) => {
+      this.routeVideoDirectoryNavigation(command);
     });
     viewerWindow.on('close', (event) => {
       if (!this.disposing && !this.viewerClosePrepared) {
@@ -978,12 +1005,13 @@ export class WindowManager {
     };
     const externalBrowser: SiteExternalBrowser = {
       login: (options) => {
+        this.requireCurrentSiteContext(webContents);
         if (!permissions.has('external-browser')) {
           throw new Error('This Provider does not have the external-browser permission.');
         }
         return this.runExternalLogin(options, webContents, siteSession, viewer);
       },
-      close: () => permissions.has('external-browser')
+      close: () => permissions.has('external-browser') && this.siteView?.webContents === webContents
         ? this.cancelExternalLogin()
         : Promise.resolve(),
     };
@@ -1019,12 +1047,13 @@ export class WindowManager {
       externalBrowser,
       /** The cookies value. */
       cookies: permissions.has('cookies')
-        ? createSiteCookieStore(siteSession)
+        ? createSiteCookieStore(siteSession, () => this.requireCurrentSiteContext(webContents))
         : undefined,
       /** The logger value. */
       logger,
       /** The open external value. */
       openExternal: (url) => {
+        this.requireCurrentSiteContext(webContents);
         if (!permissions.has('navigation')) {
           throw new Error('Opening an external URL requires navigation permission.');
         }
@@ -1547,6 +1576,7 @@ export class WindowManager {
     this.systemLocale = systemLocale;
     this.appTitle = getAppMessages(locale, systemLocale).title;
     this.viewerWindow?.setTitle(this.appTitle);
+    this.renderSiteTransitionSurface();
   }
 
   /** Toggles the app full screen. */
@@ -1570,11 +1600,80 @@ export class WindowManager {
     nativeTheme.themeSource = theme;
     this.viewerWindow?.setBackgroundColor(this.getViewerSurfaceColor());
     this.siteView?.setBackgroundColor(this.getViewerSurfaceColor());
+    this.renderSiteTransitionSurface();
   }
 
   /** Returns the native backing color shown between Provider documents. */
   private getViewerSurfaceColor(): string {
     return this.appTheme === 'light' ? '#f4f4f5' : '#09090b';
+  }
+
+  /** Tracks handoff timing, retaining the outgoing view until native replacement. */
+  notifySiteTransition(state: SiteTransitionState): void {
+    this.siteTransitionState = state;
+    if (state.phase === 'loading') this.siteTransitionStartedAt = Date.now();
+    if (state.phase === 'failed') this.siteView?.setVisible(false);
+    const contents = this.siteView?.webContents;
+    if (state.phase === 'loading' && contents && !contents.isDestroyed()) {
+      contents.setAudioMuted(true);
+    }
+    this.logger.debug('Site transition lifecycle.', {
+      /** Provider identifier only, never a credential-bearing navigation URL. */
+      siteId: state.siteId,
+      /** Lifecycle phase. */
+      phase: state.phase,
+      /** Total application-side transition time. */
+      elapsedMs: Date.now() - this.siteTransitionStartedAt,
+    });
+    this.renderSiteTransitionSurface();
+  }
+
+  /** Updates only the persistent app-owned viewer document, without another load. */
+  private renderSiteTransitionSurface(): void {
+    const viewer = this.viewerWindow;
+    const ready = this.siteTransitionSurfaceReady;
+    if (!viewer || viewer.isDestroyed() || !ready) return;
+    const revision = ++this.siteTransitionSurfaceRevision;
+    const copy = getAppMessages(this.appLocale, this.systemLocale);
+    const source = createUpdateSiteTransitionSurfaceScript(
+      this.siteTransitionState,
+      {
+        /** Locale-backed failure title. */
+        siteTransitionFailed: copy.siteTransitionFailed,
+        /** Locale-backed retry guidance. */
+        siteTransitionRecovery: copy.siteTransitionRecovery,
+      },
+      this.appLocale === 'system' ? this.systemLocale : this.appLocale,
+      this.appTheme,
+    );
+    void ready.then((loaded) => {
+      if (!loaded || viewer.isDestroyed() || revision !== this.siteTransitionSurfaceRevision) return;
+      return viewer.webContents.executeJavaScript(source);
+    }).catch((error: unknown) => {
+      if (!viewer.isDestroyed()) this.logger.debug('Site transition feedback could not be updated.', error);
+    });
+  }
+
+  /** Presents the active document at DOM readiness, not after slow subresources finish. */
+  private revealActiveSiteView(contents: WebContents, reason: string): void {
+    const view = this.siteView;
+    const transition = this.siteTransitionState;
+    if (!view || view.webContents !== contents || !this.siteViewAttached ||
+        this.internalVideoVisible || contents.isDestroyed() ||
+        transition?.phase === 'failed' ||
+        (transition?.phase === 'loading' && transition.siteId !== this.siteViewSiteId) ||
+        !contents.getURL() || contents.getURL() === 'about:blank') return;
+    if (!view.getVisible()) {
+      view.setVisible(true);
+      contents.invalidate();
+      this.logger.debug('Presented active site content.', {
+        /** Application lifecycle event that made content presentable. */
+        reason,
+        /** Time to first presentable main-frame DOM. */
+        elapsedMs: Date.now() - this.siteTransitionStartedAt,
+      });
+      if (!this.overlayVisible) contents.focus();
+    }
   }
 
   /** Sets the internal video presentation. */
@@ -1823,51 +1922,23 @@ export class WindowManager {
     video: BrowserWindow,
   ): void {
     this.clearInternalVideoPictureInPicturePointerMonitor();
-    /** Publishes a native PiP boundary transition to the Video renderer. */
-    const updatePointerState = () => {
-      if (
-        !this.internalVideoPictureInPicture ||
-        video.isDestroyed() ||
-        this.videoWindow !== video
-      ) {
-        this.clearInternalVideoPictureInPicturePointerMonitor();
-        return;
-      }
-      const cursor = screen.getCursorScreenPoint();
-      const bounds = video.getBounds();
-      const inside =
-        cursor.x >= bounds.x &&
-        cursor.x < bounds.x + bounds.width &&
-        cursor.y >= bounds.y &&
-        cursor.y < bounds.y + bounds.height;
-      if (inside === this.internalVideoPictureInPicturePointerInside) return;
-      this.internalVideoPictureInPicturePointerInside = inside;
-      video.webContents.send(
-        IPC_CHANNELS.video.pictureInPicturePointerChanged,
-        inside,
-      );
-    };
-    updatePointerState();
-    this.internalVideoPictureInPicturePointerTimer = setInterval(
-      updatePointerState,
-      80,
+    this.internalVideoPictureInPictureVisibility = trackPictureInPictureVisibility(
+      video,
+      () => screen.getCursorScreenPoint(),
+      () => Boolean(this.internalVideoPictureInPicture) && this.videoWindow === video,
+      (visible) => {
+        if (!video.isDestroyed()) video.webContents.send(
+          IPC_CHANNELS.video.pictureInPicturePointerChanged,
+          visible,
+        );
+      },
     );
   }
 
   /** Stops native PiP cursor polling and clears the renderer hover state. */
   private clearInternalVideoPictureInPicturePointerMonitor(): void {
-    if (this.internalVideoPictureInPicturePointerTimer !== undefined) {
-      clearInterval(this.internalVideoPictureInPicturePointerTimer);
-      this.internalVideoPictureInPicturePointerTimer = undefined;
-    }
-    if (!this.internalVideoPictureInPicturePointerInside) return;
-    this.internalVideoPictureInPicturePointerInside = false;
-    const video = this.videoWindow;
-    if (!video || video.isDestroyed()) return;
-    video.webContents.send(
-      IPC_CHANNELS.video.pictureInPicturePointerChanged,
-      false,
-    );
+    this.internalVideoPictureInPictureVisibility?.dispose();
+    this.internalVideoPictureInPictureVisibility = undefined;
   }
 
   /** Notifies the picture in picture changed. */
@@ -2117,9 +2188,10 @@ export class WindowManager {
     }
     if (this.siteView && !this.siteView.webContents.isDestroyed()) {
       await this.pictureInPicture.exitAllModes();
-      await prepareCurrentDocumentForNavigation(this.siteView.webContents);
     }
-    await this.cancelExternalLogin();
+    // Wait only for authentication state to settle, not Chrome process exit or
+    // locked temporary-profile removal. Provider teardown is already retiring.
+    await this.cancelExternalLogin(false);
     this.closeSitePopups();
     this.destroySiteView();
 
@@ -2148,6 +2220,7 @@ export class WindowManager {
     siteView.setVisible(false);
 
     this.siteView = siteView;
+    this.siteViewSiteId = runtime.siteId;
     this.configureSiteSession(siteSession);
     // Provider injections log with a stable prefix. Forward only those
     // messages instead of every third-party site console line, which keeps
@@ -2203,6 +2276,7 @@ export class WindowManager {
       }, 0);
     };
     webContents.on('dom-ready', () => {
+      this.revealActiveSiteView(webContents, 'dom-ready');
       this.installRemoteThemeBridge(webContents);
       void webContents
         .insertCSS(REMOTE_SCROLLBAR_CSS, { cssOrigin: 'user'
@@ -2235,6 +2309,7 @@ export class WindowManager {
       }, 500);
     });
     webContents.on('before-input-event', (event, input) => {
+      if (this.siteView?.webContents !== webContents) return;
       const editing = this.editingWebContentsIds.has(webContentsId);
       if (handleNativeEditingShortcut(webContents, input, editing)) {
         event.preventDefault();
@@ -2244,6 +2319,10 @@ export class WindowManager {
     });
     /** Performs the guard navigation operation. */
     const guardNavigation = (event: Electron.Event, url: string): void => {
+      if (this.siteView?.webContents !== webContents) {
+        event.preventDefault();
+        return;
+      }
       const action = this.parseSiteAction(url);
       if (action !== undefined) {
         event.preventDefault();
@@ -2258,6 +2337,7 @@ export class WindowManager {
     webContents.on('will-navigate', guardNavigation);
     webContents.on('will-redirect', guardNavigation);
     webContents.on('will-frame-navigate', (details) => {
+      if (this.siteView?.webContents !== webContents) return;
       // Provider action URLs may originate in a cross-origin media iframe
       // (for example CHZZK's m.naver.com Shorts carousel). Only intercept the
       // application-owned scheme here; ordinary subframe navigation remains
@@ -2272,6 +2352,7 @@ export class WindowManager {
     });
     /** Performs the finish picture in picture navigation operation. */
     const finishPictureInPictureNavigation = (url: string): void => {
+      if (this.siteView?.webContents !== webContents) return;
       // Decide from the committed route, not did-start-navigation. CHZZK can
       // briefly announce a non-video/intermediate URL while its Shorts router
       // replaces the current clip. Exiting at that point drops PiP even though
@@ -2291,7 +2372,7 @@ export class WindowManager {
     });
     webContents.on('page-title-updated', (event) => {
       event.preventDefault();
-      this.viewerWindow?.setTitle(this.appTitle);
+      if (this.siteView?.webContents === webContents) this.viewerWindow?.setTitle(this.appTitle);
     });
     webContents.on('destroyed', () => {
       this.editingWebContentsIds.delete(webContentsId);
@@ -2308,6 +2389,7 @@ export class WindowManager {
     });
 
     webContents.setWindowOpenHandler(({ url }) => {
+      if (this.siteView?.webContents !== webContents) return { action: 'deny' };
       const action = this.parseSiteAction(url);
       if (action !== undefined) {
         this.dispatchSiteAction(action);
@@ -2359,6 +2441,10 @@ export class WindowManager {
     });
 
     webContents.on('did-create-window', (popupWindow) => {
+      if (this.siteView?.webContents !== webContents) {
+        popupWindow.destroy();
+        return;
+      }
       this.sitePopupWindows.add(popupWindow);
       // A site-specific browser UA must also be visible to popup JavaScript.
       // Session request interception covers the initial navigation headers.
@@ -2472,6 +2558,10 @@ export class WindowManager {
     if (this.configuredSiteSessions.has(siteSession)) return;
     this.configuredSiteSessions.add(siteSession);
     siteSession.webRequest.onBeforeRequest((details, callback) => {
+      if (!this.isActiveSiteRequest(siteSession, details.webContentsId)) {
+        callback({});
+        return;
+      }
       const transformed = this.requestTransformer?.({
         url: details.url,
         method: details.method,
@@ -2480,6 +2570,10 @@ export class WindowManager {
       callback(transformed ?? {});
     });
     siteSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      if (!this.isActiveSiteRequest(siteSession, details.webContentsId)) {
+        callback({ requestHeaders: details.requestHeaders });
+        return;
+      }
       let requestHeaders = this.requestHeadersTransformer?.({
         url: details.url,
         method: details.method,
@@ -2503,12 +2597,25 @@ export class WindowManager {
     });
   }
 
+  /** Retired views/profiles cannot inherit the successor's request policy or UA. */
+  private isActiveSiteRequest(siteSession: Session, webContentsId: number | undefined): boolean {
+    const current = this.siteView?.webContents;
+    if (!current || current.isDestroyed() || current.session !== siteSession) return false;
+    // OAuth popup navigation can begin before did-create-window registers it.
+    // Keep the Session's existing policy for live popups/workers, but not a
+    // captured outgoing view whose requests arrive after the native handoff.
+    return webContentsId === undefined || webContentsId < 0 ||
+      !this.retiredSiteWebContentsIds.has(webContentsId);
+  }
+
   /** Performs the destroy site view operation. */
   private destroySiteView(): void {
     const siteView = this.siteView;
     this.siteView = undefined;
+    this.siteViewSiteId = undefined;
     if (!siteView) return;
     const webContentsId = siteView.webContents.id;
+    this.retiredSiteWebContentsIds.add(webContentsId);
     if (siteView.webContents.isDevToolsOpened()) {
       this.keepSiteDevToolsOpen = true;
       const devToolsContents = siteView.webContents.devToolsWebContents;
@@ -2530,7 +2637,20 @@ export class WindowManager {
       viewerWindow.contentView.removeChildView(siteView);
     }
     this.siteViewAttached = false;
-    if (!siteView.webContents.isDestroyed()) siteView.webContents.close();
+    if (!siteView.webContents.isDestroyed()) {
+      // Closing the retired native document stops media without asking its JS
+      // renderer to respond first; no old network/cleanup wait gates the new URL.
+      siteView.webContents.setAudioMuted(true);
+      siteView.webContents.stop();
+      siteView.webContents.close();
+    }
+  }
+
+  /** A captured outgoing capability must never operate on successor-owned state. */
+  private requireCurrentSiteContext(webContents: WebContents): void {
+    if (webContents.isDestroyed() || this.siteView?.webContents !== webContents) {
+      throw new Error('The site WebContents is no longer active.');
+    }
   }
 
   /** Creates the site viewer. */
@@ -2540,9 +2660,7 @@ export class WindowManager {
   ): SiteViewer {
     /** Returns the web contents. */
     const getWebContents = () => {
-      if (webContents.isDestroyed()) {
-        throw new Error('The site WebContents is no longer active.');
-      }
+      this.requireCurrentSiteContext(webContents);
       return webContents;
     };
     return {
@@ -2553,17 +2671,10 @@ export class WindowManager {
         }
         const contents = getWebContents();
         await this.prepareViewerTransition(contents);
+        getWebContents();
         this.currentVideoOpenRequest = null;
         await loadURLWithNavigationRecovery(contents, url);
-        const siteView = this.siteView;
-        if (
-          siteView &&
-          siteView.webContents === contents &&
-          this.siteViewAttached
-        ) {
-          siteView.setVisible(true);
-          contents.focus();
-        }
+        this.revealActiveSiteView(contents, 'load-complete');
         // A Provider load establishes a new site boundary. Chromium otherwise
         // keeps the previous Provider's document in this shared WebContents.
         contents.navigationHistory.clear();
@@ -2578,6 +2689,7 @@ export class WindowManager {
         }
         const contents = getWebContents();
         await this.prepareViewerTransition(contents);
+        getWebContents();
         const viewer = this.requireViewerWindow();
         const siteView = this.requireSiteView();
         if (this.siteViewAttached) {
@@ -2620,6 +2732,7 @@ export class WindowManager {
     webContents: WebContents,
     options: SiteBrowserIdentityOptions,
   ): Disposable {
+    this.requireCurrentSiteContext(webContents);
     if (options.requestHosts?.some((host) =>
       !/^[a-z0-9.-]+$/i.test(host) || host.startsWith('.') || host.endsWith('.'),
     )) {
@@ -2657,8 +2770,11 @@ export class WindowManager {
 
   /** Prepares the viewer transition. */
   private async prepareViewerTransition(webContents: WebContents): Promise<void> {
+    this.requireCurrentSiteContext(webContents);
     await this.exitInternalVideoPictureInPicture();
+    this.requireCurrentSiteContext(webContents);
     await this.pictureInPicture.exitAllModes();
+    this.requireCurrentSiteContext(webContents);
     this.closeSitePopups();
     await prepareCurrentDocumentForNavigation(webContents);
   }
@@ -2670,6 +2786,7 @@ export class WindowManager {
     targetSession: Session,
     viewer: SiteViewer,
   ): ReturnType<SiteExternalBrowser['login']> {
+    this.requireCurrentSiteContext(webContents);
     const returnUrl = options.returnUrl ?? webContents.getURL();
     const generation = ++this.externalLoginGeneration;
 
@@ -2689,11 +2806,15 @@ export class WindowManager {
         },
       },
     );
+    if (generation !== this.externalLoginGeneration || webContents.isDestroyed() ||
+        this.siteView?.webContents !== webContents) return 'cancelled';
     // The waiting document is an application implementation detail, not a
     // destination the user should revisit with Back or Forward.
     webContents.navigationHistory.clear();
 
     try {
+      this.requireCurrentSiteContext(webContents);
+      if (generation !== this.externalLoginGeneration) return 'cancelled';
       return await this.externalBrowser.login(
         options,
         targetSession,
@@ -2713,9 +2834,10 @@ export class WindowManager {
   }
 
   /** Determines whether the cel external login condition applies. */
-  private async cancelExternalLogin(): Promise<void> {
+  private async cancelExternalLogin(waitForCleanup = true): Promise<void> {
     ++this.externalLoginGeneration;
-    await this.externalBrowser.close();
+    if (waitForCleanup) await this.externalBrowser.close();
+    else await this.externalBrowser.cancelLogin();
   }
 
   /** Performs the sync site view bounds operation. */
@@ -2767,6 +2889,18 @@ export class WindowManager {
     }, 0);
   }
 
+  /** Routes physical browser commands to folders, never to video.html history. */
+  private routeVideoDirectoryNavigation(command: string): void {
+    if (command !== 'browser-backward' && command !== 'browser-forward') return;
+    const video = this.videoWindow;
+    if (!this.internalVideoVisible || this.internalVideoPictureInPicture ||
+        this.overlayVisible || !video || video.isDestroyed()) return;
+    video.webContents.send(
+      IPC_CHANNELS.video.directoryNavigationRequested,
+      command === 'browser-backward' ? 'back' : 'forward',
+    );
+  }
+
   /** Performs the sync video window bounds operation. */
   private syncVideoWindowBounds(): void {
     const viewer = this.viewerWindow;
@@ -2798,6 +2932,8 @@ export class WindowManager {
       show: false,
       frame: false,
       title: 'Kawaikara Video',
+      // Fill the viewer content without another rounded top edge below its title bar.
+      roundedCorners: false,
       backgroundColor: '#050506',
       resizable: false,
       movable: false,
@@ -2835,6 +2971,9 @@ export class WindowManager {
       video.showInactive();
     }
     const webContentsId = video.webContents.id;
+    video.on('app-command', (_event, command) => {
+      if (this.videoWindow === video) this.routeVideoDirectoryNavigation(command);
+    });
     video.webContents.on('before-input-event', (event, input) => {
       const editing = this.editingWebContentsIds.has(webContentsId);
       if (handleNativeEditingShortcut(video.webContents, input, editing)) {

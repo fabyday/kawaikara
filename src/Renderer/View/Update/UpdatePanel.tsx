@@ -14,6 +14,7 @@ import type {
   AppLocale,
 } from '../../../Common/IPC';
 import kawaikaraImage from '../../../../imgs/kawaikara_banner2.png';
+import { selectLocalizedReleaseNotes } from '../../../Common/ReleaseNotes';
 
 /** Describes the update panel props contract. */
 export interface UpdatePanelProps {
@@ -524,42 +525,6 @@ function formatBytes(value: number): string {
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), 3);
   const amount = value / 1024 ** index;
   return `${amount >= 10 || index === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[index]}`;
-}
-
-/** Selects the localized release notes. */
-function selectLocalizedReleaseNotes(
-  value: string | undefined,
-  locale: AppLocale | string,
-): string {
-  const notes = value?.trim();
-  if (!notes) return '';
-  const sections = Array.from(notes.matchAll(/^##\s+(.+)\s*$/gim));
-  const releaseLanguages = new Set(['english', '한국어', '日本語']);
-  if (
-    !sections.some((section) =>
-      releaseLanguages.has(section[1].trim().toLowerCase()),
-    )
-  ) {
-    return notes;
-  }
-
-  const normalizedLocale = locale.toLowerCase();
-  const preferred = normalizedLocale.startsWith('ko')
-    ? '한국어'
-    : normalizedLocale.startsWith('ja')
-      ? '日本語'
-      : 'English';
-  /** Collects the operation. */
-  const collect = (language: string) => sections.flatMap((section, index) => {
-    if (section[1].trim().toLowerCase() !== language.toLowerCase()) return [];
-    const start = (section.index ?? 0) + section[0].length;
-    const end = sections[index + 1]?.index ?? notes.length;
-    const content = notes.slice(start, end).trim();
-    return content ? [content] : [];
-  });
-  const localized = collect(preferred);
-  const selected = localized.length > 0 ? localized : collect('English');
-  return selected.join('\n\n').trim() || notes;
 }
 
 /** Performs the plain markdown operation. */

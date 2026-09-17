@@ -36,6 +36,15 @@ export function resolveAppLocale(locale: AppLocale, systemLocale: string): strin
   return locale === 'system' ? systemLocale : locale;
 }
 
+/** Returns locale-backed copy for the destructive all-profile confirmation. */
+export function getClearAllProfilesConfirmationCopy(
+  locale: AppLocale,
+  systemLocale: string,
+): typeof en.applicationData.clearAllProfiles {
+  const language = toSupportedLanguage(resolveAppLocale(locale, systemLocale));
+  return LOCALES[language].applicationData.clearAllProfiles;
+}
+
 /** Returns the external login view data. */
 export function getExternalLoginViewData(
   locale: AppLocale,

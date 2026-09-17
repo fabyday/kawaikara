@@ -13,9 +13,10 @@ export function createSitePagePipeline(
 ): SitePagePipeline {
   const injections = new Map<string, Parameters<SitePagePipeline['register']>[0]>();
   const disposables: Disposable[] = [];
+  let disposed = false;
   /** Returns the web contents. */
   const getWebContents = (): WebContents => {
-    if (webContents.isDestroyed()) {
+    if (disposed || webContents.isDestroyed()) {
       throw new Error('The site WebContents is no longer active.');
     }
     return webContents;
@@ -43,6 +44,7 @@ export function createSitePagePipeline(
     const values: T[] = [];
     let failures = 0;
     for (const frame of frames) {
+      getWebContents();
       try {
         values.push(await frame.executeJavaScript(source) as T);
       } catch {
@@ -76,8 +78,10 @@ export function createSitePagePipeline(
     phase: Parameters<SitePagePipeline['on']>[0],
     listener: Parameters<SitePagePipeline['on']>[1],
   ): Disposable => {
+    getWebContents();
     /** Performs the wrapped operation. */
     const wrapped = (): void => {
+      if (disposed) return;
       void Promise.resolve(listener()).catch((error: unknown) => {
         logger.warn(`Site page ${phase} handler failed.`, error);
       });
@@ -106,6 +110,7 @@ export function createSitePagePipeline(
   return {
     /** The register value. */
     register: (injection) => {
+      getWebContents();
       if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(injection.id)) {
         throw new Error(`Invalid site page injection id: ${injection.id}`);
       }
@@ -153,6 +158,8 @@ export function createSitePagePipeline(
     },
     /** The dispose value. */
     dispose: () => {
+      if (disposed) return;
+      disposed = true;
       injections.clear();
       disposables.splice(0).forEach((disposable) => disposable.dispose());
     },

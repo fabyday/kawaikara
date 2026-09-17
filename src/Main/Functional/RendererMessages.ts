@@ -9,6 +9,10 @@ export interface AppMessages {
   readonly title: string;
   /** The choose site value. */
   readonly chooseSite: string;
+  /** Failed Provider activation status. */
+  readonly siteTransitionFailed: string;
+  /** Recovery guidance after a failed site switch. */
+  readonly siteTransitionRecovery: string;
   /** The open preferences value. */
   readonly openPreferences: string;
   /** The close menu value. */

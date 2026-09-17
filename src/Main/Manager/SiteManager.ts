@@ -39,6 +39,8 @@ import {
 } from '../Functional/PagePictureInPicturePolicy';
 import { resolvePictureInPictureOverlaySelectors } from '../Functional/PictureInPictureOverlays';
 import { createProviderPictureInPictureSubtitleController } from '../Functional/PictureInPictureSubtitleRuntime';
+import type { SiteTransitionState } from '../../Common/SiteTransition';
+import { createScopedSiteContext } from '../Functional/ScopedSiteContext';
 import {
   resolveGlobalLocale,
   resolveProviderLocaleContributions,
@@ -91,6 +93,10 @@ export class SiteManager {
   private readonly pluginBrowserProfiles = new Map<string, BrowserProfileInfo>();
   /** Serializes Provider teardown and activation across every caller. */
   private siteTransition: Promise<void> = Promise.resolve();
+  /** Outgoing cleanup tasks hold snapshots, never the successor's mutable fields. */
+  private readonly retiredSiteCleanups = new Set<Promise<void>>();
+  /** Revokes Provider authority and begins its captured login cancellation. */
+  private currentContextRetirement?: () => Promise<void>;
 
   /** Creates an instance of SiteManager. */
   constructor(
@@ -100,6 +106,8 @@ export class SiteManager {
     private readonly getPreferences: () => PreferenceState,
     /** Callback used to handle get current address. */
     private readonly getCurrentAddress: () => string,
+    /** Reports queued activation independently of captured outgoing teardown. */
+    private readonly onTransition: (state: SiteTransitionState) => void = () => undefined,
   ) {}
 
   /** Registers the bundle. */
@@ -232,6 +240,7 @@ export class SiteManager {
         ? this.getCurrentAddress() || undefined
         : undefined;
       if (ownedActiveSiteId) await this.unloadCurrent();
+      await this.drainRetiredSiteCleanups();
       this.rollbackBundleRegistration(bundleId);
       return {
         /** Whether the active site ID option is enabled. */
@@ -370,7 +379,42 @@ export class SiteManager {
       throw new Error(`Unknown site: ${id}`);
     }
 
-    await this.unloadCurrent();
+    this.onTransition({
+      /** Requested Provider. */
+      siteId: id,
+      /** Provider display name. */
+      title: registration.metadata.title,
+      /** Begin before potentially slow outgoing Provider cleanup. */
+      phase: 'loading',
+    });
+    try {
+      await this.loadRegisteredSite(id, registration);
+      this.onTransition({
+        /** Activated Provider. */
+        siteId: id,
+        /** Provider display name. */
+        title: registration.metadata.title,
+        /** Provider lifecycle and required policy installation completed. */
+        phase: 'ready',
+      });
+    } catch (error) {
+      this.onTransition({
+        /** Failed requested Provider. */
+        siteId: id,
+        /** Provider display name. */
+        title: registration.metadata.title,
+        /** Context/constructor/load/policy failures belong to this activation only. */
+        phase: 'failed',
+        /** Displayed as text by the app-owned backing page. */
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  /** Activates the next Provider without waiting for captured outgoing async cleanup. */
+  private async loadRegisteredSite(id: string, registration: RegisteredProvider): Promise<void> {
+    this.retireCurrent();
 
     const locale = this.resolveLocales(registration);
     const runtime = this.resolveBrowserProfile(registration);
@@ -379,46 +423,34 @@ export class SiteManager {
       runtime,
       permissions,
     );
-    const providerContext: SiteContext = {
+    const scoped = createScopedSiteContext({
       ...context,
       page: permissions.has('script-injection') ? context.page : undefined,
       locale,
-    };
+    });
+    const providerContext = scoped.context;
     this.currentPagePipeline = context.page;
+    this.currentContextRetirement = scoped.retire;
     this.activeContext = providerContext;
-    const provider = new registration.constructor(providerContext);
-    this.currentProvider = provider;
-    this.currentSiteId = id;
-    this.currentLocale = locale;
-    this.currentRuntime = runtime;
-    // Internal views have no navigable page to patch. Executing a page-world
-    // policy in their detached, initial about:blank WebContents makes Electron
-    // wait forever for did-stop-loading and leaves the site-open IPC pending.
-    const refreshPagePictureInPicturePolicy = permissions.has('navigation')
-      ? this.installPagePictureInPicturePolicy(
-          context,
-          registration.metadata,
-        )
-      : async () => undefined;
     try {
+      const provider = new registration.constructor(providerContext);
+      this.currentProvider = provider;
+      this.currentSiteId = id;
+      this.currentLocale = locale;
+      this.currentRuntime = runtime;
+      // Internal views have no navigable page to patch. Executing a page-world
+      // policy in their detached, initial about:blank WebContents makes Electron
+      // wait forever for did-stop-loading and leaves the site-open IPC pending.
+      const refreshPagePictureInPicturePolicy = permissions.has('navigation')
+        ? this.installPagePictureInPicturePolicy(context, registration.metadata)
+        : async () => undefined;
       this.installBrowserIdentity(providerContext, registration.metadata);
       await provider.onSettingsChanged(this.getProviderSettings(id));
       await this.activatePlugins(registration, providerContext);
       await provider.load();
       await refreshPagePictureInPicturePolicy();
     } catch (error) {
-      this.disposeCurrentPagePolicy();
-      await this.deactivateCurrentPlugins();
-      await provider.unload();
-      await providerContext.externalBrowser.close();
-      this.currentPagePipeline?.dispose();
-      this.currentPagePipeline = undefined;
-      this.disposeCurrentRuntimeServices();
-      this.currentProvider = undefined;
-      this.currentSiteId = undefined;
-      this.currentLocale = undefined;
-      this.currentRuntime = undefined;
-      this.activeContext = undefined;
+      this.retireCurrent();
       throw error;
     }
   }
@@ -540,6 +572,7 @@ export class SiteManager {
         ? this.currentSiteId
         : undefined;
       if (siteId) await this.unloadCurrent();
+      await this.drainRetiredSiteCleanups();
       try {
         return await operation();
       } finally {
@@ -940,31 +973,57 @@ export class SiteManager {
     }
   }
 
-  /** Performs the deactivate current plugins operation. */
-  private async deactivateCurrentPlugins(): Promise<void> {
-    for (const plugin of this.currentPlugins.splice(0).reverse()) {
-      try {
-        await plugin.deactivate();
-      } catch (error) {
-        console.error('Plugin deactivation failed.', error);
-      }
-    }
-  }
-
   /** Performs the unload current operation. */
   private async unloadCurrent(): Promise<void> {
-    await this.deactivateCurrentPlugins();
-    this.disposeCurrentPagePolicy();
-    await this.currentProvider?.unload();
-    await this.activeContext?.externalBrowser.close();
-    this.disposeCurrentRuntimeServices();
-    this.currentPagePipeline?.dispose();
+    await this.retireCurrent();
+    await this.drainRetiredSiteCleanups();
+  }
+
+  /** Releases app-owned policy authority immediately, then retires captured instances. */
+  private retireCurrent(): Promise<void> {
+    const provider = this.currentProvider;
+    const plugins = this.currentPlugins.splice(0).reverse();
+    const context = this.activeContext;
+    const pipeline = this.currentPagePipeline;
+    const retireContext = this.currentContextRetirement;
+    this.currentContextRetirement = undefined;
     this.currentPagePipeline = undefined;
     this.currentProvider = undefined;
     this.currentSiteId = undefined;
     this.currentLocale = undefined;
     this.currentRuntime = undefined;
     this.activeContext = undefined;
+    this.disposeCurrentPagePolicy();
+    this.disposeCurrentRuntimeServices();
+    try { pipeline?.dispose(); }
+    catch (error) { console.error('Retired page pipeline disposal failed.', error); }
+    if (!provider && !context && plugins.length === 0) return Promise.resolve();
+    let loginClose: Promise<void>;
+    try {
+      loginClose = retireContext?.() ?? context?.externalBrowser.close() ?? Promise.resolve();
+    } catch (error) {
+      loginClose = Promise.reject(error);
+    }
+    void loginClose.catch(() => undefined);
+    // Defer Plugin/Provider hooks until after the native handoff can start.
+    const cleanup = Promise.resolve().then(async () => {
+      for (const plugin of plugins) {
+        try { await plugin.deactivate(); }
+        catch (error) { console.error('Retired Plugin deactivation failed.', error); }
+      }
+      try { await provider?.unload(); }
+      catch (error) { console.error('Retired Provider unload failed.', error); }
+      try { await loginClose; }
+      catch (error) { console.error('Retired external login cleanup failed.', error); }
+    });
+    this.retiredSiteCleanups.add(cleanup);
+    void cleanup.then(() => this.retiredSiteCleanups.delete(cleanup));
+    return cleanup;
+  }
+
+  /** Shutdown, Bundle removal, and storage resets still require complete cleanup. */
+  private async drainRetiredSiteCleanups(): Promise<void> {
+    await Promise.all([...this.retiredSiteCleanups]);
   }
 
   /** Installs the browser identity. */
@@ -985,7 +1044,8 @@ export class SiteManager {
   /** Releases the current runtime services. */
   private disposeCurrentRuntimeServices(): void {
     for (const disposable of this.currentRuntimeDisposables.splice(0).reverse()) {
-      disposable.dispose();
+      try { disposable.dispose(); }
+      catch (error) { console.error('Retired browser policy disposal failed.', error); }
     }
   }
 
@@ -1021,7 +1081,8 @@ export class SiteManager {
   /** Releases the current page policy. */
   private disposeCurrentPagePolicy(): void {
     for (const disposable of this.currentPagePolicyDisposables.splice(0)) {
-      disposable.dispose();
+      try { disposable.dispose(); }
+      catch (error) { console.error('Retired page policy disposal failed.', error); }
     }
   }
 

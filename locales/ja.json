@@ -2,6 +2,8 @@
   "app": {
     "title": "カワイカラ",
     "chooseSite": "読み込むサイトを選択してください",
+    "siteTransitionFailed": "サイトを読み込めませんでした",
+    "siteTransitionRecovery": "サイトメニューから再度選択して、もう一度お試しください。",
     "openPreferences": "設定を開く",
     "closeMenu": "メニューを閉じる",
     "menuHint": "数字キーでカテゴリーへ移動し、Tabでメニューを閉じます。",
@@ -472,6 +474,15 @@
     "pin": "フォルダーを固定",
     "unpin": "固定を解除",
     "remove": "一覧から削除"
+  },
+  "applicationData": {
+    "clearAllProfiles": {
+      "title": "すべてのプロファイルデータを削除",
+      "message": "すべてのブラウザープロファイルのログイン情報とキャッシュを削除しますか？",
+      "detail": "分離、Bundle、ユーザープロファイルのCookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。設定とBundleは保持され、この操作は元に戻せません。",
+      "cancel": "キャンセル",
+      "confirm": "すべて削除"
+    }
   },
   "externalLogin": {
     "title": "外部ブラウザでログイン中",

@@ -1,5 +1,6 @@
 import { app, dialog, type Session } from 'electron';
 import type { AppLocale } from '../../Common/IPC';
+import { getClearAllProfilesConfirmationCopy } from './Locale';
 
 /** Defines the clear target kind type. */
 type ClearTargetKind = 'profile' | 'site';
@@ -60,30 +61,7 @@ export async function confirmDataReset(
 export async function confirmClearAllProfiles(
   locale: AppLocale,
 ): Promise<boolean> {
-  const language = resolveLanguage(locale);
-  const copy: ConfirmationCopy = language === 'ko'
-    ? {
-        title: '모든 프로필 데이터 삭제',
-        message: '모든 브라우저 프로필의 로그인 및 캐시 데이터를 삭제할까요?',
-        detail: '격리, Bundle 및 사용자 프로필의 쿠키, 로컬 저장소, IndexedDB와 캐시가 삭제됩니다. 설정과 Bundle은 유지되며 이 작업은 되돌릴 수 없습니다.',
-        cancel: '취소',
-        confirm: '모두 삭제',
-      }
-    : language === 'ja'
-      ? {
-          title: 'すべてのプロファイルデータを削除',
-          message: 'すべてのブラウザープロファイルのログイン情報とキャッシュを削除しますか？',
-          detail: '分離、Bundle、ユーザープロファイルのCookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。設定とBundleは保持され、この操作は元に戻せません。',
-          cancel: 'キャンセル',
-          confirm: 'すべて削除',
-        }
-      : {
-          title: 'Clear all profile data',
-          message: 'Clear sign-in and cached data from every browser profile?',
-          detail: 'Cookies, local storage, IndexedDB, and caches in isolated, Bundle, and user profiles will be removed. Preferences and Bundles are kept. This cannot be undone.',
-          cancel: 'Cancel',
-          confirm: 'Clear all',
-        };
+  const copy = getClearAllProfilesConfirmationCopy(locale, app.getLocale());
   return showConfirmation(copy);
 }
 

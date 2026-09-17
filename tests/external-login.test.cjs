@@ -192,3 +192,73 @@ test('a synchronization error cannot resolve as completed; next login can succee
   await manager.close();
   assert.equal(next.closed, true);
 });
+
+test('site cancellation settles login without waiting for browser/profile cleanup, including cleanup-wait Providers', async (t) => {
+  const manager = new ExternalBrowserManager(), browser = browserFixture(t, []);
+  let releaseBrowser;
+  const blockedClose = new Promise(resolve => { releaseBrowser = resolve; });
+  browser.page.goto = async () => {};
+  const close = browser.context.close;
+  browser.context.close = async () => { await blockedClose; await close(); };
+  const result = manager.waitForLogin(browser.context, browser.page, browser.profile, /\/browse/, 'https://www.netflix.com/login',
+    sessionFixture(), {}, [], false, 'domain-scoped-https', true);
+  try {
+    await manager.cancelLogin();
+    assert.equal(await result, 'cancelled');
+    assert.equal(browser.closed, false);
+    assert.equal(manager.activeLogin, undefined);
+    assert.ok(manager.browserCleanup);
+    let drained = false;
+    const draining = manager.close().then(() => { drained = true; });
+    await Promise.resolve(); await Promise.resolve(); assert.equal(drained, false);
+    releaseBrowser(); await draining; assert.equal(browser.closed, true);
+  } finally { releaseBrowser(); await manager.close(); }
+});
+test('site cancellation still waits for credential synchronization already in progress', async (t) => {
+  const manager = new ExternalBrowserManager(), browser = browserFixture(t, authCookies());
+  let releaseImport, importStarted;
+  const started = new Promise(resolve => { importStarted = resolve; });
+  const blockedImport = new Promise(resolve => { releaseImport = resolve; });
+  manager.replaceSessionLogin = async () => { importStarted(); await blockedImport; };
+  const result = manager.waitForLogin(browser.context, browser.page, browser.profile, /\/browse/, 'https://www.netflix.com/login',
+    sessionFixture(), {}, [], false, 'domain-scoped-https', false);
+  await started;
+  let settled = false;
+  const cancellation = manager.cancelLogin().then(() => { settled = true; });
+  await Promise.resolve(); await Promise.resolve(); assert.equal(settled, false);
+  releaseImport(); await cancellation;
+  assert.equal(await result, 'completed'); assert.equal(settled, true);
+  await manager.close();
+});
+test('completed cleanup-wait login releases site handoff after credentials, before Chrome exit', async (t) => {
+  const manager = new ExternalBrowserManager(), browser = browserFixture(t, authCookies());
+  let releaseBrowser, markImported;
+  const imported = new Promise(resolve => { markImported = resolve; });
+  const blockedClose = new Promise(resolve => { releaseBrowser = resolve; });
+  const close = browser.context.close;
+  browser.context.close = async () => { await blockedClose; await close(); };
+  manager.replaceSessionLogin = async () => { markImported(); };
+  let returned = false;
+  const result = manager.waitForLogin(browser.context, browser.page, browser.profile, /\/browse/, 'https://www.netflix.com/login',
+    sessionFixture(), {}, [], false, 'domain-scoped-https', true).then(value => { returned = true; return value; });
+  try {
+    await imported; await manager.cancelLogin();
+    assert.equal(returned, false, 'normal flow still waits for cleanup as requested');
+    assert.equal(browser.closed, false);
+    releaseBrowser(); assert.equal(await result, 'completed'); await manager.close();
+  } finally { releaseBrowser(); await manager.close(); }
+});
+test('a retired login request does not cancel a successor or launch a browser after its native target closes', async (t) => {
+  const dead = new ExternalBrowserManager(); dead.close = assert.fail;
+  assert.equal(await dead.login({}, {}, { isDestroyed: () => true }), 'cancelled');
+  const manager = new ExternalBrowserManager(), browser = browserFixture(t, []);
+  manager.removeLegacyPersistentBrowserState = async () => {};
+  let destroyed = false, markLaunch, releaseLaunch;
+  const launched = new Promise(resolve => { markLaunch = resolve; });
+  const launch = new Promise(resolve => { releaseLaunch = resolve; });
+  manager.launchBrowser = async () => { markLaunch(); await launch; return browser.context; };
+  manager.waitForLogin = assert.fail;
+  const running = manager.login({ completionUrlPattern: '/browse' }, {}, { isDestroyed: () => destroyed });
+  await launched; destroyed = true; releaseLaunch();
+  assert.equal(await running, 'cancelled'); assert.equal(browser.closed, true);
+});

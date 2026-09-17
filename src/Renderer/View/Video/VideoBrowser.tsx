@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from 'react';
@@ -15,6 +16,7 @@ import type {
   VideoLibrarySnapshot,
   VideoOpenRequest,
 } from '../../../Common/IPC';
+import { VideoDirectoryHistory } from '../../../Common/VideoDirectoryHistory';
 import { RightArrowIcon } from '../../Component/RightArrowIcon';
 import { VideoThumbnail } from '../../Component/VideoThumbnail';
 import {
@@ -85,6 +87,29 @@ export function VideoBrowser({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [contextMenu, setContextMenu] = useState<BrowserFolderContextMenu>();
+  const historyRef = useRef(new VideoDirectoryHistory());
+  const navigationGenerationRef = useRef(0);
+  const historyNavigationQueueRef = useRef<(-1 | 1)[]>([]);
+  const historyNavigationRunRef = useRef(0);
+  const historyNavigationBusyRef = useRef(false);
+  const mountedRef = useRef(true);
+  const labelsRef = useRef(labels);
+  labelsRef.current = labels;
+
+  /** Cancels queued history work without waiting on an inaccessible folder's IPC. */
+  const cancelHistoryNavigation = useCallback(() => {
+    historyNavigationQueueRef.current.length = 0;
+    historyNavigationRunRef.current += 1;
+    historyNavigationBusyRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      navigationGenerationRef.current += 1;
+    };
+  }, []);
 
   const loadThumbnail = useCallback((path: string) =>
     loadVideoThumbnail(
@@ -94,32 +119,83 @@ export function VideoBrowser({
 
   const refreshSnapshot = useCallback(async () => {
     const next = await window.kawaikaraVideo.videoLibrary.getSnapshot();
-    setSnapshot(next);
+    if (mountedRef.current) setSnapshot(next);
     return next;
   }, []);
 
-  const loadDirectory = useCallback(async (directory: string) => {
+  const loadDirectory = useCallback(async (directory: string | undefined, offset?: -1 | 1) => {
+    if (offset === undefined) cancelHistoryNavigation();
+    const generation = ++navigationGenerationRef.current;
     setLoading(true);
     setError(undefined);
     try {
-      const next = await window.kawaikaraVideo.videoLibrary.listDirectory(directory);
+      const next = directory === undefined ? undefined
+        : await window.kawaikaraVideo.videoLibrary.listDirectory(directory);
+      if (generation !== navigationGenerationRef.current) return false;
+      historyRef.current.commit(next?.directory, offset);
       setListing(next);
-      setAddress(next.directory);
+      setAddress(next?.directory ?? '');
       setQuery('');
       setSearchResults(undefined);
+      setContextMenu(undefined);
       void refreshSnapshot().catch(() => undefined);
+      return true;
     } catch (reason) {
-      setError(getErrorMessage(reason, labels.folderUnavailable));
+      if (generation === navigationGenerationRef.current) {
+        setError(getErrorMessage(reason, labelsRef.current.folderUnavailable));
+      }
+      return false;
     } finally {
-      setLoading(false);
+      if (generation === navigationGenerationRef.current) setLoading(false);
     }
-  }, [labels.folderUnavailable, refreshSnapshot]);
+  }, [cancelHistoryNavigation, refreshSnapshot]);
 
   useEffect(() => {
     let active = true;
+    /** Processes rapid physical presses in order, after each successful visit. */
+    const drain = async () => {
+      if (historyNavigationBusyRef.current) return;
+      historyNavigationBusyRef.current = true;
+      const run = ++historyNavigationRunRef.current;
+      try {
+        while (active && run === historyNavigationRunRef.current &&
+            historyNavigationQueueRef.current.length > 0) {
+          const offset = historyNavigationQueueRef.current.shift()!;
+          const target = historyRef.current.target(offset);
+          if (target) {
+            const loaded = await loadDirectory(target.directory, offset);
+            if (run !== historyNavigationRunRef.current) return;
+            if (!loaded) historyNavigationQueueRef.current.length = 0;
+          }
+        }
+      } finally {
+        if (run === historyNavigationRunRef.current) historyNavigationBusyRef.current = false;
+      }
+    };
+    const unsubscribe = window.kawaikaraVideo.application.onDirectoryNavigationRequested(
+      (direction) => {
+        historyNavigationQueueRef.current.push(direction === 'back' ? -1 : 1);
+        void drain();
+      },
+    );
+    return () => {
+      active = false;
+      cancelHistoryNavigation();
+      unsubscribe();
+    };
+  }, [cancelHistoryNavigation, loadDirectory]);
+
+  useEffect(() => {
+    const generation = ++navigationGenerationRef.current;
+    let active = true;
+    /** Prevents delayed initialization from overwriting a newer folder visit. */
+    const isCurrent = () => active && generation === navigationGenerationRef.current;
+    historyRef.current.reset(undefined);
+    cancelHistoryNavigation();
+    setLoading(true);
     void refreshSnapshot()
       .then(async (next) => {
-        if (!active) return;
+        if (!isCurrent()) return;
         const startDirectory = initialDirectory ?? next.lastDirectory;
         if (startDirectory) {
           try {
@@ -127,34 +203,39 @@ export function VideoBrowser({
               await window.kawaikaraVideo.videoLibrary.listDirectory(
                 startDirectory,
               );
-            if (!active) return;
+            if (!isCurrent()) return;
+            historyRef.current.reset(initialListing.directory);
             setListing(initialListing);
             setAddress(initialListing.directory);
           } catch {
-            if (active) setListing(undefined);
+            if (isCurrent()) setListing(undefined);
           }
         }
       })
       .catch((reason: unknown) => {
-        if (active) setError(getErrorMessage(reason, labels.folderUnavailable));
+        if (isCurrent()) setError(getErrorMessage(reason, labelsRef.current.folderUnavailable));
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [initialDirectory, labels.folderUnavailable, refreshSnapshot]);
+  }, [cancelHistoryNavigation, initialDirectory, refreshSnapshot]);
 
   /** Opens the path. */
   const openPath = async (value: string) => {
     const target = value.trim();
     if (!target) return;
+    cancelHistoryNavigation();
+    const generation = ++navigationGenerationRef.current;
     setLoading(true);
     setError(undefined);
     try {
       const result = await window.kawaikaraVideo.videoLibrary.openPath(target);
+      if (generation !== navigationGenerationRef.current) return;
       if (result.kind === 'directory') {
+        historyRef.current.commit(result.listing.directory);
         setListing(result.listing);
         setAddress(result.listing.directory);
         setQuery('');
@@ -167,9 +248,11 @@ export function VideoBrowser({
       }
       void refreshSnapshot().catch(() => undefined);
     } catch (reason) {
-      setError(getErrorMessage(reason, labels.pathUnavailable));
+      if (generation === navigationGenerationRef.current) {
+        setError(getErrorMessage(reason, labels.pathUnavailable));
+      }
     } finally {
-      setLoading(false);
+      if (generation === navigationGenerationRef.current) setLoading(false);
     }
   };
 
@@ -186,24 +269,27 @@ export function VideoBrowser({
       setSearchResults(undefined);
       return;
     }
+    const generation = ++navigationGenerationRef.current;
     setLoading(true);
     setError(undefined);
     void window.kawaikaraVideo.videoLibrary
       .searchDirectory(listing.directory, query)
-      .then(setSearchResults)
-      .catch((reason: unknown) =>
-        setError(getErrorMessage(reason, labels.searchFailed)),
-      )
-      .finally(() => setLoading(false));
+      .then((results) => {
+        if (generation === navigationGenerationRef.current) setSearchResults(results);
+      })
+      .catch((reason: unknown) => {
+        if (generation === navigationGenerationRef.current) {
+          setError(getErrorMessage(reason, labels.searchFailed));
+        }
+      })
+      .finally(() => {
+        if (generation === navigationGenerationRef.current) setLoading(false);
+      });
   };
 
   /** Performs the show home operation. */
   const showHome = () => {
-    setListing(undefined);
-    setAddress('');
-    setQuery('');
-    setSearchResults(undefined);
-    setError(undefined);
+    void loadDirectory(undefined);
   };
 
   useEffect(() => {

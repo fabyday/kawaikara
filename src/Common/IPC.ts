@@ -4,6 +4,7 @@ import type {
   ExternalDownloaderStatus,
 } from './Download';
 import type { ReleaseChannel } from './BuildConfig';
+import type { DirectoryNavigationDirection } from './VideoDirectoryHistory';
 import type {
   PictureInPicturePlacementPreference,
   PictureInPictureSizePreference,
@@ -210,6 +211,8 @@ export const IPC_CHANNELS = defineIpcChannels({
     visibilityChanged: 'kawaikara:video:visibility-changed',
     /** The playback toggle requested value. */
     playbackToggleRequested: 'kawaikara:video:playback-toggle-requested',
+    /** Native back/forward command for the mounted local folder browser. */
+    directoryNavigationRequested: 'kawaikara:video:directory-navigation-requested',
     /** The recover playback renderer value. */
     recoverPlaybackRenderer: 'kawaikara:video:recover-playback-renderer',
     /** The playback renderer ready value. */
@@ -1433,6 +1436,10 @@ export interface KawaikaraVideoApi {
     onVisibilityChanged(handler: (visible: boolean) => void): () => void;
     /** Handles an app-routed playback toggle shortcut. */
     onPlaybackToggleRequested(handler: () => void): () => void;
+    /** Subscribes to physical mouse/browser navigation while browsing folders. */
+    onDirectoryNavigationRequested(
+      handler: (direction: DirectoryNavigationDirection) => void,
+    ): () => void;
   };
   /** The source value. */
   source: {

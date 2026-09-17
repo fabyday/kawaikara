@@ -38,6 +38,8 @@ export class ExternalBrowserManager {
   private activeLogin?: ActiveExternalLogin;
   /** The browser cleanup value. */
   private browserCleanup?: Promise<void>;
+  /** Credential import is atomic with respect to a native site handoff. */
+  private loginCompletion?: Promise<void>;
   /** The removed legacy browser state value. */
   private removedLegacyBrowserState = false;
 
@@ -47,9 +49,11 @@ export class ExternalBrowserManager {
     targetSession: Session,
     targetWebContents: WebContents,
   ): Promise<ExternalLoginResult> {
+    if (targetWebContents.isDestroyed()) return 'cancelled';
     await this.close();
     await this.browserCleanup;
     await this.removeLegacyPersistentBrowserState();
+    if (targetWebContents.isDestroyed()) return 'cancelled';
 
     const completionPattern = new RegExp(
       options.completionUrlPattern,
@@ -61,7 +65,16 @@ export class ExternalBrowserManager {
 
     let browserContext: BrowserContext | undefined;
     try {
+      if (targetWebContents.isDestroyed()) {
+        await removeTemporaryProfile(profilePath);
+        return 'cancelled';
+      }
       browserContext = await this.launchBrowser(profilePath);
+      if (targetWebContents.isDestroyed()) {
+        await browserContext.close().catch(() => undefined);
+        await removeTemporaryProfile(profilePath);
+        return 'cancelled';
+      }
       if (options.seedSessionCookies) {
         await this.seedBrowserCookies(browserContext, targetSession);
       }
@@ -96,9 +109,15 @@ export class ExternalBrowserManager {
 
   /** Closes the operation. */
   async close(): Promise<void> {
+    await this.cancelLogin();
+    await this.browserCleanup;
+  }
+
+  /** Settles authentication without waiting for process/profile cleanup. */
+  async cancelLogin(): Promise<void> {
     const activeLogin = this.activeLogin;
     if (activeLogin) await activeLogin.cancel();
-    await this.browserCleanup;
+    await this.loginCompletion;
   }
 
   /** Performs the launch browser operation. */
@@ -150,6 +169,8 @@ export class ExternalBrowserManager {
     const loginStartedAt = Date.now();
 
     return await new Promise<ExternalLoginResult>((resolve, reject) => {
+      let synchronization: Promise<void> | undefined;
+      let markSynchronized: (() => void) | undefined;
       /** Performs the cleanup operation. */
       const cleanup = async (): Promise<void> => {
         if (emptyWindowTimer !== undefined) clearTimeout(emptyWindowTimer);
@@ -176,7 +197,7 @@ export class ExternalBrowserManager {
       };
 
       /** Performs the finish operation. */
-      const finish = async (
+      const finishLogin = async (
         result: ExternalLoginResult,
         error?: unknown,
       ): Promise<void> => {
@@ -258,7 +279,10 @@ export class ExternalBrowserManager {
           error = syncError;
         }
         const activeCleanup = startCleanup();
-        if (error || awaitBrowserCleanup) {
+        // The incoming Provider may proceed once all credential writes ended,
+        // even if this flow normally waits for Chrome to close before returning.
+        markSynchronized?.();
+        if (error || (awaitBrowserCleanup && result === 'completed')) {
           await activeCleanup;
         } else {
           // Cookie writes (for completion) and the user's cancellation are
@@ -284,9 +308,31 @@ export class ExternalBrowserManager {
         }
       };
 
+      let finishing: Promise<void> | undefined;
+      /** Concurrent cancellation awaits credential writes already in progress. */
+      const finish = (result: ExternalLoginResult, error?: unknown): Promise<void> => {
+        if (finishing) return finishing;
+        synchronization = new Promise<void>((complete) => { markSynchronized = complete; });
+        const synchronized = synchronization;
+        this.loginCompletion = synchronized;
+        const completion = finishLogin(result, error);
+        finishing = completion;
+        /** Clear only this login's completion, never a successor's state. */
+        const clearCompletion = () => {
+          if (this.loginCompletion === synchronized) this.loginCompletion = undefined;
+        };
+        void synchronized.then(clearCompletion);
+        // Unexpected failures must release the handoff as well as the login.
+        void completion.then(() => markSynchronized?.(), (failure: unknown) => {
+          markSynchronized?.(); reject(failure);
+        });
+        return completion;
+      };
+
       /** Determines whether the cel condition applies. */
       const cancel = async (): Promise<void> => {
-        await finish('cancelled');
+        if (!settled) void finish('cancelled');
+        await synchronization;
       };
 
       /** Performs the matches completion operation. */

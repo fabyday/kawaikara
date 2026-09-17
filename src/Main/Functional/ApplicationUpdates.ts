@@ -46,9 +46,30 @@ export function normalizeUpdateProgress(
 /** Performs the strip release note markup operation. */
 function stripReleaseNoteMarkup(value: string): string {
   return value
+    // Public GitHub release feeds contain HTML, not the original Markdown.
+    // Retain language headings before removing tags so renderer selection works.
+    .replace(/<h([1-6])\b[^>]*>/gi, (_tag, level: string) =>
+      `\n\n${'#'.repeat(Number(level))} `)
+    .replace(/<\/h[1-6]\s*>/gi, '\n\n')
     .replace(/<br\s*\/?\s*>/gi, '\n')
     .replace(/<\/p\s*>/gi, '\n\n')
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<\/(?:li|ul|ol|div)\s*>/gi, '\n')
     .replace(/<[^>]+>/g, '')
+    .replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt|nbsp);/gi,
+      (_entity, code: string) => decodeReleaseNoteEntity(code))
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Decodes common feed entities as inert text, never as executable markup. */
+function decodeReleaseNoteEntity(code: string): string {
+  if (code.startsWith('#')) {
+    const point = code.toLowerCase().startsWith('#x')
+      ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1), 10);
+    return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : '\uFFFD';
+  }
+  return { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' }[
+    code.toLowerCase() as 'amp' | 'quot' | 'apos' | 'lt' | 'gt' | 'nbsp'
+  ];
 }

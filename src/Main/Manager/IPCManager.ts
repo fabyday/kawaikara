@@ -319,7 +319,13 @@ export class IpcManager {
         throw new TypeError('Site id must be a string.');
       }
       this.windows.hideOverlay();
-      await this.sites.load(id);
+      try {
+        await this.sites.load(id);
+      } catch (error) {
+        // Keep the existing menu error/retry flow reachable after a failed switch.
+        this.windows.showOverlay();
+        throw error;
+      }
     });
     ipcMain.handle(IPC_CHANNELS.overlay.close, () => {
       this.windows.hideOverlay();

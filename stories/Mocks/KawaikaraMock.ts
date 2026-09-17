@@ -980,6 +980,7 @@ export function installKawaikaraMock(
       onPictureInPicturePointerChanged: () => () => undefined,
       onVisibilityChanged: () => () => undefined,
       onPlaybackToggleRequested: () => () => undefined,
+      onDirectoryNavigationRequested: () => () => undefined,
     },
     source: {
       selectLocalFile: async () => null,

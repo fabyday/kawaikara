@@ -17,6 +17,8 @@ import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
 
 /** Defines the shared navigation handoff settle ms constant. */
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
+/** Outgoing renderer cleanup must not hold a new Provider hostage. */
+const NAVIGATION_MEDIA_CLEANUP_TIMEOUT_MS = 200;
 /** Defines the shared internal video PiP margin constant. */
 const INTERNAL_VIDEO_PIP_MARGIN = 20;
 
@@ -68,10 +70,25 @@ export async function prepareCurrentDocumentForNavigation(
     return;
   }
 
+  // executeJavaScript waits for loading to stop. Stop the outgoing document
+  // first, including stalled images/iframes, rather than waiting for its network.
+  if (webContents.isLoading()) webContents.stop();
+  const outgoingUrl = webContents.getURL();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    await webContents.executeJavaScript(PAUSE_DOCUMENT_MEDIA_SCRIPT);
+    const cleanup = webContents.executeJavaScript(
+      `if (location.href === ${JSON.stringify(outgoingUrl)}) { ${PAUSE_DOCUMENT_MEDIA_SCRIPT} }`,
+    );
+    await Promise.race([
+      cleanup,
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, NAVIGATION_MEDIA_CLEANUP_TIMEOUT_MS);
+      }),
+    ]);
   } catch (error) {
     console.debug('The previous site document was unavailable during media cleanup.', error);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 
   if (!webContents.isDestroyed()) {
@@ -188,12 +205,18 @@ function normalizeNavigationHost(hostname: string): string {
 }
 
 /** Creates the site cookie store. */
-export function createSiteCookieStore(siteSession: Session): SiteCookieStore {
+export function createSiteCookieStore(
+  siteSession: Session,
+  /** Revalidates ownership after asynchronous reads before mutating a shared Session. */
+  requireActive: () => void = () => undefined,
+): SiteCookieStore {
   return {
     /** The list value. */
     list: async ({ domains }) => {
+      requireActive();
       const normalizedDomains = normalizeCookieQueryDomains(domains);
       const cookies = await siteSession.cookies.get({});
+      requireActive();
       return cookies
         .filter((cookie): cookie is Electron.Cookie & {
           /** The domain value. */
@@ -207,11 +230,13 @@ export function createSiteCookieStore(siteSession: Session): SiteCookieStore {
     },
     /** The clear value. */
     clear: async ({ domains, names }) => {
+      requireActive();
       const normalizedDomains = normalizeCookieQueryDomains(domains);
       const normalizedNames = names === undefined
         ? undefined
         : new Set(names.map(validateCookieName));
       const cookies = await siteSession.cookies.get({});
+      requireActive();
       const matchingCookies = cookies.filter(
         (cookie): cookie is Electron.Cookie & { domain: string
         } =>

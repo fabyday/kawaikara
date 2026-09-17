@@ -15,6 +15,7 @@ import {
 } from '../Common/IPC';
 import { installVideoDropTarget } from './VideoDrop';
 import { installEditableFocusReporter } from './EditableFocus';
+import { subscribeDirectoryNavigation } from './VideoDirectoryNavigation';
 
 installVideoDropTarget();
 installEditableFocusReporter();
@@ -24,6 +25,21 @@ if (window.location.protocol === 'file:') {
   exposeMpvApi();
   const api: KawaikaraVideoApi = {
     application: {
+      onDirectoryNavigationRequested: (handler) => subscribeDirectoryNavigation(
+        handler,
+        process.platform,
+        (callback) => {
+          /** Accepts only the two app-owned directory navigation commands. */
+          const listener = (_event: Electron.IpcRendererEvent, direction: unknown) => {
+            if (direction === 'back' || direction === 'forward') callback(direction);
+          };
+          ipcRenderer.on(IPC_CHANNELS.video.directoryNavigationRequested, listener);
+          return () => ipcRenderer.off(
+            IPC_CHANNELS.video.directoryNavigationRequested,
+            listener,
+          );
+        },
+      ),
       getMessages: (locale?: AppLocale) =>
         ipcRenderer.invoke(
           IPC_CHANNELS.application.messages,

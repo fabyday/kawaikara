@@ -135,6 +135,7 @@ export function createApplicationManagerContainer(
           (runtime, permissions) => windows.createSiteContext(runtime, permissions),
           () => preferences.get(),
           () => windows.getCurrentSiteAddress(),
+          (state) => windows.notifySiteTransition(state),
         );
       },
     )

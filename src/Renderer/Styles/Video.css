@@ -175,19 +175,13 @@ body,
   transform: translate(-50%, -50%) scale(0.92);
 }
 
-.video-shell[data-controls-visible="true"] .video-pip-button,
-.video-pip-overlay:hover .video-pip-button,
-.video-pip-button:hover,
-.video-pip-button:focus-visible {
+.video-shell[data-controls-visible="true"] .video-pip-button {
   opacity: 1;
   pointer-events: auto;
   transform: scale(1);
 }
 
-.video-shell[data-controls-visible="true"] .video-pip-playback-button,
-.video-pip-overlay:hover .video-pip-playback-button,
-.video-pip-playback-button:hover,
-.video-pip-playback-button:focus-visible {
+.video-shell[data-controls-visible="true"] .video-pip-playback-button {
   transform: translate(-50%, -50%) scale(1);
 }
 
@@ -196,7 +190,7 @@ body,
   stroke: none;
 }
 
-.video-pip-overlay:hover::before {
+.video-shell[data-controls-visible="true"] .video-pip-overlay::before {
   opacity: 1;
 }
 
@@ -463,7 +457,7 @@ body,
   z-index: 10;
   inset: 0;
   box-sizing: border-box;
-  padding: clamp(14px, 2.2vw, 28px);
+  padding: 0;
   background:
     radial-gradient(circle at 14% 12%, rgb(126 34 206 / 16%), transparent 34%),
     radial-gradient(circle at 88% 88%, rgb(37 99 235 / 10%), transparent 32%),
@@ -480,10 +474,10 @@ body,
   box-sizing: border-box;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 22px;
+  border: 0;
+  border-radius: 0;
   background: rgb(20 20 23 / 91%);
-  box-shadow: 0 28px 90px rgb(0 0 0 / 42%);
+  box-shadow: none;
   backdrop-filter: blur(28px) saturate(120%);
 }
 
@@ -1124,6 +1118,10 @@ body,
   backdrop-filter: none;
 }
 
+.video-shell.kawai-theme-light .video-browser-surface {
+  box-shadow: none;
+}
+
 .video-shell.kawai-theme-light .video-browser {
   background:
     radial-gradient(circle at 14% 12%, rgb(126 34 206 / 10%), transparent 34%),
@@ -1195,14 +1193,6 @@ body,
 
   .video-controls {
     padding-inline: 12px;
-  }
-
-  .video-browser {
-    padding: 8px;
-  }
-
-  .video-browser-surface {
-    border-radius: 16px;
   }
 
   .video-browser-header {

@@ -406,14 +406,10 @@ export function VideoView() {
     window.kawaikaraVideo.application.onPictureInPicturePointerChanged(
       (inside) => {
         setPictureInPicturePointerInside(inside);
-        if (inside) {
-          clearControlsHideTimer();
-          setControlsVisible(true);
-        } else {
-          revealControls();
-        }
+        clearControlsHideTimer();
+        setControlsVisible(inside);
       },
-    ), [clearControlsHideTimer, revealControls]);
+    ), [clearControlsHideTimer]);
 
   useEffect(() =>
     window.kawaikaraVideo.application.onVisibilityChanged((visible) => {
@@ -1593,8 +1589,8 @@ export function VideoView() {
     !pictureInPicture &&
     (titleVisible || sourcePanelOpen || hlsPanelOpen || downloaderOpen || !source);
   const showControls =
+    pictureInPicture ? pictureInPicturePointerInside :
     controlsLayout === 'inline' ||
-    pictureInPicturePointerInside ||
     controlsVisible ||
     sourcePanelOpen ||
     hlsPanelOpen ||
@@ -1634,11 +1630,6 @@ export function VideoView() {
         {source && pictureInPicture ? (
           <div
             className="video-pip-overlay"
-            onPointerMove={() => {
-              hideTitle();
-              revealControls();
-            }}
-            onPointerLeave={revealControls}
           >
             <div className="video-pip-drag-surface" aria-hidden="true" />
             <button

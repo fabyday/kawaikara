@@ -25,6 +25,7 @@ import {
   type PictureInPictureSubtitleFactory,
 } from '../Functional/PictureInPictureSubtitleRuntime';
 import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
+import { trackPictureInPictureVisibility } from '../Functional/PictureInPictureVisibility';
 import {
   capturePictureInPicturePlacement,
   delay,
@@ -58,8 +59,6 @@ import {
   createTogglePictureInPicturePlaybackScript,
 } from '../Inject/PictureInPictureControls';
 
-/** Defines the shared PiP hover poll interval ms constant. */
-const PIP_HOVER_POLL_INTERVAL_MS = 80;
 /** Defines the shared PiP video discovery retry ms constant. */
 const PIP_VIDEO_DISCOVERY_RETRY_MS = 100;
 /** Defines the shared PiP video discovery attempts constant. */
@@ -610,9 +609,7 @@ export class UnifiedPictureInPictureManager {
     // Hover and drag must use the same WebContents-wide input surface. A
     // CSS app-region inside a frequently replaced CHZZK iframe can remain
     // visually present while no longer participating in native hit testing.
-    if (input.type !== 'mouseLeave') {
-      this.setControlsVisible(state, true);
-    }
+    state.controlsVisibility?.sync();
     if (input.type === 'mouseDown') {
       if (mouseInput.button && mouseInput.button !== 'left') return;
       if (
@@ -714,31 +711,19 @@ export class UnifiedPictureInPictureManager {
 
   /** Starts the hover tracking. */
   private startHoverTracking(state: UnifiedPictureInPictureState): void {
-    // Native draggable regions do not reliably emit WebContents mouse-move
-    // events on Windows. Screen coordinates make the whole PiP surface a
-    // dependable hover target on every platform.
-    /** Performs the sync operation. */
-    const sync = () => {
-      if (this.state !== state || state.pipWindow.isDestroyed()) return;
-      const point = screen.getCursorScreenPoint();
-      const bounds = state.pipWindow.getBounds();
-      this.setControlsVisible(
-        state,
-        point.x >= bounds.x &&
-          point.x < bounds.x + bounds.width &&
-          point.y >= bounds.y &&
-          point.y < bounds.y + bounds.height,
-      );
-    };
-    sync();
-    state.hoverTimer = setInterval(sync, PIP_HOVER_POLL_INTERVAL_MS);
+    this.stopHoverTracking(state);
+    state.controlsVisibility = trackPictureInPictureVisibility(
+      state.pipWindow,
+      () => screen.getCursorScreenPoint(),
+      () => this.state === state && !state.closing,
+      (visible) => this.setControlsVisible(state, visible),
+    );
   }
 
   /** Stops the hover tracking. */
   private stopHoverTracking(state: UnifiedPictureInPictureState): void {
-    if (state.hoverTimer === undefined) return;
-    clearInterval(state.hoverTimer);
-    state.hoverTimer = undefined;
+    state.controlsVisibility?.dispose();
+    state.controlsVisibility = undefined;
   }
 
   /** Schedules the fullscreen reassertion. */
@@ -1027,10 +1012,11 @@ export class UnifiedPictureInPictureManager {
     visible: boolean,
     force = false,
   ): void {
-    if ((!force && state.controlsVisible === visible) || state.frame.isDestroyed()) {
-      return;
-    }
+    if (!force && state.controlsVisible === visible) return;
     state.controlsVisible = visible;
+    // Preserve the native decision while an iframe is being replaced; the next
+    // frame must not inherit the old frame's last visible state.
+    if (state.frame.isDestroyed()) return;
     void state.frame
       .executeJavaScript(createSetPictureInPictureControlsVisibleScript(visible))
       .catch((error: unknown) => {

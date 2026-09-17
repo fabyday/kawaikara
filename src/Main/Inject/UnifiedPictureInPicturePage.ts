@@ -467,12 +467,9 @@ function enterUnifiedPictureInPicture(
     `width:${String(options.playbackButtonSize)}px;` +
     `height:${String(options.playbackButtonSize)}px;border-radius:50%;` +
     'transform:translate(-50%,-50%) scale(.92);background:rgba(12,12,14,.72)}' +
-    ':host(:hover) button,:host([data-controls-visible="true"]) button,' +
-    'button:hover,' +
-    'button:focus-visible{opacity:1;transform:scale(1);pointer-events:auto}' +
-    ':host(:hover) .playback-button,' +
-    ':host([data-controls-visible="true"]) .playback-button,' +
-    '.playback-button:hover,.playback-button:focus-visible{' +
+    ':host([data-controls-visible]) button{' +
+    'opacity:1;transform:scale(1);pointer-events:auto}' +
+    ':host([data-controls-visible]) .playback-button{' +
     'transform:translate(-50%,-50%) scale(1)}' +
     'button:hover{background:rgba(38,38,43,.96)}' +
     'svg{width:22px;height:22px;fill:none;stroke:currentColor;' +
