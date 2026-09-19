@@ -22,6 +22,7 @@ import {
 } from '../Functional/ApplicationUpdates';
 import { resolveLocalUpdateFeed } from '../Functional/LocalUpdateFeed';
 import { waitForNativeUpdate, type UpdateInstallLifecycle } from '../Functional/UpdateInstallation';
+import { configureWindowsUpdateSignatureVerification } from '../Functional/WindowsUpdateSignature';
 import type { LoggingManager } from './LoggingManager';
 import type { WindowManager } from './WindowManager';
 
@@ -61,6 +62,14 @@ export class UpdateManager {
     autoUpdater.logger = logging.updaterLogger;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
+    if (process.platform === 'win32') {
+      autoUpdater.disableWebInstaller = true;
+      configureWindowsUpdateSignatureVerification(
+        autoUpdater,
+        process.execPath,
+        this.updateLog,
+      );
+    }
     // Late native/proxy errors can arrive outside a check/download Promise.
     // Keep a permanent observer so EventEmitter never throws an unhandled error.
     autoUpdater.on('error', (reason: Error) => {

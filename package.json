@@ -49,7 +49,7 @@
     "update:test:server": "node scripts/local-update-server.cjs",
     "update:test:build": "node scripts/build-update-test.cjs",
     "update:test:mac": "node scripts/smoke-update-test-mac.cjs",
-    "update:test:unit": "node --experimental-strip-types --test tests/local-update-server.test.cjs tests/local-update-feed.test.cjs tests/update-installation.test.cjs",
+    "update:test:unit": "node --experimental-strip-types --test tests/local-update-server.test.cjs tests/local-update-feed.test.cjs tests/update-installation.test.cjs tests/windows-update-signature.test.cjs",
     "pip:test:unit": "pnpm build:packages && node --test tests/picture-in-picture-subtitles.test.cjs",
     "pip:test:dom": "electron tests/picture-in-picture-subtitles.electron.cjs",
     "pip:test:entry": "electron tests/picture-in-picture-entry.electron.cjs",
