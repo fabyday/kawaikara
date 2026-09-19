@@ -36,13 +36,17 @@ export function resolveAppLocale(locale: AppLocale, systemLocale: string): strin
   return locale === 'system' ? systemLocale : locale;
 }
 
+/** Resolves the application's JSON catalog only in Main. */
+export function getLocaleMessages(locale: AppLocale, systemLocale: string): typeof en {
+  return LOCALES[toSupportedLanguage(resolveAppLocale(locale, systemLocale))];
+}
+
 /** Returns locale-backed copy for the destructive all-profile confirmation. */
 export function getClearAllProfilesConfirmationCopy(
   locale: AppLocale,
   systemLocale: string,
 ): typeof en.applicationData.clearAllProfiles {
-  const language = toSupportedLanguage(resolveAppLocale(locale, systemLocale));
-  return LOCALES[language].applicationData.clearAllProfiles;
+  return getLocaleMessages(locale, systemLocale).applicationData.clearAllProfiles;
 }
 
 /** Returns the external login view data. */

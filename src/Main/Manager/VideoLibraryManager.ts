@@ -7,7 +7,9 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
-import { nativeImage } from 'electron';
+import { app, nativeImage } from 'electron';
+import type { AppLocale } from '../../Common/IPC';
+import { getLocaleMessages } from '../Functional/Locale';
 import type {
   VideoDirectoryEntry,
   VideoDirectoryListing,
@@ -61,6 +63,8 @@ export class VideoLibraryManager {
     private readonly filePath: string,
     /** The standard locations value. */
     private readonly standardLocations: readonly StandardVideoLocation[],
+    /** Reads current preferences so folder labels follow locale changes. */
+    private readonly getLocale: () => AppLocale = () => 'system',
   ) {}
 
   /** Loads the operation. */
@@ -399,6 +403,9 @@ export class VideoLibraryManager {
       ...(await listDriveLocations()),
       ...this.standardLocations.map((location) => ({
         ...location,
+        name: location.nameKey
+          ? getLocaleMessages(this.getLocale(), app.getLocale()).standardLocations[location.nameKey]
+          : location.name,
         kind: 'system' as const,
       })),
     ];

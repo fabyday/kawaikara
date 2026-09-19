@@ -1,3 +1,4 @@
+import type { DownloaderMessages } from '../../../Common/IPC';
 import { useEffect, useState } from 'react';
 import {
   Badge,
@@ -12,6 +13,8 @@ import type { ExternalDownloaderStatus } from '../../../Common/Download';
 
 /** Describes the you tube downloader panel props contract. */
 export interface YouTubeDownloaderPanelProps {
+  /** Copy selected by Main. */
+  readonly labels: DownloaderMessages;
   /** The initial URL value. */
   readonly initialUrl?: string;
   /** Callback used to handle on close. */
@@ -21,6 +24,7 @@ export interface YouTubeDownloaderPanelProps {
 /** Performs the you tube downloader panel operation. */
 export function YouTubeDownloaderPanel({
   initialUrl = '',
+  labels,
   onClose,
 }: YouTubeDownloaderPanelProps) {
   const [url, setUrl] = useState(initialUrl);
@@ -56,7 +60,7 @@ export function YouTubeDownloaderPanel({
       const result = await window.kawaikaraVideo.downloads.open(url);
       setStatus(result.status);
       if (!result.opened) {
-        setError('YT Downloader가 설치되어 있지 않습니다.');
+        setError(labels.missing);
       }
     } catch (reason) {
       setError(getErrorMessage(reason));
@@ -75,7 +79,7 @@ export function YouTubeDownloaderPanel({
       );
       setStatus(result.status);
       if (!result.canceled && !result.status.installed && !result.installerStarted) {
-        setError(result.status.message ?? 'YT Downloader를 설치하지 못했습니다.');
+        setError(result.status.message ?? labels.installFailed);
       }
     } catch (reason) {
       setError(getErrorMessage(reason));
@@ -87,41 +91,29 @@ export function YouTubeDownloaderPanel({
   const installed = status?.installed ?? false;
   const statusLabel = status
     ? installed
-      ? 'Installed'
-      : 'Not installed'
-    : 'Checking';
+      ? labels.installed
+      : labels.notInstalled
+    : labels.checking;
 
   return (
     <Panel className="youtube-downloader-panel" padding="md" radius="lg">
       <Stack gap="md">
-        <Flex align="center" justify="between" gap="md">
-          <Stack gap="xs">
-            <Flex align="center" gap="sm">
-              <Text weight="semibold">YT Downloader</Text>
-              <Badge dot size="sm" tone={installed ? 'success' : 'neutral'}>
-                {statusLabel}
-              </Badge>
-            </Flex>
-            <Text size="xs" tone="muted">
-              다운로드 화면은 별도 앱에서 열립니다.
-            </Text>
-          </Stack>
-          {onClose ? (
-            <Button size="sm" variant="ghost" onClick={onClose}>
-              Close
-            </Button>
-          ) : null}
-        </Flex>
+        <DownloaderHeader
+          labels={labels}
+          onClose={onClose}
+          installed={installed}
+          statusLabel={statusLabel}
+        />
 
         {status?.version ? (
           <Text size="xs" tone="muted">
-            Version {status.version} · {status.appPath ?? 'protocol installation'}
+            {labels.version} {status.version} · {status.appPath ?? labels.protocolInstallation}
           </Text>
         ) : null}
 
         <Input
-          label="YouTube URL"
-          placeholder="https://www.youtube.com/watch?v=..."
+          label={labels.url}
+          placeholder={labels.urlPlaceholder}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
         />
@@ -132,33 +124,15 @@ export function YouTubeDownloaderPanel({
             isLoading={opening}
             onClick={openDownloader}
           >
-            Open in YT Downloader
+            {labels.open}
           </Button>
         ) : (
-          <Stack gap="sm">
-            <Text size="xs" tone="muted">
-              {status?.platform === 'darwin'
-                ? '설치를 누르면 공식 릴리스를 받고 SHA-256을 확인합니다. 확인 창에서 동의하면 다운로드한 파일과 설치 앱의 macOS 격리 속성을 제거하고 ~/Applications에 설치합니다.'
-                : '설치를 누르면 공식 릴리스를 받고 SHA-256을 확인한 뒤 설치 프로그램을 엽니다.'}
-            </Text>
-            <Flex align="center" gap="sm">
-              <Button
-                disabled={!status?.automaticInstallSupported || installing}
-                isLoading={installing}
-                onClick={installDownloader}
-              >
-                Install YT Downloader
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  void window.kawaikaraVideo.downloads.openReleasePage()
-                }
-              >
-                Open releases
-              </Button>
-            </Flex>
-          </Stack>
+          <DownloaderInstallActions
+            labels={labels}
+            status={status}
+            installing={installing}
+            installDownloader={installDownloader}
+          />
         )}
 
         {status?.message ? (
@@ -173,7 +147,7 @@ export function YouTubeDownloaderPanel({
         ) : null}
 
         <Text size="xs" tone="muted">
-          Download only content you own or are permitted to save.
+          {labels.permissionNotice}
         </Text>
       </Stack>
     </Panel>
@@ -183,4 +157,80 @@ export function YouTubeDownloaderPanel({
 /** Returns the error message. */
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Downloader identity, installation status, and close action. */
+function DownloaderHeader({
+  labels,
+  onClose,
+  installed,
+  statusLabel,
+}: Pick<YouTubeDownloaderPanelProps, 'labels' | 'onClose'> & {
+  /** installed supplied by the owning composition. */
+  readonly installed: boolean;
+  /** statusLabel supplied by the owning composition. */
+  readonly statusLabel: string;
+}) {
+  return (
+    <Flex align="center" justify="between" gap="md">
+      <Stack gap="xs">
+        <Flex align="center" gap="sm">
+          <Text weight="semibold">{labels.title}</Text>
+          <Badge dot size="sm" tone={installed ? 'success' : 'neutral'}>
+            {statusLabel}
+          </Badge>
+        </Flex>
+        <Text size="xs" tone="muted">
+          {labels.description}
+        </Text>
+      </Stack>
+      {onClose ? (
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          {labels.close}
+        </Button>
+      ) : null}
+    </Flex>
+  );
+}
+
+/** Platform-specific installation guidance and explicit install/release actions. */
+function DownloaderInstallActions({
+  labels,
+  status,
+  installing,
+  installDownloader,
+}: Pick<YouTubeDownloaderPanelProps, 'labels'> & {
+  /** status supplied by the owning composition. */
+  readonly status: ExternalDownloaderStatus | undefined;
+  /** installing supplied by the owning composition. */
+  readonly installing: boolean;
+  /** installDownloader supplied by the owning composition. */
+  readonly installDownloader: () => Promise<void>;
+}) {
+  return (
+    <Stack gap="sm">
+      <Text size="xs" tone="muted">
+        {status?.platform === 'darwin'
+          ? labels.macInstallHelp
+          : labels.windowsInstallHelp}
+      </Text>
+      <Flex align="center" gap="sm">
+        <Button
+          disabled={!status?.automaticInstallSupported || installing}
+          isLoading={installing}
+          onClick={installDownloader}
+        >
+          {labels.install}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() =>
+            void window.kawaikaraVideo.downloads.openReleasePage()
+          }
+        >
+          {labels.releases}
+        </Button>
+      </Flex>
+    </Stack>
+  );
 }

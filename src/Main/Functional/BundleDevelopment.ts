@@ -1,3 +1,5 @@
+import { app } from 'electron';
+import { getLocaleMessages } from './Locale';
 import { type FSWatcher } from 'node:fs';
 import { rm, rmdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -87,9 +89,7 @@ export function cloneDevelopmentProjectInfo(
 
 /** Returns the choose development project title. */
 export function getChooseDevelopmentProjectTitle(locale: AppLocale): string {
-  if (locale === 'ko-KR') return '개발 번들 프로젝트 선택';
-  if (locale === 'ja-JP') return '開発Bundleプロジェクトを選択';
-  return 'Choose a development Bundle project';
+  return getLocaleMessages(locale, app.getLocale()).nativeDialogs.chooseDevelopmentProject;
 }
 
 /** Performs the to development error message operation. */

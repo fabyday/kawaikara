@@ -21,6 +21,8 @@ const meta = {
     layout: 'centered' },
   /** The args value. */
   args: {
+    /** Main-resolved host messages. */
+    messages: STORY_MESSAGES.app,
     /** The locale value. */
     locale: 'en-US',
     /** The refresh key value. */

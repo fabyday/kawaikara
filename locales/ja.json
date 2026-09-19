@@ -326,7 +326,14 @@
     "checkingLive": "ライブ状況を確認中…",
     "installedPlugins": "インストール済みBundle",
     "plugins": "プラグイン",
-    "sites": "Provider"
+    "sites": "Provider",
+    "availableSites": "利用可能なサイト",
+    "pluginPanels": "プラグインパネル",
+    "unknownPanel": "不明なパネル: {title}",
+    "siteApi": "サイトAPI",
+    "pipShort": "PiP",
+    "youtube": "YouTube",
+    "homepage": "ホームページ"
   },
   "logViewer": {
     "title": "ログビューアー",
@@ -424,7 +431,19 @@
     "nativeErrorFallback": "libmpvの起動に失敗したため、Chromium互換再生へ自動的に切り替えました。",
     "nativeUnavailableFallback": "この環境ではlibmpvを利用できないため、Chromium互換再生を使用します。",
     "softwareRenderingWarning": "MPV_HWDEC環境設定によりlibmpvのハードウェアデコードが無効なため、高解像度動画でコマ落ちする場合があります。",
-    "captureCompatibleRenderingWarning": "キャプチャ互換モードでもlibmpvはハードウェアで動画をデコードします。Electron GPUが無効なため最終フレームはCanvas 2D経由でコピーされ、高解像度動画は滑らかさが低下する場合があります。"
+    "captureCompatibleRenderingWarning": "キャプチャ互換モードでもlibmpvはハードウェアで動画をデコードします。Electron GPUが無効なため最終フレームはCanvas 2D経由でコピーされ、高解像度動画は滑らかさが低下する場合があります。",
+    "mpvNotReady": "libmpvプレーヤーの準備ができていません。",
+    "chromiumNotReady": "Chromium動画要素の準備ができていません。",
+    "hlsUnavailable": "このChromiumランタイムではHLSを再生できません。",
+    "manifestTimeout": "HLSプレイリストの読み込みがタイムアウトしました。",
+    "sourceCanceled": "動画ソースの検証をキャンセルしました。",
+    "sourceRejected": "Chromiumが動画ソースを開けませんでした。",
+    "sourceTimeout": "動画の再生準備がタイムアウトしました。",
+    "sourceEnded": "読み込みが完了する前に動画ソースが終了しました。",
+    "hlsFatal": "致命的な再生エラー",
+    "hls": "HLS",
+    "hlsPlaceholder": "https://example.com/stream.m3u8",
+    "returnToApp": "Kawaikaraに戻る"
   },
   "videoBrowser": {
     "library": "ローカルビデオ",
@@ -482,6 +501,34 @@
       "detail": "分離、Bundle、ユーザープロファイルのCookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。設定とBundleは保持され、この操作は元に戻せません。",
       "cancel": "キャンセル",
       "confirm": "すべて削除"
+    },
+    "clearProfile": {
+      "title": "プロファイルデータを削除",
+      "message": "{name}のログイン情報とキャッシュを削除しますか？",
+      "detail": "Cookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。この操作は元に戻せません。",
+      "cancel": "キャンセル",
+      "confirm": "データを削除"
+    },
+    "clearSite": {
+      "title": "サイトデータを削除",
+      "message": "{name}のログイン情報とキャッシュを削除しますか？",
+      "detail": "Cookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。この操作は元に戻せません。",
+      "cancel": "キャンセル",
+      "confirm": "データを削除"
+    },
+    "resetCache": {
+      "title": "キャッシュをリセット",
+      "message": "Electronのキャッシュを削除してKawaikaraを再起動しますか？",
+      "detail": "ログイン、設定、ユーザーBundle、ローカル履歴は保持されます。",
+      "cancel": "キャンセル",
+      "confirm": "削除して再起動"
+    },
+    "resetApplication": {
+      "title": "アプリをリセット",
+      "message": "Kawaikaraのすべてのアプリデータを削除しますか？",
+      "detail": "設定、ログイン、ブラウザープロファイル、ユーザーBundle、ログ、ローカル履歴が削除されます。この操作は元に戻せません。",
+      "cancel": "キャンセル",
+      "confirm": "リセットして再起動"
     }
   },
   "externalLogin": {
@@ -489,5 +536,120 @@
     "description": "ログインが完了すると、Kawaikaraはログイン済みのサイトへ自動的に戻ります。",
     "waiting": "ログイン完了を待っています",
     "secure": "外部ブラウザを開きました"
+  },
+  "update": {
+    "channel": "チャンネル",
+    "stable": "Stable",
+    "staging": "Staging",
+    "nightly": "Nightly",
+    "checkingTitle": "アップデートを確認中",
+    "checkingDescription": "Kawaikaraの新しいバージョンを確認しています。",
+    "availableTitle": "新しいアップデートがあります",
+    "availableDescription": "準備ができたらアップデートをダウンロードできます。",
+    "downloadingTitle": "アップデートをダウンロード中",
+    "downloadingDescription": "ダウンロード中もKawaikaraを使用できます。",
+    "downloadedTitle": "アップデートの準備完了",
+    "preparingTitle": "インストールの準備中",
+    "preparingDescription": "ダウンロードを検証し、安全に終了する準備をしています。",
+    "installingTitle": "アップデートを適用中",
+    "downloadedDescription": "再起動するとアップデートが適用されます。",
+    "automaticRestartDescription": "アップデートを適用するためKawaikaraを再起動します。",
+    "currentTitle": "最新バージョンです",
+    "currentDescription": "現在のチャンネルに利用可能なアップデートはありません。",
+    "unsupportedTitle": "開発ビルドでは確認できません",
+    "unsupportedDescription": "パッケージ版のKawaikaraで確認してください。",
+    "errorTitle": "アップデートを確認できませんでした",
+    "errorDescription": "接続を確認してもう一度お試しください。",
+    "downloadErrorTitle": "アップデートのダウンロードに失敗しました",
+    "downloadErrorDescription": "ダウンロードまたはファイル検証に失敗しました。エラーを確認してください。",
+    "signatureErrorDescription": "インストーラーの署名を検証できませんでした。同じファイルを再度ダウンロードしても解決しないため、証明書とログを確認してください。",
+    "installErrorTitle": "アップデートのインストールを開始できませんでした",
+    "installErrorDescription": "アプリは引き続き使用できます。ログを確認してから再試行してください。",
+    "releaseNotes": "更新内容",
+    "noReleaseNotes": "更新内容はありません。",
+    "currentVersion": "現在",
+    "nextVersion": "更新",
+    "download": "アップデートをダウンロード",
+    "restart": "再起動して更新",
+    "retry": "再確認",
+    "close": "閉じる",
+    "later": "後で",
+    "back": "アップデート画面に戻る",
+    "releaseNotesDescription": "新しいバージョンに含まれる変更を確認します。"
+  },
+  "downloader": {
+    "title": "YT Downloader",
+    "description": "ダウンロード画面は別のアプリで開きます。",
+    "close": "閉じる",
+    "version": "バージョン",
+    "url": "YouTube URL",
+    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
+    "open": "YT Downloaderで開く",
+    "install": "YT Downloaderをインストール",
+    "releases": "リリースページを開く",
+    "installed": "インストール済み",
+    "notInstalled": "未インストール",
+    "checking": "確認中",
+    "protocolInstallation": "プロトコルによるインストール",
+    "missing": "YT Downloaderがインストールされていません。",
+    "installFailed": "YT Downloaderをインストールできませんでした。",
+    "permissionNotice": "所有している、または保存の許可を得たコンテンツのみダウンロードしてください。",
+    "macInstallHelp": "公式リリースをダウンロードしてSHA-256を検証します。確認後、ダウンロードしたファイルとアプリのmacOS隔離属性を削除し、管理者権限を使わず~/Applicationsにのみインストールします。",
+    "windowsInstallHelp": "公式リリースをダウンロードしてSHA-256を検証し、インストーラーを開きます。",
+    "unsupported": "このOSでは自動インストールに対応していません。リリースページからインストールしてください。",
+    "installTitle": "{name}をインストール",
+    "installMessage": "{name}をダウンロードしてインストールしますか？",
+    "macInstallDetail": "リリースのSHA-256を検証後、ダウンロードしたファイルとアプリのmacOS隔離属性を削除します。管理者権限は使用せず、~/Applicationsにのみインストールします。",
+    "windowsInstallDetail": "リリースのSHA-256を検証してからWindowsインストーラーを起動します。",
+    "confirmInstall": "インストール",
+    "cancel": "キャンセル",
+    "completed": "YT Downloader {version}をインストールしました。",
+    "windowsStarted": "Windowsインストーラーを開きました。インストール完了後に再度実行してください。",
+    "contextMenu": "Kawaikaraでダウンロード"
+  },
+  "bundle": {
+    "install": {
+      "chooseTitle": "Kawaikara Bundleを選択",
+      "confirmTitle": "Bundleをインストール",
+      "confirmMessage": "「{name}」Bundleをインストールしますか？",
+      "confirmDetail": ".kawaiはZIPコンテナで、Mainプロセスで実行されるコードを含む場合があります。以下の権限を確認してください。再起動後に有効になります。",
+      "permissionsHeading": "要求する権限",
+      "noPermissions": "追加のProvider権限なし",
+      "deny": "許可しない",
+      "allowAndInstall": "許可してインストール"
+    },
+    "action": {
+      "updateTitle": "Bundleを更新",
+      "updateMessage": "「{name}」Bundleを更新しますか？",
+      "removeTitle": "Bundleを削除",
+      "removeMessage": "「{name}」Bundleを削除しますか？",
+      "restartDetail": "実行中のコードへの変更はKawaikaraの再起動後に反映されます。",
+      "cancel": "キャンセル",
+      "update": "更新",
+      "remove": "削除"
+    }
+  },
+  "nativeDialogs": {
+    "chooseDevelopmentProject": "開発Bundleプロジェクトを選択",
+    "bundleArchive": "Kawaikara Bundle",
+    "logArchive": "Kawaikaraログアーカイブ",
+    "logFiles": "Kawaikaraログ",
+    "openVideo": "動画を開く",
+    "videoFiles": "動画ファイル",
+    "allFiles": "すべてのファイル",
+    "videoWindowTitle": "Kawaikara ビデオ",
+    "pipWindowTitle": "Kawaikara PiP"
+  },
+  "standardLocations": {
+    "home": "ホーム",
+    "desktop": "デスクトップ",
+    "downloads": "ダウンロード",
+    "videos": "ビデオ",
+    "documents": "書類"
+  },
+  "presence": {
+    "details": "Kawaikara OTT ビューアー",
+    "watching": "視聴中…",
+    "viewer": "Kawaikara ビューアー"
   }
 }

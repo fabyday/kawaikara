@@ -1,3 +1,4 @@
+import { STORY_MESSAGES } from '../Mocks/KawaikaraMock';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { YouTubeDownloaderPanel } from '../../src/Renderer/View/Video/YouTubeDownloaderPanel';
 
@@ -32,6 +33,8 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   /** The args value. */
   args: {
+    /** Main-resolved downloader labels. */
+    labels: STORY_MESSAGES.downloader,
     /** The initial URL value. */
     initialUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
   },

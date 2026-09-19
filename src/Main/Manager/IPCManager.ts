@@ -188,7 +188,7 @@ export class IpcManager {
     ipcMain.handle(
       IPC_CHANNELS.application.exportLogFiles,
       (_event, references: unknown) =>
-        this.logging.exportFiles(requireLogFileReferences(references)),
+        this.logging.exportFiles(requireLogFileReferences(references), this.preferences.get().appLocale),
     );
     ipcMain.handle(
       IPC_CHANNELS.application.deleteLogFiles,
@@ -197,7 +197,7 @@ export class IpcManager {
     );
     ipcMain.handle(
       IPC_CHANNELS.application.selectLogImportFiles,
-      () => this.logging.selectImportFiles(),
+      () => this.logging.selectImportFiles(this.preferences.get().appLocale),
     );
     ipcMain.handle(
       IPC_CHANNELS.application.importLogFiles,

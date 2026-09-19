@@ -2,8 +2,6 @@
 export interface VideoShortcutDefinition {
   /** The ID value. */
   readonly id: string;
-  /** The title value. */
-  readonly title: string;
   /** The default key value. */
   readonly defaultKey: string;
 }
@@ -20,32 +18,24 @@ export const VIDEO_SHORTCUTS = [
   {
     /** The ID value. */
     id: 'video.frame-backward',
-    /** The title value. */
-    title: 'Previous video frame',
     /** The default key value. */
     defaultKey: 'Comma',
   },
   {
     /** The ID value. */
     id: 'video.frame-forward',
-    /** The title value. */
-    title: 'Next video frame',
     /** The default key value. */
     defaultKey: '.',
   },
   {
     /** The ID value. */
     id: 'video.seek-backward',
-    /** The title value. */
-    title: 'Seek video backward',
     /** The default key value. */
     defaultKey: 'Left',
   },
   {
     /** The ID value. */
     id: 'video.seek-forward',
-    /** The title value. */
-    title: 'Seek video forward',
     /** The default key value. */
     defaultKey: 'Right',
   },

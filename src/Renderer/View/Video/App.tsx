@@ -1,293 +1,94 @@
+import { KawaiProvider } from '@kawaikara/kawai-ui';
+import {
+  defineMpvVideoElement
+} from 'electron-mpv-video/renderer';
 import {
   useCallback,
   useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type FocusEvent,
-  type FormEvent,
-  type SetStateAction,
+  type FormEvent
 } from 'react';
-import Hls from 'hls.js';
-import {
-  defineMpvVideoElement,
-  type MpvVideoElement,
-  type MpvVideoState,
-} from 'electron-mpv-video/renderer';
-import { Button, Input, KawaiProvider } from '@kawaikara/kawai-ui';
 import type {
-  PreferenceState,
-  RendererMessages,
   VideoMessages,
-  VideoOpenRequest,
+  VideoOpenRequest
 } from '../../../Common/IPC';
-import {
-  DEFAULT_VIDEO_SEEK_SECONDS,
-  VIDEO_SHORTCUTS,
-  type VideoShortcutId,
-} from '../../../Common/VideoControls';
 import { installMpvSoftwareRenderSizeLimit } from '../../Domain/MpvVideoPerformance';
-import {
-  PlaybackIcon,
-  RestoreWindowIcon,
-  VideoCloseIcon,
-} from '../../Component/VideoIcons';
-import { YouTubeDownloaderPanel } from './YouTubeDownloaderPanel';
+import { HlsSourcePanel } from './HlsSourcePanel';
+import { useChromiumPlayback } from './Hooks/useChromiumPlayback';
+import { useMpvRenderer } from './Hooks/useMpvRenderer';
+import { usePlaybackControls } from './Hooks/usePlaybackControls';
+import { usePlaybackSource } from './Hooks/usePlaybackSource';
+import { usePlaybackState } from './Hooks/usePlaybackState';
+import { useTimelineScrubbing } from './Hooks/useTimelineScrubbing';
+import { useVideoChrome } from './Hooks/useVideoChrome';
+import { useVideoKeyboard } from './Hooks/useVideoKeyboard';
+import { useVideoPresentation } from './Hooks/useVideoPresentation';
+import { useVideoRequests } from './Hooks/useVideoRequests';
+import { useVideoState } from './Hooks/useVideoState';
+import { useVideoVisibility } from './Hooks/useVideoVisibility';
+import { useVideoVolume } from './Hooks/useVideoVolume';
+import { VIDEO_LONG_DURATION_SECONDS, VIDEO_LONG_SCRUB_PREVIEW_INTERVAL_MS, VIDEO_SCRUB_PREVIEW_INTERVAL_MS } from './Playback/PlayerDefaults';
+import { finiteSeekRange } from './Playback/SeekRange';
+import { getMpvErrorMessage, getStreamLabel, isHttpUrl } from './Presentation';
+import { PlayerSource } from './Types';
 import { VideoBrowser } from './VideoBrowser';
-
-/** Defines the shared default frame rate constant. */
-const DEFAULT_FRAME_RATE = 30;
-/** Defines the shared video volume step constant. */
-const VIDEO_VOLUME_STEP = 5;
-/** Defines the shared video scrub preview interval ms constant. */
-const VIDEO_SCRUB_PREVIEW_INTERVAL_MS = 100;
-/** Defines the shared video long scrub preview interval ms constant. */
-const VIDEO_LONG_SCRUB_PREVIEW_INTERVAL_MS = 180;
-/** Defines the shared video long duration seconds constant. */
-const VIDEO_LONG_DURATION_SECONDS = 2 * 60 * 60;
-/** Defines the shared player UI update interval ms constant. */
-const PLAYER_UI_UPDATE_INTERVAL_MS = 100;
-
-/** Describes the player source contract. */
-interface PlayerSource {
-  /** The native value value. */
-  readonly nativeValue: string;
-  /** The chromium value value. */
-  readonly chromiumValue: string;
-  /** The label value. */
-  readonly label: string;
-  /** The kind value. */
-  readonly kind: 'local' | 'hls';
-}
-
-/** Describes the chromium source handle contract. */
-interface ChromiumSourceHandle {
-  /** Cancels pending source validation. */
-  readonly cancel: () => void;
-  /** The hls value. */
-  readonly hls: Hls | null;
-  /** Whether the ready option is enabled. */
-  readonly ready: Promise<void>;
-}
-
-/** Describes the pending MPV seek contract. */
-interface PendingMpvSeek {
-  /** Whether the report error option is enabled. */
-  readonly reportError: boolean;
-  /** The seconds value. */
-  readonly seconds: number;
-}
-
-/** Describes a raw event emitted by the libmpv renderer element. */
-interface MpvRawEvent {
-  /** The event type. */
-  readonly type: string;
-  /** The optional property name. */
-  readonly name?: string;
-  /** The optional event value. */
-  readonly data?: unknown;
-  /** The optional event error. */
-  readonly error?: string;
-}
-
-/** Describes an in-progress playback source validation. */
-interface PlaybackSourceValidation {
-  /** Cancels the validation listeners and timer. */
-  readonly cancel: () => void;
-  /** Resolves once the newly opened source has decodable video. */
-  readonly ready: Promise<void>;
-}
-
-/** Describes the video seek range contract. */
-interface VideoSeekRange {
-  /** The start value. */
-  readonly start: number;
-  /** The end value. */
-  readonly end: number;
-}
-
-/** Defines the playback backend type. */
-type PlaybackBackend = 'detecting' | 'libmpv' | 'chromium';
-/** Defines the fallback reason type. */
-type FallbackReason = 'intel-mac' | 'unavailable' | 'native-error';
-
-/** Defines the shared MPV initialization timeout ms constant. */
-const MPV_INITIALIZATION_TIMEOUT_MS = 8_000;
-/** Defines the MPV source validation timeout ms constant. */
-const MPV_SOURCE_VALIDATION_TIMEOUT_MS = 20_000;
-/** Defines the Chromium source validation timeout ms constant. */
-const CHROMIUM_SOURCE_VALIDATION_TIMEOUT_MS = 20_000;
-/** Defines the video preferences type. */
-type VideoPreferences = Pick<
-  PreferenceState,
-  | 'appTheme'
-  | 'shortcuts'
-  | 'videoControlsLayout'
-  | 'videoOverlayHideSeconds'
-  | 'videoSeekSeconds'
-  | 'videoVolume'
->;
-
-/** Defines the shared initial player state constant. */
-const INITIAL_PLAYER_STATE: MpvVideoState = {
-  /** The player ID value. */
-  playerId: '',
-  /** The status value. */
-  status: 'Idle',
-  /** The render mode value. */
-  renderMode: 'webgl',
-  /** The renderer name value. */
-  rendererName: '-',
-  /** The time value. */
-  time: 0,
-  /** The duration value. */
-  duration: 0,
-  /** The width value. */
-  width: 0,
-  /** The height value. */
-  height: 0,
-  /** The codec value. */
-  codec: '-',
-  /** The fps value. */
-  fps: 0,
-};
+import { VideoControls } from './VideoControls';
+import { VideoHeader } from './VideoHeader';
+import { VideoPictureInPicture } from './VideoPictureInPicture';
+import { YouTubeDownloaderPanel } from './YouTubeDownloaderPanel';
 
 installMpvSoftwareRenderSizeLimit();
 defineMpvVideoElement();
 
 /** Performs the video view operation. */
 export function VideoView() {
-  const playerHostRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<MpvVideoElement | null>(null);
-  const fallbackVideoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
-  const fallbackFrameSamplesRef = useRef<number[]>([]);
-  const rendererLogSignatureRef = useRef('');
-  const playerStateRef = useRef<MpvVideoState>(INITIAL_PLAYER_STATE);
-  const pendingMpvStateRef = useRef<MpvVideoState | undefined>(undefined);
-  const mpvStateUiTimerRef = useRef<number | undefined>(undefined);
-  const backendRef = useRef<PlaybackBackend>('detecting');
-  const sourceRef = useRef<PlayerSource | undefined>(undefined);
-  const viewVisibleRef = useRef(true);
-  const controlsHideTimerRef = useRef<number | undefined>(undefined);
-  const titleHideTimerRef = useRef<number | undefined>(undefined);
-  const timelineRef = useRef<HTMLInputElement>(null);
-  const scrubbingRef = useRef(false);
-  const scrubPointerIdRef = useRef<number | undefined>(undefined);
-  const scrubTargetRef = useRef(0);
-  const lastScrubPreviewAtRef = useRef(Number.NEGATIVE_INFINITY);
-  const volumeRef = useRef(100);
-  const pendingVolumePersistRef = useRef<number | undefined>(undefined);
-  const volumePersistTimerRef = useRef<number | undefined>(undefined);
-  const openGenerationRef = useRef(0);
-  const sourceOpeningRef = useRef(false);
-  const mpvSeekInFlightRef = useRef(false);
-  const pendingMpvSeekRef = useRef<PendingMpvSeek | undefined>(undefined);
-  const replayInFlightRef = useRef(false);
-  const labelsRef = useRef<VideoMessages | undefined>(undefined);
-  const revealControlsRef = useRef<() => void>(() => undefined);
-  const [backend, setBackend] = useState<PlaybackBackend>('detecting');
-  const [fallbackReason, setFallbackReason] = useState<FallbackReason>();
-  const [hardwareAccelerationDisabled, setHardwareAccelerationDisabled] =
-    useState(false);
-  const [electronGpuAccelerationEnabled, setElectronGpuAccelerationEnabled] =
-    useState(true);
-  const [mpvRenderMode, setMpvRenderMode] =
-    useState<'shared-texture' | 'webgl' | 'canvas2d'>('shared-texture');
-  const [playerState, setPlayerState] = useState(INITIAL_PLAYER_STATE);
-  const [source, setSource] = useState<PlayerSource>();
-  const [sourceRevision, setSourceRevision] = useState(0);
-  const [hlsUrl, setHlsUrl] = useState('');
-  const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(false);
-  const [sourcePanelOpen, setSourcePanelOpen] = useState(true);
-  const [initialRequestResolved, setInitialRequestResolved] = useState(false);
-  const [requestedDirectory, setRequestedDirectory] = useState<string>();
-  const [lastBrowseDirectory, setLastBrowseDirectory] = useState<string>();
-  const [fullScreen, setFullScreen] = useState(false);
-  const [pictureInPicture, setPictureInPicture] = useState(false);
-  const [pictureInPicturePointerInside, setPictureInPicturePointerInside] =
-    useState(false);
-  const [hlsPanelOpen, setHlsPanelOpen] = useState(false);
-  const [downloaderOpen, setDownloaderOpen] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const [titleVisible, setTitleVisible] = useState(false);
-  const [scrubTime, setScrubTime] = useState<number>();
-  const [hlsSeekRange, setHlsSeekRange] = useState<VideoSeekRange>();
-  const [followingLive, setFollowingLive] = useState(false);
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [volume, setVolume] = useState(100);
-  const [localization, setLocalization] = useState<RendererMessages>();
-  const [preferences, setPreferences] = useState<VideoPreferences>({
-    appTheme: 'dark',
-    shortcuts: {},
-    videoControlsLayout: 'inline',
-    videoOverlayHideSeconds: 1.8,
-    videoSeekSeconds: DEFAULT_VIDEO_SEEK_SECONDS,
-    videoVolume: 100,
+
+  const videoState = useVideoState();
+  const {
+    playerHostRef,
+    fallbackVideoRef,
+    playerStateRef,
+    backendRef,
+    sourceRef,
+    lastScrubPreviewAtRef,
+    labelsRef,
+    backend,
+    fallbackReason,
+    hardwareAccelerationDisabled,
+    electronGpuAccelerationEnabled,
+    playerState,
+    source,
+    setSource,
+    hlsUrl,
+    error,
+    setError,
+    loading,
+    sourcePanelOpen,
+    setSourcePanelOpen,
+    initialRequestResolved,
+    requestedDirectory,
+    fullScreen,
+    pictureInPicture,
+    pictureInPicturePointerInside,
+    hlsPanelOpen,
+    setHlsPanelOpen,
+    downloaderOpen,
+    setDownloaderOpen,
+    controlsVisible,
+    titleVisible,
+    scrubTime,
+    hlsSeekRange,
+    followingLive,
+    youtubeUrl,
+    localization,
+    preferences,
+  } = videoState;
+
+  const playbackState = usePlaybackState({
+    ...videoState,
   });
-
-  const updatePlayerState = useCallback(
-    (update: SetStateAction<MpvVideoState>) => {
-      setPlayerState((current) => {
-        const next = typeof update === 'function' ? update(current) : update;
-        playerStateRef.current = next;
-        return next;
-      });
-    },
-    [],
-  );
-
-  const updatePlaybackStatus = useCallback((status: string) => {
-    if (mpvStateUiTimerRef.current !== undefined) {
-      window.clearTimeout(mpvStateUiTimerRef.current);
-      mpvStateUiTimerRef.current = undefined;
-    }
-    pendingMpvStateRef.current = undefined;
-    updatePlayerState((current) => current.status === status
-      ? current
-      : { ...current, status
-      });
-  }, [updatePlayerState]);
-
-  const clearFailedSource = useCallback((failedSource: PlayerSource) => {
-    if (!isSamePlayerSource(sourceRef.current, failedSource)) return;
-    sourceOpeningRef.current = false;
-    sourceRef.current = undefined;
-    setSource(undefined);
-    setHlsSeekRange(undefined);
-    setFollowingLive(false);
-    updatePlayerState((current) => ({
-      ...current,
-      status: 'Idle',
-      time: 0,
-      duration: 0,
-      width: 0,
-      height: 0,
-      codec: '-',
-      fps: 0,
-    }));
-    if (backendRef.current === 'chromium') {
-      hlsRef.current?.destroy();
-      hlsRef.current = null;
-      const video = fallbackVideoRef.current;
-      video?.pause();
-      video?.removeAttribute('src');
-      video?.load();
-      return;
-    }
-    void playerRef.current?.stop().catch((reason: unknown) => {
-      console.warn('[video] Failed playback source could not be stopped.', reason);
-    });
-  }, [updatePlayerState]);
-
-  const clearMpvStateUiTimer = useCallback(() => {
-    if (mpvStateUiTimerRef.current !== undefined) {
-      window.clearTimeout(mpvStateUiTimerRef.current);
-    }
-    mpvStateUiTimerRef.current = undefined;
-    pendingMpvStateRef.current = undefined;
-  }, []);
+  const {
+    clearMpvStateUiTimer,
+  } = playbackState;
 
   const labels = localization?.video as VideoMessages;
   if (labels) labelsRef.current = labels;
@@ -302,14 +103,14 @@ export function VideoView() {
   const timelineProgress = isHls && followingLive
     ? 100
     : timelineRange
-    ? Math.min(100, Math.max(
+      ? Math.min(100, Math.max(
         0,
         ((displayedTime - timelineRange.start) /
           (timelineRange.end - timelineRange.start)) * 100,
       ))
-    : isHls
-      ? 100
-      : 0;
+      : isHls
+        ? 100
+        : 0;
   const behindLiveEdge = Boolean(isHls && !followingLive);
 
   useEffect(() => clearMpvStateUiTimer, [clearMpvStateUiTimer]);
@@ -326,981 +127,58 @@ export function VideoView() {
     sourceRef.current = source;
   }, [source]);
 
-  const closeHlsPanel = useCallback(() => {
-    const activeElement = document.activeElement;
-    if (activeElement instanceof HTMLElement) activeElement.blur();
-    setHlsPanelOpen(false);
-  }, []);
+  const videoChrome = useVideoChrome({
+    ...videoState,
+  });
+  const {
+    closeHlsPanel,
+    hideTitle,
+    revealVideoChrome,
+  } = videoChrome;
 
-  const clearControlsHideTimer = useCallback(() => {
-    if (controlsHideTimerRef.current === undefined) return;
-    window.clearTimeout(controlsHideTimerRef.current);
-    controlsHideTimerRef.current = undefined;
-  }, []);
+  useVideoVisibility({
+    ...videoState,
+    ...videoChrome,
+  });
 
-  const revealControls = useCallback(() => {
-    clearControlsHideTimer();
-    setControlsVisible(true);
-    if (!sourceRef.current) return;
-    controlsHideTimerRef.current = window.setTimeout(() => {
-      controlsHideTimerRef.current = undefined;
-      if (scrubbingRef.current) return;
-      setControlsVisible(false);
-    }, preferences.videoOverlayHideSeconds * 1_000);
-  }, [clearControlsHideTimer, preferences.videoOverlayHideSeconds]);
-  revealControlsRef.current = revealControls;
-
-  const clearTitleHideTimer = useCallback(() => {
-    if (titleHideTimerRef.current === undefined) return;
-    window.clearTimeout(titleHideTimerRef.current);
-    titleHideTimerRef.current = undefined;
-  }, []);
-
-  const revealTitle = useCallback(() => {
-    clearTitleHideTimer();
-    setTitleVisible(true);
-    if (!sourceRef.current) return;
-    titleHideTimerRef.current = window.setTimeout(() => {
-      titleHideTimerRef.current = undefined;
-      setTitleVisible(false);
-    }, preferences.videoOverlayHideSeconds * 1_000);
-  }, [clearTitleHideTimer, preferences.videoOverlayHideSeconds]);
-
-  const hideTitle = useCallback(() => {
-    clearTitleHideTimer();
-    setTitleVisible(false);
-  }, [clearTitleHideTimer]);
-
-  const revealVideoChrome = useCallback(() => {
-    revealTitle();
-    revealControls();
-  }, [revealControls, revealTitle]);
-
-  useEffect(() => clearControlsHideTimer, [clearControlsHideTimer]);
-  useEffect(() => clearTitleHideTimer, [clearTitleHideTimer]);
-
-  useEffect(() => {
-    if (!localization) return;
-    let active = true;
-    const removeListener = window.kawaikaraVideo.application.onFullScreenChanged(
-      (next) => setFullScreen(next),
-    );
-    void window.kawaikaraVideo.application.isFullScreen().then((next) => {
-      if (active) setFullScreen(next);
-    });
-    return () => {
-      active = false;
-      removeListener();
-    };
-  }, []);
-
-  useEffect(() =>
-    window.kawaikaraVideo.application.onPictureInPictureChanged(
-      (active) => {
-        setPictureInPicture(active);
-        if (!active) setPictureInPicturePointerInside(false);
-      },
-    ), []);
-
-  useEffect(() =>
-    window.kawaikaraVideo.application.onPictureInPicturePointerChanged(
-      (inside) => {
-        setPictureInPicturePointerInside(inside);
-        clearControlsHideTimer();
-        setControlsVisible(inside);
-      },
-    ), [clearControlsHideTimer]);
-
-  useEffect(() =>
-    window.kawaikaraVideo.application.onVisibilityChanged((visible) => {
-      viewVisibleRef.current = visible;
-      if (visible) {
-        const state = playerStateRef.current;
-        window.kawaikaraVideo.presentation.update({
-          ready: Boolean(
-            sourceRef.current &&
-              state.width > 0 &&
-              state.height > 0 &&
-              !['Idle', 'Opening'].includes(state.status),
-          ),
-          width: state.width,
-          height: state.height,
-        });
-        return;
-      }
-      clearControlsHideTimer();
-      clearTitleHideTimer();
-      setControlsVisible(false);
-      setTitleVisible(false);
-      if (backendRef.current === 'chromium') {
-        fallbackVideoRef.current?.pause();
-        return;
-      }
-      void playerRef.current?.pause().catch((reason: unknown) => {
-        console.warn('[video] Playback could not be paused while hidden.', reason);
-      });
-    }), [clearControlsHideTimer, clearTitleHideTimer]);
-
-  useEffect(() => {
-    let active = true;
-    void window.kawaikaraVideo.source
-      .getPlaybackCapabilities()
-      .then((capabilities) => {
-        if (!active) return;
-        console.info(
-          `[video] Backend selection: ${capabilities.nativeBackendAvailable ? 'libmpv' : 'chromium'} ` +
-            `(${capabilities.platform}-${capabilities.arch}); ` +
-            `electronGpu=${String(capabilities.electronGpuAccelerationEnabled)}; ` +
-            `libmpvSoftwareDecode=${String(capabilities.hardwareAccelerationDisabled)}; ` +
-            `nativeRenderMode=${capabilities.nativeRenderMode}.`,
-        );
-        setHardwareAccelerationDisabled(capabilities.hardwareAccelerationDisabled);
-        setElectronGpuAccelerationEnabled(
-          capabilities.electronGpuAccelerationEnabled,
-        );
-        if (capabilities.nativeRenderMode === 'software') {
-          disableWebGpuForMpvSoftwareRenderer();
-        }
-        setMpvRenderMode(
-          capabilities.electronGpuAccelerationEnabled &&
-            capabilities.nativeRenderMode === 'shared-texture'
-            ? 'shared-texture'
-            : 'webgl',
-        );
-        if (capabilities.nativeBackendAvailable) {
-          setBackend('libmpv');
-          setFallbackReason(undefined);
-          return;
-        }
-        setBackend('chromium');
-        setFallbackReason(
-          capabilities.platform === 'darwin' && capabilities.arch === 'x64'
-            ? 'intel-mac'
-            : 'unavailable',
-        );
-      })
-      .catch((reason: unknown) => {
-        if (!active) return;
-        console.warn('[video] Playback capability detection failed; using Chromium.', reason);
-        setBackend('chromium');
-        setFallbackReason('unavailable');
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (backend !== 'chromium') return;
-    window.kawaikaraVideo.application.notifyPlaybackRendererReady();
-  }, [backend]);
-
-  useEffect(() => {
-    const host = playerHostRef.current;
-    if (!localizationReady || !host || backend !== 'libmpv') return;
-
-    let active = true;
-    const initializationTimer = window.setTimeout(() => {
-      if (!active) return;
-      console.warn(
-        `[video] libmpv renderer did not become ready within ${String(MPV_INITIALIZATION_TIMEOUT_MS)}ms; requesting the software libmpv renderer.`,
-      );
-      void window.kawaikaraVideo.application
-        .recoverPlaybackRenderer()
-        .then((recovered) => {
-          if (!active || recovered) return;
-          setLoading(false);
-          setFallbackReason('native-error');
-          setError(undefined);
-          setBackend('chromium');
-        })
-        .catch((reason: unknown) => {
-          if (!active) return;
-          console.warn(
-            '[video] Software libmpv renderer recovery failed; using Chromium.',
-            reason,
-          );
-          setLoading(false);
-          setFallbackReason('native-error');
-          setError(undefined);
-          setBackend('chromium');
-        });
-    }, MPV_INITIALIZATION_TIMEOUT_MS);
-    const player = document.createElement('mpv-video');
-    player.className = 'video-player';
-    player.setAttribute('render-mode', mpvRenderMode);
-    player.setAttribute('volume', String(volume));
-    /** Handles the state. */
-    const handleState = (event: Event) => {
-      const received = (event as CustomEvent<MpvVideoState>).detail;
-      const normalizedReceived =
-        received.status === 'Loaded' &&
-        !sourceOpeningRef.current &&
-        (playerStateRef.current.status === 'Playing' ||
-          playerStateRef.current.status === 'Paused')
-          ? { ...received, status: playerStateRef.current.status
-          }
-          : received;
-      // libmpv reports eof-reached separately from time-pos, so its final
-      // position commonly remains just short of duration. Chromium's ended
-      // event already normalizes this value. Keep both backends consistent.
-      const completedState =
-        normalizedReceived.status === 'Ended' &&
-        Number.isFinite(normalizedReceived.duration) &&
-        normalizedReceived.duration > 0
-          ? { ...normalizedReceived, time: normalizedReceived.duration
-          }
-          : normalizedReceived;
-      // A failed source can still flush delayed pause/eof events after it has
-      // been cleared. Those events must not revive controls for a dead source.
-      const next = !sourceRef.current && completedState.status !== 'Ready'
-        ? {
-          ...completedState,
-          status: 'Idle',
-          time: 0,
-          duration: 0,
-          width: 0,
-          height: 0,
-          codec: '-',
-          fps: 0,
-        }
-        : completedState;
-      const previous = playerStateRef.current;
-      const statusChanged = next.status !== previous.status;
-      const presentationChanged =
-        next.width !== previous.width ||
-        next.height !== previous.height ||
-        next.duration !== previous.duration ||
-        next.codec !== previous.codec ||
-        next.renderMode !== previous.renderMode ||
-        next.rendererName !== previous.rendererName;
-      const rendererSignature = `${next.renderMode}:${next.rendererName}`;
-      if (next.status === 'Ready') {
-        window.clearTimeout(initializationTimer);
-        window.kawaikaraVideo.application.notifyPlaybackRendererReady();
-        setError(undefined);
-      }
-      if (
-        next.status === 'Ready' &&
-        next.renderMode === 'canvas2d' &&
-        mpvRenderMode !== 'canvas2d'
-      ) {
-        console.warn(
-          '[video] Canvas 2D is too slow for libmpv playback; using Chromium instead.',
-        );
-        setLoading(false);
-        setFallbackReason('native-error');
-        setBackend('chromium');
-        return;
-      }
-      if (
-        next.status === 'Ready' &&
-        rendererLogSignatureRef.current !== rendererSignature
-      ) {
-        rendererLogSignatureRef.current = rendererSignature;
-        console.info(
-          `[video] libmpv renderer ready: ${next.renderMode} (${next.rendererName}).`,
-        );
-      }
-      playerStateRef.current = next;
-      pendingMpvStateRef.current = next;
-      if (statusChanged || presentationChanged) {
-        clearMpvStateUiTimer();
-        updatePlayerState(next);
-      } else if (mpvStateUiTimerRef.current === undefined) {
-        mpvStateUiTimerRef.current = window.setTimeout(() => {
-          mpvStateUiTimerRef.current = undefined;
-          const pending = pendingMpvStateRef.current;
-          pendingMpvStateRef.current = undefined;
-          if (pending) updatePlayerState(pending);
-        }, PLAYER_UI_UPDATE_INTERVAL_MS);
-      }
-      if (statusChanged && next.status === 'Playing') revealControlsRef.current();
-      else if (
-        statusChanged &&
-        (next.status === 'Paused' || next.status === 'Ended')
-      ) {
-        revealControlsRef.current();
-      }
-    };
-    /** Handles the error. */
-    const handleError = (event: Event) => {
-      setLoading(false);
-      const reason = (event as CustomEvent<unknown>).detail;
-      if (
-        /WebGL2 is not available|WebGPU is not available|No WebGPU adapter available|Failed to create WebGPU Context Provider/i.test(
-          String(reason),
-        )
-      ) {
-        console.warn('[video] libmpv renderer candidate is unavailable.', reason);
-        return;
-      }
-      if (isMpvRuntimeError(reason)) {
-        console.warn('[video] libmpv initialization failed; using Chromium.', reason);
-        setFallbackReason('native-error');
-        setBackend('chromium');
-        setError(undefined);
-        return;
-      }
-      console.error('[video] libmpv playback error.', reason);
-      const currentLabels = labelsRef.current;
-      setError(
-        currentLabels
-          ? getMpvErrorMessage(reason, currentLabels)
-          : getErrorText(reason),
-      );
-    };
-    player.addEventListener('mpv-state', handleState);
-    player.addEventListener('mpv-error', handleError);
-    host.replaceChildren(player);
-    playerRef.current = player;
-
-    return () => {
-      active = false;
-      window.clearTimeout(initializationTimer);
-      clearMpvStateUiTimer();
-      ++openGenerationRef.current;
-      player.removeEventListener('mpv-state', handleState);
-      player.removeEventListener('mpv-error', handleError);
-      playerRef.current = null;
-      host.replaceChildren();
-      void player.destroy().catch(() => undefined);
-    };
-  }, [
-    backend,
-    clearMpvStateUiTimer,
+  useMpvRenderer({
+    ...videoState,
+    ...playbackState,
     localizationReady,
-    mpvRenderMode,
-    updatePlayerState,
-  ]);
+  });
 
-  useEffect(() => {
-    if (!localizationReady || backend === 'detecting' || !source) return;
-    const generation = ++openGenerationRef.current;
-    /** Cancels validation when this source-opening effect is superseded. */
-    let cancelSourceValidation: () => void = () => undefined;
-    sourceOpeningRef.current = true;
-    pendingMpvSeekRef.current = undefined;
-    scrubbingRef.current = false;
-    scrubPointerIdRef.current = undefined;
-    setScrubTime(undefined);
-    setHlsSeekRange(undefined);
-    setFollowingLive(source.kind === 'hls');
-    setError(undefined);
-    setLoading(true);
-    clearMpvStateUiTimer();
-    updatePlayerState((current) => ({
-      ...current,
-      status: 'Opening',
-      time: 0,
-      duration: 0,
-      width: 0,
-      height: 0,
-      codec: '-',
-      fps: 0,
-    }));
-
-    /** Opens the operation. */
-    const open = async () => {
-      if (backend === 'libmpv') {
-        const player = playerRef.current;
-        if (!player) throw new Error('The libmpv player is not ready.');
-        // Force a real pause transition before replacing the source. libmpv
-        // otherwise may retain pause=false and omit the Playing event for the
-        // next file, leaving the button icon stuck on Play.
-        await player.pause();
-        const validation = monitorMpvSourceValidation(player);
-        cancelSourceValidation = validation.cancel;
-        try {
-          await player.open(source.nativeValue);
-          await validation.ready;
-        } finally {
-          validation.cancel();
-          cancelSourceValidation = () => undefined;
-        }
-        if (viewVisibleRef.current) {
-          await player.play();
-          updatePlaybackStatus('Playing');
-          if (!viewVisibleRef.current) {
-            await player.pause();
-            updatePlaybackStatus('Paused');
-          }
-        } else {
-          await player.pause();
-          updatePlaybackStatus('Paused');
-        }
-      } else {
-        const video = fallbackVideoRef.current;
-        if (!video) throw new Error('The Chromium video element is not ready.');
-        hlsRef.current?.destroy();
-        hlsRef.current = null;
-        const chromiumSource = openChromiumSource(
-          video,
-          source,
-          volume,
-          (reason) => {
-            if (
-              openGenerationRef.current !== generation ||
-              !isSamePlayerSource(sourceRef.current, source)
-            ) {
-              return;
-            }
-            console.error('[video] Fatal HLS fallback error.', reason);
-            setLoading(false);
-            const currentLabels = labelsRef.current;
-            setError(
-              currentLabels
-                ? getHlsPlaybackErrorMessage(reason, currentLabels)
-                : getErrorText(reason),
-            );
-            clearFailedSource(source);
-            setSourcePanelOpen(true);
-          },
-        );
-        cancelSourceValidation = chromiumSource.cancel;
-        hlsRef.current = chromiumSource.hls;
-        await chromiumSource.ready;
-        cancelSourceValidation = () => undefined;
-        if (viewVisibleRef.current) {
-          await video.play();
-          updatePlaybackStatus('Playing');
-          if (!viewVisibleRef.current) {
-            video.pause();
-            updatePlaybackStatus('Paused');
-          }
-        } else {
-          video.pause();
-          updatePlaybackStatus('Paused');
-        }
-      }
-      if (openGenerationRef.current !== generation) return;
-      sourceOpeningRef.current = false;
-      setLoading(false);
-      setSourcePanelOpen(false);
-      revealControlsRef.current();
-    };
-
-    void open().catch((reason: unknown) => {
-      if (openGenerationRef.current !== generation) return;
-      sourceOpeningRef.current = false;
-      if (backend === 'libmpv' && isMpvRuntimeError(reason)) {
-        console.warn('[video] libmpv source open failed; using Chromium.', reason);
-        setFallbackReason('native-error');
-        setBackend('chromium');
-        setError(undefined);
-        return;
-      }
-      console.error(`[video] ${backend} source open failed.`, reason);
-      setLoading(false);
-      const currentLabels = labelsRef.current;
-      setError(
-        currentLabels
-          ? source.kind === 'hls'
-            ? getHlsPlaybackErrorMessage(reason, currentLabels)
-            : backend === 'chromium'
-            ? getChromiumErrorMessage(reason, currentLabels)
-            : getMpvErrorMessage(reason, currentLabels)
-          : getErrorText(reason),
-      );
-      clearFailedSource(source);
-      setSourcePanelOpen(true);
-    });
-
-    return () => {
-      ++openGenerationRef.current;
-      sourceOpeningRef.current = false;
-      cancelSourceValidation();
-      if (backend === 'chromium') {
-        hlsRef.current?.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [
-    backend,
-    clearFailedSource,
-    clearMpvStateUiTimer,
+  usePlaybackSource({
+    ...videoState,
+    ...playbackState,
     localizationReady,
-    source,
-    sourceRevision,
-    updatePlaybackStatus,
-    updatePlayerState,
-  ]);
+  });
 
-  useEffect(() => {
-    const video = fallbackVideoRef.current;
-    if (!video || backend !== 'chromium') return;
+  useChromiumPlayback({
+    ...videoState,
+    ...playbackState,
+  });
 
-    /** Updates the hls seek range. */
-    const updateHlsSeekRange = () => {
-      const next = sourceRef.current?.kind === 'hls'
-        ? readVideoSeekRange(video, hlsRef.current)
-        : undefined;
-      setHlsSeekRange((current) => sameSeekRange(current, next) ? current : next);
-    };
+  const videoRequests = useVideoRequests({
+    ...videoState,
+    localizationReady,
+  });
+  const {
+    openLocalRequest,
+  } = videoRequests;
 
-    /** Updates the metadata. */
-    const updateMetadata = () => {
-      const duration = Number.isFinite(video.duration) ? video.duration : 0;
-      updatePlayerState((current) => ({
-        ...current,
-        playerId: 'chromium-fallback',
-        status: video.paused ? 'Paused' : 'Playing',
-        renderMode: 'webgl',
-        rendererName: 'Chromium',
-        duration,
-        width: video.videoWidth,
-        height: video.videoHeight,
-      }));
-      updateHlsSeekRange();
-    };
-    /** Updates the time. */
-    const updateTime = () => {
-      updatePlayerState((current) => ({
-        ...current,
-        time: video.currentTime || 0,
-      }));
-      updateHlsSeekRange();
-    };
-    /** Handles the play. */
-    const handlePlay = () => {
-      setLoading(false);
-      updatePlayerState((current) => ({ ...current, status: 'Playing'
-      }));
-      revealControlsRef.current();
-    };
-    /** Handles the pause. */
-    const handlePause = () => {
-      if (video.ended) return;
-      updatePlayerState((current) => ({ ...current, status: 'Paused'
-      }));
-      revealControlsRef.current();
-    };
-    /** Handles the ended. */
-    const handleEnded = () => {
-      updatePlayerState((current) => ({
-        ...current,
-        status: 'Ended',
-        time: Number.isFinite(video.duration) ? video.duration : current.time,
-      }));
-      revealControlsRef.current();
-    };
-    /** Handles the error. */
-    const handleError = () => {
-      const failedSource = sourceRef.current;
-      if (!video.currentSrc || !failedSource) return;
-      console.error('[video] Chromium media element error.', video.error);
-      setLoading(false);
-      setSourcePanelOpen(true);
-      const currentLabels = labelsRef.current;
-      const reason = video.error?.message || `Media error ${video.error?.code ?? ''}`;
-      setError(
-        currentLabels
-          ? failedSource.kind === 'hls'
-            ? getHlsPlaybackErrorMessage(reason, currentLabels)
-            : getChromiumErrorMessage(reason, currentLabels)
-          : reason,
-      );
-      clearFailedSource(failedSource);
-    };
+  useVideoPresentation({
+    ...videoState,
+  });
 
-    video.addEventListener('loadedmetadata', updateMetadata);
-    video.addEventListener('durationchange', updateMetadata);
-    video.addEventListener('timeupdate', updateTime);
-    video.addEventListener('progress', updateHlsSeekRange);
-    video.addEventListener('seeked', updateTime);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('error', handleError);
-    return () => {
-      video.removeEventListener('loadedmetadata', updateMetadata);
-      video.removeEventListener('durationchange', updateMetadata);
-      video.removeEventListener('timeupdate', updateTime);
-      video.removeEventListener('progress', updateHlsSeekRange);
-      video.removeEventListener('seeked', updateTime);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('error', handleError);
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-    };
-  }, [backend, clearFailedSource, updatePlayerState]);
-
-  useEffect(() => {
-    const video = fallbackVideoRef.current;
-    if (
-      !video ||
-      backend !== 'chromium' ||
-      typeof video.requestVideoFrameCallback !== 'function'
-    ) {
-      fallbackFrameSamplesRef.current = [];
-      return;
-    }
-
-    let active = true;
-    let callbackId = 0;
-    let previousMediaTime: number | undefined;
-    /** Performs the observe frame operation. */
-    const observeFrame: VideoFrameRequestCallback = (_now, metadata) => {
-      if (!active) return;
-      if (previousMediaTime !== undefined) {
-        const delta = metadata.mediaTime - previousMediaTime;
-        if (delta > 0 && delta < 1) {
-          const samples = fallbackFrameSamplesRef.current;
-          samples.push(1 / delta);
-          if (samples.length >= 12) {
-            const fps = samples.reduce((sum, value) => sum + value, 0) / samples.length;
-            samples.length = 0;
-            updatePlayerState((current) => ({ ...current, fps
-            }));
-          }
-        }
-      }
-      previousMediaTime = metadata.mediaTime;
-      callbackId = video.requestVideoFrameCallback(observeFrame);
-    };
-    callbackId = video.requestVideoFrameCallback(observeFrame);
-    return () => {
-      active = false;
-      video.cancelVideoFrameCallback(callbackId);
-      fallbackFrameSamplesRef.current = [];
-    };
-  }, [backend, source, updatePlayerState]);
-
-  const applyOpenRequest = useCallback((
-    request: VideoOpenRequest,
-    forcePlaybackReload = false,
-  ) => {
-    if (request.kind === 'youtube') {
-      setYoutubeUrl(request.url);
-      setDownloaderOpen(true);
-      setSourcePanelOpen(false);
-      return;
-    }
-    if (request.kind === 'folder') {
-      setDownloaderOpen(false);
-      setRequestedDirectory(request.path);
-      setLastBrowseDirectory(request.path);
-      setSourcePanelOpen(true);
-      return;
-    }
-    setDownloaderOpen(false);
-    setHlsPanelOpen(false);
-    setSourcePanelOpen(false);
-    setError(undefined);
-    setLastBrowseDirectory(request.directory);
-    const nextSource: PlayerSource = {
-      kind: 'local',
-      label: request.displayName,
-      nativeValue: request.path,
-      chromiumValue: request.url,
-    };
-    const currentSource = sourceRef.current;
-    const resolvedSource = currentSource && isSamePlayerSource(
-      currentSource,
-      nextSource,
-    ) ? currentSource : nextSource;
-    sourceRef.current = resolvedSource;
-    setSource(resolvedSource);
-    if (forcePlaybackReload) {
-      setSourceRevision((current) => current + 1);
-    }
-  }, []);
-
-  const openLocalRequest = useCallback(async (
-    request: Extract<VideoOpenRequest, { readonly kind: 'local'
-    }>,
-    directory: string,
-  ) => {
-    try {
-      const activated = await window.kawaikaraVideo.source.activateLocalFile(
-        request.path,
-      );
-      setLastBrowseDirectory(directory || activated.directory);
-      applyOpenRequest(activated, true);
-    } catch (reason) {
-      console.error('[video] Failed to activate the selected local video.', reason);
-      setLoading(false);
-      setSourcePanelOpen(true);
-      const currentLabels = labelsRef.current;
-      setError(
-        currentLabels
-          ? getMpvErrorMessage(reason, currentLabels)
-          : getErrorText(reason),
-      );
-    }
-  }, [applyOpenRequest]);
-
-  useEffect(() => {
-    if (!localizationReady) return;
-    let active = true;
-    const unsubscribe = window.kawaikaraVideo.source.onOpenRequest((request) => {
-      if (active) {
-        // Main only emits this event for a new explicit open action. Reload an
-        // identical path as well; source equality is used only to deduplicate
-        // the initial getOpenRequest fallback.
-        applyOpenRequest(request, true);
-        setInitialRequestResolved(true);
-      }
-    });
-    void window.kawaikaraVideo.source
-      .getOpenRequest()
-      .then((request) => {
-        if (!active) return;
-        if (request) applyOpenRequest(request);
-        setInitialRequestResolved(true);
-      })
-      .catch((reason: unknown) => {
-        if (!active) return;
-        console.error('[video] Failed to read the queued open request.', reason);
-        const currentLabels = labelsRef.current;
-        setError(
-          currentLabels
-            ? getMpvErrorMessage(reason, currentLabels)
-            : getErrorText(reason),
-        );
-        setInitialRequestResolved(true);
-      });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [applyOpenRequest, localizationReady]);
-
-  useEffect(() => {
-    let active = true;
-    /** Performs the refresh preferences operation. */
-    const refreshPreferences = () => {
-      void Promise.all([
-        window.kawaikaraVideo.preferences.get(),
-        window.kawaikaraVideo.application.getMessages(),
-      ])
-        .then(([next, nextLocalization]) => {
-          if (!active) return;
-          const nextPreferences = {
-            appTheme: next.appTheme,
-            shortcuts: next.shortcuts,
-            videoControlsLayout: next.videoControlsLayout,
-            videoOverlayHideSeconds: next.videoOverlayHideSeconds,
-            videoSeekSeconds: next.videoSeekSeconds,
-            videoVolume:
-              pendingVolumePersistRef.current === undefined
-                ? next.videoVolume
-                : volumeRef.current,
-          };
-          setPreferences((current) =>
-            areVideoPreferencesEqual(current, nextPreferences)
-              ? current
-              : nextPreferences,
-          );
-          setLocalization((current) =>
-            current?.locale === nextLocalization.locale ? current : nextLocalization,
-          );
-        })
-        .catch(() => undefined);
-    };
-    refreshPreferences();
-    window.addEventListener('focus', refreshPreferences);
-    document.addEventListener('visibilitychange', refreshPreferences);
-    return () => {
-      active = false;
-      window.removeEventListener('focus', refreshPreferences);
-      document.removeEventListener('visibilitychange', refreshPreferences);
-    };
-  }, []);
-
-  useEffect(() => {
-    window.kawaikaraVideo.presentation.update({
-      ready: Boolean(
-        source &&
-          playerState.width > 0 &&
-          playerState.height > 0 &&
-          !['Idle', 'Opening'].includes(playerState.status),
-      ),
-      width: playerState.width,
-      height: playerState.height,
-    });
-  }, [playerState.height, playerState.status, playerState.width, source]);
-
-  const queueMpvSeek = useCallback((request: PendingMpvSeek) => {
-    pendingMpvSeekRef.current = request;
-    if (mpvSeekInFlightRef.current) return;
-    mpvSeekInFlightRef.current = true;
-
-    /** Performs the drain operation. */
-    const drain = async () => {
-      try {
-        while (pendingMpvSeekRef.current) {
-          const next = pendingMpvSeekRef.current;
-          pendingMpvSeekRef.current = undefined;
-          const player = playerRef.current;
-          if (!player) return;
-          try {
-            await player.seek(next.seconds);
-          } catch (reason) {
-            if (pendingMpvSeekRef.current) continue;
-            if (next.reportError) {
-              setError(getMpvErrorMessage(reason, labels));
-            } else {
-              console.debug(
-                '[video] Ignored an intermediate libmpv seek failure.',
-                reason,
-              );
-            }
-          }
-        }
-      } finally {
-        mpvSeekInFlightRef.current = false;
-      }
-    };
-
-    void drain();
-  }, [labels]);
-
-  const togglePlayback = useCallback(() => {
-    const state = playerStateRef.current;
-    const currentSource = sourceRef.current;
-    if (!currentSource || sourceOpeningRef.current) return;
-    if (backendRef.current === 'chromium') {
-      const video = fallbackVideoRef.current;
-      if (!video) return;
-      if (!video.paused && !video.ended) {
-        video.pause();
-        updatePlaybackStatus('Paused');
-        return;
-      }
-      if (
-        video.ended ||
-        (Number.isFinite(video.duration) &&
-          video.duration > 0 &&
-          video.currentTime >= video.duration - 0.05)
-      ) {
-        video.currentTime = 0;
-      }
-      void video.play()
-        .then(() => updatePlaybackStatus('Playing'))
-        .catch((reason: unknown) =>
-          setError(getChromiumErrorMessage(reason, labels)),
-        );
-      return;
-    }
-
-    const player = playerRef.current;
-    if (!player) return;
-    if (state.status === 'Playing') {
-      void player.pause()
-        .then(() => updatePlaybackStatus('Paused'))
-        .catch((reason: unknown) =>
-          setError(getMpvErrorMessage(reason, labels)),
-        );
-      return;
-    }
-    const ended = state.status === 'Ended' || (
-      state.status !== 'Playing' &&
-      Number.isFinite(state.duration) &&
-      state.duration > 0 &&
-      state.time >= state.duration - 0.05
-    );
-    if (!ended) {
-      void player.play()
-        .then(() => updatePlaybackStatus('Playing'))
-        .catch((reason: unknown) =>
-          setError(getMpvErrorMessage(reason, labels)),
-        );
-      return;
-    }
-    if (replayInFlightRef.current) return;
-    replayInFlightRef.current = true;
-    setLoading(true);
-    setError(undefined);
-    // libmpv unloads the completed file by default, so a seek issued after
-    // eof-reached can fail with MPV_ERROR_COMMAND (-12). Reopen the same
-    // source to create a fresh playback timeline, then start it from zero.
-    void player
-      .open(currentSource.nativeValue)
-      .then(() => player.play())
-      .then(() => updatePlaybackStatus('Playing'))
-      .then(() => setLoading(false))
-      .catch((reason: unknown) => {
-        setLoading(false);
-        setError(getMpvErrorMessage(reason, labels));
-      })
-      .finally(() => {
-        replayInFlightRef.current = false;
-      });
-  }, [labels, updatePlaybackStatus]);
-
-  useEffect(() =>
-    window.kawaikaraVideo.application.onPlaybackToggleRequested(() => {
-      revealControls();
-      togglePlayback();
-    }), [revealControls, togglePlayback]);
-
-  const seekTo = useCallback((
-    seconds: number,
-    reportError = true,
-    followLive = false,
-  ) => {
-    if (!Number.isFinite(seconds)) return;
-    const state = playerStateRef.current;
-    const range = resolveVideoSeekRange(
-      state.duration,
-      sourceRef.current,
-      backendRef.current,
-      fallbackVideoRef.current,
-      hlsRef.current,
-    );
-    if (
-      !sourceRef.current ||
-      !range ||
-      state.status === 'Idle' ||
-      state.status === 'Opening'
-    ) {
-      return;
-    }
-    const target = clampSeekableVideoTime(seconds, range);
-    setFollowingLive(sourceRef.current.kind === 'hls' && followLive);
-    playerStateRef.current = { ...state, time: target
-    };
-    updatePlayerState((current) => ({ ...current, time: target
-    }));
-    if (backendRef.current === 'chromium') {
-      const video = fallbackVideoRef.current;
-      if (video) video.currentTime = target;
-      return;
-    }
-    const player = playerRef.current;
-    if (!player) return;
-    queueMpvSeek({ reportError, seconds: target
-    });
-  }, [queueMpvSeek, updatePlayerState]);
-
-  const goToLiveEdge = useCallback(() => {
-    if (sourceRef.current?.kind !== 'hls') return;
-    setFollowingLive(true);
-    if (backendRef.current === 'libmpv') {
-      // electron-mpv-video exposes only absolute second seeking. For live HLS,
-      // mpv's duration can be an accumulating timeline rather than its current
-      // live edge, so reopening is the reliable way to join the latest segment.
-      setLoading(true);
-      setSourceRevision((current) => current + 1);
-      revealControls();
-      return;
-    }
-    const state = playerStateRef.current;
-    const range = resolveVideoSeekRange(
-      state.duration,
-      sourceRef.current,
-      backendRef.current,
-      fallbackVideoRef.current,
-      hlsRef.current,
-    );
-    if (!range) return;
-    seekTo(range.end, true, true);
-    revealControls();
-  }, [revealControls, seekTo]);
+  const playbackControls = usePlaybackControls({
+    ...videoState,
+    ...playbackState,
+    ...videoChrome,
+    labels,
+  });
+  const {
+    seekTo,
+  } = playbackControls;
 
   const previewTimelineScrub = useCallback((seconds: number) => {
     const now = performance.now();
@@ -1312,243 +190,24 @@ export function VideoView() {
     seekTo(seconds, false);
   }, [seekTo]);
 
-  const flushVolumePersistence = useCallback(() => {
-    if (volumePersistTimerRef.current !== undefined) {
-      window.clearTimeout(volumePersistTimerRef.current);
-      volumePersistTimerRef.current = undefined;
-    }
-    const pending = pendingVolumePersistRef.current;
-    if (pending === undefined) return;
-    void window.kawaikaraVideo.preferences
-      .setVideoVolume(pending)
-      .then((saved) => {
-        if (pendingVolumePersistRef.current !== pending) return;
-        pendingVolumePersistRef.current = undefined;
-        if (saved === volumeRef.current) return;
-        volumeRef.current = saved;
-        setVolume(saved);
-      })
-      .catch((reason: unknown) => {
-        console.warn('[video] The volume preference could not be saved.', reason);
-      });
-  }, []);
-
-  const scheduleVolumePersistence = useCallback((next: number) => {
-    pendingVolumePersistRef.current = next;
-    if (volumePersistTimerRef.current !== undefined) {
-      window.clearTimeout(volumePersistTimerRef.current);
-    }
-    volumePersistTimerRef.current = window.setTimeout(() => {
-      volumePersistTimerRef.current = undefined;
-      flushVolumePersistence();
-    }, 240);
-  }, [flushVolumePersistence]);
-
-  const updateVolume = useCallback((next: number, persist = true) => {
-    const normalized = Math.min(100, Math.max(0, next));
-    volumeRef.current = normalized;
-    setVolume(normalized);
-    if (fallbackVideoRef.current) {
-      fallbackVideoRef.current.volume = normalized / 100;
-    }
-    void playerRef.current?.setVolume(normalized).catch((reason: unknown) =>
-      setError(getMpvErrorMessage(reason, labels)),
-    );
-    if (persist) scheduleVolumePersistence(normalized);
-  }, [labels, scheduleVolumePersistence]);
-
-  useEffect(() => {
-    if (pendingVolumePersistRef.current !== undefined) return;
-    updateVolume(preferences.videoVolume, false);
-  }, [preferences.videoVolume, updateVolume]);
-
-  useEffect(() => {
-    /** Performs the flush pending volume operation. */
-    const flushPendingVolume = () => flushVolumePersistence();
-    window.addEventListener('pagehide', flushPendingVolume);
-    return () => {
-      window.removeEventListener('pagehide', flushPendingVolume);
-      flushVolumePersistence();
-    };
-  }, [flushVolumePersistence]);
-
-  const finishTimelineScrub = useCallback((pointerId?: number) => {
-    if (!scrubbingRef.current) return;
-    if (
-      pointerId !== undefined &&
-      scrubPointerIdRef.current !== undefined &&
-      pointerId !== scrubPointerIdRef.current
-    ) {
-      return;
-    }
-    scrubbingRef.current = false;
-    scrubPointerIdRef.current = undefined;
-    const target = scrubTargetRef.current;
-    scrubTargetRef.current = target;
-    lastScrubPreviewAtRef.current = Number.NEGATIVE_INFINITY;
-    setScrubTime(undefined);
-    seekTo(target);
-    timelineRef.current?.blur();
-    revealControls();
-  }, [revealControls, seekTo]);
-
-  const cancelTimelineScrub = useCallback((pointerId?: number) => {
-    if (!scrubbingRef.current) return;
-    if (
-      pointerId !== undefined &&
-      scrubPointerIdRef.current !== undefined &&
-      pointerId !== scrubPointerIdRef.current
-    ) {
-      return;
-    }
-    scrubbingRef.current = false;
-    scrubPointerIdRef.current = undefined;
-    scrubTargetRef.current = playerStateRef.current.time;
-    lastScrubPreviewAtRef.current = Number.NEGATIVE_INFINITY;
-    setScrubTime(undefined);
-    timelineRef.current?.blur();
-  }, []);
-
-  useEffect(() => {
-    /** Performs the finish pointer scrub operation. */
-    const finishPointerScrub = (event: PointerEvent) => {
-      finishTimelineScrub(event.pointerId);
-    };
-    /** Determines whether the cel pointer scrub condition applies. */
-    const cancelPointerScrub = (event: PointerEvent) => {
-      cancelTimelineScrub(event.pointerId);
-    };
-    window.addEventListener('pointerup', finishPointerScrub);
-    window.addEventListener('pointercancel', cancelPointerScrub);
-    return () => {
-      window.removeEventListener('pointerup', finishPointerScrub);
-      window.removeEventListener('pointercancel', cancelPointerScrub);
-    };
-  }, [cancelTimelineScrub, finishTimelineScrub]);
-
-  useEffect(() => {
-    /** Handles the shortcut. */
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (
-        event.key === 'Escape' &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.shiftKey
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        if (!event.repeat) {
-          void (async () => {
-            if (await window.kawaikaraVideo.application.isFullScreen()) {
-              await window.kawaikaraVideo.application.exitFullScreen();
-              return;
-            }
-            if (pictureInPicture) {
-              await window.kawaikaraVideo.application.togglePictureInPicture();
-              return;
-            }
-            if (hlsPanelOpen) {
-              closeHlsPanel();
-              return;
-            }
-            if (downloaderOpen) {
-              setDownloaderOpen(false);
-              return;
-            }
-            if (sourcePanelOpen && source) {
-              setSourcePanelOpen(false);
-              return;
-            }
-            if (source && lastBrowseDirectory) {
-              setRequestedDirectory(lastBrowseDirectory);
-              setSourcePanelOpen(true);
-            }
-          })();
-        }
-        return;
-      }
-      if (isEditableTarget(event.target)) return;
-      if (event.isComposing && event.code !== 'Comma' && event.code !== 'Period') {
-        return;
-      }
-
-      if (
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        normalizeKey(event.key) === ' '
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        if (!event.repeat) {
-          revealControls();
-          togglePlayback();
-        }
-        return;
-      }
-
-      const normalizedKey = normalizeKey(event.key);
-      if (
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        (normalizedKey === 'up' || normalizedKey === 'down')
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        revealControls();
-        updateVolume(
-          volumeRef.current +
-            (normalizedKey === 'up' ? VIDEO_VOLUME_STEP : -VIDEO_VOLUME_STEP),
-        );
-        return;
-      }
-
-      for (const shortcut of VIDEO_SHORTCUTS) {
-        const accelerator = preferences.shortcuts[shortcut.id] ?? shortcut.defaultKey;
-        const match = matchVideoAccelerator(
-          event,
-          accelerator,
-          shortcut.id === 'video.seek-backward' || shortcut.id === 'video.seek-forward',
-        );
-        if (!match.matched) continue;
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        revealControls();
-        void runVideoShortcut(
-          playerRef.current,
-          fallbackVideoRef.current,
-          backendRef.current,
-          playerStateRef.current,
-          shortcut.id,
-          preferences.videoSeekSeconds * match.precision,
-          seekTo,
-        ).catch((reason: unknown) => setError(getMpvErrorMessage(reason, labels)));
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleShortcut, true);
-    return () => window.removeEventListener('keydown', handleShortcut, true);
-  }, [
-    closeHlsPanel,
-    downloaderOpen,
-    hlsPanelOpen,
+  const videoVolume = useVideoVolume({
+    ...videoState,
     labels,
-    lastBrowseDirectory,
-    pictureInPicture,
-    preferences,
-    revealControls,
-    seekTo,
-    source,
-    sourcePanelOpen,
-    togglePlayback,
-    updateVolume,
-  ]);
+  });
+
+  const timelineScrubbing = useTimelineScrubbing({
+    ...videoState,
+    ...playbackControls,
+    ...videoChrome,
+  });
+
+  useVideoKeyboard({
+    ...videoState,
+    ...videoChrome,
+    ...playbackControls,
+    ...videoVolume,
+    labels,
+  });
 
   /** Selects the local file. */
   const selectLocalFile = async (): Promise<VideoOpenRequest | null> => {
@@ -1590,23 +249,22 @@ export function VideoView() {
     (titleVisible || sourcePanelOpen || hlsPanelOpen || downloaderOpen || !source);
   const showControls =
     pictureInPicture ? pictureInPicturePointerInside :
-    controlsLayout === 'inline' ||
-    controlsVisible ||
-    sourcePanelOpen ||
-    hlsPanelOpen ||
-    downloaderOpen ||
-    !source;
+      controlsLayout === 'inline' ||
+      controlsVisible ||
+      sourcePanelOpen ||
+      hlsPanelOpen ||
+      downloaderOpen ||
+      !source;
 
   if (!localization) return null;
 
   return (
     <KawaiProvider>
       <main
-        className={`kawai-theme video-shell ${
-          preferences.appTheme === 'dark'
+        className={`kawai-theme video-shell ${preferences.appTheme === 'dark'
             ? 'kawai-theme-dark'
             : 'kawai-theme-light'
-        }`}
+          }`}
         data-controls-visible={showControls ? 'true' : 'false'}
         data-controls-layout={controlsLayout}
         data-title-visible={showTitle ? 'true' : 'false'}
@@ -1628,78 +286,21 @@ export function VideoView() {
         ) : null}
 
         {source && pictureInPicture ? (
-          <div
-            className="video-pip-overlay"
-          >
-            <div className="video-pip-drag-surface" aria-hidden="true" />
-            <button
-              className="video-icon-button video-pip-button video-pip-restore-button"
-              type="button"
-              tabIndex={-1}
-              aria-label={localization.app.backToSites}
-              title={localization.app.backToSites}
-              onFocus={blurVideoControl}
-              onPointerUp={(event) => event.currentTarget.blur()}
-              onClick={() => {
-                void window.kawaikaraVideo.application.togglePictureInPicture();
-              }}
-            >
-              <RestoreWindowIcon />
-            </button>
-            <button
-              className="video-icon-button video-pip-button video-pip-playback-button"
-              type="button"
-              tabIndex={-1}
-              aria-label={isPlaying ? labels.pause : labels.play}
-              title={isPlaying ? labels.pause : labels.play}
-              onFocus={blurVideoControl}
-              onPointerUp={(event) => event.currentTarget.blur()}
-              onClick={togglePlayback}
-            >
-              <PlaybackIcon playing={isPlaying} />
-            </button>
-          </div>
+          <VideoPictureInPicture
+            {...playbackControls}
+            isPlaying={isPlaying}
+            labels={labels}
+          />
         ) : null}
 
         {source ? (
-          <header
-            className="video-header-overlay"
-            onPointerEnter={revealVideoChrome}
-            onPointerMove={revealVideoChrome}
-          >
-            <div className="video-header-copy">
-              <h1 className="video-title">{source.label}</h1>
-              <p className="video-metadata">
-                {getMetadataLabel(playerState, hasTimeline, labels.live)} ·{' '}
-                {backend === 'libmpv' ? 'libmpv' : labels.chromiumFallback}
-              </p>
-            </div>
-            <div className="video-header-actions">
-              <button
-                className="video-source-toggle"
-                type="button"
-                tabIndex={-1}
-                onFocus={blurVideoControl}
-                onPointerUp={(event) => event.currentTarget.blur()}
-                onClick={() => {
-                  setRequestedDirectory(lastBrowseDirectory);
-                  setSourcePanelOpen(true);
-                }}
-              >
-                {labels.openFolder}
-              </button>
-              <button
-                className="video-source-toggle"
-                type="button"
-                tabIndex={-1}
-                onFocus={blurVideoControl}
-                onPointerUp={(event) => event.currentTarget.blur()}
-                onClick={() => setHlsPanelOpen((open) => !open)}
-              >
-                HLS
-              </button>
-            </div>
-          </header>
+          <VideoHeader
+            {...videoChrome}
+            {...videoState}
+            source={source}
+            hasTimeline={hasTimeline}
+            labels={labels}
+          />
         ) : null}
 
         {loading ? <div className="video-loading" aria-label={labels.loading} /> : null}
@@ -1724,13 +325,13 @@ export function VideoView() {
                 ? labels.captureCompatibleRenderingWarning
                 : hardwareAccelerationDisabled
                   ? labels.softwareRenderingWarning
-                : backend === 'chromium'
-                  ? fallbackReason === 'intel-mac'
-                    ? labels.intelMacFallback
-                    : fallbackReason === 'native-error'
-                      ? labels.nativeErrorFallback
-                      : labels.nativeUnavailableFallback
-                  : undefined
+                  : backend === 'chromium'
+                    ? fallbackReason === 'intel-mac'
+                      ? labels.intelMacFallback
+                      : fallbackReason === 'native-error'
+                        ? labels.nativeErrorFallback
+                        : labels.nativeUnavailableFallback
+                    : undefined
             }
             canClose={Boolean(source)}
             initialDirectory={requestedDirectory}
@@ -1748,50 +349,19 @@ export function VideoView() {
         ) : null}
 
         {hlsPanelOpen && !pictureInPicture ? (
-          <div
-            className="video-hls-overlay"
-            onPointerDown={(event) => {
-              if (event.target !== event.currentTarget) return;
-              event.preventDefault();
-              closeHlsPanel();
-            }}
-          >
-            <section className="video-hls-panel" aria-label={labels.hlsUrl}>
-              <div className="video-hls-panel-heading">
-                <div>
-                  <span>HLS</span>
-                  <h2>{labels.playHls}</h2>
-                </div>
-                <button
-                  aria-label={localization.videoBrowser.close}
-                  className="video-icon-button"
-                  tabIndex={-1}
-                  type="button"
-                  onFocus={blurVideoControl}
-                  onPointerUp={(event) => event.currentTarget.blur()}
-                  onClick={closeHlsPanel}
-                >
-                  <VideoCloseIcon />
-                </button>
-              </div>
-              <form className="video-hls-form" onSubmit={openHlsStream}>
-                <Input
-                  label={labels.hlsUrl}
-                  placeholder="https://example.com/stream.m3u8"
-                  value={hlsUrl}
-                  onChange={(event) => setHlsUrl(event.target.value)}
-                />
-                <Button disabled={!hlsUrl.trim()} type="submit">
-                  {labels.playHls}
-                </Button>
-              </form>
-            </section>
-          </div>
+          <HlsSourcePanel
+            {...videoChrome}
+            {...videoState}
+            labels={labels}
+            localization={localization}
+            openHlsStream={openHlsStream}
+          />
         ) : null}
 
         {downloaderOpen && !pictureInPicture ? (
           <div className="video-downloader-overlay">
             <YouTubeDownloaderPanel
+              labels={localization.downloader}
               initialUrl={youtubeUrl}
               onClose={() => {
                 setDownloaderOpen(false);
@@ -1802,747 +372,24 @@ export function VideoView() {
         ) : null}
 
         {source ? (
-          <div
-            className="video-controls"
-            aria-label={labels.controls}
-            onPointerDown={(event) => {
-              if (event.target === event.currentTarget) event.preventDefault();
-            }}
-            onPointerEnter={() => {
-              hideTitle();
-              revealControls();
-            }}
-            onPointerMove={() => {
-              hideTitle();
-              revealControls();
-            }}
-            onPointerLeave={revealControls}
-          >
-            <button
-              className="video-icon-button video-playback-button"
-              type="button"
-              tabIndex={-1}
-              aria-label={isPlaying ? labels.pause : labels.play}
-              onFocus={blurVideoControl}
-              onPointerUp={(event) => event.currentTarget.blur()}
-              onClick={togglePlayback}
-            >
-              <PlaybackIcon playing={isPlaying} />
-            </button>
-            <span className="video-time">{formatDuration(displayedTime)}</span>
-            <input
-              ref={timelineRef}
-              className={`video-progress${isHls ? ' is-hls' : ''}`}
-              type="range"
-              tabIndex={-1}
-              aria-label={labels.timeline}
-              min={timelineRange?.start ?? 0}
-              max={timelineRange?.end ?? 1}
-              step="any"
-              value={timelineRange
-                ? isHls && followingLive
-                  ? timelineRange.end
-                  : Math.min(
-                      timelineRange.end,
-                      Math.max(timelineRange.start, displayedTime),
-                    )
-                : isHls
-                  ? 1
-                  : 0}
-              style={{
-                '--video-range-progress': `${String(timelineProgress)}%`,
-              } as CSSProperties}
-              disabled={!hasTimeline}
-              onFocus={blurVideoControl}
-              onPointerDown={(event) => {
-                if (isHls) setFollowingLive(false);
-                scrubbingRef.current = true;
-                scrubPointerIdRef.current = event.pointerId;
-                scrubTargetRef.current = displayedTime;
-                lastScrubPreviewAtRef.current = Number.NEGATIVE_INFINITY;
-                setScrubTime(displayedTime);
-                revealControls();
-              }}
-              onPointerUp={(event) => finishTimelineScrub(event.pointerId)}
-              onPointerCancel={(event) => cancelTimelineScrub(event.pointerId)}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (!Number.isFinite(next)) return;
-                scrubTargetRef.current = next;
-                setScrubTime(next);
-                previewTimelineScrub(next);
-              }}
-            />
-            {isHls ? (
-              <button
-                aria-label={labels.goLive}
-                className={`video-live-button${behindLiveEdge ? ' is-behind' : ''}`}
-                disabled={!behindLiveEdge}
-                tabIndex={-1}
-                type="button"
-                onFocus={blurVideoControl}
-                onPointerUp={(event) => event.currentTarget.blur()}
-                onClick={goToLiveEdge}
-              >
-                <span aria-hidden="true" className="video-live-dot" />
-                {labels.live}
-              </button>
-            ) : (
-              <span className="video-time video-duration-value">
-                {hasTimeline ? formatDuration(playerState.duration) : labels.live}
-              </span>
-            )}
-            <label className="video-volume-control">
-              <span>{labels.volume}</span>
-              <input
-                type="range"
-                tabIndex={-1}
-                min={0}
-                max={100}
-                value={volume}
-                style={{
-                  '--video-range-progress': `${String(volume)}%`,
-                } as CSSProperties}
-                onFocus={blurVideoControl}
-                onPointerUp={(event) => {
-                  event.currentTarget.blur();
-                  flushVolumePersistence();
-                  revealControls();
-                }}
-                onPointerCancel={flushVolumePersistence}
-                onChange={(event) => updateVolume(Number(event.target.value))}
-              />
-            </label>
-          </div>
+          <VideoControls
+            {...videoChrome}
+            {...playbackControls}
+            {...videoState}
+            {...timelineScrubbing}
+            {...videoVolume}
+            labels={labels}
+            isPlaying={isPlaying}
+            displayedTime={displayedTime}
+            isHls={isHls}
+            timelineRange={timelineRange}
+            timelineProgress={timelineProgress}
+            hasTimeline={hasTimeline}
+            previewTimelineScrub={previewTimelineScrub}
+            behindLiveEdge={behindLiveEdge}
+          />
         ) : null}
       </main>
     </KawaiProvider>
-  );
-}
-
-/** Runs the video shortcut. */
-async function runVideoShortcut(
-  player: MpvVideoElement | null,
-  fallbackVideo: HTMLVideoElement | null,
-  backend: PlaybackBackend,
-  state: MpvVideoState,
-  shortcutId: VideoShortcutId,
-  seekSeconds: number,
-  seekTo: (seconds: number) => void,
-): Promise<void> {
-  if (backend === 'detecting') return;
-  const direction =
-    shortcutId === 'video.frame-backward' || shortcutId === 'video.seek-backward'
-      ? -1
-      : 1;
-  const frameStep =
-    shortcutId === 'video.frame-backward' || shortcutId === 'video.frame-forward';
-  if (frameStep) {
-    const fps = state.fps > 1 && state.fps < 240 ? state.fps : DEFAULT_FRAME_RATE;
-    const distance = 1 / fps + 0.000_1;
-    const target = clampVideoTime(state.time + direction * distance, state.duration);
-    if (backend === 'chromium') {
-      if (!fallbackVideo) return;
-      fallbackVideo.pause();
-    } else {
-      if (!player) return;
-      await player.pause();
-    }
-    seekTo(target);
-    return;
-  }
-  const target = clampVideoTime(
-    state.time + direction * seekSeconds,
-    state.duration,
-  );
-  seekTo(target);
-}
-
-/** Monitors whether the next libmpv source becomes a decodable video. */
-function monitorMpvSourceValidation(
-  player: MpvVideoElement,
-): PlaybackSourceValidation {
-  let started = false;
-  let fileLoaded = false;
-  let videoWidth = 0;
-  let videoHeight = 0;
-  let settled = false;
-  let timer = 0;
-  /** Resolves the externally returned validation promise. */
-  let resolveReady: () => void = () => undefined;
-  /** Rejects the externally returned validation promise. */
-  let rejectReady: (reason: Error) => void = () => undefined;
-
-  /** Removes the temporary source-validation observers. */
-  const cleanup = () => {
-    window.clearTimeout(timer);
-    player.removeEventListener('mpv-event', handleRawEvent);
-  };
-  /** Resolves source validation. */
-  const resolve = () => {
-    if (settled) return;
-    settled = true;
-    cleanup();
-    resolveReady();
-  };
-  /** Rejects source validation. */
-  const reject = (reason: Error) => {
-    if (settled) return;
-    settled = true;
-    cleanup();
-    rejectReady(reason);
-  };
-  /** Handles a raw libmpv lifecycle event. */
-  function handleRawEvent(event: Event): void {
-    const detail = (event as CustomEvent<MpvRawEvent>).detail;
-    if (detail.type === 'start-file') {
-      started = true;
-      fileLoaded = false;
-      videoWidth = 0;
-      videoHeight = 0;
-      return;
-    }
-    if (!started) return;
-    if (detail.error) {
-      reject(new Error(`libmpv ${detail.type}: ${detail.error}`));
-      return;
-    }
-    if (detail.type === 'file-loaded') {
-      fileLoaded = true;
-      if (videoWidth > 0 && videoHeight > 0) resolve();
-      return;
-    }
-    if (detail.type === 'property-change') {
-      if (detail.name === 'width' && typeof detail.data === 'number') {
-        videoWidth = detail.data;
-      } else if (detail.name === 'height' && typeof detail.data === 'number') {
-        videoHeight = detail.data;
-      }
-      if (fileLoaded && videoWidth > 0 && videoHeight > 0) resolve();
-      return;
-    }
-    if (
-      detail.type === 'end-file' &&
-      (!fileLoaded || videoWidth <= 0 || videoHeight <= 0)
-    ) {
-      reject(new Error('The media source ended before it could be loaded.'));
-    }
-  }
-  const ready = new Promise<void>((resolvePromise, rejectPromise) => {
-    resolveReady = resolvePromise;
-    rejectReady = rejectPromise;
-  });
-  player.addEventListener('mpv-event', handleRawEvent);
-  timer = window.setTimeout(() => {
-    reject(new Error('The media source did not become playable in time.'));
-  }, MPV_SOURCE_VALIDATION_TIMEOUT_MS);
-
-  return {
-    /** Cancels the operation. */
-    cancel: () => {
-      reject(new Error('Source validation was canceled.'));
-    },
-    /** Whether the ready option is enabled. */
-    ready,
-  };
-}
-
-/** Opens the chromium source. */
-function openChromiumSource(
-  video: HTMLVideoElement,
-  source: PlayerSource,
-  volume: number,
-  onFatalError: (reason: unknown) => void,
-): ChromiumSourceHandle {
-  video.pause();
-  video.removeAttribute('src');
-  video.load();
-  video.volume = Math.min(1, Math.max(0, volume / 100));
-
-  if (
-    source.kind !== 'hls' ||
-    video.canPlayType('application/vnd.apple.mpegurl') !== ''
-  ) {
-    const validation = waitForChromiumVideo(video);
-    video.src = source.chromiumValue;
-    video.load();
-    return {
-      /** Cancels the operation. */
-      cancel: validation.cancel,
-      /** The hls value. */
-      hls: null,
-      /** Whether the ready option is enabled. */
-      ready: validation.ready,
-    };
-  }
-
-  if (!Hls.isSupported()) {
-    return {
-      /** Cancels the operation. */
-      cancel: () => undefined,
-      /** The hls value. */
-      hls: null,
-      /** Whether the ready option is enabled. */
-      ready: Promise.reject(
-        new Error('HLS playback is unavailable in this Chromium runtime.'),
-      ),
-    };
-  }
-
-  const hls = new Hls({
-    enableWorker: true,
-    lowLatencyMode: true,
-  });
-  let opening = true;
-  let manifestTimer = 0;
-  /** Rejects manifest validation when the source changes. */
-  let rejectManifest: (reason: Error) => void = () => undefined;
-  const manifestReady = new Promise<void>((resolve, reject) => {
-    rejectManifest = reject;
-    manifestTimer = window.setTimeout(() => {
-      if (!opening) return;
-      opening = false;
-      reject(new Error('The HLS manifest did not load in time.'));
-    }, CHROMIUM_SOURCE_VALIDATION_TIMEOUT_MS);
-    hls.once(Hls.Events.MANIFEST_PARSED, () => {
-      window.clearTimeout(manifestTimer);
-      opening = false;
-      resolve();
-    });
-    hls.on(Hls.Events.ERROR, (_event, data) => {
-      if (!data.fatal) return;
-      const reason = new Error(
-        `HLS ${data.type}: ${data.details || 'fatal playback error'}`,
-      );
-      if (opening) {
-        window.clearTimeout(manifestTimer);
-        opening = false;
-        reject(reason);
-      } else {
-        onFatalError(reason);
-      }
-    });
-  });
-  const videoValidation = waitForChromiumVideo(video);
-  hls.loadSource(source.chromiumValue);
-  hls.attachMedia(video);
-  return {
-    /** Cancels the operation. */
-    cancel: () => {
-      window.clearTimeout(manifestTimer);
-      if (opening) {
-        opening = false;
-        rejectManifest(new Error('Source validation was canceled.'));
-      }
-      videoValidation.cancel();
-    },
-    /** The hls value. */
-    hls,
-    /** Whether the ready option is enabled. */
-    ready: Promise.all([manifestReady, videoValidation.ready]).then(() => undefined),
-  };
-}
-
-/** Waits until Chromium has decoded video metadata for the selected source. */
-function waitForChromiumVideo(
-  video: HTMLVideoElement,
-): PlaybackSourceValidation {
-  let settled = false;
-  /** Resolves the externally returned validation promise. */
-  let resolveReady: () => void = () => undefined;
-  /** Rejects the externally returned validation promise. */
-  let rejectReady: (reason: Error) => void = () => undefined;
-  /** Removes temporary media validation listeners. */
-  const cleanup = () => {
-    window.clearTimeout(timer);
-    video.removeEventListener('loadedmetadata', handleReady);
-    video.removeEventListener('loadeddata', handleReady);
-    video.removeEventListener('canplay', handleReady);
-    video.removeEventListener('resize', handleReady);
-    video.removeEventListener('error', handleError);
-  };
-  /** Resolves once the source exposes a real video track. */
-  function handleReady(): void {
-    if (settled || video.videoWidth <= 0 || video.videoHeight <= 0) return;
-    settled = true;
-    cleanup();
-    resolveReady();
-  }
-  /** Rejects media validation. */
-  function reject(reason: Error): void {
-    if (settled) return;
-    settled = true;
-    cleanup();
-    rejectReady(reason);
-  }
-  /** Rejects when Chromium reports an invalid media source. */
-  function handleError(): void {
-    reject(new Error(video.error?.message || 'Chromium rejected the media source.'));
-  }
-  const ready = new Promise<void>((resolvePromise, rejectPromise) => {
-    resolveReady = resolvePromise;
-    rejectReady = rejectPromise;
-  });
-  const timer = window.setTimeout(() => {
-    reject(new Error('The media source did not become playable in time.'));
-  }, CHROMIUM_SOURCE_VALIDATION_TIMEOUT_MS);
-  video.addEventListener('loadedmetadata', handleReady);
-  video.addEventListener('loadeddata', handleReady);
-  video.addEventListener('canplay', handleReady);
-  video.addEventListener('resize', handleReady);
-  video.addEventListener('error', handleError);
-  queueMicrotask(handleReady);
-
-  return {
-    /** Cancels the operation. */
-    cancel: () => reject(new Error('Source validation was canceled.')),
-    /** Whether the ready option is enabled. */
-    ready,
-  };
-}
-
-/** Performs the clamp video time operation. */
-function clampVideoTime(value: number, duration: number): number {
-  const maximum = Number.isFinite(duration) && duration > 0
-    ? duration
-    : Number.POSITIVE_INFINITY;
-  return Math.min(maximum, Math.max(0, value));
-}
-
-/** Performs the clamp seekable video time operation. */
-function clampSeekableVideoTime(
-  value: number,
-  range: VideoSeekRange,
-): number {
-  const length = range.end - range.start;
-  const maximum = Math.max(
-    range.start,
-    range.end - Math.min(0.05, length / 2),
-  );
-  return Math.min(maximum, Math.max(range.start, value));
-}
-
-/** Performs the finite seek range operation. */
-function finiteSeekRange(duration: number): VideoSeekRange | undefined {
-  return Number.isFinite(duration) && duration > 0
-    ? {
-      /** The start value. */
-      start: 0,
-      /** The end value. */
-      end: duration,
-    }
-    : undefined;
-}
-
-/** Reads the video seek range. */
-function readVideoSeekRange(
-  video: HTMLVideoElement,
-  hls?: Hls | null,
-): VideoSeekRange | undefined {
-  if (video.seekable.length === 0) return undefined;
-  const start = video.seekable.start(0);
-  const seekableEnd = video.seekable.end(video.seekable.length - 1);
-  const liveSyncPosition = hls?.liveSyncPosition;
-  const end = typeof liveSyncPosition === 'number' &&
-    Number.isFinite(liveSyncPosition) &&
-    liveSyncPosition > start
-      ? Math.min(seekableEnd, liveSyncPosition)
-      : seekableEnd;
-  return Number.isFinite(start) && Number.isFinite(end) && end > start
-    ? {
-      /** The start value. */
-      start,
-      /** The end value. */
-      end,
-    }
-    : undefined;
-}
-
-/** Resolves the video seek range. */
-function resolveVideoSeekRange(
-  duration: number,
-  source: PlayerSource | undefined,
-  backend: PlaybackBackend,
-  video: HTMLVideoElement | null,
-  hls: Hls | null,
-): VideoSeekRange | undefined {
-  if (source?.kind === 'hls' && backend === 'chromium' && video) {
-    return readVideoSeekRange(video, hls);
-  }
-  return finiteSeekRange(duration);
-}
-
-/** Performs the same seek range operation. */
-function sameSeekRange(
-  left: VideoSeekRange | undefined,
-  right: VideoSeekRange | undefined,
-): boolean {
-  if (!left || !right) return left === right;
-  return Math.abs(left.start - right.start) < 0.01 &&
-    Math.abs(left.end - right.end) < 0.01;
-}
-
-/** Performs the match video accelerator operation. */
-function matchVideoAccelerator(
-  event: KeyboardEvent,
-  accelerator: string,
-  allowPrecisionModifiers: boolean,
-): {
-  /** Whether the matched option is enabled. */
-  readonly matched: boolean;
-  /** The precision value. */
-  readonly precision: number;
-} {
-  const parts = accelerator
-    .split('+')
-    .map((part) => part.trim().toLowerCase())
-    .filter(Boolean);
-  const key = parts.pop();
-  if (!key) return {
-    /** The matched value. */
-    matched: false,
-    /** The precision value. */
-    precision: 1,
-  };
-
-  const isMac = /mac/i.test(navigator.platform);
-  let needsControl = false;
-  let needsMeta = false;
-  let needsAlt = false;
-  let needsShift = false;
-  for (const modifier of parts) {
-    switch (modifier) {
-      case 'commandorcontrol':
-      case 'cmdorctrl':
-        if (isMac) needsMeta = true;
-        else needsControl = true;
-        break;
-      case 'command':
-      case 'cmd':
-      case 'super':
-        needsMeta = true;
-        break;
-      case 'control':
-      case 'ctrl':
-        needsControl = true;
-        break;
-      case 'alt':
-      case 'option':
-        needsAlt = true;
-        break;
-      case 'shift':
-        needsShift = true;
-        break;
-      default:
-        return {
-          /** The matched value. */
-          matched: false,
-          /** The precision value. */
-          precision: 1,
-        };
-    }
-  }
-
-  const extraControl = allowPrecisionModifiers && event.ctrlKey && !needsControl;
-  const extraAlt = allowPrecisionModifiers && event.altKey && !needsAlt;
-  const modifiersMatch =
-    event.metaKey === needsMeta &&
-    event.shiftKey === needsShift &&
-    (event.ctrlKey === needsControl || extraControl) &&
-    (event.altKey === needsAlt || extraAlt);
-  if (!modifiersMatch || normalizeKeyboardEventKey(event) !== normalizeKey(key)) {
-    return {
-      /** The matched value. */
-      matched: false,
-      /** The precision value. */
-      precision: 1,
-    };
-  }
-  return {
-    /** The matched value. */
-    matched: true,
-    /** The precision value. */
-    precision: (extraControl ? 0.5 : 1) * (extraAlt ? 0.25 : 1),
-  };
-}
-
-/** Normalizes the keyboard event key. */
-function normalizeKeyboardEventKey(event: KeyboardEvent): string {
-  if (event.code === 'Comma') return ',';
-  if (event.code === 'Period') return '.';
-  return normalizeKey(event.key);
-}
-
-/** Normalizes the key. */
-function normalizeKey(key: string): string {
-  const normalized = key.toLowerCase();
-  const aliases: Record<string, string> = {
-    arrowleft: 'left',
-    arrowright: 'right',
-    arrowup: 'up',
-    arrowdown: 'down',
-    comma: ',',
-    period: '.',
-    space: ' ',
-    spacebar: ' ',
-    return: 'enter',
-    esc: 'escape',
-  };
-  return aliases[normalized] ?? normalized;
-}
-
-/** Determines whether the editable target condition applies. */
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const editable = target.closest<HTMLElement>(
-    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]',
-  );
-  if (!editable) return false;
-  return !(editable instanceof HTMLInputElement && editable.type === 'range');
-}
-
-/** Performs the blur video control operation. */
-function blurVideoControl(event: FocusEvent<HTMLElement>): void {
-  event.currentTarget.blur();
-}
-
-/** Formats the duration. */
-function formatDuration(value: number): string {
-  if (!Number.isFinite(value) || value < 0) return '--:--';
-  const totalSeconds = Math.floor(value);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const minuteText = String(minutes).padStart(hours ? 2 : 1, '0');
-  const secondText = String(seconds).padStart(2, '0');
-  return hours
-    ? `${String(hours)}:${minuteText}:${secondText}`
-    : `${minuteText}:${secondText}`;
-}
-
-/** Returns the metadata label. */
-function getMetadataLabel(
-  state: MpvVideoState,
-  hasTimeline: boolean,
-  liveLabel: string,
-): string {
-  const parts = [];
-  if (state.codec && state.codec !== '-') parts.push(state.codec.toUpperCase());
-  if (state.width > 0 && state.height > 0) parts.push(`${state.width}×${state.height}`);
-  if (state.fps > 0) parts.push(`${state.fps.toFixed(2).replace(/\.00$/, '')} fps`);
-  parts.push(hasTimeline ? formatDuration(state.duration) : liveLabel);
-  return parts.join(' · ');
-}
-
-/** Determines whether the HTTP URL condition applies. */
-function isHttpUrl(value: string): boolean {
-  try {
-    return ['http:', 'https:'].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-}
-
-/** Returns the stream label. */
-function getStreamLabel(value: string): string {
-  try {
-    const url = new URL(value);
-    const tail = url.pathname.split('/').filter(Boolean).pop();
-    return tail ? `${url.hostname} · ${tail}` : url.hostname;
-  } catch {
-    return value;
-  }
-}
-
-/** Determines whether the MPV runtime error condition applies. */
-function isMpvRuntimeError(reason: unknown): boolean {
-  const message = getErrorText(reason);
-  return /mpv_addon|libmpv|native module|unsupported platform|sharedTexture API|module could not be found|was compiled against|specified module could not be found/i.test(
-    message,
-  );
-}
-
-/** Returns the chromium error message. */
-function getChromiumErrorMessage(
-  reason: unknown,
-  labels: VideoMessages,
-): string {
-  const message = getErrorText(reason).trim();
-  return message
-    ? `${labels.chromiumPlaybackFailed} ${message}`
-    : labels.chromiumPlaybackFailed;
-}
-
-/** Returns an HLS source validation error message. */
-function getHlsPlaybackErrorMessage(
-  reason: unknown,
-  labels: VideoMessages,
-): string {
-  const message = getErrorText(reason).trim();
-  return message
-    ? `${labels.hlsPlaybackFailed} ${message}`
-    : labels.hlsPlaybackFailed;
-}
-
-/** Returns the MPV error message. */
-function getMpvErrorMessage(reason: unknown, labels: VideoMessages): string {
-  const message = getErrorText(reason);
-  if (/mpv_addon|libmpv|dll|module could not be found|was compiled against/i.test(message)) {
-    return labels.runtimeMissing;
-  }
-  return message.trim() ? `${labels.playbackFailed} ${message}` : labels.playbackFailed;
-}
-
-/** Returns the error text. */
-function getErrorText(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason ?? '');
-}
-
-/** Determines whether the same player source condition applies. */
-function isSamePlayerSource(
-  current: PlayerSource | undefined,
-  next: PlayerSource,
-): boolean {
-  return Boolean(
-    current &&
-      current.kind === next.kind &&
-      current.nativeValue === next.nativeValue &&
-      current.chromiumValue === next.chromiumValue,
-  );
-}
-
-/** Prevents the package from probing the frozen shared-texture path on retry. */
-function disableWebGpuForMpvSoftwareRenderer(): void {
-  Object.defineProperty(Navigator.prototype, 'gpu', {
-    configurable: true,
-    value: undefined,
-  });
-}
-
-/** Performs the are video preferences equal operation. */
-function areVideoPreferencesEqual(
-  current: VideoPreferences,
-  next: VideoPreferences,
-): boolean {
-  return (
-    current.appTheme === next.appTheme &&
-    current.videoControlsLayout === next.videoControlsLayout &&
-    current.videoOverlayHideSeconds === next.videoOverlayHideSeconds &&
-    current.videoSeekSeconds === next.videoSeekSeconds &&
-    current.videoVolume === next.videoVolume &&
-    areShortcutRecordsEqual(current.shortcuts, next.shortcuts)
-  );
-}
-
-/** Performs the are shortcut records equal operation. */
-function areShortcutRecordsEqual(
-  current: VideoPreferences['shortcuts'],
-  next: VideoPreferences['shortcuts'],
-): boolean {
-  const currentKeys = Object.keys(current);
-  const nextKeys = Object.keys(next);
-  return (
-    currentKeys.length === nextKeys.length &&
-    currentKeys.every((key) => current[key] === next[key])
   );
 }

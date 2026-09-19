@@ -301,7 +301,9 @@ function installYouTubeDownloadMenu(): void {
   document.addEventListener(
     'contextmenu',
     () => {
-      scheduleDownloadMenuItem();
+      void (ipcRenderer.invoke(IPC_CHANNELS.application.messages) as Promise<RendererMessages>)
+        .then(({ downloader }) => scheduleDownloadMenuItem(downloader.contextMenu))
+        .catch((error: unknown) => console.warn('Download menu localization failed.', error));
     },
     true,
   );
@@ -379,23 +381,26 @@ function installScrollbarTheme(): void {
 }
 
 /** Schedules the download menu item. */
-function scheduleDownloadMenuItem(attempt = 0): void {
+function scheduleDownloadMenuItem(label: string, attempt = 0): void {
   window.setTimeout(() => {
-    if (!appendDownloadMenuItem() && attempt < 12) {
-      scheduleDownloadMenuItem(attempt + 1);
+    if (!appendDownloadMenuItem(label) && attempt < 12) {
+      scheduleDownloadMenuItem(label, attempt + 1);
     }
   }, attempt === 0 ? 0 : 40);
 }
 
 /** Performs the append download menu item operation. */
-function appendDownloadMenuItem(): boolean {
+function appendDownloadMenuItem(labelText: string): boolean {
   const menu = document.querySelector<HTMLElement>(
     '.ytp-popup.ytp-contextmenu .ytp-panel-menu',
   );
   if (!menu) {
     return false;
   }
-  if (menu.querySelector('[data-kawaikara-youtube-download]')) {
+  const existing = menu.querySelector('[data-kawaikara-youtube-download]');
+  if (existing) {
+    const existingLabel = existing.querySelector('.ytp-menuitem-label');
+    if (existingLabel) existingLabel.textContent = labelText;
     return true;
   }
 
@@ -413,7 +418,7 @@ function appendDownloadMenuItem(): boolean {
 
   const label = document.createElement('div');
   label.className = 'ytp-menuitem-label';
-  label.textContent = 'Download with Kawaikara';
+  label.textContent = labelText;
 
   const content = document.createElement('div');
   content.className = 'ytp-menuitem-content';

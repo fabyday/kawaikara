@@ -6,6 +6,10 @@ import type {
 
 /** Describes the developer link messages contract. */
 export interface DeveloperLinkMessages {
+  /** Compact homepage button caption, separate from its full accessible name. */
+  readonly homepage: string;
+  /** Localized brand label from the app catalog. */
+  readonly youtube: string;
   /** The website value. */
   readonly website: string;
   /** The github value. */
@@ -45,7 +49,7 @@ export function DeveloperLinks({
   return (
     <div className="developer-link-grid">
       <LinkButton
-        displayLabel="Homepage"
+        displayLabel={messages.homepage}
         icon={<WebsiteIcon />}
         label={messages.website}
         onClick={() => onOpen('website')}
@@ -76,7 +80,7 @@ export function DeveloperLinks({
             </span>
           ) : null}
         </span>
-        <span className="developer-link-label">YouTube</span>
+        <span className="developer-link-label">{messages.youtube}</span>
         <span className="developer-youtube-status" title={youtubeState.label}>
           <RadioIcon />
         </span>

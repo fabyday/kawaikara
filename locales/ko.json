@@ -326,7 +326,14 @@
     "checkingLive": "라이브 확인 중…",
     "installedPlugins": "설치된 Bundle",
     "plugins": "개 플러그인",
-    "sites": "개 Provider"
+    "sites": "개 Provider",
+    "availableSites": "사용 가능한 사이트",
+    "pluginPanels": "플러그인 패널",
+    "unknownPanel": "알 수 없는 패널: {title}",
+    "siteApi": "사이트 API",
+    "pipShort": "PiP",
+    "youtube": "YouTube",
+    "homepage": "홈페이지"
   },
   "logViewer": {
     "title": "로그 뷰어",
@@ -424,7 +431,19 @@
     "nativeErrorFallback": "libmpv 시작에 실패해 Chromium 호환 재생으로 자동 전환했습니다.",
     "nativeUnavailableFallback": "이 환경에서는 libmpv를 사용할 수 없어 Chromium 호환 재생을 사용합니다.",
     "softwareRenderingWarning": "MPV_HWDEC 환경 설정으로 libmpv 하드웨어 디코딩이 꺼져 있어 고해상도 영상에서 끊김이 생길 수 있습니다.",
-    "captureCompatibleRenderingWarning": "캡처 호환 모드에서도 libmpv는 하드웨어로 영상을 디코딩합니다. Electron GPU가 꺼져 있어 최종 프레임은 Canvas 2D로 복사되므로 고해상도 영상은 덜 부드러울 수 있습니다."
+    "captureCompatibleRenderingWarning": "캡처 호환 모드에서도 libmpv는 하드웨어로 영상을 디코딩합니다. Electron GPU가 꺼져 있어 최종 프레임은 Canvas 2D로 복사되므로 고해상도 영상은 덜 부드러울 수 있습니다.",
+    "mpvNotReady": "libmpv 플레이어가 아직 준비되지 않았습니다.",
+    "chromiumNotReady": "Chromium 영상 요소가 아직 준비되지 않았습니다.",
+    "hlsUnavailable": "이 Chromium 런타임에서는 HLS를 재생할 수 없습니다.",
+    "manifestTimeout": "HLS 재생 목록을 제한 시간 내에 불러오지 못했습니다.",
+    "sourceCanceled": "영상 소스 검증이 취소되었습니다.",
+    "sourceRejected": "Chromium이 영상 소스를 열지 못했습니다.",
+    "sourceTimeout": "제한 시간 내에 영상을 재생할 수 있는 상태가 되지 않았습니다.",
+    "sourceEnded": "영상 소스를 불러오기 전에 재생이 종료되었습니다.",
+    "hlsFatal": "치명적인 재생 오류",
+    "hls": "HLS",
+    "hlsPlaceholder": "https://example.com/stream.m3u8",
+    "returnToApp": "Kawaikara로 돌아가기"
   },
   "videoBrowser": {
     "library": "로컬 비디오",
@@ -482,6 +501,34 @@
       "detail": "격리, Bundle 및 사용자 프로필의 쿠키, 로컬 저장소, IndexedDB와 캐시가 삭제됩니다. 설정과 Bundle은 유지되며 이 작업은 되돌릴 수 없습니다.",
       "cancel": "취소",
       "confirm": "모두 삭제"
+    },
+    "clearProfile": {
+      "title": "프로필 데이터 삭제",
+      "message": "{name}의 로그인 및 캐시 데이터를 삭제할까요?",
+      "detail": "쿠키, 로컬 저장소, IndexedDB와 캐시가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "cancel": "취소",
+      "confirm": "데이터 삭제"
+    },
+    "clearSite": {
+      "title": "사이트 데이터 삭제",
+      "message": "{name}의 로그인 및 캐시 데이터를 삭제할까요?",
+      "detail": "쿠키, 로컬 저장소, IndexedDB와 캐시가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "cancel": "취소",
+      "confirm": "데이터 삭제"
+    },
+    "resetCache": {
+      "title": "캐시 초기화",
+      "message": "Electron 캐시를 삭제하고 Kawaikara를 재시작할까요?",
+      "detail": "로그인, 설정, 사용자 Bundle과 로컬 기록은 유지됩니다.",
+      "cancel": "취소",
+      "confirm": "삭제 후 재시작"
+    },
+    "resetApplication": {
+      "title": "앱 초기화",
+      "message": "Kawaikara의 모든 앱 데이터를 삭제할까요?",
+      "detail": "설정, 로그인, 브라우저 프로필 데이터, 사용자 Bundle, 로그와 로컬 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "cancel": "취소",
+      "confirm": "초기화 후 재시작"
     }
   },
   "externalLogin": {
@@ -489,5 +536,120 @@
     "description": "로그인이 완료되면 Kawaikara가 로그인된 사이트로 자동 복귀합니다.",
     "waiting": "로그인 완료 대기 중",
     "secure": "외부 브라우저 열림"
+  },
+  "update": {
+    "channel": "채널",
+    "stable": "Stable",
+    "staging": "Staging",
+    "nightly": "Nightly",
+    "checkingTitle": "업데이트 확인 중",
+    "checkingDescription": "Kawaikara의 새 버전을 확인하고 있습니다.",
+    "availableTitle": "새 업데이트가 있습니다",
+    "availableDescription": "준비가 되면 업데이트를 다운로드할 수 있습니다.",
+    "downloadingTitle": "업데이트 다운로드 중",
+    "downloadingDescription": "Kawaikara를 계속 사용해도 됩니다.",
+    "downloadedTitle": "업데이트 준비 완료",
+    "preparingTitle": "업데이트 설치 준비 중",
+    "preparingDescription": "다운로드한 파일을 검증하고 앱을 안전하게 종료할 준비를 합니다.",
+    "installingTitle": "업데이트 적용 중",
+    "downloadedDescription": "앱을 다시 시작하면 업데이트가 적용됩니다.",
+    "automaticRestartDescription": "업데이트를 적용하기 위해 Kawaikara를 다시 시작합니다.",
+    "currentTitle": "최신 버전입니다",
+    "currentDescription": "현재 채널에 설치할 업데이트가 없습니다.",
+    "unsupportedTitle": "개발 빌드에서는 확인할 수 없습니다",
+    "unsupportedDescription": "패키징된 Kawaikara에서 업데이트를 확인해 주세요.",
+    "errorTitle": "업데이트를 확인하지 못했습니다",
+    "errorDescription": "네트워크 연결을 확인한 뒤 다시 시도해 주세요.",
+    "downloadErrorTitle": "업데이트 다운로드에 실패했습니다",
+    "downloadErrorDescription": "다운로드 또는 파일 검증에 실패했습니다. 오류를 확인한 뒤 다시 시도해 주세요.",
+    "signatureErrorDescription": "설치 파일의 서명을 검증하지 못했습니다. 동일한 파일을 다시 받아도 해결되지 않으므로 인증서와 오류 로그를 확인해 주세요.",
+    "installErrorTitle": "업데이트 설치를 시작하지 못했습니다",
+    "installErrorDescription": "앱은 계속 사용할 수 있습니다. 오류 로그를 확인한 뒤 다시 시도해 주세요.",
+    "releaseNotes": "업데이트 내역",
+    "noReleaseNotes": "제공된 업데이트 내역이 없습니다.",
+    "currentVersion": "현재",
+    "nextVersion": "업데이트",
+    "download": "업데이트 다운로드",
+    "restart": "다시 시작하고 업데이트",
+    "retry": "다시 확인",
+    "close": "닫기",
+    "later": "나중에",
+    "back": "업데이트 화면으로 돌아가기",
+    "releaseNotesDescription": "새 버전에 포함된 변경 사항을 확인합니다."
+  },
+  "downloader": {
+    "title": "YT Downloader",
+    "description": "다운로드 화면은 별도 앱에서 열립니다.",
+    "close": "닫기",
+    "version": "버전",
+    "url": "YouTube 주소",
+    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
+    "open": "YT Downloader에서 열기",
+    "install": "YT Downloader 설치",
+    "releases": "릴리스 페이지 열기",
+    "installed": "설치됨",
+    "notInstalled": "설치되지 않음",
+    "checking": "확인 중",
+    "protocolInstallation": "프로토콜 설치",
+    "missing": "YT Downloader가 설치되어 있지 않습니다.",
+    "installFailed": "YT Downloader를 설치하지 못했습니다.",
+    "permissionNotice": "소유하거나 저장을 허가받은 콘텐츠만 다운로드하세요.",
+    "macInstallHelp": "설치를 누르면 공식 릴리스를 받고 SHA-256을 확인합니다. 확인 창에서 동의하면 다운로드한 파일과 설치 앱의 macOS 격리 속성을 제거하고 ~/Applications에 설치합니다. 관리자 권한은 사용하지 않습니다.",
+    "windowsInstallHelp": "설치를 누르면 공식 릴리스를 받고 SHA-256을 확인한 뒤 설치 프로그램을 엽니다.",
+    "unsupported": "이 운영체제에서는 자동 설치를 지원하지 않습니다. 릴리스 페이지에서 설치해 주세요.",
+    "installTitle": "{name} 설치",
+    "installMessage": "{name}를 다운로드하고 설치할까요?",
+    "macInstallDetail": "릴리스 파일의 SHA-256을 확인한 뒤, 다운로드한 파일과 설치할 앱에서 macOS 격리 속성을 제거합니다. 관리자 권한은 사용하지 않으며 ~/Applications에만 설치합니다.",
+    "windowsInstallDetail": "릴리스 파일의 SHA-256을 확인한 뒤 Windows 설치 프로그램을 실행합니다.",
+    "confirmInstall": "설치",
+    "cancel": "취소",
+    "completed": "YT Downloader {version} 설치가 완료되었습니다.",
+    "windowsStarted": "Windows 설치 프로그램을 열었습니다. 설치가 끝나면 다시 실행해 주세요.",
+    "contextMenu": "Kawaikara로 다운로드"
+  },
+  "bundle": {
+    "install": {
+      "chooseTitle": "Kawaikara Bundle 선택",
+      "confirmTitle": "Bundle 설치",
+      "confirmMessage": "“{name}” Bundle을 설치할까요?",
+      "confirmDetail": ".kawai는 ZIP 컨테이너이며 Main 프로세스에서 실행되는 코드를 포함할 수 있습니다. 아래 권한을 검토하세요. 설치 후 앱을 다시 시작해야 합니다.",
+      "permissionsHeading": "요청하는 권한",
+      "noPermissions": "추가 Provider 권한 없음",
+      "deny": "허가하지 않음",
+      "allowAndInstall": "허가 및 설치"
+    },
+    "action": {
+      "updateTitle": "Bundle 업데이트",
+      "updateMessage": "“{name}” Bundle을 업데이트할까요?",
+      "removeTitle": "Bundle 삭제",
+      "removeMessage": "“{name}” Bundle을 삭제할까요?",
+      "restartDetail": "실행 중인 코드는 Kawaikara를 다시 시작한 뒤 변경됩니다.",
+      "cancel": "취소",
+      "update": "업데이트",
+      "remove": "삭제"
+    }
+  },
+  "nativeDialogs": {
+    "chooseDevelopmentProject": "개발 번들 프로젝트 선택",
+    "bundleArchive": "Kawaikara 번들",
+    "logArchive": "Kawaikara 로그 보관 파일",
+    "logFiles": "Kawaikara 로그",
+    "openVideo": "영상 열기",
+    "videoFiles": "영상 파일",
+    "allFiles": "모든 파일",
+    "videoWindowTitle": "Kawaikara 비디오",
+    "pipWindowTitle": "Kawaikara PiP"
+  },
+  "standardLocations": {
+    "home": "홈",
+    "desktop": "바탕 화면",
+    "downloads": "다운로드",
+    "videos": "동영상",
+    "documents": "문서"
+  },
+  "presence": {
+    "details": "Kawaikara OTT 뷰어",
+    "watching": "시청 중…",
+    "viewer": "Kawaikara 뷰어"
   }
 }

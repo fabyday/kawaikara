@@ -1,10 +1,23 @@
 import type { AppLocale } from '../../Common/IPC';
-import en from '../../../locales/en.json';
-import ja from '../../../locales/ja.json';
-import ko from '../../../locales/ko.json';
+import type en from '../../../locales/en.json';
+import { getLocaleMessages, resolveAppLocale } from './Locale';
 
 /** Describes the app messages contract. */
 export interface AppMessages {
+  /** Compact label for the homepage link button. */
+  readonly homepage: string;
+  /** Localized availableSites copy. */
+  readonly availableSites: string;
+  /** Localized pluginPanels copy. */
+  readonly pluginPanels: string;
+  /** Localized unknownPanel copy. */
+  readonly unknownPanel: string;
+  /** Localized siteApi copy. */
+  readonly siteApi: string;
+  /** Localized pipShort copy. */
+  readonly pipShort: string;
+  /** Localized youtube copy. */
+  readonly youtube: string;
   /** The title value. */
   readonly title: string;
   /** The choose site value. */
@@ -749,6 +762,30 @@ export interface LogViewerMessages {
 
 /** Describes the video messages contract. */
 export interface VideoMessages {
+  /** Accessible action for returning from PiP to the main viewer. */
+  readonly returnToApp: string;
+  /** Localized hls copy. */
+  readonly hls: string;
+  /** Localized hlsPlaceholder copy. */
+  readonly hlsPlaceholder: string;
+  /** Localized mpvNotReady copy. */
+  readonly mpvNotReady: string;
+  /** Localized chromiumNotReady copy. */
+  readonly chromiumNotReady: string;
+  /** Localized hlsUnavailable copy. */
+  readonly hlsUnavailable: string;
+  /** Localized manifestTimeout copy. */
+  readonly manifestTimeout: string;
+  /** Localized sourceCanceled copy. */
+  readonly sourceCanceled: string;
+  /** Localized sourceRejected copy. */
+  readonly sourceRejected: string;
+  /** Localized sourceTimeout copy. */
+  readonly sourceTimeout: string;
+  /** Localized sourceEnded copy. */
+  readonly sourceEnded: string;
+  /** Localized hlsFatal copy. */
+  readonly hlsFatal: string;
   /** The welcome value. */
   readonly welcome: string;
   /** The change source value. */
@@ -909,8 +946,17 @@ export interface VideoLibraryMessages {
   readonly remove: string;
 }
 
+/** Update copy selected in Main from the application catalog. */
+export type UpdateMessages = typeof en.update;
+/** External downloader copy selected in Main. */
+export type DownloaderMessages = typeof en.downloader;
+
 /** Describes the renderer messages contract. */
 export interface RendererMessages {
+  /** Localized update panel copy. */
+  readonly update: UpdateMessages;
+  /** Localized external downloader copy. */
+  readonly downloader: DownloaderMessages;
   /** The locale value. */
   readonly locale: string;
   /** The app value. */
@@ -925,36 +971,12 @@ export interface RendererMessages {
   readonly videoLibrary: VideoLibraryMessages;
 }
 
-/** Describes the renderer locale messages contract. */
-interface RendererLocaleMessages {
-  /** The app value. */
-  readonly app: AppMessages;
-  /** The log viewer value. */
-  readonly logViewer: LogViewerMessages;
-  /** The video value. */
-  readonly video: VideoMessages;
-  /** The video browser value. */
-  readonly videoBrowser: VideoBrowserMessages;
-  /** The video library value. */
-  readonly videoLibrary: VideoLibraryMessages;
-}
-
-/** Defines the shared locales constant. */
-const LOCALES: Readonly<Record<'en' | 'ko' | 'ja', RendererLocaleMessages>> = {
-  /** The en value. */
-  en,
-  /** The ko value. */
-  ko,
-  /** The ja value. */
-  ja,
-};
-
 /** Returns the app messages. */
 export function getAppMessages(
   locale: AppLocale,
   systemLocale: string,
 ): AppMessages {
-  return LOCALES[toSupportedLanguage(resolveLocale(locale, systemLocale))].app;
+  return getLocaleMessages(locale, systemLocale).app;
 }
 
 /** Returns the renderer messages. */
@@ -962,11 +984,15 @@ export function getRendererMessages(
   locale: AppLocale,
   systemLocale: string,
 ): RendererMessages {
-  const resolved = resolveLocale(locale, systemLocale);
-  const messages = LOCALES[toSupportedLanguage(resolved)];
+  const resolved = resolveAppLocale(locale, systemLocale);
+  const messages = getLocaleMessages(locale, systemLocale);
   return {
     /** The locale value. */
     locale: resolved,
+    /** Localized update panel copy. */
+    update: messages.update,
+    /** Localized external downloader copy. */
+    downloader: messages.downloader,
     /** The app value. */
     app: messages.app,
     /** The log viewer value. */
@@ -978,17 +1004,4 @@ export function getRendererMessages(
     /** The video library value. */
     videoLibrary: messages.videoLibrary,
   };
-}
-
-/** Resolves the locale. */
-function resolveLocale(locale: AppLocale, systemLocale: string): string {
-  return locale === 'system' ? systemLocale : locale;
-}
-
-/** Performs the to supported language operation. */
-function toSupportedLanguage(locale: string): keyof typeof LOCALES {
-  const normalized = locale.toLowerCase();
-  if (normalized.startsWith('ko')) return 'ko';
-  if (normalized.startsWith('ja')) return 'ja';
-  return 'en';
 }

@@ -107,7 +107,7 @@ const fixture = buildSync({ stdin: { loader: 'jsx', resolveDir: root, contents: 
     '<h2>Build metadata</h2><p>Secret fixture metadata</p>';
   window.renderNotes = locale => flushSync(() => root.render(<KawaiProvider>
     <div className="kawai-theme kawai-theme-dark">
-      <UpdatePanel locale={locale} initialView="release-notes" state={{ phase: 'available',
+      <UpdatePanel labels={locale.startsWith('ko') ? ko.update : en.update} locale={locale} initialView="release-notes" state={{ phase: 'available',
         origin: 'manual', channel: 'nightly', currentVersion: '3.0.0', latestVersion: '3.0.1',
         releaseNotes: normalizeReleaseNotes(html) }}
         onDismiss={() => {}} onDownload={() => {}} onInstall={() => {}} onRetry={() => {}} />

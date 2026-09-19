@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { STORY_MESSAGES } from '../Mocks/KawaikaraMock';
 import { UpdatePanel } from '../../src/Renderer/View/Update/UpdatePanel';
 
 /** Stores the meta value. */
@@ -17,6 +18,8 @@ const meta = {
   args: {
     /** The locale value. */
     locale: 'en-US',
+    /** Main-resolved update labels. */
+    labels: STORY_MESSAGES.update,
     /** The state value. */
     state: {
       /** The phase value. */

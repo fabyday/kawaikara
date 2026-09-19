@@ -103,10 +103,11 @@ export function createApplicationManagerContainer(
     )
     .registerSingleton(
       MANAGER_TOKENS.videoLibrary,
-      () =>
+      (resolver) =>
         new VideoLibraryManager(
           options.videoLibraryFilePath,
           options.standardVideoLocations,
+          () => resolver.resolve(MANAGER_TOKENS.preferences).get().appLocale,
         ),
     )
     .registerSingleton(
@@ -172,7 +173,9 @@ export function createApplicationManagerContainer(
     )
     .registerSingleton(
       MANAGER_TOKENS.downloads,
-      () => new ExternalDownloaderManager(),
+      (resolver) => new ExternalDownloaderManager(
+        () => resolver.resolve(MANAGER_TOKENS.preferences).get().appLocale,
+      ),
     )
     .registerSingleton(
       MANAGER_TOKENS.developerLinks,
@@ -188,7 +191,9 @@ export function createApplicationManagerContainer(
     )
     .registerSingleton(
       MANAGER_TOKENS.discordPresence,
-      () => new DiscordPresenceManager(),
+      (resolver) => new DiscordPresenceManager(
+        () => resolver.resolve(MANAGER_TOKENS.preferences).get().appLocale,
+      ),
     )
     .registerSingleton(
       MANAGER_TOKENS.ipc,

@@ -1,3 +1,4 @@
+import type { VideoMessages } from '../../Common/IPC';
 import {
   serializePageInjection,
   serializePageInjectionWithOptions,
@@ -67,6 +68,8 @@ interface UnifiedPictureInPicturePageGlobal extends Window {
 
 /** Describes the enter unified picture in picture options contract. */
 interface EnterUnifiedPictureInPictureOptions {
+  /** UI copy is resolved in Main before serialization into the remote page. */
+  readonly labels: Pick<VideoMessages, 'play' | 'pause' | 'returnToApp'>;
   /** The content overlay selectors value. */
   readonly contentOverlaySelectors: readonly string[];
   /** The playback button size value. */
@@ -493,8 +496,8 @@ function enterUnifiedPictureInPicture(
   const restoreButton = document.createElement('button');
   restoreButton.className = 'restore-button';
   restoreButton.type = 'button';
-  restoreButton.title = 'Return to Kawaikara';
-  restoreButton.setAttribute('aria-label', 'Return to Kawaikara');
+  restoreButton.title = options.labels.returnToApp;
+  restoreButton.setAttribute('aria-label', options.labels.returnToApp);
   restoreButton.append(createIcon(['M9 5H5v14h14v-4', 'M11 5h8v8', 'm19 5-9 9']));
   const playbackButton = document.createElement('button');
   playbackButton.className = 'playback-button';
@@ -528,8 +531,8 @@ function enterUnifiedPictureInPicture(
   const renderPlaybackButton = (): void => {
     const activeVideo = activePlaybackVideo();
     const paused = activeVideo.paused || activeVideo.ended;
-    playbackButton.title = paused ? 'Play' : 'Pause';
-    playbackButton.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+    playbackButton.title = paused ? options.labels.play : options.labels.pause;
+    playbackButton.setAttribute('aria-label', paused ? options.labels.play : options.labels.pause);
     playbackButton.replaceChildren(
       createIcon([paused ? 'M8 5v14l11-7z' : 'M9 5v14M15 5v14']),
     );

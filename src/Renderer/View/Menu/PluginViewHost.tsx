@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
   PluginViewPanelInfo,
+  AppMessages,
   VideoLibraryMessages,
 } from '../../../Common/IPC';
 import type { ProviderLocalizedText } from '@kawaikara/site-api';
@@ -8,6 +9,8 @@ import { VideoLibraryMenuPanel } from './VideoLibraryMenuPanel';
 
 /** Describes the plugin view host props contract. */
 interface PluginViewHostProps {
+  /** Copy resolved in Main. */
+  readonly messages: AppMessages;
   /** The locale value. */
   readonly locale: string;
   /** The panels value. */
@@ -22,6 +25,7 @@ interface PluginViewHostProps {
 
 /** Performs the plugin view host operation. */
 export function PluginViewHost({
+  messages,
   locale,
   panels,
   refreshKey,
@@ -52,7 +56,7 @@ export function PluginViewHost({
   return (
     <section className="plugin-view-host">
       {orderedPanels.length > 1 ? (
-        <div aria-label="Plugin panels" className="plugin-view-tabs" role="tablist">
+        <div aria-label={messages.pluginPanels} className="plugin-view-tabs" role="tablist">
           {orderedPanels.map((panel) => (
             <button
               aria-selected={panel.id === selectedPanel.id}
@@ -69,6 +73,7 @@ export function PluginViewHost({
       ) : null}
       <div className="plugin-view-content" role="tabpanel">
         <PluginViewPanel
+          unsupportedLabel={messages.unknownPanel}
           key={selectedPanel.id}
           labels={videoLibraryLabels}
           panel={selectedPanel}
@@ -83,6 +88,7 @@ export function PluginViewHost({
 
 /** Performs the plugin view panel operation. */
 function PluginViewPanel({
+  unsupportedLabel,
   labels,
   panel,
   refreshKey,
@@ -91,6 +97,8 @@ function PluginViewPanel({
 }: {
   /** The labels value. */
   readonly labels: VideoLibraryMessages;
+  /** Localized unsupported-panel message template. */
+  readonly unsupportedLabel: string;
   /** The panel value. */
   readonly panel: PluginViewPanelInfo;
   /** The refresh key value. */
@@ -120,7 +128,7 @@ function PluginViewPanel({
       />
     );
   }
-  return <div className="plugin-view-unsupported">Unknown panel: {title}</div>;
+  return <div className="plugin-view-unsupported">{unsupportedLabel.replace('{title}', () => title)}</div>;
 }
 
 /** Resolves the localized text. */

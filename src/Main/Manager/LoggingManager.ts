@@ -1,3 +1,5 @@
+import { getLocaleMessages } from '../Functional/Locale';
+import type { AppLocale } from '../../Common/IPC';
 import {
   lstat,
   mkdir,
@@ -422,6 +424,7 @@ export class LoggingManager {
   /** Exports selected logs as one verified Kawai log archive. */
   async exportFiles(
     references: readonly ApplicationLogFileReference[],
+    locale: AppLocale = 'system',
   ): Promise<ApplicationLogExportResult> {
     const uniqueReferences = deduplicateLogReferences(references);
     if (uniqueReferences.length === 0 || uniqueReferences.length > 128) {
@@ -459,7 +462,7 @@ export class LoggingManager {
         app.getPath('documents'),
         `${createPortableArchiveStem(alias)}${KAWAI_LOG_ARCHIVE_EXTENSION}`,
       ),
-      filters: [{ name: 'Kawaikara log archive', extensions: ['kawailog']
+      filters: [{ name: getLocaleMessages(locale, app.getLocale()).nativeDialogs.logArchive, extensions: ['kawailog']
       }],
     });
     if (result.canceled || !result.filePath) {
@@ -552,12 +555,12 @@ export class LoggingManager {
   }
 
   /** Opens the native picker and stages a bounded external import. */
-  async selectImportFiles(): Promise<ApplicationLogImportSelection> {
+  async selectImportFiles(locale: AppLocale = 'system'): Promise<ApplicationLogImportSelection> {
     this.removeExpiredPendingImports();
     const selection = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
       filters: [{
-        name: 'Kawaikara logs',
+        name: getLocaleMessages(locale, app.getLocale()).nativeDialogs.logFiles,
         extensions: ['log', 'kawailog'],
       }],
     });

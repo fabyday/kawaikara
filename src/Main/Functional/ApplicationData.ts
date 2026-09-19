@@ -1,6 +1,6 @@
 import { app, dialog, type Session } from 'electron';
 import type { AppLocale } from '../../Common/IPC';
-import { getClearAllProfilesConfirmationCopy } from './Locale';
+import { getClearAllProfilesConfirmationCopy, getLocaleMessages } from './Locale';
 
 /** Defines the clear target kind type. */
 type ClearTargetKind = 'profile' | 'site';
@@ -86,46 +86,12 @@ function clearConfirmationCopy(
   name: string,
   locale: AppLocale,
 ): ConfirmationCopy {
-  const language = resolveLanguage(locale);
-  if (language === 'ko') {
-    return {
-      /** The title value. */
-      title: kind === 'profile' ? '프로필 데이터 삭제' : '사이트 데이터 삭제',
-      /** The message value. */
-      message: `${name}의 로그인 및 캐시 데이터를 삭제할까요?`,
-      /** The detail value. */
-      detail: '쿠키, 로컬 저장소, IndexedDB와 캐시가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
-      /** Whether the cancel option is enabled. */
-      cancel: '취소',
-      /** The confirm value. */
-      confirm: '데이터 삭제',
-    };
-  }
-  if (language === 'ja') {
-    return {
-      /** The title value. */
-      title: kind === 'profile' ? 'プロファイルデータを削除' : 'サイトデータを削除',
-      /** The message value. */
-      message: `${name}のログイン情報とキャッシュを削除しますか？`,
-      /** The detail value. */
-      detail: 'Cookie、ローカルストレージ、IndexedDB、キャッシュが削除されます。この操作は元に戻せません。',
-      /** Whether the cancel option is enabled. */
-      cancel: 'キャンセル',
-      /** The confirm value. */
-      confirm: 'データを削除',
-    };
-  }
+  const messages = getLocaleMessages(locale, app.getLocale()).applicationData;
+  const copy = kind === 'profile' ? messages.clearProfile : messages.clearSite;
   return {
-    /** The title value. */
-    title: kind === 'profile' ? 'Clear profile data' : 'Clear site data',
-    /** The message value. */
-    message: `Clear sign-in and cached data for ${name}?`,
-    /** The detail value. */
-    detail: 'Cookies, local storage, IndexedDB, and caches will be removed. This cannot be undone.',
-    /** Whether the cancel option is enabled. */
-    cancel: 'Cancel',
-    /** The confirm value. */
-    confirm: 'Clear data',
+    ...copy,
+    /** Preserve the target name literally, including replacement-pattern characters. */
+    message: copy.message.replace('{name}', () => name),
   };
 }
 
@@ -134,93 +100,6 @@ function resetConfirmationCopy(
   kind: ResetKind,
   locale: AppLocale,
 ): ConfirmationCopy {
-  const language = resolveLanguage(locale);
-  if (language === 'ko') {
-    return kind === 'cache'
-      ? {
-          /** The title value. */
-          title: '캐시 초기화',
-          /** The message value. */
-          message: 'Electron 캐시를 삭제하고 Kawaikara를 재시작할까요?',
-          /** The detail value. */
-          detail: '로그인, 설정, 사용자 Bundle과 로컬 기록은 유지됩니다.',
-          /** Whether the cancel option is enabled. */
-          cancel: '취소',
-          /** The confirm value. */
-          confirm: '삭제 후 재시작',
-        }
-      : {
-          /** The title value. */
-          title: '앱 초기화',
-          /** The message value. */
-          message: 'Kawaikara의 모든 앱 데이터를 삭제할까요?',
-          /** The detail value. */
-          detail: '설정, 로그인, 브라우저 프로필 데이터, 사용자 Bundle, 로그와 로컬 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.',
-          /** Whether the cancel option is enabled. */
-          cancel: '취소',
-          /** The confirm value. */
-          confirm: '초기화 후 재시작',
-        };
-  }
-  if (language === 'ja') {
-    return kind === 'cache'
-      ? {
-          /** The title value. */
-          title: 'キャッシュをリセット',
-          /** The message value. */
-          message: 'Electronのキャッシュを削除してKawaikaraを再起動しますか？',
-          /** The detail value. */
-          detail: 'ログイン、設定、ユーザーBundle、ローカル履歴は保持されます。',
-          /** Whether the cancel option is enabled. */
-          cancel: 'キャンセル',
-          /** The confirm value. */
-          confirm: '削除して再起動',
-        }
-      : {
-          /** The title value. */
-          title: 'アプリをリセット',
-          /** The message value. */
-          message: 'Kawaikaraのすべてのアプリデータを削除しますか？',
-          /** The detail value. */
-          detail: '設定、ログイン、ブラウザープロファイル、ユーザーBundle、ログ、ローカル履歴が削除されます。この操作は元に戻せません。',
-          /** Whether the cancel option is enabled. */
-          cancel: 'キャンセル',
-          /** The confirm value. */
-          confirm: 'リセットして再起動',
-        };
-  }
-  return kind === 'cache'
-    ? {
-        /** The title value. */
-        title: 'Reset cache',
-        /** The message value. */
-        message: 'Clear Electron caches and restart Kawaikara?',
-        /** The detail value. */
-        detail: 'Sign-ins, preferences, user Bundles, and local history will be kept.',
-        /** Whether the cancel option is enabled. */
-        cancel: 'Cancel',
-        /** The confirm value. */
-        confirm: 'Clear and restart',
-      }
-    : {
-        /** The title value. */
-        title: 'Reset application',
-        /** The message value. */
-        message: 'Delete all Kawaikara application data?',
-        /** The detail value. */
-        detail: 'Preferences, sign-ins, browser profile data, user Bundles, logs, and local history will be removed. This cannot be undone.',
-        /** Whether the cancel option is enabled. */
-        cancel: 'Cancel',
-        /** The confirm value. */
-        confirm: 'Reset and restart',
-      };
-}
-
-/** Resolves the language. */
-function resolveLanguage(locale: AppLocale): 'en' | 'ja' | 'ko' {
-  const resolved = locale === 'system' ? app.getLocale() : locale;
-  const normalized = resolved.toLowerCase();
-  if (normalized.startsWith('ko')) return 'ko';
-  if (normalized.startsWith('ja')) return 'ja';
-  return 'en';
+  const messages = getLocaleMessages(locale, app.getLocale()).applicationData;
+  return kind === 'cache' ? messages.resetCache : messages.resetApplication;
 }

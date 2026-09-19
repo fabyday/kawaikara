@@ -18,6 +18,8 @@ import type {
 } from '@kawaikara/site-api';
 export type {
   AppMessages,
+  UpdateMessages,
+  DownloaderMessages,
   LogViewerMessages,
   RendererMessages,
   VideoBrowserMessages,

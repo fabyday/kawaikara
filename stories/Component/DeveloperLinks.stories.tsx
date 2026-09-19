@@ -1,25 +1,9 @@
+import ko from '../../locales/ko.json';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DeveloperLinks } from '../../src/Renderer/Component/DeveloperLinks';
 
-/** Stores the messages value. */
-const messages = {
-  /** The website value. */
-  website: 'Kawaikara 사이트',
-  /** The github value. */
-  github: 'GitHub',
-  /** The discord value. */
-  discord: '디스코드',
-  /** The developer you tube value. */
-  developerYouTube: '개발자 유튜브',
-  /** The live now value. */
-  liveNow: '지금 라이브 중',
-  /** The offline value. */
-  offline: '현재 오프라인',
-  /** The live status unavailable value. */
-  liveStatusUnavailable: '상태 확인 불가',
-  /** The checking live value. */
-  checkingLive: '라이브 확인 중…',
-};
+/** Uses the same Korean catalog as Main instead of maintaining sample translations. */
+const messages = ko.app;
 
 /** Stores the meta value. */
 const meta = {

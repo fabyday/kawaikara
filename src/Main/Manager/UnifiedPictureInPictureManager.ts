@@ -8,7 +8,8 @@ import {
   type WebFrameMain,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { PictureInPictureResult } from '../../Common/IPC';
+import { getLocaleMessages } from '../Functional/Locale';
+import type { AppLocale, PictureInPictureResult } from '../../Common/IPC';
 import {
   DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
   DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
@@ -132,6 +133,8 @@ export class UnifiedPictureInPictureManager {
     private readonly onLastPlacementChanged?: (
       placement: PictureInPictureLastPlacement,
     ) => Promise<void> | void,
+    /** Reads app language when creating native and page-world PiP controls. */
+    private readonly getLocale: () => AppLocale = () => 'system',
   ) {
     this.logger = logging.getLogger('pictureInPicture');
     this.subtitles = new PictureInPictureSubtitleRuntime(
@@ -489,7 +492,7 @@ export class UnifiedPictureInPictureManager {
       ...bounds,
       show: false,
       frame: false,
-      title: 'Kawaikara PiP',
+      title: getLocaleMessages(this.getLocale(), app.getLocale()).nativeDialogs.pipWindowTitle,
       backgroundColor: '#000000',
       alwaysOnTop: true,
       resizable: true,
@@ -1145,6 +1148,8 @@ export class UnifiedPictureInPictureManager {
   /** Selects runtime values; the injected DOM implementation stays in Inject/. */
   private createEnterPageScript(): string {
     return createEnterUnifiedPictureInPictureScript({
+      /** The localized PiP button labels. */
+      labels: getLocaleMessages(this.getLocale(), app.getLocale()).video,
       /** The content overlay selectors value. */
       contentOverlaySelectors: this.getContentOverlaySelectors(),
       /** The playback button size value. */

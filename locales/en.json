@@ -326,7 +326,14 @@
     "checkingLive": "Checking live status…",
     "installedPlugins": "Installed Bundles",
     "plugins": "plugins",
-    "sites": "Providers"
+    "sites": "Providers",
+    "availableSites": "Available sites",
+    "pluginPanels": "Plugin panels",
+    "unknownPanel": "Unknown panel: {title}",
+    "siteApi": "Site API",
+    "pipShort": "PiP",
+    "youtube": "YouTube",
+    "homepage": "Homepage"
   },
   "logViewer": {
     "title": "Log viewer",
@@ -424,7 +431,19 @@
     "nativeErrorFallback": "libmpv could not start, so playback switched to the Chromium compatibility backend.",
     "nativeUnavailableFallback": "libmpv is unavailable in this environment, so Chromium compatibility playback is active.",
     "softwareRenderingWarning": "libmpv hardware decoding is disabled by the MPV_HWDEC environment setting and high-resolution video may stutter.",
-    "captureCompatibleRenderingWarning": "libmpv still decodes video in hardware in capture-compatible mode. Because the Electron GPU is disabled, final frames are copied through Canvas 2D and high-resolution video may be less smooth."
+    "captureCompatibleRenderingWarning": "libmpv still decodes video in hardware in capture-compatible mode. Because the Electron GPU is disabled, final frames are copied through Canvas 2D and high-resolution video may be less smooth.",
+    "mpvNotReady": "The libmpv player is not ready.",
+    "chromiumNotReady": "The Chromium video element is not ready.",
+    "hlsUnavailable": "HLS playback is unavailable in this Chromium runtime.",
+    "manifestTimeout": "The HLS manifest did not load in time.",
+    "sourceCanceled": "Source validation was canceled.",
+    "sourceRejected": "Chromium rejected the media source.",
+    "sourceTimeout": "The media source did not become playable in time.",
+    "sourceEnded": "The media source ended before it could be loaded.",
+    "hlsFatal": "Fatal playback error",
+    "hls": "HLS",
+    "hlsPlaceholder": "https://example.com/stream.m3u8",
+    "returnToApp": "Return to Kawaikara"
   },
   "videoBrowser": {
     "library": "Local video",
@@ -482,6 +501,34 @@
       "detail": "Cookies, local storage, IndexedDB, and caches in isolated, Bundle, and user profiles will be removed. Preferences and Bundles are kept. This cannot be undone.",
       "cancel": "Cancel",
       "confirm": "Clear all"
+    },
+    "clearProfile": {
+      "title": "Clear profile data",
+      "message": "Clear sign-in and cached data for {name}?",
+      "detail": "Cookies, local storage, IndexedDB, and caches will be removed. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Clear data"
+    },
+    "clearSite": {
+      "title": "Clear site data",
+      "message": "Clear sign-in and cached data for {name}?",
+      "detail": "Cookies, local storage, IndexedDB, and caches will be removed. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Clear data"
+    },
+    "resetCache": {
+      "title": "Reset cache",
+      "message": "Clear Electron caches and restart Kawaikara?",
+      "detail": "Sign-ins, preferences, user Bundles, and local history will be kept.",
+      "cancel": "Cancel",
+      "confirm": "Clear and restart"
+    },
+    "resetApplication": {
+      "title": "Reset application",
+      "message": "Delete all Kawaikara application data?",
+      "detail": "Preferences, sign-ins, browser profile data, user Bundles, logs, and local history will be removed. This cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Reset and restart"
     }
   },
   "externalLogin": {
@@ -489,5 +536,120 @@
     "description": "Kawaikara will return to the signed-in site automatically when login is complete.",
     "waiting": "Waiting for login",
     "secure": "External browser opened"
+  },
+  "update": {
+    "channel": "Channel",
+    "stable": "Stable",
+    "staging": "Staging",
+    "nightly": "Nightly",
+    "checkingTitle": "Checking for updates",
+    "checkingDescription": "Looking for a newer Kawaikara release.",
+    "availableTitle": "An update is available",
+    "availableDescription": "Download the update whenever you are ready.",
+    "downloadingTitle": "Downloading the update",
+    "downloadingDescription": "You can continue using Kawaikara while it downloads.",
+    "downloadedTitle": "Update ready",
+    "preparingTitle": "Preparing installation",
+    "preparingDescription": "Verifying the download and preparing to close the app safely.",
+    "installingTitle": "Installing update",
+    "downloadedDescription": "Restart Kawaikara to finish installing the update.",
+    "automaticRestartDescription": "Restarting Kawaikara to finish the update.",
+    "currentTitle": "Kawaikara is up to date",
+    "currentDescription": "There are no updates for the current channel.",
+    "unsupportedTitle": "Updates are unavailable in development",
+    "unsupportedDescription": "Check again from a packaged Kawaikara build.",
+    "errorTitle": "Unable to check for updates",
+    "errorDescription": "Check your connection and try again.",
+    "downloadErrorTitle": "Unable to download the update",
+    "downloadErrorDescription": "The download or file verification failed. Check the error before retrying.",
+    "signatureErrorDescription": "The installer signature could not be verified. Downloading the same file again will not help; check the certificate and update log.",
+    "installErrorTitle": "Unable to start update installation",
+    "installErrorDescription": "You can keep using the app. Check the update log before trying again.",
+    "releaseNotes": "What is new",
+    "noReleaseNotes": "No release notes were provided.",
+    "currentVersion": "Current",
+    "nextVersion": "Update",
+    "download": "Download update",
+    "restart": "Restart and update",
+    "retry": "Check again",
+    "close": "Close",
+    "later": "Later",
+    "back": "Back to update",
+    "releaseNotesDescription": "Review the changes included in the new version."
+  },
+  "downloader": {
+    "title": "YT Downloader",
+    "description": "Downloads open in a separate application.",
+    "close": "Close",
+    "version": "Version",
+    "url": "YouTube URL",
+    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
+    "open": "Open in YT Downloader",
+    "install": "Install YT Downloader",
+    "releases": "Open releases",
+    "installed": "Installed",
+    "notInstalled": "Not installed",
+    "checking": "Checking",
+    "protocolInstallation": "Protocol installation",
+    "missing": "YT Downloader is not installed.",
+    "installFailed": "Unable to install YT Downloader.",
+    "permissionNotice": "Download only content you own or are permitted to save.",
+    "macInstallHelp": "Installation downloads the official release and verifies SHA-256. After confirmation, macOS quarantine attributes are removed from the download and installed app. It is installed only in ~/Applications, without administrator privileges.",
+    "windowsInstallHelp": "Installation downloads the official release, verifies SHA-256, and opens the installer.",
+    "unsupported": "Automatic installation is unavailable on this operating system. Please install from the releases page.",
+    "installTitle": "Install {name}",
+    "installMessage": "Download and install {name}?",
+    "macInstallDetail": "After verifying the release SHA-256, macOS quarantine attributes will be removed from the download and installed app. No administrator privileges are used; installation is limited to ~/Applications.",
+    "windowsInstallDetail": "The release SHA-256 will be verified before launching the Windows installer.",
+    "confirmInstall": "Install",
+    "cancel": "Cancel",
+    "completed": "YT Downloader {version} has been installed.",
+    "windowsStarted": "The Windows installer has opened. Try again after installation finishes.",
+    "contextMenu": "Download with Kawaikara"
+  },
+  "bundle": {
+    "install": {
+      "chooseTitle": "Choose a Kawaikara Bundle",
+      "confirmTitle": "Install Bundle",
+      "confirmMessage": "Install the “{name}” Bundle?",
+      "confirmDetail": ".kawai is a ZIP container and can include code that runs in the Main process. Review the permissions below. Restart Kawaikara to activate it.",
+      "permissionsHeading": "Requested permissions",
+      "noPermissions": "No additional Provider permissions",
+      "deny": "Deny",
+      "allowAndInstall": "Allow and install"
+    },
+    "action": {
+      "updateTitle": "Update Bundle",
+      "updateMessage": "Update the “{name}” Bundle?",
+      "removeTitle": "Remove Bundle",
+      "removeMessage": "Remove the “{name}” Bundle?",
+      "restartDetail": "Changes to running code take effect after restarting Kawaikara.",
+      "cancel": "Cancel",
+      "update": "Update",
+      "remove": "Remove"
+    }
+  },
+  "nativeDialogs": {
+    "chooseDevelopmentProject": "Choose a development Bundle project",
+    "bundleArchive": "Kawaikara Bundle",
+    "logArchive": "Kawaikara log archive",
+    "logFiles": "Kawaikara logs",
+    "openVideo": "Open video",
+    "videoFiles": "Video files",
+    "allFiles": "All files",
+    "videoWindowTitle": "Kawaikara Video",
+    "pipWindowTitle": "Kawaikara PiP"
+  },
+  "standardLocations": {
+    "home": "Home",
+    "desktop": "Desktop",
+    "downloads": "Downloads",
+    "videos": "Videos",
+    "documents": "Documents"
+  },
+  "presence": {
+    "details": "Kawaikara OTT Viewer",
+    "watching": "Watching…",
+    "viewer": "Kawaikara Viewer"
   }
 }

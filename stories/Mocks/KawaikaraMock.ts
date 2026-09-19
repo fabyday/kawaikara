@@ -1018,7 +1018,7 @@ export function installKawaikaraMock(
           platform: 'darwin',
           version: '0.1.0',
           appPath: '/Users/kawaikara/Applications/YT Section Downloader.app',
-          message: 'YT Downloader 0.1.0 설치가 완료되었습니다.',
+          message: STORY_MESSAGES.downloader.completed.replace('{version}', '0.1.0'),
         },
       }),
       open: async () => ({

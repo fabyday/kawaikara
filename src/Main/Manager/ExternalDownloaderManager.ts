@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
-import { dialog, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
+import type { AppLocale } from '../../Common/IPC';
+import { getLocaleMessages } from '../Functional/Locale';
 import type {
   ExternalDownloaderInstallResult,
   ExternalDownloaderOpenResult,
@@ -21,6 +23,11 @@ import {
 
 /** Coordinates external downloader behavior. */
 export class ExternalDownloaderManager {
+  /** Reads the current application preference at the start of each operation. */
+  constructor(
+    /** Reads the current app locale without caching a stale preference. */
+    private readonly getLocale: () => AppLocale = () => 'system',
+  ) {}
   /** The install promise value. */
   private installPromise?: Promise<ExternalDownloaderInstallResult>;
 
@@ -99,6 +106,7 @@ export class ExternalDownloaderManager {
   private async installOnce(
     value?: unknown,
   ): Promise<ExternalDownloaderInstallResult> {
+    const labels = getLocaleMessages(this.getLocale(), app.getLocale()).downloader;
     const sourceUrl = value === undefined || value === ''
       ? undefined
       : requireYouTubeUrl(value);
@@ -130,19 +138,19 @@ export class ExternalDownloaderManager {
         opened: false,
         /** The status value. */
         status: await this.getStatus(
-          '이 운영체제에서는 자동 설치를 지원하지 않습니다. 릴리스 페이지에서 설치해 주세요.',
+          labels.unsupported,
         ),
       };
     }
 
     const confirmation = await dialog.showMessageBox({
       type: 'warning',
-      title: `${EXTERNAL_DOWNLOADER_APP_NAME} 설치`,
-      message: `${EXTERNAL_DOWNLOADER_APP_NAME}를 다운로드하고 설치할까요?`,
+      title: labels.installTitle.replace('{name}', EXTERNAL_DOWNLOADER_APP_NAME),
+      message: labels.installMessage.replace('{name}', EXTERNAL_DOWNLOADER_APP_NAME),
       detail: current.platform === 'darwin'
-        ? '릴리스 파일의 SHA-256을 확인한 뒤, 다운로드한 파일과 설치할 앱에서 macOS 격리 속성을 제거합니다. 관리자 권한은 사용하지 않으며 ~/Applications에만 설치합니다.'
-        : '릴리스 파일의 SHA-256을 확인한 뒤 Windows 설치 프로그램을 실행합니다.',
-      buttons: ['설치', '취소'],
+        ? labels.macInstallDetail
+        : labels.windowsInstallDetail,
+      buttons: [labels.confirmInstall, labels.cancel],
       defaultId: 0,
       cancelId: 1,
       noLink: true,
@@ -172,7 +180,7 @@ export class ExternalDownloaderManager {
         artifact,
       );
       const status = await this.getStatus(
-        `YT Downloader ${installed.version ?? manifest.version} 설치가 완료되었습니다.`,
+        labels.completed.replace('{version}', installed.version ?? manifest.version),
       );
       const openResult = sourceUrl
         ? await this.open(sourceUrl)
@@ -208,7 +216,7 @@ export class ExternalDownloaderManager {
       opened: false,
       /** The status value. */
       status: await this.getStatus(
-        'Windows 설치 프로그램을 열었습니다. 설치가 끝나면 다시 실행해 주세요.',
+        labels.windowsStarted,
       ),
     };
   }

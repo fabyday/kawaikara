@@ -212,6 +212,8 @@ test('actual Video host factory keeps content bounds, disables duplicate roundin
   const bounds = { x: 40, y: 80, width: 960, height: 540 };
   manager.viewerWindow = { isDestroyed: () => false, getContentBounds: () => bounds };
   manager.logging = { attachRenderer() {} };
+  manager.appLocale = 'ko-KR';
+  manager.systemLocale = 'en-US';
   manager.mpv = { attachWindow() {} };
   manager.editingWebContentsIds = new Set();
   manager.startVideoRendererInitializationWatchdog = () => {};
@@ -221,11 +223,12 @@ test('actual Video host factory keeps content bounds, disables duplicate roundin
   FakeWindow.prototype.setFocusable = () => {};
   FakeWindow.prototype.showInactive = () => {};
   const video = await manager.ensureVideoWindow();
+  assert.equal(options.title, require(path.join(root, 'locales/ko.json')).nativeDialogs.videoWindowTitle);
   assert.equal(options.frame, false);
   assert.equal(options.roundedCorners, false);
   for (const key of Object.keys(bounds)) assert.equal(options[key], bounds[key]);
   assert.equal(options.resizable, false);
-  assert.equal(options.webPreferences.preload.endsWith('/preload/viewer.js'), true);
+  assert.equal(options.webPreferences.preload.endsWith(path.join('preload', 'viewer.js')), true);
   manager.internalVideoVisible = true;
   video.emit('app-command', {}, 'browser-backward');
   assert.equal(sent[0][1], 'back');

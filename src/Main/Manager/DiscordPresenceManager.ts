@@ -1,8 +1,17 @@
+import { app } from 'electron';
+import type { AppLocale } from '../../Common/IPC';
+import { getLocaleMessages } from '../Functional/Locale';
 import * as DiscordRpc from 'discord-rpc';
 import { DISCORD_APP_ID } from '../../Common/BuildConfig';
 
 /** Publishes Kawaikara's current viewing state through Discord Rich Presence. */
 export class DiscordPresenceManager {
+  /** Selects activity copy when Discord connects. */
+  constructor(
+    /** Current app language, supplied by the preference manager. */
+    private readonly getLocale: () => AppLocale = () => 'system',
+  ) {}
+
   /** Discord RPC client used to publish and clear the current activity. */
   private client?: DiscordRpc.Client;
   /** Stable activity start time reused for the lifetime of this manager. */
@@ -21,18 +30,19 @@ export class DiscordPresenceManager {
     });
     this.client = client;
     client.on('ready', () => {
+      const labels = getLocaleMessages(this.getLocale(), app.getLocale());
       void client.setActivity({
-        details: 'Kawaikara OTT Viewer',
-        state: 'Watching…',
+        details: labels.presence.details,
+        state: labels.presence.watching,
         startTimestamp: this.startedAt,
         largeImageKey: 'discord1024',
-        largeImageText: 'Kawaikara',
+        largeImageText: labels.app.title,
         smallImageKey: 'discord512',
-        smallImageText: 'Kawaikara Viewer',
+        smallImageText: labels.presence.viewer,
         buttons: [
-          { label: 'Kawaikara', url: 'https://kawaikara.github.io/'
+          { label: labels.app.title, url: 'https://kawaikara.github.io/'
           },
-          { label: 'Discord', url: 'https://discord.gg/JJs974BX45'
+          { label: labels.app.discord, url: 'https://discord.gg/JJs974BX45'
           },
         ],
       }).catch((error: unknown) => {

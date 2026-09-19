@@ -1,3 +1,4 @@
+import { getLocaleMessages } from './Locale';
 import { app, net } from 'electron';
 import {
   KAWAIKARA_MANIFEST_VERSION,
@@ -1122,68 +1123,7 @@ export function getInstallCopy(locale: AppLocale): {
   /** Whether the allow and install option is enabled. */
   readonly allowAndInstall: string;
 } {
-  const language = locale === 'system' ? app.getLocale() : locale;
-  if (language.toLowerCase().startsWith('ko')) {
-    return {
-      /** The choose title value. */
-      chooseTitle: 'Kawaikara Bundle 선택',
-      /** The confirm title value. */
-      confirmTitle: 'Bundle 설치',
-      /** The confirm message value. */
-      confirmMessage: '“{name}” Bundle을 설치할까요?',
-      /** The confirm detail value. */
-      confirmDetail:
-        '.kawai는 ZIP 컨테이너이며 Main 프로세스에서 실행되는 코드를 포함할 수 있습니다. 아래 권한을 검토하세요. 설치 후 앱을 다시 시작해야 합니다.',
-      /** The permissions heading value. */
-      permissionsHeading: '요청하는 권한',
-      /** The no permissions value. */
-      noPermissions: '추가 Provider 권한 없음',
-      /** The deny value. */
-      deny: '허가하지 않음',
-      /** Whether the allow and install option is enabled. */
-      allowAndInstall: '허가 및 설치',
-    };
-  }
-  if (language.toLowerCase().startsWith('ja')) {
-    return {
-      /** The choose title value. */
-      chooseTitle: 'Kawaikara Bundleを選択',
-      /** The confirm title value. */
-      confirmTitle: 'Bundleをインストール',
-      /** The confirm message value. */
-      confirmMessage: '「{name}」Bundleをインストールしますか？',
-      /** The confirm detail value. */
-      confirmDetail:
-        '.kawaiはZIPコンテナで、Mainプロセスで実行されるコードを含む場合があります。以下の権限を確認してください。再起動後に有効になります。',
-      /** The permissions heading value. */
-      permissionsHeading: '要求する権限',
-      /** The no permissions value. */
-      noPermissions: '追加のProvider権限なし',
-      /** The deny value. */
-      deny: '許可しない',
-      /** Whether the allow and install option is enabled. */
-      allowAndInstall: '許可してインストール',
-    };
-  }
-  return {
-    /** The choose title value. */
-    chooseTitle: 'Choose a Kawaikara Bundle',
-    /** The confirm title value. */
-    confirmTitle: 'Install Bundle',
-    /** The confirm message value. */
-    confirmMessage: 'Install the “{name}” Bundle?',
-    /** The confirm detail value. */
-    confirmDetail:
-      '.kawai is a ZIP container and can include code that runs in the Main process. Review the permissions below. Restart Kawaikara to activate it.',
-    /** The permissions heading value. */
-    permissionsHeading: 'Requested permissions',
-    /** The no permissions value. */
-    noPermissions: 'No additional Provider permissions',
-    /** The deny value. */
-    deny: 'Deny',
-    /** Whether the allow and install option is enabled. */
-    allowAndInstall: 'Allow and install',
-  };
+  return getLocaleMessages(locale, app.getLocale()).bundle.install;
 }
 
 /** Returns the bundle action copy. */
@@ -1205,64 +1145,5 @@ export function getBundleActionCopy(locale: AppLocale): {
   /** The remove value. */
   readonly remove: string;
 } {
-  const language = locale === 'system' ? app.getLocale() : locale;
-  if (language.toLowerCase().startsWith('ko')) {
-    return {
-      /** The update title value. */
-      updateTitle: 'Bundle 업데이트',
-      /** The update message value. */
-      updateMessage: '“{name}” Bundle을 업데이트할까요?',
-      /** The remove title value. */
-      removeTitle: 'Bundle 삭제',
-      /** The remove message value. */
-      removeMessage: '“{name}” Bundle을 삭제할까요?',
-      /** The restart detail value. */
-      restartDetail: '실행 중인 코드는 Kawaikara를 다시 시작한 뒤 변경됩니다.',
-      /** Whether the cancel option is enabled. */
-      cancel: '취소',
-      /** The update value. */
-      update: '업데이트',
-      /** The remove value. */
-      remove: '삭제',
-    };
-  }
-  if (language.toLowerCase().startsWith('ja')) {
-    return {
-      /** The update title value. */
-      updateTitle: 'Bundleを更新',
-      /** The update message value. */
-      updateMessage: '「{name}」Bundleを更新しますか？',
-      /** The remove title value. */
-      removeTitle: 'Bundleを削除',
-      /** The remove message value. */
-      removeMessage: '「{name}」Bundleを削除しますか？',
-      /** The restart detail value. */
-      restartDetail: '実行中のコードへの変更はKawaikaraの再起動後に反映されます。',
-      /** Whether the cancel option is enabled. */
-      cancel: 'キャンセル',
-      /** The update value. */
-      update: '更新',
-      /** The remove value. */
-      remove: '削除',
-    };
-  }
-  return {
-    /** The update title value. */
-    updateTitle: 'Update Bundle',
-    /** The update message value. */
-    updateMessage: 'Update the “{name}” Bundle?',
-    /** The remove title value. */
-    removeTitle: 'Remove Bundle',
-    /** The remove message value. */
-    removeMessage: 'Remove the “{name}” Bundle?',
-    /** The restart detail value. */
-    restartDetail: 'Changes to running code take effect after restarting Kawaikara.',
-    /** Whether the cancel option is enabled. */
-    cancel: 'Cancel',
-    /** The update value. */
-    update: 'Update',
-    /** The remove value. */
-    remove: 'Remove',
-  };
+  return getLocaleMessages(locale, app.getLocale()).bundle.action;
 }
-

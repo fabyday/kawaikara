@@ -27,7 +27,7 @@ const fixture = buildSync({
       import { flushSync } from 'react-dom';
       import { KawaiProvider } from '@kawaikara/kawai-ui';
       import { DeveloperLinks } from './src/Renderer/Component/DeveloperLinks';
-      const messages = { website: 'Homepage', github: 'GitHub', discord: 'Discord',
+      const messages = { homepage: 'Homepage', youtube: 'YouTube', website: 'Homepage', github: 'GitHub', discord: 'Discord',
         developerYouTube: 'Developer YouTube', liveNow: 'Live now', offline: 'Offline',
         liveStatusUnavailable: 'Unavailable', checkingLive: 'Checking' };
       const states = { live: { isLive: true, checkedAt: '2026-09-17T00:00:00Z' },

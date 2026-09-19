@@ -69,15 +69,15 @@ export async function initializeApplication(
     preferenceFilePath,
     videoLibraryFilePath: getKawaiDataPath('video-library.json'),
     standardVideoLocations: [
-      { name: 'Home', path: app.getPath('home')
+      { name: '', nameKey: 'home', path: app.getPath('home')
       },
-      { name: 'Desktop', path: app.getPath('desktop')
+      { name: '', nameKey: 'desktop', path: app.getPath('desktop')
       },
-      { name: 'Downloads', path: app.getPath('downloads')
+      { name: '', nameKey: 'downloads', path: app.getPath('downloads')
       },
-      { name: 'Videos', path: app.getPath('videos')
+      { name: '', nameKey: 'videos', path: app.getPath('videos')
       },
-      { name: 'Documents', path: app.getPath('documents')
+      { name: '', nameKey: 'documents', path: app.getPath('documents')
       },
     ],
   });

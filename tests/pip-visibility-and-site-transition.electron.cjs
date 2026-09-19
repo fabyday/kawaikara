@@ -231,10 +231,14 @@ async function main() {
     const video=document.querySelector('video');video.srcObject=stream;video.onloadeddata=()=>video.play().then(resolve);
   })`);
   const entered = await remote.webContents.executeJavaScript(createEnterUnifiedPictureInPictureScript({
+    labels: require(path.join(root, 'locales/ja.json')).video,
     contentOverlaySelectors: [], playbackButtonSize: 44, playbackMessage: 'probe-play',
     restoreMessage: 'probe-restore', videoSizeMessage: 'probe-size:',
   }));
   assert.equal(entered.status, 'entered');
+  const pipLabels = require(path.join(root, 'locales/ja.json')).video;
+  assert.equal(await evaluate(remote.webContents, 'overlayShadow.querySelector(".restore-button").title'), pipLabels.returnToApp);
+  assert.equal(await evaluate(remote.webContents, 'overlayShadow.querySelector(".playback-button").getAttribute("aria-label")'), pipLabels.pause);
   await evaluate(remote.webContents, 'true');
   await forceHover(remote.webContents, 'window.__kawaikaraUnifiedPictureInPicture.overlay');
   await forceHover(remote.webContents, 'window.overlayShadow.querySelector(".playback-button")');

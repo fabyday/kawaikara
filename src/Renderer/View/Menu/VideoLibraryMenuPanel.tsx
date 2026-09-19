@@ -134,85 +134,20 @@ export function VideoLibraryMenuPanel({
       </header>
 
       <div className="video-library-menu-content">
-        <section>
-          <div className="video-library-section-heading">
-            <h3>{labels.folders}</h3>
-            <span>{folders.length}</span>
-          </div>
-          {folders.length > 0 ? (
-            <div className="video-library-folder-grid">
-              {folders.map((folder) => (
-                <button
-                  className="video-library-folder-card"
-                  key={folder.path}
-                  title={folder.path}
-                  type="button"
-                  disabled={openingPath !== undefined}
-                  onClick={() => void openItem(folder.path)}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                    setContextMenu({
-                      folder,
-                      x: Math.max(
-                        8,
-                        Math.min(event.clientX, window.innerWidth - 188),
-                      ),
-                      y: Math.max(
-                        8,
-                        Math.min(event.clientY, window.innerHeight - 101),
-                      ),
-                    });
-                  }}
-                >
-                  <span className="video-library-card-icon" aria-hidden="true">▰</span>
-                  <span className="video-library-card-copy">
-                    <strong>{folder.name}</strong>
-                    <small>{folder.path}</small>
-                  </span>
-                  {folder.pinned ? (
-                    <span className="video-library-pin" title={labels.pinned}>◆</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title={labels.noFolders} description={labels.noFoldersHelp} />
-          )}
-        </section>
+        <RecentFolderSection
+          labels={labels}
+          folders={folders}
+          openingPath={openingPath}
+          openItem={openItem}
+          setContextMenu={setContextMenu}
+        />
 
-        <section>
-          <div className="video-library-section-heading">
-            <h3>{labels.videos}</h3>
-            <span>{snapshot?.recentVideos.length ?? 0}</span>
-          </div>
-          {snapshot?.recentVideos.length ? (
-            <div className="video-library-video-list">
-              {snapshot.recentVideos.map((video) => (
-                <button
-                  key={video.path}
-                  title={video.path}
-                  type="button"
-                  disabled={openingPath !== undefined}
-                  onClick={() => void openItem(video.path)}
-                >
-                  <VideoThumbnail
-                    className="video-library-menu-thumbnail"
-                    loadThumbnail={window.kawaikara.videoLibrary.getThumbnail}
-                    path={video.path}
-                  />
-                  <span className="video-library-card-copy">
-                    <strong>{video.name}</strong>
-                    <small>{video.directory}</small>
-                  </span>
-                  <time>{formatStoredDate(video.lastOpenedAt)}</time>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title={labels.noVideos} description={labels.noVideosHelp} />
-          )}
-        </section>
+        <RecentVideoSection
+          labels={labels}
+          snapshot={snapshot}
+          openingPath={openingPath}
+          openItem={openItem}
+        />
       </div>
       </motion.aside>
 
@@ -277,4 +212,172 @@ function formatStoredDate(value: string): string {
 /** Returns the error message. */
 function getErrorMessage(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason ?? '');
+}
+
+/** A recent folder with pin state and context-menu handling. */
+function RecentFolderCard({
+  labels,
+  folder,
+  openingPath,
+  openItem,
+  setContextMenu,
+}: Pick<VideoLibraryMenuPanelProps, 'labels'> & {
+  /** folder supplied by the owning composition. */
+  readonly folder: VideoLibraryFolder;
+  /** openingPath supplied by the owning composition. */
+  readonly openingPath: string | undefined;
+  /** openItem supplied by the owning composition. */
+  readonly openItem: (path: string) => Promise<void>;
+  /** setContextMenu supplied by the owning composition. */
+  readonly setContextMenu: (menu: FolderContextMenu | undefined) => void;
+}) {
+  return (
+    <button
+      className="video-library-folder-card"
+
+      title={folder.path}
+      type="button"
+      disabled={openingPath !== undefined}
+      onClick={() => void openItem(folder.path)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.currentTarget.blur();
+        setContextMenu({
+          folder,
+          x: Math.max(
+            8,
+            Math.min(event.clientX, window.innerWidth - 188),
+          ),
+          y: Math.max(
+            8,
+            Math.min(event.clientY, window.innerHeight - 101),
+          ),
+        });
+      }}
+    >
+      <span className="video-library-card-icon" aria-hidden="true">▰</span>
+      <span className="video-library-card-copy">
+        <strong>{folder.name}</strong>
+        <small>{folder.path}</small>
+      </span>
+      {folder.pinned ? (
+        <span className="video-library-pin" title={labels.pinned}>◆</span>
+      ) : null}
+    </button>
+  );
+}
+
+/** A recent video thumbnail that opens playback directly. */
+function RecentVideoCard({
+  video,
+  openingPath,
+  openItem,
+}: {
+  /** video supplied by the owning composition. */
+  readonly video: VideoLibrarySnapshot['recentVideos'][number];
+  /** openingPath supplied by the owning composition. */
+  readonly openingPath: string | undefined;
+  /** openItem supplied by the owning composition. */
+  readonly openItem: (path: string) => Promise<void>;
+}) {
+  return (
+    <button
+      title={video.path}
+      type="button"
+      disabled={openingPath !== undefined}
+      onClick={() => void openItem(video.path)}
+    >
+      <VideoThumbnail
+        className="video-library-menu-thumbnail"
+        loadThumbnail={window.kawaikara.videoLibrary.getThumbnail}
+        path={video.path}
+      />
+      <span className="video-library-card-copy">
+        <strong>{video.name}</strong>
+        <small>{video.directory}</small>
+      </span>
+      <time>{formatStoredDate(video.lastOpenedAt)}</time>
+    </button>
+  );
+}
+
+/** Composes the recent folder collection and its empty state. */
+function RecentFolderSection({
+  labels,
+  folders,
+  openingPath,
+  openItem,
+  setContextMenu,
+}: Pick<VideoLibraryMenuPanelProps, 'labels'> & {
+  /** folders supplied by the owning composition. */
+  readonly folders: VideoLibraryFolder[];
+  /** openingPath supplied by the owning composition. */
+  readonly openingPath: string | undefined;
+  /** openItem supplied by the owning composition. */
+  readonly openItem: (path: string) => Promise<void>;
+  /** setContextMenu supplied by the owning composition. */
+  readonly setContextMenu: (menu: FolderContextMenu | undefined) => void;
+}) {
+  return (
+    <section>
+      <div className="video-library-section-heading">
+        <h3>{labels.folders}</h3>
+        <span>{folders.length}</span>
+      </div>
+      {folders.length > 0 ? (
+        <div className="video-library-folder-grid">
+          {folders.map((folder) => (
+            <RecentFolderCard
+              key={folder.path}
+              labels={labels}
+              folder={folder}
+              openingPath={openingPath}
+              openItem={openItem}
+              setContextMenu={setContextMenu}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState title={labels.noFolders} description={labels.noFoldersHelp} />
+      )}
+    </section>
+  );
+}
+
+/** Composes the recent video collection and its empty state. */
+function RecentVideoSection({
+  labels,
+  snapshot,
+  openingPath,
+  openItem,
+}: Pick<VideoLibraryMenuPanelProps, 'labels'> & {
+  /** snapshot supplied by the owning composition. */
+  readonly snapshot: VideoLibrarySnapshot | undefined;
+  /** openingPath supplied by the owning composition. */
+  readonly openingPath: string | undefined;
+  /** openItem supplied by the owning composition. */
+  readonly openItem: (path: string) => Promise<void>;
+}) {
+  return (
+    <section>
+      <div className="video-library-section-heading">
+        <h3>{labels.videos}</h3>
+        <span>{snapshot?.recentVideos.length ?? 0}</span>
+      </div>
+      {snapshot?.recentVideos.length ? (
+        <div className="video-library-video-list">
+          {snapshot.recentVideos.map((video) => (
+            <RecentVideoCard
+              key={video.path}
+              video={video}
+              openingPath={openingPath}
+              openItem={openItem}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState title={labels.noVideos} description={labels.noVideosHelp} />
+      )}
+    </section>
+  );
 }

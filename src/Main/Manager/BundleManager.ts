@@ -1,3 +1,4 @@
+import { getLocaleMessages } from '../Functional/Locale';
 import { app, dialog, net } from 'electron';
 import {
   KAWAIKARA_MANIFEST_VERSION,
@@ -281,7 +282,7 @@ export class BundleManager {
     const selection = await dialog.showOpenDialog({
       title: getInstallCopy(locale).chooseTitle,
       properties: ['openFile'],
-      filters: [{ name: 'Kawaikara Bundle', extensions: ['kawai']
+      filters: [{ name: getLocaleMessages(locale, app.getLocale()).nativeDialogs.bundleArchive, extensions: ['kawai']
       }],
     });
     const archivePath = selection.filePaths[0];

@@ -1,3 +1,4 @@
+import { getLocaleMessages } from '../Functional/Locale';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
@@ -381,6 +382,7 @@ export class WindowManager {
         }
       },
       (placement) => this.pictureInPicturePlacementRecorder?.(placement),
+      () => this.appLocale,
     );
   }
 
@@ -756,18 +758,19 @@ export class WindowManager {
 
   /** Selects the local video. */
   async selectLocalVideo(): Promise<VideoOpenRequest | null> {
+    const labels = getLocaleMessages(this.appLocale, this.systemLocale).nativeDialogs;
     const viewer = this.requireViewerWindow();
     const result = await dialog.showOpenDialog(viewer, {
-      title: 'Open video',
+      title: labels.openVideo,
       properties: ['openFile'],
       filters: [
         {
-          name: 'Video files',
+          name: labels.videoFiles,
           extensions: Array.from(VIDEO_FILE_EXTENSIONS, (extension) =>
             extension.slice(1),
           ),
         },
-        { name: 'All files', extensions: ['*']
+        { name: labels.allFiles, extensions: ['*']
         },
       ],
     });
@@ -1405,7 +1408,7 @@ export class WindowManager {
     const primaryDisplayId = String(screen.getPrimaryDisplay().id);
     return screen.getAllDisplays().map((display, index) => ({
       id: String(display.id),
-      label: display.label.trim() || `Display ${String(index + 1)}`,
+      label: display.label.trim() || `${getLocaleMessages(this.appLocale, this.systemLocale).app.pipMonitorDisplay} ${String(index + 1)}`,
       width: display.size.width,
       height: display.size.height,
       scaleFactor: display.scaleFactor,
@@ -2931,7 +2934,7 @@ export class WindowManager {
       ...bounds,
       show: false,
       frame: false,
-      title: 'Kawaikara Video',
+      title: getLocaleMessages(this.appLocale, this.systemLocale).nativeDialogs.videoWindowTitle,
       // Fill the viewer content without another rounded top edge below its title bar.
       roundedCorners: false,
       backgroundColor: '#050506',

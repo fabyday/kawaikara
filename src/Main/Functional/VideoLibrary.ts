@@ -38,6 +38,8 @@ export interface StoredVideoLibraryState {
 
 /** Describes the standard video location contract. */
 export interface StandardVideoLocation {
+  /** Optional catalog key for an OS-provided standard folder. */
+  readonly nameKey?: 'home' | 'desktop' | 'downloads' | 'videos' | 'documents';
   /** The name value. */
   readonly name: string;
   /** The path value. */

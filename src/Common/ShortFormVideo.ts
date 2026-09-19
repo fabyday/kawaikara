@@ -2,8 +2,6 @@
 export interface ShortFormVideoShortcutDefinition {
   /** The ID value. */
   readonly id: string;
-  /** The title value. */
-  readonly title: string;
   /** The default key value. */
   readonly defaultKey: string;
 }
@@ -23,32 +21,24 @@ export const SHORT_FORM_VIDEO_SHORTCUTS = [
   {
     /** The ID value. */
     id: 'short-form-video.previous',
-    /** The title value. */
-    title: 'Previous short video',
     /** The default key value. */
     defaultKey: 'CommandOrControl+Alt+Up',
   },
   {
     /** The ID value. */
     id: 'short-form-video.next',
-    /** The title value. */
-    title: 'Next short video',
     /** The default key value. */
     defaultKey: 'CommandOrControl+Alt+Down',
   },
   {
     /** The ID value. */
     id: 'short-form-video.toggle-auto-advance',
-    /** The title value. */
-    title: 'Toggle short video auto-advance',
     /** The default key value. */
     defaultKey: 'CommandOrControl+Alt+A',
   },
   {
     /** The ID value. */
     id: 'short-form-video.ban-current-publisher',
-    /** The title value. */
-    title: 'Ban current short video publisher',
     /** The default key value. */
     defaultKey: 'CommandOrControl+Alt+B',
   },
