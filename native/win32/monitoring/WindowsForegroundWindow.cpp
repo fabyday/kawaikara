@@ -1,8 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 // This add-on declares only the Node-API surface it needs and resolves those
 // ABI-stable exports from Electron at runtime. It therefore needs neither
@@ -46,6 +49,7 @@ using NapiGetBufferInfo = napi_status (*)(
 using NapiGetBoolean = napi_status (*)(napi_env, bool, napi_value*);
 using NapiTypeof = napi_status (*)(napi_env, napi_value, int*);
 using NapiGetUndefined = napi_status (*)(napi_env, napi_value*);
+using NapiCreateStringUtf8 = napi_status (*)(napi_env, const char*, size_t, napi_value*);
 using NapiCallFunction = napi_status (*)(
     napi_env,
     napi_value,
@@ -97,6 +101,7 @@ struct NapiFunctions {
   NapiGetBoolean get_boolean = nullptr;
   NapiTypeof type_of = nullptr;
   NapiGetUndefined get_undefined = nullptr;
+  NapiCreateStringUtf8 create_string_utf8 = nullptr;
   NapiCallFunction call_function = nullptr;
   NapiCreateReference create_reference = nullptr;
   NapiGetReferenceValue get_reference_value = nullptr;
@@ -127,6 +132,7 @@ bool LoadNodeApi() {
   napi.get_boolean = ResolveNodeApi<NapiGetBoolean>("napi_get_boolean");
   napi.type_of = ResolveNodeApi<NapiTypeof>("napi_typeof");
   napi.get_undefined = ResolveNodeApi<NapiGetUndefined>("napi_get_undefined");
+  napi.create_string_utf8 = ResolveNodeApi<NapiCreateStringUtf8>("napi_create_string_utf8");
   napi.call_function = ResolveNodeApi<NapiCallFunction>("napi_call_function");
   napi.create_reference = ResolveNodeApi<NapiCreateReference>(
       "napi_create_reference");
@@ -148,7 +154,7 @@ bool LoadNodeApi() {
   napi.throw_type_error = ResolveNodeApi<NapiThrowTypeError>(
       "napi_throw_type_error");
   return napi.get_callback_info && napi.is_buffer && napi.get_buffer_info &&
-      napi.get_boolean && napi.type_of && napi.get_undefined &&
+      napi.get_boolean && napi.type_of && napi.get_undefined && napi.create_string_utf8 &&
       napi.call_function && napi.create_reference &&
       napi.get_reference_value && napi.delete_reference &&
       napi.add_env_cleanup_hook && napi.open_handle_scope &&
@@ -223,11 +229,14 @@ struct ExternalFullscreenMonitorState {
   napi_ref callback = nullptr;
   HWND application_window = nullptr;
   HWND blocking_window = nullptr;
+  HWND explicitly_activated_over = nullptr;
   HWINEVENTHOOK foreground_hook = nullptr;
   HWINEVENTHOOK destroy_hook = nullptr;
   HWINEVENTHOOK location_hook = nullptr;
   HWINEVENTHOOK minimize_hook = nullptr;
   HWINEVENTHOOK reorder_hook = nullptr;
+  HWINEVENTHOOK visibility_hook = nullptr;
+  HWINEVENTHOOK cloak_hook = nullptr;
   bool dispatching = false;
 };
 
@@ -239,13 +248,18 @@ void StopExternalFullscreenMonitor(bool delete_callback) {
   if (monitor.location_hook) UnhookWinEvent(monitor.location_hook);
   if (monitor.minimize_hook) UnhookWinEvent(monitor.minimize_hook);
   if (monitor.reorder_hook) UnhookWinEvent(monitor.reorder_hook);
+  if (monitor.visibility_hook) UnhookWinEvent(monitor.visibility_hook);
+  if (monitor.cloak_hook) UnhookWinEvent(monitor.cloak_hook);
   monitor.foreground_hook = nullptr;
   monitor.destroy_hook = nullptr;
   monitor.location_hook = nullptr;
   monitor.minimize_hook = nullptr;
   monitor.reorder_hook = nullptr;
+  monitor.visibility_hook = nullptr;
+  monitor.cloak_hook = nullptr;
   monitor.application_window = nullptr;
   monitor.blocking_window = nullptr;
+  monitor.explicitly_activated_over = nullptr;
   monitor.dispatching = false;
   if (delete_callback && monitor.env && monitor.callback) {
     napi.delete_reference(monitor.env, monitor.callback);
@@ -289,9 +303,16 @@ bool CoversMonitor(HWND window) {
       bounds.bottom >= monitor_bounds.bottom - edge_tolerance;
 }
 
+bool IsCloakedWindow(HWND window) {
+  DWORD cloaked = 0;
+  return SUCCEEDED(DwmGetWindowAttribute(window, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) &&
+      cloaked != 0;
+}
+
 bool IsExternalWindow(HWND window, HWND application_root) {
   if (!window || window == application_root ||
-      !IsWindow(window) || !IsWindowVisible(window) || IsIconic(window)) {
+      !IsWindow(window) || !IsWindowVisible(window) || IsIconic(window) ||
+      IsCloakedWindow(window)) {
     return false;
   }
   DWORD process_id = 0;
@@ -342,6 +363,10 @@ bool IsNewFullscreenBlocker(HWND window, HWND application_root) {
   }
 
   const LONG_PTR style = GetWindowLongPtrW(window, GWL_STYLE);
+  const LONG_PTR extended_style = GetWindowLongPtrW(window, GWL_EXSTYLE);
+  // Cursor/capture overlays can span every display, but cannot own fullscreen
+  // input. Likewise, cloaked windows on another virtual desktop are not owners.
+  if ((extended_style & (WS_EX_NOACTIVATE | WS_EX_TRANSPARENT)) != 0) return false;
   // A maximized ordinary window can cover the monitor including its invisible
   // resize frame. SHQueryUserNotificationState cannot disambiguate it here:
   // that value is global, so a game on display 1 reports D3D fullscreen while
@@ -351,15 +376,28 @@ bool IsNewFullscreenBlocker(HWND window, HWND application_root) {
   return (style & WS_CHILD) == 0 && (style & WS_CAPTION) == 0;
 }
 
-bool IsRememberedFullscreenBlocker(HWND window, HWND application_root) {
-  // Notification state describes the current foreground application. Once a
-  // window has been confirmed as fullscreen, geometry is the reliable signal
-  // while Kawaikara itself temporarily owns the foreground.
-  return IsExternalWindow(window, application_root) &&
-      !IsShellSurfaceWindow(window) &&
-      !IsOrdinaryMaximizedWindow(window) &&
-      SharesApplicationMonitor(window, application_root) &&
-      CoversMonitor(window);
+struct FullscreenOwnerSearch {
+  HWND application_root = nullptr;
+  HWND fullscreen_window = nullptr;
+};
+
+BOOL CALLBACK FindDisplayFullscreenOwner(HWND window, LPARAM data) {
+  auto& search = *reinterpret_cast<FullscreenOwnerSearch*>(data);
+  if (!IsNewFullscreenBlocker(window, search.application_root)) return TRUE;
+  search.fullscreen_window = window;
+  return FALSE;
+}
+
+void ObserveFullscreenActivation(HWND foreground, HWND application_root) {
+  if (!monitor.blocking_window || !foreground) return;
+  if (foreground == application_root ||
+      GetAncestor(foreground, GA_ROOTOWNER) == application_root) {
+    monitor.explicitly_activated_over = monitor.blocking_window;
+  } else if (IsNewFullscreenBlocker(foreground, application_root)) {
+    // Clicking the game on THIS display revokes the user's explicit raise.
+    // Focusing an ordinary app on another display deliberately preserves it.
+    monitor.explicitly_activated_over = nullptr;
+  }
 }
 
 bool IsExternalFullscreenActive(HWND application_window) {
@@ -368,26 +406,22 @@ bool IsExternalFullscreenActive(HWND application_window) {
       : nullptr;
   if (!application_root) {
     monitor.blocking_window = nullptr;
+    monitor.explicitly_activated_over = nullptr;
     return false;
   }
 
-  const HWND foreground = GetAncestor(GetForegroundWindow(), GA_ROOT);
-  if (IsExternalWindow(foreground, application_root)) {
-    if (IsNewFullscreenBlocker(foreground, application_root)) {
-      monitor.blocking_window = foreground;
-      return true;
-    }
-    monitor.blocking_window = nullptr;
-    return false;
+  // Foreground ownership is global, fullscreen ownership is per display.
+  // Focusing another monitor must not release this display. Inspect live
+  // z-order so multiple games, monitor moves and a game closing reveal the
+  // actual uppermost fullscreen window, not a stale foreground snapshot.
+  FullscreenOwnerSearch search{application_root};
+  EnumWindows(FindDisplayFullscreenOwner, reinterpret_cast<LPARAM>(&search));
+  if (search.fullscreen_window != monitor.blocking_window) {
+    monitor.explicitly_activated_over = nullptr;
   }
-
-  if (IsRememberedFullscreenBlocker(
-          monitor.blocking_window,
-          application_root)) {
-    return true;
-  }
-  monitor.blocking_window = nullptr;
-  return false;
+  monitor.blocking_window = search.fullscreen_window;
+  ObserveFullscreenActivation(GetAncestor(GetForegroundWindow(), GA_ROOT), application_root);
+  return monitor.blocking_window != nullptr;
 }
 
 bool IsApplicationWindowTopmost(HWND application_window) {
@@ -396,6 +430,97 @@ bool IsApplicationWindowTopmost(HWND application_window) {
       : nullptr;
   return application_root && IsWindow(application_root) &&
       (GetWindowLongPtrW(application_root, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+}
+
+struct FullscreenYieldSearch {
+  HWND application_root = nullptr;
+  HWND fullscreen_window = nullptr;
+  DWORD application_process = 0;
+  DWORD fullscreen_process = 0;
+  bool application_above = false;
+  bool found_fullscreen = false;
+  HWND anchor = nullptr;
+};
+
+BOOL CALLBACK FindFullscreenYieldAnchor(HWND window, LPARAM data) {
+  auto& search = *reinterpret_cast<FullscreenYieldSearch*>(data);
+  if (window == search.fullscreen_window) {
+    search.found_fullscreen = true;
+    return search.application_above ? TRUE : FALSE;
+  }
+  DWORD process_id = 0;
+  GetWindowThreadProcessId(window, &process_id);
+  if (process_id == search.application_process) {
+    const bool viewer_group = window == search.application_root ||
+        GetAncestor(window, GA_ROOTOWNER) == search.application_root;
+    if (!search.found_fullscreen && viewer_group &&
+        SharesApplicationMonitor(window, search.application_root) &&
+        IsWindowVisible(window) && !IsIconic(window)) {
+      search.application_above = true;
+    }
+    return TRUE;
+  }
+  if (search.found_fullscreen &&
+      !IsShellSurfaceWindow(window) &&
+      (GetWindowLongPtrW(window, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0) {
+    // Electron.moveAbove(anchor) actually inserts after anchor's predecessor.
+    // Referencing the fullscreen game's HWND there can leave the z-order
+    // unchanged (observed with protected fullscreen games), even though Electron
+    // reports no error. Choose a normal predecessor below the game instead.
+    const HWND predecessor = GetWindow(window, GW_HWNDPREV);
+    DWORD predecessor_process = 0;
+    if (predecessor) GetWindowThreadProcessId(predecessor, &predecessor_process);
+    if (predecessor && predecessor_process != 0 &&
+        predecessor_process != search.application_process &&
+        predecessor_process != search.fullscreen_process &&
+        !IsShellSurfaceWindow(predecessor) &&
+        !IsNewFullscreenBlocker(predecessor, search.application_root) &&
+        (GetWindowLongPtrW(predecessor, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0) {
+      search.anchor = window;
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
+HWND GetExternalFullscreenYieldTarget(HWND application_window) {
+  const HWND application_root = GetAncestor(application_window, GA_ROOT);
+  // Explicit activation is remembered for this fullscreen owner. Keep the
+  // viewer at normal z-order even after another display receives focus, until
+  // the user returns to fullscreen here or this display's owner changes.
+  if (!application_root || !IsExternalFullscreenActive(application_window) ||
+      monitor.explicitly_activated_over == monitor.blocking_window) {
+    return nullptr;
+  }
+  FullscreenYieldSearch search;
+  search.application_root = application_root;
+  search.fullscreen_window = monitor.blocking_window;
+  GetWindowThreadProcessId(application_root, &search.application_process);
+  GetWindowThreadProcessId(search.fullscreen_window, &search.fullscreen_process);
+  // EnumWindows supplies top-level z-order without an unbounded GetWindow
+  // traversal. Include owned application windows: an overlay can remain above
+  // the game even when the viewer's own topmost bit is already cleared.
+  EnumWindows(FindFullscreenYieldAnchor, reinterpret_cast<LPARAM>(&search));
+  // Return an observation only. Main uses Electron.moveAbove(anchor) to place
+  // its own window below the game, without activating or moving the game.
+  return search.anchor;
+}
+
+napi_value GetExternalFullscreenYieldTargetCallback(napi_env env, napi_callback_info info) {
+  const HWND application_window = ResolveWindow(env, info);
+  if (!application_window) return nullptr;
+  const HWND anchor = GetExternalFullscreenYieldTarget(application_window);
+  napi_value result = nullptr;
+  if (!anchor) {
+    napi.get_undefined(env, &result);
+    return result;
+  }
+  char source_id[64] = {};
+  std::snprintf(source_id, sizeof(source_id), "window:%llu:0",
+      static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(anchor)));
+  if (!CheckNapi(env, napi.create_string_utf8(env, source_id, NAPI_AUTO_LENGTH, &result),
+      "Could not return the fullscreen yield target.")) return nullptr;
+  return result;
 }
 
 void DispatchExternalFullscreenState() {
@@ -435,7 +560,13 @@ void CALLBACK HandleWindowEvent(
     DWORD,
     DWORD) {
   if (!monitor.callback) return;
-  if (event == EVENT_OBJECT_REORDER) {
+  if (event == EVENT_SYSTEM_FOREGROUND) {
+    // Observe display ownership before notification coalescing. A short
+    // foreground roundtrip cannot discard a still-visible fullscreen window.
+    IsExternalFullscreenActive(monitor.application_window);
+    ObserveFullscreenActivation(GetAncestor(window, GA_ROOT),
+        GetAncestor(monitor.application_window, GA_ROOT));
+  } else if (event == EVENT_OBJECT_REORDER) {
     if (object_id != OBJID_WINDOW || child_id != CHILDID_SELF || !window) {
       return;
     }
@@ -443,7 +574,8 @@ void CALLBACK HandleWindowEvent(
     const HWND application_root = GetAncestor(
         monitor.application_window,
         GA_ROOT);
-    if (changed_root != application_root) return;
+    if (changed_root != application_root && changed_root != monitor.blocking_window &&
+        !IsNewFullscreenBlocker(changed_root, application_root)) return;
   } else if (event == EVENT_OBJECT_LOCATIONCHANGE) {
     if (object_id != OBJID_WINDOW || child_id != CHILDID_SELF || !window) {
       return;
@@ -452,9 +584,16 @@ void CALLBACK HandleWindowEvent(
     const HWND foreground_root = GetAncestor(GetForegroundWindow(), GA_ROOT);
     if (!changed_root ||
         (changed_root != foreground_root &&
-         changed_root != monitor.blocking_window)) {
+         changed_root != monitor.blocking_window &&
+         !IsNewFullscreenBlocker(changed_root, GetAncestor(monitor.application_window, GA_ROOT)))) {
       return;
     }
+  } else if (event == EVENT_OBJECT_SHOW || event == EVENT_OBJECT_HIDE ||
+             event == EVENT_OBJECT_CLOAKED || event == EVENT_OBJECT_UNCLOAKED) {
+    if (object_id != OBJID_WINDOW || child_id != CHILDID_SELF || !window) return;
+    const HWND changed_root = GetAncestor(window, GA_ROOT);
+    if (window != monitor.blocking_window && changed_root != monitor.blocking_window &&
+        !IsNewFullscreenBlocker(changed_root, GetAncestor(monitor.application_window, GA_ROOT))) return;
   } else if (event == EVENT_OBJECT_DESTROY) {
     const HWND changed_root = GetAncestor(window, GA_ROOT);
     if (window != monitor.blocking_window &&
@@ -571,9 +710,13 @@ napi_value StartExternalFullscreenMonitorCallback(
       0,
       0,
       WINEVENT_OUTOFCONTEXT);
+  monitor.visibility_hook = SetWinEventHook(
+      EVENT_OBJECT_SHOW, EVENT_OBJECT_HIDE, nullptr, HandleWindowEvent, 0, 0, flags);
+  monitor.cloak_hook = SetWinEventHook(
+      EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED, nullptr, HandleWindowEvent, 0, 0, flags);
   if (!monitor.foreground_hook || !monitor.destroy_hook ||
       !monitor.location_hook || !monitor.minimize_hook ||
-      !monitor.reorder_hook) {
+      !monitor.reorder_hook || !monitor.visibility_hook || !monitor.cloak_hook) {
     StopExternalFullscreenMonitor(true);
     napi.throw_error(
         env,
@@ -686,6 +829,11 @@ napi_value napi_register_module_v1(napi_env env, napi_value exports) {
       exports,
       "isApplicationWindowTopmost",
       IsApplicationWindowTopmostCallback);
+  ExportFunction(
+      env,
+      exports,
+      "getExternalFullscreenYieldTarget",
+      GetExternalFullscreenYieldTargetCallback);
   ExportFunction(
       env,
       exports,

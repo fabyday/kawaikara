@@ -19,16 +19,20 @@ export interface ExternalFullscreenMonitor {
   refresh(applicationWindow: BrowserWindow): boolean;
   /** Returns the platform-observed topmost state when it is available. */
   isAlwaysOnTopApplied(applicationWindow: BrowserWindow): boolean | undefined;
+  /** Returns a yield anchor unless a retained explicit viewer activation still takes precedence. */
+  getYieldTarget(applicationWindow: BrowserWindow): string | undefined;
   /** Stops monitoring and releases native resources. */
   stop(): void;
 }
 
 /** Native Windows implementation of the shared fullscreen monitor API. */
 interface WindowsExternalFullscreenAddon {
-  /** Determines whether an external fullscreen window owns the foreground. */
+  /** Determines whether an external fullscreen window owns the application's current display. */
   isExternalFullscreenActive(nativeWindowHandle: Buffer): boolean;
   /** Determines whether the application HWND still has WS_EX_TOPMOST. */
   isApplicationWindowTopmost(nativeWindowHandle: Buffer): boolean;
+  /** Observes the live z-order and returns an Electron media-source restacking anchor. */
+  getExternalFullscreenYieldTarget(nativeWindowHandle: Buffer): string | undefined;
   /** Starts foreground and window-geometry event monitoring. */
   startExternalFullscreenMonitor(
     nativeWindowHandle: Buffer,
@@ -79,6 +83,11 @@ implements ExternalFullscreenMonitor {
     return undefined;
   }
 
+  /** Native platform window policy needs no explicit restacking anchor. */
+  getYieldTarget(_applicationWindow: BrowserWindow): string | undefined {
+    return undefined;
+  }
+
   /** Stops monitoring and releases native resources. */
   stop(): void {}
 }
@@ -122,7 +131,7 @@ class WindowsExternalFullscreenMonitor implements ExternalFullscreenMonitor {
       ) ?? false;
     } catch (error) {
       this.handleFailure(
-        'Kawaikara could not inspect the Windows foreground window.',
+        'Kawaikara could not inspect Windows fullscreen display ownership.',
         error,
       );
       return false;
@@ -156,6 +165,19 @@ class WindowsExternalFullscreenMonitor implements ExternalFullscreenMonitor {
         'Kawaikara could not stop Windows fullscreen monitoring.',
         error,
       );
+    }
+  }
+
+  /** Observes whether the viewer/owned windows still cover this display's fullscreen owner. */
+  getYieldTarget(applicationWindow: BrowserWindow): string | undefined {
+    if (applicationWindow.isDestroyed()) return undefined;
+    try {
+      return this.loadAddon()?.getExternalFullscreenYieldTarget(
+        applicationWindow.getNativeWindowHandle(),
+      );
+    } catch (error) {
+      this.handleFailure('Kawaikara could not inspect fullscreen window stacking.', error);
+      return undefined;
     }
   }
 

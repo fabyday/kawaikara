@@ -244,6 +244,8 @@ export class WindowManager {
   private externalFullscreenMonitoring = false;
   /** The pending event-driven external fullscreen refresh. */
   private externalFullscreenRefreshTimer?: ReturnType<typeof setTimeout>;
+  /** One bounded follow-up for fullscreen geometry that settles after activation. */
+  private externalFullscreenSettleTimer?: ReturnType<typeof setTimeout>;
   /** The picture in picture placement value. */
   private pictureInPicturePlacement = DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
   /** The picture in picture portrait size value. */
@@ -1244,6 +1246,28 @@ export class WindowManager {
       // visible again without stealing keyboard focus from the game.
       viewer.moveTop();
     }
+    if (!enabled) this.yieldToExternalFullscreen(viewer);
+  }
+
+  /** Restacks behind this display's fullscreen owner, respecting a retained explicit viewer activation. */
+  private yieldToExternalFullscreen(viewer: BrowserWindow): void {
+    if (
+      !this.appAlwaysOnTop || !this.externalFullscreenBlocksAlwaysOnTop ||
+      this.isAnyPictureInPictureActive() || viewer.isDestroyed() ||
+      !viewer.isVisible() || viewer.isMinimized()
+    ) return;
+    const anchor = this.externalFullscreenMonitor.getYieldTarget(viewer);
+    if (!anchor) return;
+    // HWND_NOTOPMOST (setAlwaysOnTop(false)) puts a window at the TOP of the
+    // normal band, potentially still above the display's borderless game. Native
+    // only supplies a live anchor below that game; Electron moves our own window
+    // with SWP_NOACTIVATE. Never hide/minimize, focus the game, or fight z-order
+    // continuously once the viewer and its owned windows are already below it.
+    viewer.moveAbove(anchor);
+    this.logger.info('Yielded application window stacking to external fullscreen.', {
+      /** Whether a visible application window still obstructs fullscreen after restacking. */
+      stillObstructing: Boolean(this.externalFullscreenMonitor.getYieldTarget(viewer)),
+    });
   }
 
   /** Starts platform fullscreen monitoring while AOT is requested. */
@@ -1276,6 +1300,10 @@ export class WindowManager {
       clearTimeout(this.externalFullscreenRefreshTimer);
       this.externalFullscreenRefreshTimer = undefined;
     }
+    if (this.externalFullscreenSettleTimer) {
+      clearTimeout(this.externalFullscreenSettleTimer);
+      this.externalFullscreenSettleTimer = undefined;
+    }
     if (this.externalFullscreenMonitoring) {
       this.externalFullscreenMonitor.stop();
       screen.removeListener(
@@ -1295,31 +1323,56 @@ export class WindowManager {
     this.externalFullscreenBlocksAlwaysOnTop = false;
   }
 
-  /** Schedules one settled refresh for a burst of native window events. */
+  /** Coalesces native signals without waiting for an event burst to finish. */
   private scheduleExternalFullscreenRefresh(): void {
-    if (this.externalFullscreenRefreshTimer) {
-      clearTimeout(this.externalFullscreenRefreshTimer);
+    if (!this.appAlwaysOnTop || !this.externalFullscreenMonitoring) return;
+    // Leave the WinEvent callback before mutating Electron windows, but never
+    // restart this timer: continuous location/reorder signals must not starve
+    // the first fullscreen response. Re-read the live HWND/display on dispatch
+    // instead of applying a snapshot from before the application moved.
+    if (!this.externalFullscreenRefreshTimer) {
+      this.externalFullscreenRefreshTimer = setTimeout(() => {
+        this.externalFullscreenRefreshTimer = undefined;
+        this.safelyRefreshExternalFullscreenState(true);
+      }, 0);
     }
-    this.externalFullscreenRefreshTimer = setTimeout(() => {
-      this.externalFullscreenRefreshTimer = undefined;
-      try {
-        this.refreshExternalFullscreenState();
-      } catch (error) {
-        this.logger.warn(
-          'Kawaikara could not apply an external fullscreen state change.',
-          error,
-        );
-      }
-    }, EXTERNAL_FULLSCREEN_EVENT_SETTLE_MS);
+    // Activation may precede final fullscreen bounds. Keep one non-sliding
+    // follow-up, not a polling loop or a debounce that delays the first check.
+    if (!this.externalFullscreenSettleTimer) {
+      this.externalFullscreenSettleTimer = setTimeout(() => {
+        this.externalFullscreenSettleTimer = undefined;
+        this.safelyRefreshExternalFullscreenState();
+      }, EXTERNAL_FULLSCREEN_EVENT_SETTLE_MS);
+    }
+  }
+
+  /** Contains asynchronous platform/window failures without stopping later signals. */
+  private safelyRefreshExternalFullscreenState(deferRestoration = false): void {
+    try {
+      this.refreshExternalFullscreenState(false, deferRestoration);
+    } catch (error) {
+      this.logger.warn(
+        'Kawaikara could not apply an external fullscreen state change.',
+        error,
+      );
+    }
   }
 
   /** Refreshes the platform fullscreen state after an application-side change. */
-  private refreshExternalFullscreenState(reassertPresentation = false): void {
+  private refreshExternalFullscreenState(
+    reassertPresentation = false,
+    deferRestoration = false,
+  ): void {
     if (!this.appAlwaysOnTop || !this.externalFullscreenMonitoring) return;
     const viewer = this.viewerWindow;
     if (!viewer || viewer.isDestroyed()) return;
+    const fullscreen = this.externalFullscreenMonitor.refresh(viewer);
+    // Yield promptly, but don't raise AOT over the game just because a task
+    // switcher briefly owns the foreground. The bounded settled check handles
+    // restoration; explicit application moves/focus retain their existing path.
+    if (deferRestoration && !fullscreen) return;
     this.handleExternalFullscreenChanged(
-      this.externalFullscreenMonitor.refresh(viewer),
+      fullscreen,
       reassertPresentation,
     );
   }
@@ -1334,9 +1387,13 @@ export class WindowManager {
       suspended !== this.externalFullscreenBlocksAlwaysOnTop;
     const viewer = this.viewerWindow;
     if (!viewer || viewer.isDestroyed()) return;
-    const presentationWasLost = !suspended &&
-      this.externalFullscreenMonitor.isAlwaysOnTopApplied(viewer) === false;
-    if (!stateChanged && !reassertPresentation && !presentationWasLost) return;
+    const nativeTopmost = this.externalFullscreenMonitor.isAlwaysOnTopApplied(viewer);
+    const presentationWasLost = !suspended && nativeTopmost === false;
+    const suppressionWasLost = suspended && nativeTopmost === true;
+    if (!stateChanged && !reassertPresentation && !presentationWasLost && !suppressionWasLost) {
+      if (suspended) this.yieldToExternalFullscreen(viewer);
+      return;
+    }
     this.externalFullscreenBlocksAlwaysOnTop = suspended;
     if (stateChanged) {
       this.logger.info(
