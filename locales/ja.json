@@ -573,7 +573,6 @@
     "restart": "再起動して更新",
     "retry": "再確認",
     "close": "閉じる",
-    "later": "後で",
     "back": "アップデート画面に戻る",
     "releaseNotesDescription": "新しいバージョンに含まれる変更を確認します。"
   },

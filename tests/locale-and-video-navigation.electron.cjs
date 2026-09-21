@@ -8,6 +8,7 @@ const os = require('node:os');
 const { buildSync } = require('esbuild');
 
 const root = path.resolve(__dirname, '..');
+const enCatalog = require(path.join(root, 'locales/en.json'));
 const profile = mkdtempSync(path.join(os.tmpdir(), 'kawaikara-locale-navigation-'));
 mkdirSync(path.join(profile, 'session'));
 app.setName('Kawaikara Locale and Video Navigation Probe');
@@ -110,6 +111,13 @@ const fixture = buildSync({ stdin: { loader: 'jsx', resolveDir: root, contents: 
       <UpdatePanel labels={locale.startsWith('ko') ? ko.update : en.update} locale={locale} initialView="release-notes" state={{ phase: 'available',
         origin: 'manual', channel: 'nightly', currentVersion: '3.0.0', latestVersion: '3.0.1',
         releaseNotes: normalizeReleaseNotes(html) }}
+        onDismiss={() => {}} onDownload={() => {}} onInstall={() => {}} onRetry={() => {}} />
+    </div>
+  </KawaiProvider>));
+  window.renderUpdate = (phase, origin = 'manual') => flushSync(() => root.render(<KawaiProvider>
+    <div className="kawai-theme kawai-theme-dark">
+      <UpdatePanel labels={en.update} locale="en-US" state={{ phase, origin, channel: 'nightly',
+        currentVersion: '3.0.0', latestVersion: '3.0.1' }}
         onDismiss={() => {}} onDownload={() => {}} onInstall={() => {}} onRetry={() => {}} />
     </div>
   </KawaiProvider>));
@@ -268,6 +276,30 @@ async function main() {
   writeFileSync(lightScreenshot, (await win.webContents.capturePage()).toPNG());
   console.log(`Visual fixture: ${lightScreenshot}`);
 
+  stage = 'Update actions and flat image boundary';
+  for (const [phase, expected] of [
+    ['available', enCatalog.update.download],
+    ['downloaded', enCatalog.update.restart],
+  ]) {
+    await execute(`window.renderUpdate(${JSON.stringify(phase)})`);
+    assert.deepEqual(await execute(`[...document.querySelectorAll('.update-actions button')].map(button => button.textContent)`), [expected]);
+  }
+  await execute(`window.renderUpdate('downloading', 'automatic')`);
+  assert.equal(await execute(`Boolean(document.querySelector('.update-actions'))`), false);
+  await execute(`window.renderUpdate('available')`);
+  const imageBoundary = await execute(`(() => {
+    const style=getComputedStyle(document.querySelector('.update-kawaikara-image'));
+    return {topLeft:style.borderTopLeftRadius,topRight:style.borderTopRightRadius,
+      bottomLeft:style.borderBottomLeftRadius,bottomRight:style.borderBottomRightRadius,
+      divider:style.borderBottomWidth};
+  })()`);
+  assert.deepEqual(imageBoundary, { topLeft: '16px', topRight: '16px',
+    bottomLeft: '0px', bottomRight: '0px', divider: '1px' });
+  await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+  const updateScreenshot = path.join(profile, 'update-panel-flat-image-boundary.png');
+  writeFileSync(updateScreenshot, (await win.webContents.capturePage()).toPNG());
+  console.log(`Visual fixture: ${updateScreenshot}`);
+
   stage = 'Actual update notes UI and navigation cleanup';
   for (const [locale, expected, forbidden] of [['ko-KR', '한국어 변경', 'English change'],
     ['en-US', 'English change', '한국어 변경'], ['ja-JP', 'English change', '한국어 변경']]) {
@@ -284,7 +316,7 @@ async function main() {
     window.dispatchEvent(event);return event.defaultPrevented;
   })()`);
   assert.equal(afterCleanup, false, 'mouse interception is removed when the browser unmounts');
-  console.log('PASS: Locale-only notes, English fallback, folder history/Home/retry/branching, platform command deduplication, stale-response guards, listener cleanup, and edge-to-edge native host/CSS in both themes.');
+  console.log('PASS: Update actions/image boundary, locale-only notes, English fallback, folder history/Home/retry/branching, platform command deduplication, stale-response guards, listener cleanup, and edge-to-edge native host/CSS in both themes.');
 }
 main().then(() => { clearTimeout(watchdog); app.exit(0); }).catch(error => {
   console.error(`Stage: ${stage}`, error); clearTimeout(watchdog); app.exit(1);

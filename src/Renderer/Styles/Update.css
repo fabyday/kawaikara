@@ -41,7 +41,8 @@
   margin: -32px -32px 0;
   object-fit: cover;
   object-position: center;
-  border-radius: 16px 16px 8px 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px 16px 0 0;
   background: #f5f5f4;
 }
 
@@ -171,6 +172,10 @@
   border-color: rgb(45 35 65 / 14%);
   background: #f8f7fb;
   box-shadow: 0 32px 90px rgb(50 38 74 / 20%);
+}
+
+.kawai-theme-light .update-kawaikara-image {
+  border-bottom-color: rgb(45 35 65 / 14%);
 }
 
 .kawai-theme-light .update-error-message,

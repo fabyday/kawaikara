@@ -35,7 +35,6 @@ export function UpdateActions({
   if (phase === 'available') {
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
-        <Button variant="ghost" onClick={onDismiss}>{labels.later}</Button>
         <Button onClick={() => void onDownload()}>{labels.download}</Button>
       </Flex>
     );
@@ -44,7 +43,6 @@ export function UpdateActions({
     if (state.origin === 'automatic') return null;
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
-        <Button variant="ghost" onClick={onDismiss}>{labels.later}</Button>
         <Button onClick={() => void onInstall()}>{labels.restart}</Button>
       </Flex>
     );
@@ -66,6 +64,7 @@ export function UpdateActions({
       </Flex>
     );
   }
+  if (phase === 'downloading') return null;
   return (
     <Flex className="update-actions" align="center" justify="end">
       <Button
@@ -73,7 +72,7 @@ export function UpdateActions({
         variant="secondary"
         onClick={onDismiss}
       >
-        {phase === 'downloading' ? labels.later : labels.close}
+        {labels.close}
       </Button>
     </Flex>
   );

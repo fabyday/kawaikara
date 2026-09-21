@@ -21,10 +21,21 @@ not introduce new windows, IPC endpoints or playback instances.
 
 Keep feature-specific UI inside its owning View even when it is composed of
 several smaller components. Promote something to `Renderer/Component` only when
-its concept/API is genuinely independent of a View, not merely because markup
-looks similar. Hooks take narrow typed inputs; their state containers are shared
-within one mounted View, not global stores. Do not depend on the identity of an
-entire hook result object in an effect; depend on the relevant values instead.
+at least two Views use the same View-independent concept and API, not merely
+because markup looks similar. A component used by several files in one View
+still belongs to that View. Review this ownership when a second View starts or
+stops using it; `Renderer/Component` is a shared layer, not a default destination.
+
+Use ordinary React state for state owned by one component, short-lived form
+input, DOM/media refs and lifecycle cleanup. A View-scoped external store such
+as Zustand is appropriate when several distant sections read different slices
+of one state machine, IPC events and commands must update that state outside a
+render tree, or a large hook result causes unrelated sections to rerender. Create
+one store instance per mounted View and subscribe through selectors; do not make
+renderer-wide singleton stores or put DOM nodes, media objects, timers and
+imperative cleanup handles into them. Hooks remain the boundary for effects and
+can read or dispatch store state. Do not depend on the identity of an entire hook
+or store result object in an effect; depend on the relevant values instead.
 
 Pure transformations belong in local logic modules; subscriptions, timers and
 cleanup belong together in lifecycle hooks. Preserve player refs, effect
