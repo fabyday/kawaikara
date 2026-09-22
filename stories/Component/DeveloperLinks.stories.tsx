@@ -1,6 +1,6 @@
 import ko from '../../locales/ko.json';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { DeveloperLinks } from '../../src/Renderer/Component/DeveloperLinks';
+import { DeveloperLinks } from '../../src/Renderer/View/Preference/DeveloperLinks';
 
 /** Uses the same Korean catalog as Main instead of maintaining sample translations. */
 const messages = ko.app;
@@ -8,7 +8,7 @@ const messages = ko.app;
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/DeveloperLinks',
+  title: 'View/Preference/Developer Links',
   /** The component value. */
   component: DeveloperLinks,
   /** The args value. */

@@ -23,7 +23,7 @@ export interface ActivityBorderProps {
   readonly running: boolean;
 }
 
-/** A short SVG stroke that follows the measured outline of its parent. */
+/** A short SVG stroke that follows a Menu item's measured outline. */
 export function ActivityBorder({ className, running }: ActivityBorderProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [geometry, setGeometry] = useState<ActivityBorderGeometry>({

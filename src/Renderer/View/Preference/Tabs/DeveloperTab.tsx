@@ -17,7 +17,7 @@ import type {
   PreferencePatch,
   PreferenceState
 } from '../../../../Common/IPC';
-import { NumberInput } from '../../../Component/NumberInput';
+import { NumberInput } from '../NumberInput';
 import { devToolsModeOptions } from '../Logic/PreferenceOptions';
 
 /** Performs the developer tab operation. */

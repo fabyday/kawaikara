@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button, Panel, Text } from '@kawaikara/kawai-ui';
-import { GearIcon } from '../../src/Renderer/Component/GearIcon';
+import { GearIcon } from '../../src/Renderer/View/Menu/GearIcon';
 
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/Gear Icon',
+  title: 'View/Menu/Gear Icon',
   /** The component value. */
   component: GearIcon,
   /** The tags value. */

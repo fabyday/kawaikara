@@ -40,7 +40,7 @@ export interface NumberInputProps
   readonly value: number;
 }
 
-/** Compatibility entry for the KawaiUI NumberInput introduced after 0.1.1. */
+/** Preference compatibility entry for the KawaiUI NumberInput introduced after 0.1.1. */
 export function NumberInput({
   className,
   containerClassName,

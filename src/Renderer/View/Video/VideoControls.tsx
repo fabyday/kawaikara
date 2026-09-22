@@ -6,7 +6,7 @@ import type {
 } from '../../../Common/IPC';
 import {
   PlaybackIcon
-} from '../../Component/VideoIcons';
+} from './VideoIcons';
 import { type usePlaybackControls } from './Hooks/usePlaybackControls';
 import { type useTimelineScrubbing } from './Hooks/useTimelineScrubbing';
 import { type useVideoChrome } from './Hooks/useVideoChrome';

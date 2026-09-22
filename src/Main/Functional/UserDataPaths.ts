@@ -6,22 +6,49 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { app } from 'electron';
-import { BUILD_CHANNEL, UPDATE_TEST_PROFILE } from '../../Common/BuildConfig';
+import applicationIdentities from '../../../config/application-identities.json';
+import {
+  BUILD_CHANNEL,
+  IS_DISTRIBUTION_BUILD,
+  UPDATE_TEST_PROFILE,
+} from '../../Common/BuildConfig';
 
-/** Stores the legacy user data path value. */
+/** Stores Electron's unmodified user data path for compatibility migration. */
 const legacyUserDataPath = app.getPath('userData');
+/** Whether this is a local or packaged development application. */
+const isDevelopmentApplication =
+  !IS_DISTRIBUTION_BUILD && UPDATE_TEST_PROFILE === null;
+/** Stores the active application's display and storage identity. */
+const applicationIdentity = isDevelopmentApplication
+  ? applicationIdentities.dev
+  : applicationIdentities[BUILD_CHANNEL];
+
+if (!UPDATE_TEST_PROFILE) app.setName(applicationIdentity.productName);
+
 /** Stores the user root path value. */
-const userRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (BUILD_CHANNEL === 'stable'
-  ? legacyUserDataPath
-  : path.join(
-      path.dirname(legacyUserDataPath),
-      `${path.basename(legacyUserDataPath)} ${capitalize(BUILD_CHANNEL)}`,
-    ));
+const userRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (
+  isDevelopmentApplication && !app.isPackaged
+    ? path.join(
+        app.getAppPath(),
+        'tmp',
+        'kawaikara Dev',
+      )
+    : path.join(app.getPath('appData'), applicationIdentity.productName)
+);
+/** Stores the pre-identity-split channel path when one could exist. */
+const legacyChannelUserRootPath =
+  !isDevelopmentApplication && !UPDATE_TEST_PROFILE && BUILD_CHANNEL !== 'stable'
+    ? path.join(
+        path.dirname(legacyUserDataPath),
+        `${path.basename(legacyUserDataPath)} ${capitalize(BUILD_CHANNEL)}`,
+      )
+    : null;
 /** Stores the Electron data path value. */
 const electronDataPath = path.join(userRootPath, 'Electron');
 /** Stores the kawai data path value. */
@@ -50,6 +77,7 @@ const ELECTRON_CACHE_DIRECTORY_NAMES = new Set([
 /** Performs the configure user data paths operation. */
 export function configureUserDataPaths(): void {
   if (configured) return;
+  migrateLegacyChannelRoot();
   applyPendingUserDataReset();
   mkdirSync(electronDataPath, { recursive: true
   });
@@ -58,6 +86,26 @@ export function configureUserDataPaths(): void {
   configured = true;
   app.setPath('userData', electronDataPath);
   app.setPath('sessionData', electronDataPath);
+}
+
+/** Moves the former duplicated channel directory into its canonical namespace. */
+function migrateLegacyChannelRoot(): void {
+  if (
+    !legacyChannelUserRootPath ||
+    path.resolve(legacyChannelUserRootPath) === path.resolve(userRootPath) ||
+    !existsSync(legacyChannelUserRootPath) ||
+    existsSync(userRootPath)
+  ) {
+    return;
+  }
+
+  try {
+    renameSync(legacyChannelUserRootPath, userRootPath);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    // Another concurrently starting process may have completed the migration.
+    if (code !== 'EEXIST' && code !== 'ENOTEMPTY') throw error;
+  }
 }
 
 /**

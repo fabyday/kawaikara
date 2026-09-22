@@ -1,0 +1,26 @@
+{
+  "stable": {
+    "appId": "day.faby.kawaikara",
+    "productName": "Kawaikara",
+    "packageName": "kawaikara",
+    "nsisGuid": "fbf11072-0280-5479-ab77-d8a0328873b0"
+  },
+  "staging": {
+    "appId": "day.faby.kawaikara.staging",
+    "productName": "Kawaikara Staging",
+    "packageName": "kawaikara-staging",
+    "nsisGuid": "76f7e087-f067-5603-906a-4795a20154cc"
+  },
+  "nightly": {
+    "appId": "day.faby.kawaikara.nightly",
+    "productName": "Kawaikara Nightly",
+    "packageName": "kawaikara-nightly",
+    "nsisGuid": "433c17d9-f3ed-5dee-ba32-4de2697bf7b5"
+  },
+  "dev": {
+    "appId": "day.faby.kawaikara.dev",
+    "productName": "Kawaikara Dev",
+    "packageName": "kawaikara-dev",
+    "nsisGuid": "0b637e10-3333-5619-8e2f-689bd3235db0"
+  }
+}

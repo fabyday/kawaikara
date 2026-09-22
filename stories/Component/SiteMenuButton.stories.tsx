@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Panel } from '@kawaikara/kawai-ui';
-import { SiteMenuButton } from '../../src/Renderer/Component/SiteMenuButton';
+import { SiteMenuButton } from '../../src/Renderer/View/Menu/SiteMenuButton';
 import { STORY_SITES } from '../Mocks/KawaikaraMock';
 
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/Site Menu Button',
+  title: 'View/Menu/Site Menu Button',
   /** The component value. */
   component: SiteMenuButton,
   /** The tags value. */

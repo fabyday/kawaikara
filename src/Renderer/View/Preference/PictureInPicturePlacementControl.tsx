@@ -1,10 +1,10 @@
 import { Flex, Select } from '@kawaikara/kawai-ui';
-import type { DisplayInfo } from '../../Common/IPC';
+import type { DisplayInfo } from '../../../Common/IPC';
 import type {
   PictureInPictureMonitorMode,
   PictureInPicturePlacementPreference,
   PictureInPicturePosition,
-} from '../../Common/PictureInPicture';
+} from '../../../Common/PictureInPicture';
 
 /** Describes the picture in picture placement control messages contract. */
 export interface PictureInPicturePlacementControlMessages {

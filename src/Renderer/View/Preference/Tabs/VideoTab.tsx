@@ -13,7 +13,7 @@ import {
   MAX_VIDEO_SEEK_SECONDS,
   MIN_VIDEO_SEEK_SECONDS
 } from '../../../../Common/VideoControls';
-import { NumberInput } from '../../../Component/NumberInput';
+import { NumberInput } from '../NumberInput';
 
 /** Performs the video tab operation. */
 export function VideoTab({

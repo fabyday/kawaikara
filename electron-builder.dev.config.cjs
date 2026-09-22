@@ -1,11 +1,13 @@
 const baseConfig = require('./electron-builder.config.cjs');
+const { dev } = require('./config/application-identities.json');
 
 module.exports = {
   ...baseConfig,
-  appId: 'day.faby.kawaikara.dev',
-  productName: 'Kawaikara Dev',
+  appId: dev.appId,
+  productName: dev.productName,
   extraMetadata: {
-    productName: 'Kawaikara Dev',
+    name: dev.packageName,
+    productName: dev.productName,
   },
   directories: {
     ...baseConfig.directories,
@@ -15,5 +17,16 @@ module.exports = {
     ...baseConfig.mac,
     // Local protocol testing does not need a distribution certificate.
     identity: null,
+  },
+  win: {
+    ...baseConfig.win,
+    executableName: dev.productName,
+  },
+  nsis: {
+    ...baseConfig.nsis,
+    guid: dev.nsisGuid,
+    shortcutName: dev.productName,
+    uninstallDisplayName: dev.productName,
+    include: null,
   },
 };

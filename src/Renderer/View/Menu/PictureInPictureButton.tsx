@@ -16,7 +16,7 @@ export interface PictureInPictureButtonProps {
   readonly shortLabel?: string;
 }
 
-/** Performs the picture in picture button operation. */
+/** Renders the Menu view's picture-in-picture button. */
 export function PictureInPictureButton({
   active = false,
   failureKey = 0,

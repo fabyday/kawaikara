@@ -1,4 +1,4 @@
-/** Performs the gear icon operation. */
+/** Renders the Menu preference icon. */
 export function GearIcon() {
   return (
     <svg

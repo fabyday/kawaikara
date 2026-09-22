@@ -15,7 +15,7 @@ import {
 import {
   MultiSelectFilter,
   type MultiSelectFilterOption,
-} from '../../Component/MultiSelectFilter';
+} from './MultiSelectFilter';
 import { useLogColumnResize } from './Hooks/useLogColumnResize';
 import { useLogFileActions } from './Hooks/useLogFileActions';
 import { useLogFilters } from './Hooks/useLogFilters';

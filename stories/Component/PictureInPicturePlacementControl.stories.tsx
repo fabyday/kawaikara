@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Panel } from '@kawaikara/kawai-ui';
-import { PictureInPicturePlacementControl } from '../../src/Renderer/Component/PictureInPicturePlacementControl';
+import { PictureInPicturePlacementControl } from '../../src/Renderer/View/Preference/PictureInPicturePlacementControl';
 import type { PictureInPicturePlacementPreference } from '../../src/Common/PictureInPicture';
 
 /** Stores the messages value. */
@@ -77,7 +77,7 @@ const displays = [
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/Picture in Picture Placement Control',
+  title: 'View/Preference/Picture in Picture Placement Control',
   /** The component value. */
   component: PictureInPicturePlacementControl,
   /** The tags value. */

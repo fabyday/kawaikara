@@ -35,7 +35,7 @@ export interface MultiSelectFilterProps {
   readonly onChange: (selected: ReadonlySet<string>) => void;
 }
 
-/** Renders a compact checkbox-based multi-select filter. */
+/** Renders LogViewer's compact checkbox-based multi-select filter. */
 export function MultiSelectFilter({
   label,
   options,

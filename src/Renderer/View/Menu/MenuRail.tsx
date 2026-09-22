@@ -10,13 +10,13 @@ import type {
   AppMessages,
   SiteMenuItem
 } from '../../../Common/IPC';
-import { ActivityBorder } from '../../Component/ActivityBorder';
+import { ActivityBorder } from './ActivityBorder';
 import {
   AutoHideScrollArea
 } from '../../Component/AutoHideScrollArea';
-import { GearIcon } from '../../Component/GearIcon';
-import { PictureInPictureButton } from '../../Component/PictureInPictureButton';
-import { SiteMenuButton } from '../../Component/SiteMenuButton';
+import { GearIcon } from './GearIcon';
+import { PictureInPictureButton } from './PictureInPictureButton';
+import { SiteMenuButton } from './SiteMenuButton';
 import type { SiteMenuGroup } from '../../Domain/MenuOrder';
 import {
   getDefaultMenuCategoryShortcut,

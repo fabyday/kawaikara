@@ -19,10 +19,10 @@ import {
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS,
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_PRESETS,
 } from '../../../../Common/PictureInPicture';
-import { DescriptiveSelect } from '../../../Component/DescriptiveSelect';
-import { PictureInPicturePlacementControl } from '../../../Component/PictureInPicturePlacementControl';
-import { PictureInPictureSizeControl } from '../../../Component/PictureInPictureSizeControl';
-import { SubtitleScaleControl } from '../../../Component/SubtitleScaleControl';
+import { DescriptiveSelect } from '../DescriptiveSelect';
+import { PictureInPicturePlacementControl } from '../PictureInPicturePlacementControl';
+import { PictureInPictureSizeControl } from '../PictureInPictureSizeControl';
+import { SubtitleScaleControl } from '../SubtitleScaleControl';
 import { GraphicsModeControl } from '../GraphicsModeControl';
 import { appLocaleOptions, appThemeOptions } from '../Logic/PreferenceOptions';
 

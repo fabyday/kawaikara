@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Panel } from '@kawaikara/kawai-ui';
-import { PictureInPictureSizeControl } from '../../src/Renderer/Component/PictureInPictureSizeControl';
+import { PictureInPictureSizeControl } from '../../src/Renderer/View/Preference/PictureInPictureSizeControl';
 import type { PictureInPictureSizePreference } from '../../src/Common/PictureInPicture';
 import {
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS,
@@ -34,7 +34,7 @@ const messages = {
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/Picture in Picture Size Control',
+  title: 'View/Preference/Picture in Picture Size Control',
   /** The component value. */
   component: PictureInPictureSizeControl,
   /** The tags value. */

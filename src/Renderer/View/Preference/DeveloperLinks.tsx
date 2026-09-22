@@ -2,7 +2,7 @@ import { Button } from '@kawaikara/kawai-ui';
 import type {
   ApplicationLinkId,
   DeveloperYouTubeStatus,
-} from '../../Common/IPC';
+} from '../../../Common/IPC';
 
 /** Describes the developer link messages contract. */
 export interface DeveloperLinkMessages {

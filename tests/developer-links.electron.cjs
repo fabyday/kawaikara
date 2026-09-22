@@ -26,7 +26,7 @@ const fixture = buildSync({
       import { createRoot } from 'react-dom/client';
       import { flushSync } from 'react-dom';
       import { KawaiProvider } from '@kawaikara/kawai-ui';
-      import { DeveloperLinks } from './src/Renderer/Component/DeveloperLinks';
+      import { DeveloperLinks } from './src/Renderer/View/Preference/DeveloperLinks';
       const messages = { homepage: 'Homepage', youtube: 'YouTube', website: 'Homepage', github: 'GitHub', discord: 'Discord',
         developerYouTube: 'Developer YouTube', liveNow: 'Live now', offline: 'Offline',
         liveStatusUnavailable: 'Unavailable', checkingLive: 'Checking' };

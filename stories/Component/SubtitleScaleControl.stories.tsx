@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { SubtitleScaleControl } from '../../src/Renderer/Component/SubtitleScaleControl';
+import { SubtitleScaleControl } from '../../src/Renderer/View/Preference/SubtitleScaleControl';
 
 /** Preview the shared percentage typography control. */
 const meta = {
   /** Storybook navigation title. */
-  title: 'Component/Subtitle Scale Control',
+  title: 'View/Preference/Subtitle Scale Control',
   /** Shared preference component. */
   component: SubtitleScaleControl,
   /** Enable generated documentation. */

@@ -23,6 +23,13 @@ module.exports = {
   publish: [{ provider: 'generic', url: `http://127.0.0.1:${process.env.KAWAIKARA_UPDATE_TEST_PORT || 18080}/`, channel: 'nightly' }],
   mac: { ...base.mac, identity: '-', target: [{ target: 'zip', arch: [process.arch] }], notarize: false },
   win: { ...base.win, target: [{ target: 'nsis', arch: ['x64'] }], verifyUpdateCodeSignature: false },
+  nsis: {
+    ...base.nsis,
+    guid: 'e32ae1b6-9002-59be-941e-3a5c17874b2c',
+    shortcutName: productName,
+    uninstallDisplayName: productName,
+    include: null,
+  },
   afterSign(context) {
     if (context.electronPlatformName !== 'darwin') return;
     // BDIH's LOCAL TEST recipe. An identifier-only requirement is intentionally

@@ -1,6 +1,6 @@
 import { Badge, Button } from '@kawaikara/kawai-ui';
-import type { SiteMenuItem } from '../../Common/IPC';
-import { SiteIcon } from './SiteIcon';
+import type { SiteMenuItem } from '../../../Common/IPC';
+import { SiteIcon } from '../../Component/SiteIcon';
 
 /** Describes the site menu button props contract. */
 export interface SiteMenuButtonProps {

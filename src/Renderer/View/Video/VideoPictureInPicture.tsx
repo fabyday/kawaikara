@@ -4,7 +4,7 @@ import type {
 import {
   PlaybackIcon,
   RestoreWindowIcon
-} from '../../Component/VideoIcons';
+} from './VideoIcons';
 import { type usePlaybackControls } from './Hooks/usePlaybackControls';
 import { blurVideoControl } from './Presentation';
 

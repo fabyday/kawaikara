@@ -1,5 +1,7 @@
-const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
 const { existsSync, readFileSync } = require('node:fs');
+const applicationIdentities = require('./config/application-identities.json');
+
+const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
 
 const mpvResourceDirectory =
   'node_modules/electron-mpv-video/native/mpv-addon/build/Release';
@@ -61,11 +63,10 @@ if (!RELEASE_CHANNELS.includes(channel)) {
 }
 
 const updateChannel = channel === 'stable' ? 'latest' : channel;
-const channelIdentity = {
-  stable: { appId: 'day.faby.kawaikara', productName: 'Kawaikara' },
-  staging: { appId: 'day.faby.kawaikara.staging', productName: 'Kawaikara Staging' },
-  nightly: { appId: 'day.faby.kawaikara.nightly', productName: 'Kawaikara Nightly' },
-}[channel];
+const channelIdentity = applicationIdentities[channel];
+const nsisIdentityMigrationInclude = channel === 'nightly'
+  ? 'packaging/nsis/nightly-identity-migration.nsh'
+  : undefined;
 const artifactProductName = channelIdentity.productName.replace(/\s+/g, '-');
 const defaultPublishRepositories = {
   stable: 'fabyday/kawaikara',
@@ -86,6 +87,12 @@ if (!publishOwner || !publishRepo || unexpectedRepositoryParts.length > 0) {
 module.exports = {
   appId: channelIdentity.appId,
   productName: channelIdentity.productName,
+  // NSIS one-click uses package.json's `name`, not productName, for its
+  // installation directory and updater cache. Keep those namespaces separate.
+  extraMetadata: {
+    name: channelIdentity.packageName,
+    productName: channelIdentity.productName,
+  },
   // Release packages must never silently fall back to Electron's invalid
   // linker-only ad-hoc signature. Local builds can still omit a certificate.
   forceCodeSigning: process.env.KAWAIKARA_REQUIRE_CODE_SIGNING === '1',
@@ -145,10 +152,21 @@ module.exports = {
   },
   win: {
     icon: 'resources/icons/kawaikara.ico',
+    executableName: channelIdentity.productName,
     target: [
       { target: 'nsis', arch: ['x64'] },
       { target: 'zip', arch: ['x64'] },
     ],
+  },
+  nsis: {
+    // Nightly intentionally uses a new installer identity so machines affected
+    // by the former shared `kawaikara` folder do not reuse it.
+    guid: channelIdentity.nsisGuid,
+    shortcutName: channelIdentity.productName,
+    uninstallDisplayName: channelIdentity.productName,
+    ...(nsisIdentityMigrationInclude
+      ? { include: nsisIdentityMigrationInclude }
+      : {}),
   },
   linux: {
     category: 'AudioVideo',

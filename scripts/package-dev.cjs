@@ -53,7 +53,11 @@ if (!platformFlag || !architectureFlag) {
 assertInvocationDirectoryIsSafe();
 ensureDevelopmentAppIsStopped();
 authenticateWidevineFromEnvironment();
-run(['build:dev']);
+run(['build:dev'], {
+  ...process.env,
+  KAWAIKARA_DISTRIBUTION_BUILD: '0',
+  KAWAIKARA_UPDATE_TEST_BUILD: '0',
+});
 const applicationPath = replaceDevelopmentBuild();
 
 console.log(`Development application: ${applicationPath}`);
@@ -332,6 +336,8 @@ function runElectronBuilder(packageOutputDirectory = outputDirectory) {
       ...process.env,
       CSC_IDENTITY_AUTO_DISCOVERY: 'false',
       KAWAIKARA_BUILD_CHANNEL: 'nightly',
+      KAWAIKARA_DISTRIBUTION_BUILD: '0',
+      KAWAIKARA_UPDATE_TEST_BUILD: '0',
       KAWAIKARA_DEV_OUTPUT_DIR: path.relative(root, packageOutputDirectory),
       // electron-builder may still edit the executable after afterPack. Sign
       // the completed development package in signFinalDevelopmentPackage().

@@ -7,7 +7,7 @@ import type {
 } from '../../../Common/IPC';
 import {
   VideoCloseIcon
-} from '../../Component/VideoIcons';
+} from './VideoIcons';
 import { type useVideoChrome } from './Hooks/useVideoChrome';
 import { type useVideoState } from './Hooks/useVideoState';
 import { blurVideoControl } from './Presentation';

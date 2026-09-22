@@ -28,8 +28,8 @@ const fixture = buildSync({
       import { useState } from 'react';
       import { createRoot } from 'react-dom/client';
       import { flushSync } from 'react-dom';
-      import { SubtitleScaleControl } from './src/Renderer/Component/SubtitleScaleControl';
-      import { NumberInput } from './src/Renderer/Component/NumberInput';
+      import { SubtitleScaleControl } from './src/Renderer/View/Preference/SubtitleScaleControl';
+      import { NumberInput } from './src/Renderer/View/Preference/NumberInput';
       const messages=${JSON.stringify(messages)};
       window.preferenceWrites=[];window.legacyWrites=[];
       function Fixture(){

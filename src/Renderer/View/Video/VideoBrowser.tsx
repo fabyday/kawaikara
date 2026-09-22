@@ -4,7 +4,7 @@ import {
   VideoHomeIcon,
   VideoSearchIcon,
   VideoUpIcon,
-} from '../../Component/VideoIcons';
+} from './VideoIcons';
 import { VideoThumbnail } from '../../Component/VideoThumbnail';
 import { formatFileSize } from './Browser/BrowserFormatting';
 import { LocationSection } from './Browser/LocationSection';

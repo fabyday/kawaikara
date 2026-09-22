@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Panel, Stack } from '@kawaikara/kawai-ui';
-import { PictureInPictureButton } from '../../src/Renderer/Component/PictureInPictureButton';
+import { PictureInPictureButton } from '../../src/Renderer/View/Menu/PictureInPictureButton';
 
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/Picture in Picture Button',
+  title: 'View/Menu/Picture in Picture Button',
   /** The component value. */
   component: PictureInPictureButton,
   /** The tags value. */

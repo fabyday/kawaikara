@@ -33,7 +33,7 @@ export interface DescriptiveSelectProps {
   readonly onValueChange: (value: string) => void;
 }
 
-/** Performs the descriptive select operation. */
+/** Renders the Preference view's descriptive select. */
 export function DescriptiveSelect({
   disabled = false,
   description,

@@ -1,4 +1,4 @@
-/** Describes the shared video icon props contract. */
+/** Describes the Video view icon props contract. */
 interface VideoIconProps {
   /** The optional class name. */
   readonly className?: string;

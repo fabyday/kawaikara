@@ -1,5 +1,5 @@
 import { NumberInput } from './NumberInput';
-import { PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS } from '../../Common/PictureInPicture';
+import { PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS } from '../../../Common/PictureInPicture';
 
 /** Shared percentage-based typography preference control. */
 export interface SubtitleScaleControlProps {

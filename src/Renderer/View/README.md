@@ -25,17 +25,30 @@ at least two Views use the same View-independent concept and API, not merely
 because markup looks similar. A component used by several files in one View
 still belongs to that View. Review this ownership when a second View starts or
 stops using it; `Renderer/Component` is a shared layer, not a default destination.
+Keep the concise `Component` directory name: its location below `Renderer`
+already communicates that it is the renderer's common component layer, so a
+`CommonComponent` alias would repeat the same meaning. The current shared set is
+`AutoHideScrollArea`, `RightArrowIcon`, `SiteIcon`, and `VideoThumbnail`.
 
 Use ordinary React state for state owned by one component, short-lived form
-input, DOM/media refs and lifecycle cleanup. A View-scoped external store such
-as Zustand is appropriate when several distant sections read different slices
-of one state machine, IPC events and commands must update that state outside a
-render tree, or a large hook result causes unrelated sections to rerender. Create
-one store instance per mounted View and subscribe through selectors; do not make
-renderer-wide singleton stores or put DOM nodes, media objects, timers and
-imperative cleanup handles into them. Hooks remain the boundary for effects and
-can read or dispatch store state. Do not depend on the identity of an entire hook
-or store result object in an effect; depend on the relevant values instead.
+input, DOM/media refs and lifecycle cleanup. A renderer-entry Zustand singleton
+is appropriate for genuinely global UI state shared by multiple sibling Views,
+such as the active overlay route, resolved locale/theme, selected site, or
+update-panel status. It is global only inside that renderer process; state that
+must cross Electron windows remains owned by Main and synchronized through IPC.
+
+Use a View-scoped Zustand store when a complex View may have independent mounted
+instances, needs Storybook/test isolation, or several distant sections consume
+different slices of its state machine. Create the vanilla store once in a View
+provider, put only that store instance in context, and call `useStore(store,
+selector)` from consumers. Prefer narrow selectors and stable actions rather
+than subscribing to the complete state object. Do not introduce a scoped store
+for a small View merely because the library supports it, and do not put DOM
+nodes, media objects, timers, or imperative cleanup handles in either kind of
+store. Hooks remain the limited boundary for subscriptions, timers, IPC and
+other effects; they may read or dispatch store state without becoming a second
+state container. Effects depend on the exact selected values, never an entire
+hook or store result object.
 
 Pure transformations belong in local logic modules; subscriptions, timers and
 cleanup belong together in lifecycle hooks. Preserve player refs, effect

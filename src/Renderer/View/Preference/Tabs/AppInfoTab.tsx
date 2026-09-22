@@ -17,7 +17,7 @@ import type {
   PreferencePatch,
   PreferenceState
 } from '../../../../Common/IPC';
-import { DeveloperLinks } from '../../../Component/DeveloperLinks';
+import { DeveloperLinks } from '../DeveloperLinks';
 
 /** Performs the app info tab operation. */
 export function AppInfoTab({

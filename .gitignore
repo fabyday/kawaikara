@@ -13,6 +13,7 @@ public
 download
 # Runtime data
 pids
+/tmp/
 *.pid
 *.seed
 *.pid.lock

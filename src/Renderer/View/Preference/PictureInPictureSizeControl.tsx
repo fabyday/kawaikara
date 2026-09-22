@@ -6,7 +6,7 @@ import {
   PICTURE_IN_PICTURE_SIZE_PRESETS,
   type PictureInPictureSizePreference,
   type PictureInPictureSizePreset,
-} from '../../Common/PictureInPicture';
+} from '../../../Common/PictureInPicture';
 
 /** Describes the picture in picture size control messages contract. */
 export interface PictureInPictureSizeControlMessages {
