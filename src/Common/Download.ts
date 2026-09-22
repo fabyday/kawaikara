@@ -1,6 +1,22 @@
 /** Operating systems supported by the external downloader integration. */
 export type ExternalDownloaderPlatform = 'darwin' | 'win32' | 'linux';
 
+/** Validates only the safe transport envelope, never downloader support policy. */
+export function isExternalDownloaderSourceUrl(value: string): boolean {
+  if (!value || value.length > 16_384) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !url.port
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Snapshot returned by the downloader status API and embedded in open/install
  * results so renderer callers can update their UI without requesting status

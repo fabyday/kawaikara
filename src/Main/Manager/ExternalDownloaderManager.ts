@@ -16,7 +16,7 @@ import {
   findInstalledExternalDownloaderApp,
   getExternalDownloaderPlatform,
   installExternalDownloaderMacArtifact,
-  requireYouTubeUrl,
+  requireExternalDownloaderSourceUrl,
   runExternalDownloaderCommand,
   selectExternalDownloaderArtifact,
 } from '../Functional/ExternalDownloader';
@@ -53,7 +53,7 @@ export class ExternalDownloaderManager {
 
   /** Opens the operation. */
   async open(value: unknown): Promise<ExternalDownloaderOpenResult> {
-    const sourceUrl = requireYouTubeUrl(value);
+    const sourceUrl = requireExternalDownloaderSourceUrl(value);
     const status = await this.getStatus();
     if (!status.installed) return {
       /** The opened value. */
@@ -109,7 +109,7 @@ export class ExternalDownloaderManager {
     const labels = getLocaleMessages(this.getLocale(), app.getLocale()).downloader;
     const sourceUrl = value === undefined || value === ''
       ? undefined
-      : requireYouTubeUrl(value);
+      : requireExternalDownloaderSourceUrl(value);
     const current = await this.getStatus();
     if (current.installed) {
       const openResult = sourceUrl

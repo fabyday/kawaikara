@@ -24,8 +24,8 @@ import { requireDevelopmentProjectId } from '../Functional/DevelopmentValidation
 import {
   isApplicationLinkId,
   isDevToolsMode,
+  isExternalDownloaderUrl,
   isGraphicsRestartConfirmed,
-  isYouTubeUrl,
   readRequestedGraphicsMode,
   removeIpcHandlers,
   requireAppLocale,
@@ -491,8 +491,8 @@ export class IpcManager {
     ipcMain.handle(
       IPC_CHANNELS.downloads.openYouTube,
       async (_event, url: unknown) => {
-        if (typeof url !== 'string' || !isYouTubeUrl(url)) {
-          throw new TypeError('A valid YouTube URL is required.');
+        if (typeof url !== 'string' || !isExternalDownloaderUrl(url)) {
+          throw new TypeError('A safe HTTPS source URL is required.');
         }
         const result = await this.downloads.open(url);
         if (!result.opened) {

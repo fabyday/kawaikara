@@ -15,6 +15,15 @@ export {
   type SiteExternalLoginFlowOptions,
 } from './ExternalLoginFlow';
 export {
+  MEDIA_DOWNLOAD_CAPABILITY_ID,
+  MEDIA_DOWNLOAD_CAPABILITY_VERSION,
+  type MediaDownloadFailureCode,
+  type MediaDownloadFeature,
+  type MediaDownloadRequest,
+  type MediaDownloadResource,
+  type MediaDownloadResult,
+} from './MediaDownloads';
+export {
   getPluginMetadata,
   getProviderMetadata,
   plugin,

@@ -6,6 +6,7 @@ import type {
   DevToolsMode,
   IpcChannel,
 } from '../../Common/IPC';
+import { isExternalDownloaderSourceUrl } from '../../Common/Download';
 
 /** Removes the IPC handlers. */
 export function removeIpcHandlers(channels: readonly IpcChannel[]): void {
@@ -30,16 +31,9 @@ export function isDevToolsMode(value: unknown): value is DevToolsMode {
   );
 }
 
-/** Determines whether the you tube URL condition applies. */
-export function isYouTubeUrl(value: string): boolean {
-  try {
-    const host = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
-    return ['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(
-      host,
-    );
-  } catch {
-    return false;
-  }
+/** Determines whether a safe external-downloader transport URL was supplied. */
+export function isExternalDownloaderUrl(value: string): boolean {
+  return isExternalDownloaderSourceUrl(value);
 }
 
 /** Performs the require path string operation. */

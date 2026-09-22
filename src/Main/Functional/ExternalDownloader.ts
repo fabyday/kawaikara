@@ -6,7 +6,10 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { app, net, shell } from 'electron';
-import type { ExternalDownloaderPlatform } from '../../Common/Download';
+import {
+  isExternalDownloaderSourceUrl,
+  type ExternalDownloaderPlatform,
+} from '../../Common/Download';
 
 /** Defines the shared external downloader app name constant. */
 export const EXTERNAL_DOWNLOADER_APP_NAME = 'YT Section Downloader';
@@ -263,22 +266,13 @@ export function createExternalDownloaderDeepLink(sourceUrl: string): string {
   return deepLink.toString();
 }
 
-/** Performs the require you tube URL operation. */
-export function requireYouTubeUrl(value: unknown): string {
-  if (typeof value !== 'string') throw new TypeError('YouTube URL is required.');
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\./, '');
-    if (
-      url.protocol !== 'https:' ||
-      !['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(host)
-    ) {
-      throw new Error();
-    }
-    return url.toString();
-  } catch {
-    throw new TypeError('A valid HTTPS YouTube URL is required.');
+/** Requires a safe transport URL without deciding whether the external app supports it. */
+export function requireExternalDownloaderSourceUrl(value: unknown): string {
+  if (typeof value !== 'string') throw new TypeError('A source URL is required.');
+  if (!isExternalDownloaderSourceUrl(value)) {
+    throw new TypeError('A safe HTTPS source URL is required.');
   }
+  return new URL(value).toString();
 }
 
 /** Returns the external downloader platform. */
