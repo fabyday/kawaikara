@@ -2,7 +2,8 @@ import {
   useState,
   type KeyboardEvent
 } from 'react';
-import { createAccelerator, formatAccelerator, isModifierKey } from './ShortcutBindings';
+import { ShortcutKeycaps } from '../../../Component/ShortcutKeycaps';
+import { createAccelerator, isModifierKey } from './ShortcutBindings';
 
 /** Performs the shortcut recorder operation. */
 export function ShortcutRecorder({
@@ -26,7 +27,6 @@ export function ShortcutRecorder({
 ) {
   const [preview, setPreview] = useState<string>();
   const displayValue = preview ?? value;
-  const parts = formatAccelerator(displayValue);
 
   /** Handles the key down. */
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -72,18 +72,7 @@ export function ShortcutRecorder({
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
       />
-      <div aria-hidden="true" className="shortcut-key-group">
-        {parts.length ? (
-          parts.map((part, index) => (
-            <span className="shortcut-key-part" key={`${part}-${String(index)}`}>
-              <kbd>{part}</kbd>
-              {index < parts.length - 1 ? <i>+</i> : null}
-            </span>
-          ))
-        ) : (
-          <span className="shortcut-empty">{emptyLabel}</span>
-        )}
-      </div>
+      <ShortcutKeycaps accelerator={displayValue} emptyLabel={emptyLabel} />
     </div>
   );
 }

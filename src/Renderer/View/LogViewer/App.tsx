@@ -10,12 +10,13 @@ import {
 } from '@kawaikara/kawai-ui';
 import {
   type CSSProperties,
-  useEffect
+  useEffect,
+  useLayoutEffect
 } from 'react';
 import {
   MultiSelectFilter,
   type MultiSelectFilterOption,
-} from './MultiSelectFilter';
+} from '../../Component/MultiSelectFilter';
 import { useLogColumnResize } from './Hooks/useLogColumnResize';
 import { useLogFileActions } from './Hooks/useLogFileActions';
 import { useLogFilters } from './Hooks/useLogFilters';
@@ -111,12 +112,10 @@ export function LogViewer({ messages, locale, onClose }: LogViewerProps) {
     '--log-location-width': `${String(columnWidths.location)}px`,
   } as CSSProperties;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!followLatestRef.current) return;
-    window.requestAnimationFrame(() => {
-      const scrollArea = scrollRef.current;
-      if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-    });
+    const scrollArea = scrollRef.current;
+    if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
   }, [visibleEntries.length, activeFile?.fileName]);
 
   /** Replaces excluded values from a selected-value result. */

@@ -239,6 +239,10 @@ export const STORY_SITES: SiteMenuItem[] = [
 const DEFAULT_PREFERENCES: PreferenceState = {
   /** The always on top value. */
   alwaysOnTop: false,
+  /** Whether Kawai Shortcut navigation is enabled. */
+  kawaiShortcutEnabled: true,
+  /** The Kawai Shortcut selection window in seconds. */
+  kawaiShortcutDelaySeconds: 1,
   /** The graphics mode value. */
   graphicsMode: 'capture',
   /** The open menu on startup value. */
@@ -350,6 +354,8 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   videoVolume: 100,
   /** The log level value. */
   logLevel: 'info',
+  /** The log sources value. */
+  logSources: 'all',
   /** The shortcuts value. */
   shortcuts: {},
 };
@@ -360,6 +366,10 @@ export interface KawaikaraMockOptions {
   readonly buildChannel?: ReleaseChannel;
   /** The current site ID value. */
   readonly currentSiteId?: string;
+  /** Optional site fixtures returned to the story. */
+  readonly sites?: readonly SiteMenuItem[];
+  /** Optional preference overrides returned to the story. */
+  readonly preferences?: Partial<PreferenceState>;
   /** Whether the update available option is enabled. */
   readonly updateAvailable?: boolean;
   /** The number of application log files returned to stories. */
@@ -370,6 +380,7 @@ export interface KawaikaraMockOptions {
 export function installKawaikaraMock(
   options: KawaikaraMockOptions = {},
 ): KawaikaraRendererApi {
+  const sites = options.sites ?? STORY_SITES;
   const buildChannel = options.buildChannel ?? 'staging';
   const appVersion = {
     stable: '3.0.0',
@@ -381,12 +392,16 @@ export function installKawaikaraMock(
     staging: '3.0.0-staging.13',
     nightly: '3.0.0-nightly.13',
   }[buildChannel];
-  let preferences = {
+  let preferences: PreferenceState = {
     ...DEFAULT_PREFERENCES,
     updateChannel: buildChannel,
+    ...options.preferences,
   };
   let overlayVisible = false;
-  let currentSiteId = options.currentSiteId ?? 'kawaikara.youtube';
+  let currentSiteId = options.currentSiteId ??
+    sites.find((site) => site.isCurrent)?.id ??
+    sites[0]?.id ??
+    '';
   const applicationLogFiles = Array.from(
     { length: options.logFileCount ?? 2
     },
@@ -752,7 +767,7 @@ export function installKawaikaraMock(
           name: 'Kawaikara Built-in Sites',
           description: 'Official Providers bundled with Kawaikara.',
           version: '3.0.0-dev.0',
-          providerCount: STORY_SITES.length,
+          providerCount: sites.length,
           pluginCount: 0,
           supportedLocales: ['ko-KR', 'en-US', 'ja-JP'],
           defaultLocale: 'inherit',
@@ -816,7 +831,7 @@ export function installKawaikaraMock(
           kind: 'bundle',
           source: 'built-in',
           status: 'active',
-          providerCount: STORY_SITES.length,
+          providerCount: sites.length,
           pluginCount: 1,
           permissions: ['navigation', 'script-injection'],
         },
@@ -861,7 +876,7 @@ export function installKawaikaraMock(
     },
     sites: {
       list: async () =>
-        STORY_SITES.map((site) => ({
+        sites.map((site) => ({
           ...site,
           isCurrent: site.id === currentSiteId,
         })),

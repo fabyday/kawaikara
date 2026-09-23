@@ -42,6 +42,8 @@ export function useMenuState() {
 
   const [shortcutTargetCategory, setShortcutTargetCategory] = useState<string>();
 
+  const [kawaiShortcutPage, setKawaiShortcutPage] = useState(0);
+
   const [sitePanelRefreshKey, setSitePanelRefreshKey] = useState(0);
 
   const [address, setAddress] = useState('');
@@ -85,6 +87,8 @@ export function useMenuState() {
   const addressCopiedTimer = useRef<number | undefined>(undefined);
 
   const shortcutHighlightTimer = useRef<number | undefined>(undefined);
+
+  const kawaiShortcutActiveRef = useRef(false);
 
   const categoryElements = useRef(new Map<string, HTMLElement>());
 
@@ -153,6 +157,10 @@ export function useMenuState() {
     shortcutTargetCategory,
     /** The setShortcutTargetCategory value. */
     setShortcutTargetCategory,
+    /** The current ten-site Kawai Shortcut page. */
+    kawaiShortcutPage,
+    /** Updates the current ten-site Kawai Shortcut page. */
+    setKawaiShortcutPage,
     /** The sitePanelRefreshKey value. */
     sitePanelRefreshKey,
     /** The setSitePanelRefreshKey value. */
@@ -219,6 +227,8 @@ export function useMenuState() {
     addressCopiedTimer,
     /** The shortcutHighlightTimer value. */
     shortcutHighlightTimer,
+    /** Whether Main-process close requests should cancel Kawai Shortcut first. */
+    kawaiShortcutActiveRef,
     /** The categoryElements value. */
     categoryElements,
     /** The viewRef value. */

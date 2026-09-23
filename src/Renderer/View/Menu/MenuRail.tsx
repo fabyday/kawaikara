@@ -22,6 +22,10 @@ import {
   getDefaultMenuCategoryShortcut,
   getMenuCategoryShortcutId
 } from '../../Domain/MenuOrder';
+import {
+  getKawaiShortcutKey,
+  MAX_KAWAI_SHORTCUT_SITES,
+} from '../../../Common/KawaiShortcut';
 import { type useMenuState } from './Hooks/useMenuState';
 import { type useMenuWindowActions } from './Hooks/useMenuWindowActions';
 import { type useOverlayNavigation } from './Hooks/useOverlayNavigation';
@@ -35,6 +39,7 @@ type MenuRailProps = Pick<ReturnType<typeof useMenuState>,
   | 'preferences'
   | 'error'
   | 'shortcutTargetCategory'
+  | 'kawaiShortcutPage'
   | 'categoryElements'
   | 'selectedId'
 > & Pick<ReturnType<typeof useMenuWindowActions>,
@@ -51,6 +56,8 @@ type MenuRailProps = Pick<ReturnType<typeof useMenuState>,
   readonly selectedSite: SiteMenuItem | undefined;
   /** The groups value for this section. */
   readonly groups: SiteMenuGroup[];
+  /** Moves the active Kawai Shortcut selection page. */
+  readonly moveKawaiShortcutPage: (direction: -1 | 1) => void;
 };
 
 /** Renders the MenuRail section of this View. */
@@ -67,10 +74,12 @@ export function MenuRail({
   closeOverlay,
   error,
   shortcutTargetCategory,
+  kawaiShortcutPage,
   groups,
   categoryElements,
   selectedId,
   openSite,
+  moveKawaiShortcutPage,
 }: MenuRailProps) {
   return (
     <Panel className="menu-panel" padding="md" radius="lg">
@@ -110,12 +119,15 @@ export function MenuRail({
                 key={category}
                 messages={messages}
                 shortcutTargetCategory={shortcutTargetCategory}
+                kawaiShortcutPage={kawaiShortcutPage}
                 categoryElements={categoryElements}
                 selectedId={selectedId}
                 openSite={openSite}
                 category={category}
                 items={items}
                 shortcut={shortcut}
+                preferences={preferences}
+                moveKawaiShortcutPage={moveKawaiShortcutPage}
               />
             );
           })}
@@ -203,13 +215,16 @@ function MenuRailHeader({
 function MenuCategory({
   messages,
   shortcutTargetCategory,
+  kawaiShortcutPage,
   categoryElements,
   selectedId,
   openSite,
   category,
   items,
   shortcut,
-}: Pick<MenuRailProps, 'messages' | 'shortcutTargetCategory' | 'categoryElements' | 'selectedId' | 'openSite'> & {
+  preferences,
+  moveKawaiShortcutPage,
+}: Pick<MenuRailProps, 'messages' | 'shortcutTargetCategory' | 'kawaiShortcutPage' | 'categoryElements' | 'selectedId' | 'openSite' | 'preferences' | 'moveKawaiShortcutPage'> & {
   /** category supplied by the owning composition. */
   readonly category: SiteMenuGroup[0];
   /** items supplied by the owning composition. */
@@ -217,9 +232,21 @@ function MenuCategory({
   /** shortcut supplied by the owning composition. */
   readonly shortcut: string;
 }) {
+  const isShortcutTarget = shortcutTargetCategory === category;
+  const pageCount = Math.max(
+    1,
+    Math.ceil(items.length / MAX_KAWAI_SHORTCUT_SITES),
+  );
+  const pages = Array.from(
+    { length: pageCount },
+    (_value, pageIndex) => items.slice(
+      pageIndex * MAX_KAWAI_SHORTCUT_SITES,
+      (pageIndex + 1) * MAX_KAWAI_SHORTCUT_SITES,
+    ),
+  );
   return (
     <section
-      className={`menu-category${shortcutTargetCategory === category ? ' is-shortcut-target' : ''
+      className={`menu-category${isShortcutTarget ? ' is-shortcut-target' : ''
         }`}
 
       ref={(element) => {
@@ -227,7 +254,12 @@ function MenuCategory({
         else categoryElements.current.delete(category);
       }}
     >
-      <Flex align="center" justify="between" gap="sm">
+      <Flex
+        align="center"
+        className="menu-category-header"
+        justify="between"
+        gap="sm"
+      >
         <Text
           className="category-title"
           size="xs"
@@ -236,21 +268,77 @@ function MenuCategory({
         >
           {messages.categoryLabels[category] ?? category}
         </Text>
-        {shortcut ? (
-          <kbd className="category-shortcut-badge">{shortcut}</kbd>
-        ) : null}
+        <Flex
+          align="center"
+          className="category-shortcut-controls"
+          gap="xs"
+        >
+          {isShortcutTarget && pageCount > 1 ? (
+            <div
+              aria-label={`${String(kawaiShortcutPage + 1)}/${String(pageCount)}`}
+              className="kawai-shortcut-pagination"
+            >
+              <button
+                aria-label="←"
+                className="kawai-shortcut-page-button"
+                disabled={kawaiShortcutPage === 0}
+                type="button"
+                onClick={() => moveKawaiShortcutPage(-1)}
+              >
+                ←
+              </button>
+              <span className="kawai-shortcut-page-number">
+                {kawaiShortcutPage + 1}/{pageCount}
+              </span>
+              <button
+                aria-label="→"
+                className="kawai-shortcut-page-button"
+                disabled={kawaiShortcutPage === pageCount - 1}
+                type="button"
+                onClick={() => moveKawaiShortcutPage(1)}
+              >
+                →
+              </button>
+            </div>
+          ) : null}
+          {shortcut ? (
+            <kbd className="category-shortcut-badge">{shortcut}</kbd>
+          ) : null}
+        </Flex>
       </Flex>
-      <Stack gap="xs">
-        {items.map((site) => (
-          <SiteMenuButton
-            isSelected={selectedId === site.id}
-            key={site.id}
-            selectedLabel={messages.selected}
-            site={site}
-            onOpen={openSite}
-          />
+      <div className="kawai-shortcut-pages">
+        {pages.map((pageItems, pageIndex) => (
+          <div
+            className={`kawai-shortcut-page${isShortcutTarget &&
+              kawaiShortcutPage === pageIndex ? ' is-active' : ''}`}
+            data-kawai-shortcut-page={pageIndex}
+            key={`${category}:${String(pageIndex)}`}
+          >
+            {pageItems.map((site, pageSiteIndex) => {
+              const siteIndex =
+                (pageIndex * MAX_KAWAI_SHORTCUT_SITES) + pageSiteIndex;
+              return (
+                <SiteMenuButton
+                  isSelected={selectedId === site.id}
+                  key={site.id}
+                  kawaiShortcutKey={
+                    preferences?.kawaiShortcutEnabled && isShortcutTarget
+                      ? getKawaiShortcutKey(
+                        siteIndex - (
+                          kawaiShortcutPage * MAX_KAWAI_SHORTCUT_SITES
+                        ),
+                      )
+                      : undefined
+                  }
+                  shortcut={preferences?.shortcuts[`site:${site.id}`] ?? site.defaultShortcut}
+                  site={site}
+                  onOpen={openSite}
+                />
+              );
+            })}
+          </div>
         ))}
-      </Stack>
+      </div>
     </section>
   );
 }

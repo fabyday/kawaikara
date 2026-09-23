@@ -39,11 +39,17 @@ import type {
   ApplicationLogLevel,
   ApplicationLogExportResult,
   LogLevelPreference,
+  LogSourcePreference,
 } from '../../Common/IPC';
+import {
+  APPLICATION_LOG_SOURCES,
+  type ApplicationLogSourceKey,
+} from '../../Common/Logging';
 import {
   formatConsoleSource,
   resolveEnvironmentLogLevel,
   resolveLogLevel,
+  resolvePreferenceLogLevel,
   sanitizeLogValue,
 } from '../Functional/Logging';
 import { getKawaiDataPath } from '../Functional/UserDataPaths';
@@ -94,84 +100,8 @@ const ANSI_ESCAPE_PATTERN = /\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|
 const UNSAFE_CONTROL_CHARACTER_PATTERN =
   /[\u0000-\u0008\u000b\u000c\u000e-\u001a\u001c-\u001f\u007f]/g;
 
-/** Creates one immutable registered log source definition. */
-function defineLogSource(
-  id: string,
-  scope: string,
-  label: string,
-): ApplicationLogSourceDefinition {
-  return {
-    /** The stable source ID value. */
-    id,
-    /** The serialized logger scope value. */
-    scope,
-    /** The user-facing source label value. */
-    label,
-  };
-}
-
-/** Registers every application-owned source with a stable display label. */
-const LOG_SOURCE_REGISTRY = {
-  /** The application lifecycle source. */
-  application: defineLogSource('application', 'application', 'Application'),
-  /** The Electron runtime source. */
-  electron: defineLogSource('electron', 'electron', 'Electron'),
-  /** The Bundle development manager source. */
-  bundleDevelopment: defineLogSource(
-    'bundle-development',
-    'bundle-development',
-    'BundleDevelopmentManager',
-  ),
-  /** The update manager source. */
-  updates: defineLogSource('updates', 'updates', 'UpdateManager'),
-  /** The window manager source. */
-  windowManager: defineLogSource(
-    'window-manager',
-    'window-manager',
-    'WindowManager',
-  ),
-  /** The IPC manager source. */
-  ipcManager: defineLogSource('ipc-manager', 'ipc-manager', 'IpcManager'),
-  /** The picture-in-picture manager source. */
-  pictureInPicture: defineLogSource(
-    'picture-in-picture',
-    'picture-in-picture',
-    'PictureInPictureManager',
-  ),
-  /** The viewer renderer source. */
-  rendererViewer: defineLogSource(
-    'renderer-viewer',
-    'renderer:viewer',
-    'Viewer Renderer',
-  ),
-  /** The overlay renderer source. */
-  rendererOverlay: defineLogSource(
-    'renderer-overlay',
-    'renderer:overlay',
-    'Overlay Renderer',
-  ),
-  /** The Video renderer source. */
-  rendererVideo: defineLogSource(
-    'renderer-video',
-    'renderer:video',
-    'Video Renderer',
-  ),
-  /** The picture-in-picture renderer source. */
-  rendererPictureInPicture: defineLogSource(
-    'renderer-picture-in-picture',
-    'renderer:picture-in-picture',
-    'PiP Renderer',
-  ),
-  /** The Provider site renderer source. */
-  rendererSite: defineLogSource(
-    'renderer-site',
-    'renderer:site',
-    'Site Renderer',
-  ),
-} as const satisfies Record<string, ApplicationLogSourceDefinition>;
-
-/** Defines a registered application log source ID. */
-export type ApplicationLogSourceId = keyof typeof LOG_SOURCE_REGISTRY;
+/** Defines a registered application log source key. */
+export type ApplicationLogSourceId = ApplicationLogSourceKey;
 
 /** Describes an external log group metadata document. */
 interface ExternalLogGroupMetadata {
@@ -209,6 +139,8 @@ export class LoggingManager {
   private readonly logFileName = createAvailableLogFileName(new Date());
   /** The pending native import selections keyed by opaque token. */
   private readonly pendingImports = new Map<string, PendingLogImport>();
+  /** Source IDs enabled for file logging; undefined means every source. */
+  private enabledSourceIds?: ReadonlySet<string>;
 
   /** Initializes the operation. */
   initialize(): void {
@@ -236,10 +168,18 @@ export class LoggingManager {
       maxStringLength: 8_000,
     };
     log.transports.console.level = app.isPackaged ? 'info' : 'debug';
-    log.hooks.push((message) => ({
-      ...message,
-      data: message.data.map((value) => sanitizeLogValue(value)),
-    }));
+    log.hooks.push((message, _transport, transportName) => {
+      if (
+        transportName === 'file' &&
+        !this.isSourceEnabled(message.scope)
+      ) {
+        return false;
+      }
+      return {
+        ...message,
+        data: message.data.map((value) => sanitizeLogValue(value)),
+      };
+    });
 
     // Route existing manager and plugin console calls through the same file
     // transport without exposing a logging IPC bridge to remote site pages.
@@ -256,7 +196,7 @@ export class LoggingManager {
 
   /** Returns a logger registered for an application class or call location. */
   getLogger(source: ApplicationLogSourceId, location?: string) {
-    const definition = LOG_SOURCE_REGISTRY[source];
+    const definition = APPLICATION_LOG_SOURCES[source];
     const normalizedLocation = normalizeLogLocation(location);
     return log.scope(
       normalizedLocation
@@ -271,10 +211,22 @@ export class LoggingManager {
   }
 
   /** Performs the configure level operation. */
-  configureLevel(level: LogLevelPreference): void {
+  configure(level: LogLevelPreference, sources: LogSourcePreference): void {
     const environmentLevel = resolveEnvironmentLogLevel();
     log.transports.file.level =
-      environmentLevel ?? (level === 'none' ? false : level);
+      environmentLevel ?? resolvePreferenceLogLevel(level);
+    this.enabledSourceIds = sources === 'all'
+      ? undefined
+      : new Set(sources);
+  }
+
+  /** Returns whether a scoped message is enabled for the file transport. */
+  private isSourceEnabled(scope?: string): boolean {
+    if (!this.enabledSourceIds) return true;
+    const resolvedScope = scope ?? APPLICATION_LOG_SOURCES.application.scope;
+    const source = Object.values(APPLICATION_LOG_SOURCES).find((definition) =>
+      resolvedScope === definition.scope || resolvedScope.startsWith(`${definition.scope}/`));
+    return source ? this.enabledSourceIds.has(source.id) : false;
   }
 
   /** Returns the log file path. */
@@ -1173,7 +1125,7 @@ function createLogMetadata(
       v8: process.versions.v8,
     },
     /** The registered log source values. */
-    sources: Object.values(LOG_SOURCE_REGISTRY),
+    sources: Object.values(APPLICATION_LOG_SOURCES),
   };
 }
 
@@ -1192,7 +1144,7 @@ function parseLogEntries(value: string): {
   const lines = value.split(/\r?\n/);
   const metadataHeader = parseLogMetadataHeader(lines[0] ?? '');
   const sourceDefinitions = metadataHeader.metadata?.sources ??
-    Object.values(LOG_SOURCE_REGISTRY);
+    Object.values(APPLICATION_LOG_SOURCES);
   const firstLogLine = metadataHeader.present ? 1 : 0;
   let firstRetainedLine = firstLogLine;
   let retentionBoundary = firstLogLine;

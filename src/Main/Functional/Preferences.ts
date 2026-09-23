@@ -5,10 +5,16 @@ import type {
   AppTheme,
   GraphicsMode,
   LogLevelPreference,
+  LogSourcePreference,
   PreferenceState,
   ProviderSettingValue,
   ScopedLocale,
 } from '../../Common/IPC';
+import { APPLICATION_LOG_SOURCE_IDS } from '../../Common/Logging';
+import {
+  DEFAULT_KAWAI_SHORTCUT_DELAY_SECONDS,
+  validateKawaiShortcutDelaySeconds,
+} from '../../Common/KawaiShortcut';
 import {
   DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
   DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
@@ -30,6 +36,10 @@ import { validateDevelopmentInspectorPort } from './DevelopmentValidation';
 export const DEFAULT_PREFERENCES: PreferenceState = {
   /** The always on top value. */
   alwaysOnTop: false,
+  /** Enables two-step category and site numeric navigation. */
+  kawaiShortcutEnabled: true,
+  /** Time available for the second numeric key. */
+  kawaiShortcutDelaySeconds: DEFAULT_KAWAI_SHORTCUT_DELAY_SECONDS,
   /** The graphics mode value. */
   graphicsMode: 'capture',
   /** The open menu on startup value. */
@@ -90,6 +100,8 @@ export const DEFAULT_PREFERENCES: PreferenceState = {
   videoVolume: 100,
   /** The log level value. */
   logLevel: 'info',
+  /** The log sources value. */
+  logSources: 'all',
   /** The shortcuts value. */
   shortcuts: {},
 };
@@ -106,6 +118,14 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
     alwaysOnTop: typeof candidate.alwaysOnTop === 'boolean'
       ? candidate.alwaysOnTop
       : DEFAULT_PREFERENCES.alwaysOnTop,
+    /** Whether Kawai Shortcut navigation is enabled. */
+    kawaiShortcutEnabled: typeof candidate.kawaiShortcutEnabled === 'boolean'
+      ? candidate.kawaiShortcutEnabled
+      : DEFAULT_PREFERENCES.kawaiShortcutEnabled,
+    /** The Kawai Shortcut selection window. */
+    kawaiShortcutDelaySeconds: validateKawaiShortcutDelaySeconds(
+      candidate.kawaiShortcutDelaySeconds,
+    ),
     /** The graphics mode value. */
     graphicsMode: resolveGraphicsMode(candidate.graphicsMode, value),
     /** The open menu on startup value. */
@@ -210,6 +230,8 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
     logLevel: isLogLevel(candidate.logLevel)
       ? candidate.logLevel
       : DEFAULT_PREFERENCES.logLevel,
+    /** The log sources value. */
+    logSources: validateLogSources(candidate.logSources),
     /** The shortcuts value. */
     shortcuts: validateShortcutRecord(candidate.shortcuts),
   };
@@ -266,7 +288,17 @@ function validateVideoVolume(value: unknown): number {
 /** Determines whether the log level condition applies. */
 function isLogLevel(value: unknown): value is LogLevelPreference {
   return typeof value === 'string' &&
-    ['error', 'warn', 'info', 'verbose', 'debug', 'none'].includes(value);
+    ['error', 'warn', 'info', 'verbose', 'debug', 'all', 'none'].includes(value);
+}
+
+/** Validates the selected application logging sources. */
+function validateLogSources(value: unknown): LogSourcePreference {
+  if (value === 'all') return value;
+  if (!Array.isArray(value)) return DEFAULT_PREFERENCES.logSources;
+  const allowed = new Set<string>(APPLICATION_LOG_SOURCE_IDS);
+  return [...new Set(value.filter((entry): entry is string =>
+    typeof entry === 'string' && allowed.has(entry)))]
+    .slice(0, APPLICATION_LOG_SOURCE_IDS.length);
 }
 
 /** Determines whether the app theme condition applies. */

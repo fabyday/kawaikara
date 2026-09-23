@@ -44,3 +44,72 @@ test('Kawaikara rejects only unsafe or malformed transport values', () => {
     assert.throws(() => requireExternalDownloaderSourceUrl(url), /safe HTTPS source URL/);
   }
 });
+
+test('the authenticated loopback callback logs companion lifecycle events', async () => {
+  const { ExternalDownloaderCallbackServer } = loadSource(
+    'src/Main/Functional/ExternalDownloaderCallback.ts',
+  );
+  const records = [];
+  const logger = Object.fromEntries(['error', 'info', 'warn'].map(level => [
+    level,
+    (...values) => records.push({ level, values }),
+  ]));
+  const callbackServer = new ExternalDownloaderCallbackServer(logger);
+  const callback = await callbackServer.createRequest();
+  const response = await fetch(callback.callbackUrl, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${callback.token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      event: 'download.progress',
+      requestId: callback.requestId,
+      timestamp: new Date().toISOString(),
+      progress: 0.55,
+      stage: 'running',
+      message: 'Downloading',
+    }),
+  });
+  assert.equal(response.status, 204);
+  assert.equal(records.some(record =>
+    record.level === 'info' && record.values[0] === 'External download progress.'), true);
+
+  const unauthorized = await fetch(callback.callbackUrl, {
+    method: 'POST',
+    headers: { authorization: 'Bearer wrong-token' },
+    body: '{}',
+  });
+  assert.equal(unauthorized.status, 401);
+  callbackServer.cancel(callback.requestId);
+});
+
+test('logging preferences keep hierarchy and validate recording scopes', () => {
+  const { resolvePreferenceLogLevel } = loadSource(
+    'src/Main/Functional/Logging.ts',
+    { electron: { app: { isPackaged: true } } },
+  );
+  assert.deepEqual(
+    ['error', 'warn', 'info', 'verbose', 'debug', 'all', 'none']
+      .map(resolvePreferenceLogLevel),
+    ['error', 'warn', 'info', 'verbose', 'debug', 'silly', false],
+  );
+
+  global.__KAWAIKARA_BUILD_CHANNEL__ = 'stable';
+  global.__KAWAIKARA_DISTRIBUTION_BUILD__ = false;
+  global.__KAWAIKARA_DISCORD_APP_ID__ = '';
+  global.__KAWAIKARA_UPDATE_TEST_PROFILE__ = null;
+  const { mergeValidatedPreferences } = loadSource('src/Main/Functional/Preferences.ts');
+  assert.equal(mergeValidatedPreferences({}).logSources, 'all');
+  assert.deepEqual(
+    mergeValidatedPreferences({
+      logLevel: 'all',
+      logSources: ['updates', 'unknown', 'updates', 'external-downloader'],
+    }),
+    {
+      ...mergeValidatedPreferences({}),
+      logLevel: 'all',
+      logSources: ['updates', 'external-downloader'],
+    },
+  );
+});

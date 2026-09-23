@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import type { LogLevelPreference } from '../../Common/IPC';
 
 /** Defines the shared log levels constant. */
 const LOG_LEVELS = ['error', 'warn', 'info', 'verbose', 'debug', 'silly'] as const;
@@ -94,6 +95,14 @@ export function resolveEnvironmentLogLevel(): LogLevel | undefined {
   return LOG_LEVELS.includes(configured as LogLevel)
     ? configured as LogLevel
     : undefined;
+}
+
+/** Maps the hierarchical preference onto electron-log's transport threshold. */
+export function resolvePreferenceLogLevel(
+  value: LogLevelPreference,
+): LogLevel | false {
+  if (value === 'none') return false;
+  return value === 'all' ? 'silly' : value;
 }
 
 /** Performs the sanitize string operation. */

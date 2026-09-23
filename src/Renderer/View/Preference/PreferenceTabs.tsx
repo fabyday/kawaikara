@@ -16,6 +16,7 @@ import { type useShortcutOverrides } from './Hooks/useShortcutOverrides';
 import { PreferenceTabScroll } from './PreferenceTabScroll';
 import { ShortcutSection } from './Shortcuts/ShortcutSection';
 import { AppInfoTab } from './Tabs/AppInfoTab';
+import { AdvancedTab } from './Tabs/AdvancedTab';
 import { BrowserProfilesTab } from './Tabs/BrowserProfilesTab';
 import { BundlesTab } from './Tabs/BundlesTab';
 import { DeveloperTab } from './Tabs/DeveloperTab';
@@ -163,6 +164,7 @@ export function PreferenceTabs({
         <Tab value="video">{messages.video}</Tab>
         <Tab value="profiles">{messages.browserProfiles}</Tab>
         <Tab value="shortcuts">{messages.shortcuts}</Tab>
+        <Tab value="advanced">{messages.advanced}</Tab>
         <Tab
           value="bundles"
           onClick={() => setBundleTabActivation((value) => value + 1)}
@@ -285,6 +287,17 @@ export function PreferenceTabs({
             saving={saving}
             title={messages.siteShortcuts}
             onChange={updateShortcut}
+          />
+        </PreferenceTabScroll>
+      </TabPanel>
+
+      <TabPanel className="preference-tab-panel" value="advanced">
+        <PreferenceTabScroll label={messages.advanced}>
+          <AdvancedTab
+            messages={messages}
+            preferences={draftPreferences}
+            saving={saving}
+            onUpdate={updateDraft}
           />
         </PreferenceTabScroll>
       </TabPanel>

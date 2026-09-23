@@ -45,6 +45,8 @@ export interface ExternalDownloaderStatus {
 export interface ExternalDownloaderOpenResult {
   /** Whether Kawaikara successfully handed the source URL to the downloader. */
   readonly opened: boolean;
+  /** Request ID used for bidirectional lifecycle callbacks, when launched. */
+  readonly requestId?: string;
   /** Downloader status captured immediately before the launch attempt. */
   readonly status: ExternalDownloaderStatus;
 }

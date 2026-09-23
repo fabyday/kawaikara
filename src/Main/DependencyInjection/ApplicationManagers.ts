@@ -175,6 +175,7 @@ export function createApplicationManagerContainer(
       MANAGER_TOKENS.downloads,
       (resolver) => new ExternalDownloaderManager(
         () => resolver.resolve(MANAGER_TOKENS.preferences).get().appLocale,
+        resolver.resolve(MANAGER_TOKENS.logging),
       ),
     )
     .registerSingleton(

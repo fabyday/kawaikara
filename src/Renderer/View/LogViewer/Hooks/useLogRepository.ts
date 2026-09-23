@@ -95,7 +95,9 @@ export function useLogRepository({
           current.groupId === selectedGroupId
         ) {
           const retained = next.find((file) => file.fileName === current.fileName);
-          if (retained) return retained;
+          if (retained) {
+            return retained.active === current.active ? current : retained;
+          }
         }
         return next.find((file) => file.active) ?? next[0];
       });

@@ -3,7 +3,7 @@ import {
 } from 'react';
 import {
   type MultiSelectFilterOption
-} from '../MultiSelectFilter';
+} from '../../../Component/MultiSelectFilter';
 import { toLogFileReference } from '../LogFormatting';
 import { LOG_LEVELS } from '../LogViewerDefaults';
 import { LogViewerProps } from '../Types';

@@ -21,6 +21,8 @@ export interface MultiSelectFilterOption {
 
 /** Describes the multi-select filter props contract. */
 export interface MultiSelectFilterProps {
+  /** Whether user interaction is disabled. */
+  readonly disabled?: boolean;
   /** The visible filter label. */
   readonly label: string;
   /** The available options. */
@@ -35,8 +37,9 @@ export interface MultiSelectFilterProps {
   readonly onChange: (selected: ReadonlySet<string>) => void;
 }
 
-/** Renders LogViewer's compact checkbox-based multi-select filter. */
+/** Renders a compact checkbox-based multi-select control. */
 export function MultiSelectFilter({
+  disabled = false,
   label,
   options,
   selected,
@@ -72,6 +75,7 @@ export function MultiSelectFilter({
         aria-expanded={open}
         aria-haspopup="menu"
         className="multi-select-filter-trigger"
+        disabled={disabled}
         size="sm"
         variant="secondary"
         onClick={() => setOpen((value) => !value)}
@@ -86,13 +90,19 @@ export function MultiSelectFilter({
         <Panel className="multi-select-filter-popover" padding="sm" radius="md">
           <Flex className="multi-select-filter-actions" justify="between" gap="xs">
             <Button
+              disabled={disabled}
               size="sm"
               variant="ghost"
               onClick={() => onChange(new Set(options.map((option) => option.value)))}
             >
               {selectAllLabel}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onChange(new Set())}>
+            <Button
+              disabled={disabled}
+              size="sm"
+              variant="ghost"
+              onClick={() => onChange(new Set())}
+            >
               {clearAllLabel}
             </Button>
           </Flex>
@@ -102,6 +112,7 @@ export function MultiSelectFilter({
                 checked={selected.has(option.value)}
                 className="multi-select-filter-option"
                 key={option.value}
+                disabled={disabled}
                 label={
                   <Text as="span" className={option.className} size="xs">
                     {option.label}

@@ -122,6 +122,7 @@ export function PictureInPictureSizeControl({
                 disabled={disabled}
                 label={messages.width}
                 layout="stacked"
+                live
                 max={limits.maxWidth}
                 min={limits.minWidth}
                 step={1}
@@ -137,6 +138,7 @@ export function PictureInPictureSizeControl({
                 disabled={disabled}
                 label={messages.height}
                 layout="stacked"
+                live
                 max={limits.maxHeight}
                 min={limits.minHeight}
                 step={1}

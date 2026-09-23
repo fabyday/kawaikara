@@ -31,10 +31,11 @@ const fixture = buildSync({
       import { SubtitleScaleControl } from './src/Renderer/View/Preference/SubtitleScaleControl';
       import { NumberInput } from './src/Renderer/View/Preference/NumberInput';
       const messages=${JSON.stringify(messages)};
-      window.preferenceWrites=[];window.legacyWrites=[];
+      window.preferenceWrites=[];window.legacyWrites=[];window.liveWrites=[];
       function Fixture(){
         const [value,setValue]=useState(1),[language,setLanguage]=useState('ko'),[theme,setTheme]=useState('light');
         const [legacy,setLegacy]=useState(100);
+        const [live,setLive]=useState(800);
         window.setProbeLanguage=setLanguage;window.setProbeTheme=setTheme;
         const text=messages[language];
         return <section className={'kawai-theme kawai-theme-'+theme}>
@@ -44,6 +45,8 @@ const fixture = buildSync({
             onChange={next=>{window.preferenceWrites.push(next);setValue(next)}} /></div>
           <div id="legacy-setting"><NumberInput label="Legacy numeric setting" min={50} max={200} value={legacy}
             onValueChange={next=>{window.legacyWrites.push(next);setLegacy(next)}} /></div>
+          <div id="live-setting"><NumberInput live label="PiP width" min={320} max={3840} value={live}
+            onValueChange={next=>{window.liveWrites.push(next);setLive(next)}} /></div>
         </section>;
       }
       flushSync(()=>createRoot(document.getElementById('root')).render(<Fixture/>));
@@ -94,6 +97,11 @@ async function main() {
   assert.equal((await state()).value, '100');
   assert.equal((await state()).max, '300');
   await type('300');
+  assert.deepEqual(
+    (await state()).writes,
+    [3],
+    'valid subtitle input updates the preference draft before Enter or blur',
+  );
   await commit();
   assert.deepEqual((await state()).writes, [3]);
   assert.equal((await state()).incrementDisabled, true, 'increment cannot exceed the maximum');
@@ -151,6 +159,12 @@ async function main() {
   await flush();
   assert.equal(await execute(`document.querySelector('#legacy-setting input').value`), '200', 'unrelated controls retain legacy normalization');
   assert.deepEqual(await execute('legacyWrites'), [200]);
+  await type('960', '#live-setting input');
+  assert.deepEqual(
+    await execute('liveWrites'),
+    [960],
+    'PiP dimensions update their preference draft before Enter or blur',
+  );
   win.destroy();
   console.log('PASS: Real preference control accepts 50%–300%, rejects overflow/empty drafts without writes, exposes localized accessible warnings in both themes, supports correction/keyboard recovery, and preserves unrelated controls.');
 }

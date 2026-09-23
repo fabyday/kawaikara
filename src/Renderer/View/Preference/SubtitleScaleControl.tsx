@@ -23,6 +23,7 @@ export function SubtitleScaleControl({ label, description, rangeMessage, value, 
     <NumberInput
       label={label}
       description={description}
+      live
       rangeMessage={rangeMessage
         .replaceAll('{min}', String(PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS.min * 100))
         .replaceAll('{max}', String(PICTURE_IN_PICTURE_SUBTITLE_SCALE_LIMITS.max * 100))}

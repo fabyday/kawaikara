@@ -20,14 +20,24 @@ import {
   runExternalDownloaderCommand,
   selectExternalDownloaderArtifact,
 } from '../Functional/ExternalDownloader';
+import { ExternalDownloaderCallbackServer } from '../Functional/ExternalDownloaderCallback';
+import type { LoggingManager } from './LoggingManager';
 
 /** Coordinates external downloader behavior. */
 export class ExternalDownloaderManager {
+  /** Scoped logger for installation, launch, and callback lifecycle events. */
+  private readonly logger;
+  /** Loopback callback endpoint used for bidirectional companion events. */
+  private readonly callbacks;
   /** Reads the current application preference at the start of each operation. */
   constructor(
     /** Reads the current app locale without caching a stale preference. */
     private readonly getLocale: () => AppLocale = () => 'system',
-  ) {}
+    logging?: LoggingManager,
+  ) {
+    this.logger = logging?.getLogger('externalDownloader') ?? console;
+    this.callbacks = new ExternalDownloaderCallbackServer(this.logger);
+  }
   /** The install promise value. */
   private installPromise?: Promise<ExternalDownloaderInstallResult>;
 
@@ -55,33 +65,59 @@ export class ExternalDownloaderManager {
   async open(value: unknown): Promise<ExternalDownloaderOpenResult> {
     const sourceUrl = requireExternalDownloaderSourceUrl(value);
     const status = await this.getStatus();
-    if (!status.installed) return {
-      /** The opened value. */
-      opened: false,
-      /** The status value. */
-      status,
-    };
-
-    const deepLink = createExternalDownloaderDeepLink(sourceUrl);
-    if (status.platform === 'darwin' && status.appPath) {
-      await runExternalDownloaderCommand('/usr/bin/open', [
-        '-a',
-        status.appPath,
-        deepLink,
-      ]);
-    } else if (status.platform === 'win32' && status.appPath) {
-      const child = spawn(status.appPath, [deepLink], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: false,
-      });
-      child.unref();
-    } else {
-      await shell.openExternal(deepLink);
+    if (!status.installed) {
+      this.logger.warn('External downloader launch skipped because it is not installed.');
+      return {
+        /** The opened value. */
+        opened: false,
+        /** The status value. */
+        status,
+      };
     }
+
+    const callback = await this.callbacks.createRequest();
+    const deepLink = createExternalDownloaderDeepLink(sourceUrl, callback);
+    this.logger.info('Launching external downloader request.', {
+      platform: status.platform,
+      requestId: callback.requestId,
+    });
+    try {
+      if (status.platform === 'darwin' && status.appPath) {
+        await runExternalDownloaderCommand('/usr/bin/open', [
+          '-a',
+          status.appPath,
+          deepLink,
+        ]);
+      } else if (status.platform === 'win32' && status.appPath) {
+        const child = spawn(status.appPath, [deepLink], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false,
+        });
+        await new Promise<void>((resolve, reject) => {
+          child.once('spawn', resolve);
+          child.once('error', reject);
+        });
+        child.unref();
+      } else {
+        await shell.openExternal(deepLink);
+      }
+    } catch (error) {
+      this.callbacks.cancel(callback.requestId);
+      this.logger.error('Failed to launch external downloader.', {
+        error,
+        requestId: callback.requestId,
+      });
+      throw error;
+    }
+    this.logger.info('External downloader launch completed.', {
+      requestId: callback.requestId,
+    });
     return {
       /** The opened value. */
       opened: true,
+      /** The callback request ID value. */
+      requestId: callback.requestId,
       /** The status value. */
       status,
     };

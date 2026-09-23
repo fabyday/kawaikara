@@ -27,8 +27,8 @@ const meta = {
   args: {
     /** The site value. */
     site: STORY_SITES[0],
-    /** The selected label value. */
-    selectedLabel: 'Selected',
+    /** The shortcut value. */
+    shortcut: STORY_SITES[0].defaultShortcut,
     /** The on open value. */
     onOpen: () => undefined,
   },
@@ -47,6 +47,15 @@ export const Selected = {
   args: {
     /** Whether the selected option is enabled. */
     isSelected: true },
+} satisfies Story;
+
+/** Stores the temporary Kawai Shortcut target value. */
+export const KawaiShortcutTarget = {
+  /** The args value. */
+  args: {
+    /** The temporary site number value. */
+    kawaiShortcutKey: '2',
+  },
 } satisfies Story;
 
 /** Stores the fallback icon value. */

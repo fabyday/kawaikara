@@ -10,6 +10,7 @@ import {
   isExternalDownloaderSourceUrl,
   type ExternalDownloaderPlatform,
 } from '../../Common/Download';
+import type { ExternalDownloaderCallbackDescriptor } from './ExternalDownloaderCallback';
 
 /** Defines the shared external downloader app name constant. */
 export const EXTERNAL_DOWNLOADER_APP_NAME = 'YT Section Downloader';
@@ -260,9 +261,17 @@ export async function findInstalledExternalDownloaderApp(
 }
 
 /** Creates the external downloader deep link. */
-export function createExternalDownloaderDeepLink(sourceUrl: string): string {
+export function createExternalDownloaderDeepLink(
+  sourceUrl: string,
+  callback?: ExternalDownloaderCallbackDescriptor,
+): string {
   const deepLink = new URL(`${PROTOCOL}://open`);
   deepLink.searchParams.set('url', sourceUrl);
+  if (callback) {
+    deepLink.searchParams.set('requestId', callback.requestId);
+    deepLink.searchParams.set('callback', callback.callbackUrl);
+    deepLink.searchParams.set('token', callback.token);
+  }
   return deepLink.toString();
 }
 

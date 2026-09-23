@@ -24,7 +24,7 @@ const fixture = buildSync({ stdin: { loader: 'jsx', resolveDir: root, contents: 
   import { installKawaikaraMock, STORY_MESSAGES } from './stories/Mocks/KawaikaraMock';
   const api = installKawaikaraMock({ logFileCount: 48 });
   window.labels = STORY_MESSAGES;
-  window.probe = { subscriptions: 0, errors: [], reads: [] };
+  window.probe = { subscriptions: 0, errors: [], reads: [], openedSites: [] };
   window.addEventListener('error', e => window.probe.errors.push(e.message));
   window.addEventListener('unhandledrejection', e => window.probe.errors.push(String(e.reason)));
   for (const section of Object.values(api)) {
@@ -43,11 +43,34 @@ const fixture = buildSync({ stdin: { loader: 'jsx', resolveDir: root, contents: 
       };
     }
   }
+  const subscribeRequestClose = api.overlay.onRequestClose;
+  api.overlay.onRequestClose = handler => {
+    window.requestOverlayClose = handler;
+    const dispose = subscribeRequestClose(handler);
+    return () => {
+      if (window.requestOverlayClose === handler) window.requestOverlayClose = undefined;
+      dispose();
+    };
+  };
   const readLog = api.application.readLogFile;
   api.application.readLogFile = (...args) => {
     window.probe.reads.push(args);
     return readLog(...args);
   };
+  const listSites = api.sites.list;
+  api.sites.list = async () => {
+    const sites = await listSites();
+    const template = sites.find(site => site.id === 'kawaikara.netflix');
+    return [...sites, ...Array.from({ length: 8 }, (_value, index) => ({
+      ...template,
+      id: 'fixture.ott.' + String(index + 1),
+      title: 'OTT Fixture ' + String(index + 1),
+      order: 1_000 + index,
+      defaultShortcut: 'Control+Alt+Shift+' + String.fromCharCode(65 + index),
+      isCurrent: false,
+    }))];
+  };
+  api.sites.open = async id => { window.probe.openedSites.push(id); };
   const root = createRoot(document.getElementById('root'));
   window.render = mounted => flushSync(() => root.render(mounted ? <App /> : null));
   window.downloaderCalls = 0;
@@ -103,6 +126,53 @@ async function main() {
     stage = `menu mount ${cycle}`;
     await evaluate('render(true)');
     await waitFor('document.querySelector(".menu-panel") && document.querySelectorAll(".menu-category").length > 0');
+    if (cycle === 0) {
+      stage = 'menu keycaps and two-step Kawai Shortcut';
+      assert.equal(await evaluate('document.querySelector(".selected-site-badge") === null'), true);
+      assert.equal(await evaluate('document.querySelectorAll(".site-shortcut-keycaps").length > 0'), true);
+      assert.equal(await evaluate(`(() => {
+        const rightEdges = [...document.querySelectorAll('.site-shortcut-keycaps')]
+          .map(node => node.getBoundingClientRect().right);
+        return Math.max(...rightEdges) - Math.min(...rightEdges) < 0.5;
+      })()`), true);
+      assert.equal(await evaluate(`(() => {
+        const text = document.querySelector('.site-shortcut-keycaps').textContent;
+        return /Mac|iPhone|iPad|iPod/i.test(navigator.platform)
+          ? text.includes('⌃') && text.includes('⌥')
+          : text.includes('Ctrl') && text.includes('Alt');
+      })()`), true);
+      await evaluate('key("1")');
+      await waitFor('document.querySelectorAll(".menu-category.is-shortcut-target .site-shortcut-keycaps.is-kawai-target").length === 10');
+      assert.deepEqual(
+        await evaluate('[...document.querySelectorAll(".menu-category.is-shortcut-target .site-shortcut-keycaps.is-kawai-target")].map(node => node.textContent.trim())'),
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+      );
+      await evaluate('key("2")');
+      await waitFor('probe.openedSites.at(-1) === "kawaikara.laftel" && !document.querySelector(".menu-category.is-shortcut-target")');
+      await evaluate('key("1")');
+      await waitFor('document.querySelectorAll(".menu-category.is-shortcut-target .site-shortcut-keycaps.is-kawai-target").length === 10');
+      await evaluate('key("ArrowRight")');
+      await waitFor(`(() => {
+        const targets = document.querySelectorAll('.menu-category.is-shortcut-target .site-shortcut-keycaps.is-kawai-target');
+        return targets.length === 1 && targets[0].closest('.site-button').textContent.includes('OTT Fixture 8');
+      })()`);
+      await waitFor('document.querySelector(".site-list").scrollTop > 0');
+      await evaluate('key("9")');
+      await waitFor('!document.querySelector(".menu-category.is-shortcut-target")');
+      assert.equal(await evaluate('probe.openedSites.length'), 1);
+      await evaluate('key("1")');
+      await waitFor('document.querySelector(".menu-category.is-shortcut-target")');
+      await waitFor('!document.querySelector(".menu-category.is-shortcut-target")');
+      await evaluate('key("1")');
+      await waitFor('document.querySelector(".menu-category.is-shortcut-target")');
+      await evaluate('requestOverlayClose()');
+      await waitFor('!document.querySelector(".menu-category.is-shortcut-target")');
+      assert.equal(
+        await evaluate('document.querySelector(".menu-panel") !== null'),
+        true,
+        'Escape cancels Kawai Shortcut without closing the menu',
+      );
+    }
     await evaluate('key("l", {ctrlKey: true})');
     assert.equal(await evaluate('document.activeElement.closest(".menu-address-section") !== null'), true);
     await evaluate('document.activeElement.blur(); clickLabel(labels.app.alwaysOnTop)');
@@ -114,6 +184,24 @@ async function main() {
     for (let i = 0; i < count; i++) {
       await evaluate(`document.querySelectorAll('.preference-tab-list [role=tab]')[${i}].click()`);
       await waitFor(`document.querySelectorAll('.preference-tab-list [role=tab]')[${i}].getAttribute('aria-selected') === 'true'`);
+    }
+    await evaluate('clickLabel(labels.app.advanced)');
+    await waitFor('document.querySelector(".advanced-setting-card [role=switch]")');
+    assert.equal(await evaluate('document.querySelector(".advanced-setting-card [role=switch]").checked'), true);
+    assert.equal(await evaluate('document.querySelector(".advanced-setting-card").parentElement.querySelector("[role=spinbutton]").value'), '1');
+    if (cycle === 0) {
+      stage = 'PiP subtitle draft updates while typing';
+      await evaluate('clickLabel(labels.app.general)');
+      await evaluate(`(() => {
+        const input = [...document.querySelectorAll('[role=spinbutton]')]
+          .find(node => node.getAttribute('aria-label') === labels.app.pictureInPictureSubtitleSize);
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
+          .set.call(input, '110');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor('document.querySelector(".preference-save-bar")');
+      await evaluate('clickLabel(labels.app.saveChanges)');
+      await waitFor('!document.querySelector(".preference-save-bar")');
     }
     stage = 'nested log viewer';
     await evaluate('clickLabel(labels.app.appInfo); clickLabel(labels.app.logViewer)');

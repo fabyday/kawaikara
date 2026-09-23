@@ -19,6 +19,8 @@ import {
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_LIMITS,
   PICTURE_IN_PICTURE_PORTRAIT_SIZE_PRESETS,
 } from '../../../../Common/PictureInPicture';
+import { APPLICATION_LOG_SOURCES } from '../../../../Common/Logging';
+import { MultiSelectFilter } from '../../../Component/MultiSelectFilter';
 import { DescriptiveSelect } from '../DescriptiveSelect';
 import { PictureInPicturePlacementControl } from '../PictureInPicturePlacementControl';
 import { PictureInPictureSizeControl } from '../PictureInPictureSizeControl';
@@ -372,10 +374,11 @@ function LoggingSettings({
       <Text className="preference-section-title" weight="semibold">
         {messages.logLevel}
       </Text>
-      <DescriptiveSelect
-        disabled={saving}
-        label={messages.logLevel}
-        options={[
+      <Stack gap="md">
+        <DescriptiveSelect
+          disabled={saving}
+          label={messages.logLevel}
+          options={[
           {
             label: messages.logLevelError,
             description: messages.logLevelErrorDescription,
@@ -402,19 +405,57 @@ function LoggingSettings({
             value: 'debug',
           },
           {
+            label: messages.logLevelAll,
+            description: messages.logLevelAllDescription,
+            value: 'all',
+          },
+          {
             label: messages.logLevelNone,
             description: messages.logLevelNoneDescription,
             value: 'none',
           },
-        ]}
-        value={preferences.logLevel}
-        description={messages.logLevelDescription}
-        onValueChange={(logLevel) =>
-          onUpdate({
-            logLevel: logLevel as PreferenceState['logLevel']
-          })
-        }
-      />
+          ]}
+          value={preferences.logLevel}
+          description={messages.logLevelDescription}
+          onValueChange={(logLevel) =>
+            onUpdate({
+              logLevel: logLevel as PreferenceState['logLevel']
+            })
+          }
+        />
+        <div className="logging-source-preference">
+          <div className="logging-source-preference-copy">
+            <strong>{messages.logSources}</strong>
+            <small>{messages.logSourcesDescription}</small>
+          </div>
+          <MultiSelectFilter
+            clearAllLabel={messages.logSourcesClear}
+            disabled={saving}
+            label={preferences.logSources === 'all'
+              ? messages.logSourcesAll
+              : messages.logSources}
+            options={Object.values(APPLICATION_LOG_SOURCES).map((source) => ({
+              label: source.label,
+              value: source.id,
+            }))}
+            selected={new Set(
+              preferences.logSources === 'all'
+                ? Object.values(APPLICATION_LOG_SOURCES).map((source) => source.id)
+                : preferences.logSources,
+            )}
+            selectAllLabel={messages.logSourcesAll}
+            onChange={(selected) => {
+              const allSourceIds = Object.values(APPLICATION_LOG_SOURCES)
+                .map((source) => source.id);
+              onUpdate({
+                logSources: selected.size === allSourceIds.length
+                  ? 'all'
+                  : allSourceIds.filter((sourceId) => selected.has(sourceId)),
+              });
+            }}
+          />
+        </div>
+      </Stack>
     </section>
   );
 }

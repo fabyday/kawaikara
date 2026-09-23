@@ -747,7 +747,10 @@ export type LogLevelPreference =
   | 'info'
   | 'verbose'
   | 'debug'
+  | 'all'
   | 'none';
+/** Defines which registered sources are written to the application log. */
+export type LogSourcePreference = 'all' | readonly string[];
 /** Kept for preference-file compatibility. The global app locale is authoritative. */
 export type ScopedLocale = 'inherit' | AppLocale | (string & {});
 /** Defines the provider setting value type. */
@@ -761,6 +764,10 @@ export type ProviderSettingRecord = Readonly<
 export interface PreferenceState {
   /** Whether the always on top option is enabled. */
   readonly alwaysOnTop: boolean;
+  /** Enables two-step category and site numeric navigation in the menu. */
+  readonly kawaiShortcutEnabled: boolean;
+  /** Time available to choose a site after selecting a menu category. */
+  readonly kawaiShortcutDelaySeconds: number;
   /** Selects native GPU, capture-compatible GPU, or process-wide software rendering. */
   readonly graphicsMode: GraphicsMode;
   /** Whether the open menu on startup option is enabled. */
@@ -821,6 +828,8 @@ export interface PreferenceState {
   readonly videoVolume: number;
   /** The log level value. */
   readonly logLevel: LogLevelPreference;
+  /** Registered source IDs written to the log, or every source. */
+  readonly logSources: LogSourcePreference;
   /** The shortcuts value. */
   readonly shortcuts: Readonly<Record<string, string>>;
 }

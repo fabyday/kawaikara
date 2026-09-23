@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type ReactNode,
@@ -24,6 +25,8 @@ export interface NumberInputProps
   readonly label: ReactNode;
   /** The layout value. */
   readonly layout?: 'inline' | 'stacked';
+  /** Commits each valid in-range draft while the user types. */
+  readonly live?: boolean;
   /** The max value. */
   readonly max: number;
   /** The min value. */
@@ -51,6 +54,7 @@ export function NumberInput({
   incrementLabel,
   label,
   layout = 'inline',
+  live = false,
   max,
   min,
   onBlur,
@@ -68,8 +72,20 @@ export function NumberInput({
   const rangeMessageId = `${inputId}-range-message`;
   const [draft, setDraft] = useState(String(value));
   const [rangeError, setRangeError] = useState(false);
+  const lastEmittedValue = useRef(value);
 
-  useEffect(() => { setDraft(String(value)); setRangeError(false); }, [value]);
+  useEffect(() => {
+    lastEmittedValue.current = value;
+    setDraft(String(value));
+    setRangeError(false);
+  }, [value]);
+
+  /** Emits each numeric value at most once while the owner applies it. */
+  const emitValue = (next: number) => {
+    if (next === lastEmittedValue.current) return;
+    lastEmittedValue.current = next;
+    onValueChange(next);
+  };
 
   /** Performs the commit operation. */
   const commit = (candidate: number) => {
@@ -80,7 +96,7 @@ export function NumberInput({
     setRangeError(false);
     const next = normalizeNumber(candidate, value, min, max, step);
     setDraft(String(next));
-    onValueChange(next);
+    emitValue(next);
   };
   const accessibleLabel = typeof label === 'string' ? label : 'Value';
 
@@ -130,8 +146,19 @@ export function NumberInput({
               if (/^-?(?:\d+(?:\.\d*)?|\.\d*)?$/.test(next)) {
                 setDraft(next);
                 const candidate = Number(next);
-                setRangeError(Boolean(rangeMessage && next.trim() && Number.isFinite(candidate) &&
-                  (candidate < min || candidate > max)));
+                const invalidRange = Boolean(
+                  next.trim() && Number.isFinite(candidate) &&
+                  (candidate < min || candidate > max),
+                );
+                setRangeError(Boolean(rangeMessage && invalidRange));
+                if (
+                  live &&
+                  next.trim() &&
+                  Number.isFinite(candidate) &&
+                  !invalidRange
+                ) {
+                  emitValue(normalizeNumber(candidate, value, min, max, step));
+                }
               }
             }}
             onKeyDown={(event) => {

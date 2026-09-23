@@ -376,6 +376,16 @@ export interface AppMessages {
   readonly alwaysOnTop: string;
   /** The always on top description value. */
   readonly alwaysOnTopDescription: string;
+  /** The advanced preferences value. */
+  readonly advanced: string;
+  /** The Kawai Shortcut value. */
+  readonly kawaiShortcut: string;
+  /** The Kawai Shortcut description value. */
+  readonly kawaiShortcutDescription: string;
+  /** The Kawai Shortcut delay value. */
+  readonly kawaiShortcutDelay: string;
+  /** The Kawai Shortcut delay description value. */
+  readonly kawaiShortcutDelayDescription: string;
   /** The open menu on startup value. */
   readonly openMenuOnStartup: string;
   /** The open menu on startup description value. */
@@ -500,10 +510,22 @@ export interface AppMessages {
   readonly logLevelDebug: string;
   /** The log level debug description value. */
   readonly logLevelDebugDescription: string;
+  /** The all log level value. */
+  readonly logLevelAll: string;
+  /** The all log level description value. */
+  readonly logLevelAllDescription: string;
   /** The log level none value. */
   readonly logLevelNone: string;
   /** The log level none description value. */
   readonly logLevelNoneDescription: string;
+  /** The recorded log sources value. */
+  readonly logSources: string;
+  /** The recorded log sources description value. */
+  readonly logSourcesDescription: string;
+  /** The all log sources action value. */
+  readonly logSourcesAll: string;
+  /** The clear log sources action value. */
+  readonly logSourcesClear: string;
   /** The video shortcuts value. */
   readonly videoShortcuts: string;
   /** The video shortcuts description value. */

@@ -1,6 +1,7 @@
-import { Badge, Button } from '@kawaikara/kawai-ui';
+import { Button } from '@kawaikara/kawai-ui';
 import type { SiteMenuItem } from '../../../Common/IPC';
 import { SiteIcon } from '../../Component/SiteIcon';
+import { ShortcutKeycaps } from '../../Component/ShortcutKeycaps';
 
 /** Describes the site menu button props contract. */
 export interface SiteMenuButtonProps {
@@ -8,8 +9,10 @@ export interface SiteMenuButtonProps {
   readonly site: SiteMenuItem;
   /** Whether the selected option is enabled. */
   readonly isSelected?: boolean;
-  /** The selected label value. */
-  readonly selectedLabel: string;
+  /** The shortcut displayed at the trailing edge. */
+  readonly shortcut: string;
+  /** Temporary Kawai Shortcut key within the active category. */
+  readonly kawaiShortcutKey?: string;
   /** Callback used to handle on open. */
   readonly onOpen: (id: string) => void | Promise<void>;
 }
@@ -18,7 +21,8 @@ export interface SiteMenuButtonProps {
 export function SiteMenuButton({
   site,
   isSelected = false,
-  selectedLabel,
+  shortcut,
+  kawaiShortcutKey,
   onOpen,
 }: SiteMenuButtonProps) {
   return (
@@ -31,11 +35,14 @@ export function SiteMenuButton({
     >
       <SiteIcon site={site} />
       <span>{site.title}</span>
-      {isSelected ? (
-        <Badge className="selected-site-badge" size="sm" tone="primary" dot>
-          {selectedLabel}
-        </Badge>
-      ) : null}
+      <ShortcutKeycaps
+        accelerator={kawaiShortcutKey === undefined
+          ? shortcut
+          : kawaiShortcutKey}
+        className={`site-shortcut-keycaps${kawaiShortcutKey === undefined
+          ? ''
+          : ' is-kawai-target'}`}
+      />
     </Button>
   );
 }

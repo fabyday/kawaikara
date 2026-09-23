@@ -1,6 +1,7 @@
 import {
   type KeyboardEvent
 } from 'react';
+export { formatAccelerator } from '../../../Domain/ShortcutAccelerator';
 import { ShortcutItem } from '../Types';
 
 /** Returns the effective shortcut. */
@@ -129,48 +130,6 @@ export function createAccelerator(event: KeyboardEvent<HTMLInputElement>): strin
     key = aliases[key] ?? key;
   }
   return [...modifiers, key].join('+');
-}
-
-/** Formats the accelerator. */
-export function formatAccelerator(accelerator: string): string[] {
-  const isMac = isMacPlatform();
-  return accelerator
-    .split('+')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const normalized = part.toLowerCase();
-      const labels: Record<string, string> = isMac
-        ? {
-          commandorcontrol: '⌘',
-          cmdorctrl: '⌘',
-          command: '⌘',
-          cmd: '⌘',
-          control: '⌃',
-          ctrl: '⌃',
-          alt: '⌥',
-          option: '⌥',
-          shift: '⇧',
-          super: '⌘',
-        }
-        : {
-          commandorcontrol: 'Ctrl',
-          cmdorctrl: 'Ctrl',
-          command: 'Win',
-          cmd: 'Win',
-          control: 'Ctrl',
-          ctrl: 'Ctrl',
-          alt: 'Alt',
-          option: 'Alt',
-          shift: 'Shift',
-          super: 'Win',
-        };
-      if (labels[normalized]) return labels[normalized];
-      if (normalized === 'comma') return ',';
-      if (normalized === 'space' || normalized === 'spacebar') return 'Space';
-      if (part.length === 1) return part.toUpperCase();
-      return part;
-    });
 }
 
 /** Determines whether the modifier key condition applies. */

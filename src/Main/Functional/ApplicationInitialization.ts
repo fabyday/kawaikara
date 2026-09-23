@@ -84,7 +84,10 @@ export async function initializeApplication(
   const preferences = managers.resolve(MANAGER_TOKENS.preferences);
   const videoLibrary = managers.resolve(MANAGER_TOKENS.videoLibrary);
   await Promise.all([preferences.load(), videoLibrary.load()]);
-  logging.configureLevel(preferences.get().logLevel);
+  logging.configure(
+    preferences.get().logLevel,
+    preferences.get().logSources,
+  );
 
   const windows = managers.resolve(MANAGER_TOKENS.windows);
   configureWindows(windows, preferences);

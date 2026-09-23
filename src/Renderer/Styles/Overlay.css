@@ -862,6 +862,10 @@ img {
   margin-bottom: 8px;
 }
 
+.menu-category-header {
+  border-radius: 8px;
+}
+
 .menu-category .category-title {
   margin-bottom: 0;
 }
@@ -869,6 +873,19 @@ img {
 .menu-category.is-shortcut-target {
   background: rgb(114 180 255 / 11%);
   box-shadow: 0 0 0 1px rgb(114 180 255 / 30%) inset;
+}
+
+.menu-category.is-shortcut-target > .menu-category-header {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  padding: 4px 5px;
+  background: #222b38;
+  box-shadow: 0 5px 14px rgb(9 9 11 / 38%);
+}
+
+.category-shortcut-controls {
+  flex: 0 0 auto;
 }
 
 .category-shortcut-badge {
@@ -889,16 +906,121 @@ img {
   white-space: nowrap;
 }
 
+.kawai-shortcut-pagination {
+  display: inline-flex;
+  height: 19px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(114 180 255 / 24%);
+  border-radius: 5px;
+  background: rgb(25 36 52 / 92%);
+  color: #bfd8f8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.kawai-shortcut-page-button {
+  display: inline-flex;
+  width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.kawai-shortcut-page-button:hover:not(:disabled) {
+  background: rgb(114 180 255 / 18%);
+}
+
+.kawai-shortcut-page-button:focus-visible {
+  z-index: 1;
+  outline: 2px solid rgb(147 197 253 / 72%);
+  outline-offset: -2px;
+}
+
+.kawai-shortcut-page-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.kawai-shortcut-page-number {
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.kawai-shortcut-pages,
+.kawai-shortcut-page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kawai-shortcut-page {
+  scroll-margin-top: 39px;
+  border-radius: 10px;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.menu-category.is-shortcut-target .kawai-shortcut-pages {
+  gap: 10px;
+}
+
+.menu-category.is-shortcut-target .kawai-shortcut-page {
+  opacity: 0.58;
+  box-shadow: 0 0 0 1px rgb(114 180 255 / 13%);
+}
+
+.menu-category.is-shortcut-target .kawai-shortcut-page.is-active {
+  background: rgb(114 180 255 / 10%);
+  box-shadow:
+    0 0 0 1px rgb(114 180 255 / 48%),
+    0 7px 18px rgb(7 14 24 / 22%);
+  opacity: 1;
+}
+
 .site-button {
   justify-content: flex-start;
   min-height: 42px;
   text-align: left;
 }
 
-.selected-site-badge {
+.site-button > .site-shortcut-keycaps {
+  width: auto;
+  min-width: max-content;
+  flex: 0 0 auto;
   margin-left: auto;
-  border-radius: 8px;
-  padding-inline: 9px;
+  justify-content: flex-end;
+  padding-inline: 8px 0;
+}
+
+.site-shortcut-keycaps .shortcut-key-part kbd {
+  min-width: 21px;
+  height: 23px;
+  border-radius: 6px;
+  padding-inline: 6px;
+  font-size: 10px;
+}
+
+.site-shortcut-keycaps.is-kawai-target .shortcut-key-part kbd {
+  border-color: rgb(114 180 255 / 46%);
+  background: rgb(62 111 178 / 42%);
+  color: #dbeafe;
+  box-shadow: inset 0 -2px 0 rgb(13 35 68 / 45%), 0 0 12px rgb(96 165 250 / 18%);
+}
+
+.advanced-setting-card {
+  border: 1px solid var(--kawai-color-border);
+  background: #202024;
 }
 
 .overlay-icon-button {
@@ -1174,6 +1296,34 @@ img {
 
 .descriptive-select {
   width: 100%;
+}
+
+.logging-source-preference {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.logging-source-preference-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.logging-source-preference-copy strong {
+  font-size: 13px;
+}
+
+.logging-source-preference-copy small {
+  color: var(--kawai-color-muted-foreground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.logging-source-preference .multi-select-filter {
+  flex: 0 0 auto;
 }
 
 .descriptive-select-label {
@@ -1973,6 +2123,7 @@ img {
 .kawai-theme-light .overlay-pip-button,
 .kawai-theme-light .number-preference-control,
 .kawai-theme-light .menu-order-setting,
+.kawai-theme-light .advanced-setting-card,
 .kawai-theme-light .app-info-card,
 .kawai-theme-light .plugin-info-row,
 .kawai-theme-light .bundle-info-row,
@@ -2017,6 +2168,39 @@ img {
 .kawai-theme-light .menu-category.is-shortcut-target {
   background: rgb(84 122 190 / 12%);
   box-shadow: 0 0 0 1px rgb(69 105 170 / 31%) inset;
+}
+
+.kawai-theme-light .menu-category.is-shortcut-target > .menu-category-header {
+  background: #e6edf8;
+  box-shadow: 0 5px 14px rgb(60 55 70 / 16%);
+}
+
+.kawai-theme-light .kawai-shortcut-pagination {
+  border-color: rgb(69 105 170 / 27%);
+  background: rgb(224 233 247 / 96%);
+  color: #294a7a;
+}
+
+.kawai-theme-light .kawai-shortcut-page-button:hover:not(:disabled) {
+  background: rgb(84 122 190 / 14%);
+}
+
+.kawai-theme-light .menu-category.is-shortcut-target .kawai-shortcut-page {
+  box-shadow: 0 0 0 1px rgb(69 105 170 / 13%);
+}
+
+.kawai-theme-light .menu-category.is-shortcut-target .kawai-shortcut-page.is-active {
+  background: rgb(84 122 190 / 9%);
+  box-shadow:
+    0 0 0 1px rgb(69 105 170 / 39%),
+    0 7px 16px rgb(69 58 85 / 12%);
+}
+
+.kawai-theme-light .site-shortcut-keycaps.is-kawai-target .shortcut-key-part kbd {
+  border-color: rgb(69 105 170 / 34%);
+  background: rgb(84 122 190 / 15%);
+  color: #294a7a;
+  box-shadow: inset 0 -2px 0 rgb(69 105 170 / 15%);
 }
 
 .kawai-theme-light .descriptive-select-list {
@@ -2946,6 +3130,15 @@ img {
 }
 
 @media (max-width: 620px) {
+  .logging-source-preference {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .logging-source-preference .multi-select-filter-trigger {
+    width: 100%;
+  }
+
   .number-preference-control {
     grid-template-columns: 1fr;
   }

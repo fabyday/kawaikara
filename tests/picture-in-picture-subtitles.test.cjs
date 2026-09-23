@@ -22,7 +22,10 @@ function loadSource(relative, mocks = {}) {
 
 const { PictureInPictureSubtitleRuntime, createProviderPictureInPictureSubtitleController } = loadSource('src/Main/Functional/PictureInPictureSubtitleRuntime.ts');
 const { mergeValidatedPreferences } = loadSource('src/Main/Functional/Preferences.ts');
-const { UnifiedPictureInPictureManager } = loadSource('src/Main/Manager/UnifiedPictureInPictureManager.ts', { electron: {} });
+const { UnifiedPictureInPictureManager } = loadSource(
+  'src/Main/Manager/UnifiedPictureInPictureManager.ts',
+  { electron: { app: { getLocale: () => 'en-US' } } },
+);
 
 function frame(url = 'https://player.example/video') {
   return {
@@ -231,7 +234,7 @@ test('transfer sizes the detached view before attaching it to the visible target
 test('slow subtitle initialization cannot defer view transfer or first PiP presentation', async () => {
   const calls = [];
   const { UnifiedPictureInPictureManager: Manager } = loadSource('src/Main/Manager/UnifiedPictureInPictureManager.ts', {
-    electron: {}, '../Functional/WebContentsViewTransfer': { async transferWebContentsView() { calls.push('transfer'); } },
+    electron: { app: { getLocale: () => 'en-US' } }, '../Functional/WebContentsViewTransfer': { async transferWebContentsView() { calls.push('transfer'); } },
   });
   const activeFrame = frame();
   activeFrame.executeJavaScript = async () => ({ status: 'entered', videoWidth: 640, videoHeight: 360 });

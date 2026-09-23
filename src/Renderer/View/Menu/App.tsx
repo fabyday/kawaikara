@@ -119,9 +119,12 @@ export function App() {
     [],
   );
 
-  useMenuShortcuts({
+  const {
+    moveKawaiShortcutPage,
+  } = useMenuShortcuts({
     ...menuState,
     groups,
+    openSite: menuWindowActions.openSite,
   });
 
   const addressNavigation = useAddressNavigation({
@@ -236,6 +239,7 @@ export function App() {
                   messages={messages}
                   selectedSite={selectedSite}
                   groups={groups}
+                  moveKawaiShortcutPage={moveKawaiShortcutPage}
                 />
               </motion.div>
               <motion.div

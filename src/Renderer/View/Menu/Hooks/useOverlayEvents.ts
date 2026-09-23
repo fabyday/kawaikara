@@ -13,6 +13,7 @@ type OverlayEventsOptions = Pick<ReturnType<typeof useMenuState>,
   | 'localization'
   | 'closeTimer'
   | 'shortcutHighlightTimer'
+  | 'kawaiShortcutActiveRef'
   | 'pipFailureTimer'
   | 'addressCopiedTimer'
   | 'setSites'
@@ -34,6 +35,8 @@ type OverlayEventsOptions = Pick<ReturnType<typeof useMenuState>,
   | 'updatePanelViewRef'
   | 'preferenceBackHandler'
   | 'setPipMode'
+  | 'setShortcutTargetCategory'
+  | 'setKawaiShortcutPage'
 > & Pick<ReturnType<typeof useMenuWindowActions>,
   | 'beginMenuClose'
 >;
@@ -47,6 +50,7 @@ export function useOverlayEvents({
   localization,
   closeTimer,
   shortcutHighlightTimer,
+  kawaiShortcutActiveRef,
   pipFailureTimer,
   addressCopiedTimer,
   setSites,
@@ -69,6 +73,8 @@ export function useOverlayEvents({
   preferenceBackHandler,
   beginMenuClose,
   setPipMode,
+  setShortcutTargetCategory,
+  setKawaiShortcutPage,
 }: OverlayEventsOptions) {
   useEffect(() => {
     viewRef.current = view;
@@ -212,6 +218,16 @@ export function useOverlayEvents({
           return;
         }
         void window.kawaikara.overlay.setView('menu');
+        return;
+      }
+      if (kawaiShortcutActiveRef.current) {
+        kawaiShortcutActiveRef.current = false;
+        if (shortcutHighlightTimer.current !== undefined) {
+          window.clearTimeout(shortcutHighlightTimer.current);
+          shortcutHighlightTimer.current = undefined;
+        }
+        setKawaiShortcutPage(0);
+        setShortcutTargetCategory(undefined);
         return;
       }
       beginMenuClose();

@@ -592,7 +592,7 @@ export class IpcManager {
       await this.windows.setPictureInPictureSubtitleScale(
         preferences.pictureInPictureSubtitleScale,
       );
-      this.logging.configureLevel(preferences.logLevel);
+      this.logging.configure(preferences.logLevel, preferences.logSources);
       this.shortcuts.refreshGlobalShortcut();
       await this.sites.applyCurrentProviderSettings().catch((error: unknown) => {
         // The preference is already durable. A simultaneous site navigation
