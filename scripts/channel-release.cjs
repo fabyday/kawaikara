@@ -33,19 +33,25 @@ function resolveRelease() {
 
   const sourceSha = resolveSourceSha();
   const sourceShortSha = sourceSha.slice(0, 8);
-  const runNumber = numericIdentifier(process.env.GITHUB_RUN_NUMBER, '0');
-  const runAttempt = numericIdentifier(process.env.GITHUB_RUN_ATTEMPT, '1');
-  const date = process.env.KAWAIKARA_RELEASE_DATE || formatKoreanDate(new Date());
-  if (!/^\d{8}$/.test(date)) {
-    fail(`KAWAIKARA_RELEASE_DATE must use YYYYMMDD format. Got: ${date}`);
+  let version;
+  let stagingNumber;
+  if (channel === 'stable') {
+    version = baseVersion;
+  } else if (channel === 'staging') {
+    stagingNumber = positiveNumericIdentifier(
+      requireEnvironment('KAWAIKARA_STAGING_NUMBER'),
+      'KAWAIKARA_STAGING_NUMBER',
+    );
+    version = `${baseVersion}-staging.${stagingNumber}`;
+  } else {
+    const runNumber = numericIdentifier(process.env.GITHUB_RUN_NUMBER, '0');
+    const runAttempt = numericIdentifier(process.env.GITHUB_RUN_ATTEMPT, '1');
+    const date = process.env.KAWAIKARA_RELEASE_DATE || formatKoreanDate(new Date());
+    if (!/^\d{8}$/.test(date)) {
+      fail(`KAWAIKARA_RELEASE_DATE must use YYYYMMDD format. Got: ${date}`);
+    }
+    version = `${baseVersion}-nightly.${date}.${runNumber}.${runAttempt}.g${sourceShortSha}`;
   }
-
-  const version = channel === 'stable'
-    ? baseVersion
-    : [
-        baseVersion,
-        `${channel}.${date}.${runNumber}.${runAttempt}.g${sourceShortSha}`,
-      ].join('-');
   const tag = `v${version}`;
   const values = {
     channel,
@@ -57,6 +63,7 @@ function resolveRelease() {
     source_branch: process.env.KAWAIKARA_SOURCE_BRANCH || defaultSourceBranch(),
     created_at: new Date().toISOString(),
   };
+  if (stagingNumber) values.staging_number = stagingNumber;
 
   writeOutputs(values);
   process.stdout.write(`${JSON.stringify(values, null, 2)}\n`);
@@ -175,6 +182,12 @@ function numericIdentifier(value, fallback) {
   const resolved = String(value || fallback);
   if (!/^\d+$/.test(resolved)) fail(`Expected a numeric identifier. Got: ${resolved}`);
   return String(Number(resolved));
+}
+
+function positiveNumericIdentifier(value, name) {
+  const resolved = numericIdentifier(value, '');
+  if (Number(resolved) < 1) fail(`${name} must be greater than zero. Got: ${value}`);
+  return resolved;
 }
 
 function writeOutputs(values) {

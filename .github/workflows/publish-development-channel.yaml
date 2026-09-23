@@ -199,10 +199,51 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve next Staging sequence
+        id: staging-sequence
+        if: inputs.channel == 'staging'
+        env:
+          BASE_VERSION: ${{ inputs.base_version }}
+          TARGET_REPOSITORY: ${{ steps.target.outputs.repository }}
+        run: |
+          set -euo pipefail
+          releases_file="$RUNNER_TEMP/staging-releases.json"
+          channel_source_file="$RUNNER_TEMP/staging-channel-source.json"
+          gh api --paginate --slurp "repos/$TARGET_REPOSITORY/releases?per_page=100" > "$releases_file"
+          if ! gh api \
+            -H 'Accept: application/vnd.github.raw+json' \
+            "repos/$TARGET_REPOSITORY/contents/channel-source.json?ref=staging" \
+            > "$channel_source_file" 2>/dev/null; then
+            printf '{}\n' > "$channel_source_file"
+          fi
+          RELEASES_FILE="$releases_file" CHANNEL_SOURCE_FILE="$channel_source_file" node <<'NODE'
+          const fs = require('node:fs');
+          const baseVersion = process.env.BASE_VERSION;
+          const escapedVersion = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const tagPattern = new RegExp(`^v${escapedVersion}-staging\\.(\\d+)$`);
+          const pages = JSON.parse(fs.readFileSync(process.env.RELEASES_FILE, 'utf8'));
+          const releases = pages.flat();
+          const channelSource = JSON.parse(
+            fs.readFileSync(process.env.CHANNEL_SOURCE_FILE, 'utf8'),
+          );
+          const tags = [
+            ...releases.map((release) => release.tag_name),
+            channelSource.tag,
+            channelSource.version ? `v${channelSource.version}` : undefined,
+          ];
+          const latest = tags.reduce((maximum, tag) => {
+            const match = String(tag || '').match(tagPattern);
+            return match ? Math.max(maximum, Number(match[1])) : maximum;
+          }, 0);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `number=${latest + 1}\n`);
+          console.log(`Next Staging version: ${baseVersion}-staging.${latest + 1}`);
+          NODE
+
       - name: Resolve channel version
         id: release
         env:
           KAWAIKARA_BASE_VERSION: ${{ inputs.base_version }}
+          KAWAIKARA_STAGING_NUMBER: ${{ steps.staging-sequence.outputs.number }}
           KAWAIKARA_SOURCE_BRANCH: ${{ inputs.source_branch }}
           KAWAIKARA_SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
         run: node scripts/channel-release.cjs resolve "${{ inputs.channel }}"
