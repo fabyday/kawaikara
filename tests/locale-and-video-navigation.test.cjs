@@ -31,6 +31,22 @@ const { selectLocalizedReleaseNotes: select } = loadSource('src/Common/ReleaseNo
 const { normalizeReleaseNotes: normalize } = loadSource('src/Main/Functional/ApplicationUpdates.ts');
 const { getClearAllProfilesConfirmationCopy: copy } = loadSource('src/Main/Functional/Locale.ts');
 const { VideoDirectoryHistory } = loadSource('src/Common/VideoDirectoryHistory.ts');
+const { createMpvViewHost } = loadSource('src/Main/Functional/MpvViewHost.ts');
+
+test('unmodified mpv window API receives the Video view lifecycle', () => {
+  const contents = new EventEmitter();
+  contents.id = 77;
+  let destroyed = false, closed = 0;
+  contents.isDestroyed = () => destroyed;
+  const host = createMpvViewHost({ webContents: contents });
+  assert.equal(host.webContents, contents);
+  assert.equal(host.isDestroyed(), false);
+  host.once('closed', () => { closed++; });
+  destroyed = true;
+  contents.emit('destroyed');
+  assert.equal(host.isDestroyed(), true);
+  assert.equal(closed, 1);
+});
 
 test('all-profile dialog copy is provided entirely by the three locale JSON files', () => {
   for (const [locale, language] of [['ko-KR', 'ko'], ['ja-JP', 'ja'], ['en-US', 'en'],
@@ -170,7 +186,7 @@ test('native Video commands are guarded against other sites, overlays, PiP, and 
   });
   const manager = Object.create(WindowManager.prototype);
   const sent = [];
-  manager.videoWindow = { isDestroyed: () => false, webContents: { send: (...args) => sent.push(args) } };
+  manager.videoView = { webContents: { isDestroyed: () => false, send: (...args) => sent.push(args) } };
   manager.internalVideoVisible = true;
   manager.routeVideoDirectoryNavigation('browser-backward');
   manager.routeVideoDirectoryNavigation('browser-forward');
@@ -185,54 +201,48 @@ test('native Video commands are guarded against other sites, overlays, PiP, and 
   manager.internalVideoPictureInPicture = {};
   manager.routeVideoDirectoryNavigation('browser-backward');
   manager.internalVideoPictureInPicture = undefined;
-  manager.videoWindow.isDestroyed = () => true;
+  manager.videoView.webContents.isDestroyed = () => true;
   manager.routeVideoDirectoryNavigation('browser-backward');
   assert.equal(sent.length, 2);
 });
 
-test('actual Video host factory keeps content bounds, disables duplicate rounding, and wires native commands', async () => {
-  const sent = [];
-  let options;
-  class FakeWindow extends EventEmitter {
+test('Video renderer uses a view inside the existing native window', async () => {
+  let options, attached;
+  class FakeView {
     constructor(value) {
-      super(); options = value;
+      options = value;
       this.webContents = new EventEmitter();
       this.webContents.id = 999;
-      this.webContents.send = (...args) => sent.push(args);
+      this.webContents.isDestroyed = () => false;
+      this.webContents.loadFile = () => Promise.resolve();
+      this.webContents.close = () => {};
     }
-    isDestroyed() { return false; }
-    setMenu() {}
-    setMenuBarVisibility() {}
-    loadFile() { return Promise.resolve(); }
+    setBackgroundColor(value) { this.background = value; }
+    setVisible(value) { this.visible = value; }
+    setBounds(value) { this.bounds = value; }
   }
   const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
-    electron: { BrowserWindow: FakeWindow }, 'electron-mpv-video': {},
+    electron: { WebContentsView: FakeView }, 'electron-mpv-video': {},
   });
   const manager = Object.create(WindowManager.prototype);
-  const bounds = { x: 40, y: 80, width: 960, height: 540 };
-  manager.viewerWindow = { isDestroyed: () => false, getContentBounds: () => bounds };
+  const children = [];
+  manager.viewerWindow = {
+    isDestroyed: () => false,
+    getContentSize: () => [960, 540],
+    contentView: { addChildView: view => children.push(view) },
+  };
   manager.logging = { attachRenderer() {} };
-  manager.appLocale = 'ko-KR';
-  manager.systemLocale = 'en-US';
-  manager.mpv = { attachWindow() {} };
+  manager.mpv = { attachWindow: host => { attached = host; } };
+  manager.mpvVideoHosts = new WeakMap();
   manager.editingWebContentsIds = new Set();
   manager.startVideoRendererInitializationWatchdog = () => {};
-  // Factory's existing Windows pre-show behavior is unrelated to this regression.
-  manager.setManagedWindowOpacity = () => {};
-  FakeWindow.prototype.setIgnoreMouseEvents = () => {};
-  FakeWindow.prototype.setFocusable = () => {};
-  FakeWindow.prototype.showInactive = () => {};
-  const video = await manager.ensureVideoWindow();
-  assert.equal(options.title, require(path.join(root, 'locales/ko.json')).nativeDialogs.videoWindowTitle);
-  assert.equal(options.frame, false);
-  assert.equal(options.roundedCorners, false);
-  for (const key of Object.keys(bounds)) assert.equal(options[key], bounds[key]);
-  assert.equal(options.resizable, false);
+  const video = await manager.ensureVideoView();
+  assert.equal(children.length, 1, 'normal Video mode creates no BrowserWindow');
+  assert.equal(children[0], video);
+  assert.equal(attached.webContents, video.webContents,
+    'the stock libmpv service authorizes the view WebContents');
+  assert.deepEqual(video.bounds, { x: 0, y: 0, width: 960, height: 540 });
+  assert.equal(video.visible, false);
   assert.equal(options.webPreferences.preload.endsWith(path.join('preload', 'viewer.js')), true);
-  manager.internalVideoVisible = true;
-  video.emit('app-command', {}, 'browser-backward');
-  assert.equal(sent[0][1], 'back');
-  manager.videoWindow = undefined;
-  video.emit('app-command', {}, 'browser-forward');
-  assert.equal(sent.length, 1, 'stale hosts cannot route commands to a replacement');
+  assert.equal(await manager.ensureVideoView(), video, 'the renderer survives site changes');
 });

@@ -230,7 +230,8 @@ test('internal Video and remote Provider managers use the same native visibility
   const win = nativeWindow(), videoEvents = [], remoteEvents = [];
   win.webContents = { send: (channel, value) => videoEvents.push(value) };
   const video = Object.assign(Object.create(WindowManager.prototype), {
-    videoWindow: win, internalVideoPictureInPicture: {}, logger,
+    videoView: { webContents: { isDestroyed: () => false, send: (channel, value) => videoEvents.push(value) } },
+    internalVideoPictureInPicture: { window: win }, logger,
   });
   const state = { pipWindow: win, closing: false };
   const remote = Object.assign(Object.create(UnifiedPictureInPictureManager.prototype), { state });
