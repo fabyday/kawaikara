@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.chzzk.quality",
+  "name": "CHZZK Quality",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Plugin.js"
+}

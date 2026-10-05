@@ -7,15 +7,16 @@ import type {
 } from '../../../../Common/IPC';
 import { clampSeekableVideoTime, resolveVideoSeekRange } from '../Playback/SeekRange';
 import { getChromiumErrorMessage, getMpvErrorMessage } from '../Presentation';
-import { PendingMpvSeek } from '../Types';
+import { MpvSeekQueue } from '../Playback/MpvSeekQueue';
 import { type usePlaybackState } from './usePlaybackState';
 import { type useVideoChrome } from './useVideoChrome';
 import { type useVideoState } from './useVideoState';
 
 /** Inputs used by usePlaybackControls. */
 type PlaybackControlsOptions = Pick<ReturnType<typeof useVideoState>,
-  | 'pendingMpvSeekRef'
-  | 'mpvSeekInFlightRef'
+  | 'mpvSeekQueueRef'
+  | 'viewVisibleRef'
+  | 'labelsRef'
   | 'playerRef'
   | 'setError'
   | 'playerStateRef'
@@ -40,8 +41,9 @@ type PlaybackControlsOptions = Pick<ReturnType<typeof useVideoState>,
 
 /** Coordinates playback controls behavior for this View. */
 export function usePlaybackControls({
-  pendingMpvSeekRef,
-  mpvSeekInFlightRef,
+  mpvSeekQueueRef,
+  viewVisibleRef,
+  labelsRef,
   playerRef,
   setError,
   labels,
@@ -59,45 +61,24 @@ export function usePlaybackControls({
   updatePlayerState,
   setSourceRevision,
 }: PlaybackControlsOptions) {
-  const queueMpvSeek = useCallback((request: PendingMpvSeek) => {
-    pendingMpvSeekRef.current = request;
-    if (mpvSeekInFlightRef.current) return;
-    mpvSeekInFlightRef.current = true;
-
-    /** Performs the drain operation. */
-    const drain = async () => {
-      try {
-        while (pendingMpvSeekRef.current) {
-          const next = pendingMpvSeekRef.current;
-          pendingMpvSeekRef.current = undefined;
-          const player = playerRef.current;
-          if (!player) return;
-          try {
-            await player.seek(next.seconds);
-          } catch (reason) {
-            if (pendingMpvSeekRef.current) continue;
-            if (next.reportError) {
-              setError(getMpvErrorMessage(reason, labels));
-            } else {
-              console.debug(
-                '[video] Ignored an intermediate libmpv seek failure.',
-                reason,
-              );
-            }
-          }
-        }
-      } finally {
-        mpvSeekInFlightRef.current = false;
-      }
-    };
-
-    void drain();
-  }, [labels]);
+  if (!mpvSeekQueueRef.current) {
+    mpvSeekQueueRef.current = new MpvSeekQueue(
+      () => playerRef.current,
+      () => playerStateRef.current.status === 'Playing',
+      () => viewVisibleRef.current && !sourceOpeningRef.current,
+      (reason) => {
+        const currentLabels = labelsRef.current;
+        if (currentLabels) setError(getMpvErrorMessage(reason, currentLabels));
+      },
+    );
+  }
+  useEffect(() => () => mpvSeekQueueRef.current?.cancel(), []);
 
   const togglePlayback = useCallback(() => {
     const state = playerStateRef.current;
     const currentSource = sourceRef.current;
     if (!currentSource || sourceOpeningRef.current) return;
+    mpvSeekQueueRef.current?.cancel();
     if (backendRef.current === 'chromium') {
       const video = fallbackVideoRef.current;
       if (!video) return;
@@ -188,7 +169,7 @@ export function usePlaybackControls({
       hlsRef.current,
     );
     if (
-      !sourceRef.current ||
+      !sourceRef.current || sourceOpeningRef.current ||
       !range ||
       state.status === 'Idle' ||
       state.status === 'Opening'
@@ -210,10 +191,8 @@ export function usePlaybackControls({
     }
     const player = playerRef.current;
     if (!player) return;
-    queueMpvSeek({
-      reportError, seconds: target
-    });
-  }, [queueMpvSeek, updatePlayerState]);
+    mpvSeekQueueRef.current?.request(target, !reportError);
+  }, [updatePlayerState]);
 
   const goToLiveEdge = useCallback(() => {
     if (sourceRef.current?.kind !== 'hls') return;

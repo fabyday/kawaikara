@@ -289,11 +289,17 @@ function ProviderSettingCategory({
   /** category supplied by the owning composition. */
   readonly category: BundleRuntimeInfo['providers'][number]['settings'][number];
 }) {
+  const pluginState = provider.plugins?.find(plugin => category.id === `plugin.${plugin.id}`);
   return (
     <div className="bundle-setting-category">
       <Text weight="semibold">
         {resolveProviderText(category.title, preferences.appLocale)}
       </Text>
+      {pluginState?.state === 'failed' ? (
+        <Text role="alert" size="xs">
+          {messages.bundleFailed}: {pluginState.error}
+        </Text>
+      ) : null}
       {category.description ? (
         <Text size="xs" tone="muted">
           {resolveProviderText(category.description, preferences.appLocale)}

@@ -22,8 +22,9 @@ export function createSitePagePipeline(
     return webContents;
   };
   /** Executes the operation. */
-  const execute = async <T>(id: string, source: string): Promise<T> => {
+  const execute = async <T>(id: string, source: string, signal?: AbortSignal): Promise<T> => {
     try {
+      signal?.throwIfAborted();
       return await getWebContents().executeJavaScript(source) as T;
     } catch (error) {
       logger.warn(`Site page operation failed: ${id}`, error);
@@ -34,7 +35,9 @@ export function createSitePagePipeline(
   const executeInAllFrames = async <T>(
     id: string,
     source: string,
+    signal?: AbortSignal,
   ): Promise<readonly T[]> => {
+    signal?.throwIfAborted();
     const frames = getWebContents().mainFrame.framesInSubtree.filter(
       (frame) => !frame.isDestroyed(),
     );
@@ -44,6 +47,7 @@ export function createSitePagePipeline(
     const values: T[] = [];
     let failures = 0;
     for (const frame of frames) {
+      signal?.throwIfAborted();
       getWebContents();
       try {
         values.push(await frame.executeJavaScript(source) as T);
@@ -67,8 +71,9 @@ export function createSitePagePipeline(
       const source = typeof injection.source === 'function'
         ? await injection.source()
         : injection.source;
-      if (injection.frames === 'all') await executeInAllFrames(id, source);
-      else await execute(id, source);
+      if (disposed || injection.signal?.aborted || injections.get(id) !== injection) return;
+      if (injection.frames === 'all') await executeInAllFrames(id, source, injection.signal);
+      else await execute(id, source, injection.signal);
     } catch (error) {
       logger.warn(`Site page injection failed: ${id}`, error);
     }
@@ -111,7 +116,7 @@ export function createSitePagePipeline(
     /** The register value. */
     register: (injection) => {
       getWebContents();
-      if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(injection.id)) {
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,511}$/.test(injection.id)) {
         throw new Error(`Invalid site page injection id: ${injection.id}`);
       }
       if (injections.has(injection.id)) {

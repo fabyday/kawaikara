@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
+  "plugins": ["Plugins/Shorts"],
   "permissions": ["navigation", "script-injection", "cookies"],
   "contributes": {
     "address": { "hosts": ["youtube.com", "youtu.be"] },

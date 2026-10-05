@@ -10,8 +10,8 @@ export function createMpvViewHost(view: WebContentsView): BrowserWindow {
   const contents = view.webContents;
   const events = new EventEmitter();
   contents.once('destroyed', () => events.emit('closed'));
-    /** The actual Video renderer authorized to create a libmpv session. */
   return Object.assign(events, {
+    /** The actual Video renderer authorized to create a libmpv session. */
     webContents: contents,
     /** Mirrors the renderer lifetime expected by the stock window API. */
     isDestroyed: () => contents.isDestroyed(),

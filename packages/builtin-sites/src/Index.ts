@@ -1,11 +1,27 @@
 import {
   defineBundle,
   defineProvider,
+  definePlugin,
+  type PluginDefinition,
+  type PluginConstructor,
+  type PluginManifest,
   type ProviderConstructor,
   type ProviderManifest,
   type ProviderLocaleResource,
   type SitePermission,
 } from '@kawaikara/site-api';
+import ChzzkAdBlockPlugin from './Providers/Chzzk/Plugins/AdBlock/Plugin';
+import ChzzkAdBlockManifest from './Providers/Chzzk/Plugins/AdBlock/manifest.json';
+import ChzzkQualityPlugin from './Providers/Chzzk/Plugins/Quality/Plugin';
+import ChzzkQualityManifest from './Providers/Chzzk/Plugins/Quality/manifest.json';
+import ChzzkClipsPlugin from './Providers/Chzzk/Plugins/Clips/Plugin';
+import ChzzkClipsManifest from './Providers/Chzzk/Plugins/Clips/manifest.json';
+import YouTubeShortsPlugin from './Providers/YouTube/Plugins/Shorts/Plugin';
+import YouTubeShortsManifest from './Providers/YouTube/Plugins/Shorts/manifest.json';
+import WavveResponsiveViewportPlugin from './Providers/Wavve/Plugins/ResponsiveViewport/Plugin';
+import WavveResponsiveViewportManifest from './Providers/Wavve/Plugins/ResponsiveViewport/manifest.json';
+import AppleTvStorefrontPlugin from './Providers/AppleTv/Plugins/Storefront/Plugin';
+import AppleTvStorefrontManifest from './Providers/AppleTv/Plugins/Storefront/manifest.json';
 import bundleManifest from './manifest.json';
 import { resolveBundleUpdate } from './Update';
 import {
@@ -48,6 +64,8 @@ import wavveManifest from './Providers/Wavve/manifest.json';
 import youTubeManifest from './Providers/YouTube/manifest.json';
 import youTubeMusicManifest from './Providers/YouTubeMusic/manifest.json';
 import chzzkLocalization from './Providers/Chzzk/locale.json';
+import appleTvLocalization from './Providers/AppleTv/locale.json';
+import wavveLocalization from './Providers/Wavve/locale.json';
 import videoLocalization from './Providers/Video/locale.json';
 import youTubeLocalization from './Providers/YouTube/locale.json';
 
@@ -56,7 +74,16 @@ const provider = (
   manifest: ProviderManifest,
   constructor: ProviderConstructor,
   localization?: ProviderLocaleResource,
-) => defineProvider({ manifest, provider: constructor, localization
+  plugins: readonly PluginDefinition[] = [],
+) => defineProvider({ manifest, provider: constructor, localization, plugins
+});
+
+/** Explicit executable Plugin definitions mirror the packaged child manifests. */
+const builtinPlugin = (manifest: PluginManifest, plugin: PluginConstructor): PluginDefinition => definePlugin({
+  /** Canonical distribution identity. */
+  manifest,
+  /** Decorated implementation. */
+  plugin,
 });
 
 /** Stores the builtin bundle value. */
@@ -100,15 +127,16 @@ export const builtinBundle = defineBundle({
       youTubeManifest as ProviderManifest,
       YouTubeProvider,
       youTubeLocalization,
+      [builtinPlugin(YouTubeShortsManifest as PluginManifest, YouTubeShortsPlugin)],
     ),
     provider(primeVideoManifest as ProviderManifest, PrimeVideoProvider),
-    provider(wavveManifest as ProviderManifest, WavveProvider),
+    provider(wavveManifest as ProviderManifest, WavveProvider, wavveLocalization, [builtinPlugin(WavveResponsiveViewportManifest as PluginManifest, WavveResponsiveViewportPlugin)]),
     provider(watchaManifest as ProviderManifest, WatchaProvider),
     provider(coupangPlayManifest as ProviderManifest, CoupangPlayProvider),
     provider(tvingManifest as ProviderManifest, TvingProvider),
-    provider(appleTvManifest as ProviderManifest, AppleTvProvider),
+    provider(appleTvManifest as ProviderManifest, AppleTvProvider, appleTvLocalization, [builtinPlugin(AppleTvStorefrontManifest as PluginManifest, AppleTvStorefrontPlugin)]),
     provider(crunchyrollManifest as ProviderManifest, CrunchyrollProvider),
-    provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization),
+    provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization, [builtinPlugin(ChzzkAdBlockManifest as PluginManifest, ChzzkAdBlockPlugin), builtinPlugin(ChzzkQualityManifest as PluginManifest, ChzzkQualityPlugin), builtinPlugin(ChzzkClipsManifest as PluginManifest, ChzzkClipsPlugin)]),
     provider(twitchManifest as ProviderManifest, TwitchProvider),
     provider(appleMusicManifest as ProviderManifest, AppleMusicProvider),
     provider(spotifyManifest as ProviderManifest, SpotifyProvider),

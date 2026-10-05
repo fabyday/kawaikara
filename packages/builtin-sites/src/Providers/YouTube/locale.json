@@ -1,5 +1,9 @@
 {
   "en-US": {
+    "settings.plugins.title": "Provider plugins",
+    "settings.plugins.description": "Changes take effect when saved and reload this site if it is open.",
+    "settings.plugins.shorts.title": "Shorts enhancements",
+    "settings.plugins.shorts.description": "Enable Shorts navigation, auto-advance and publisher filtering. The Shorts options below apply only while enabled.",
     "settings.shorts.title": "Shorts",
     "settings.shorts.description": "Control Shorts playback and publishers hidden from the feed.",
     "settings.short-form-video.auto-advance.title": "Play the next Short automatically",
@@ -13,6 +17,10 @@
     "shorts.announcement.previous": "Previous Short"
   },
   "ko-KR": {
+    "settings.plugins.title": "사이트 플러그인",
+    "settings.plugins.description": "저장하면 적용되며, 현재 열려 있는 사이트는 새로고침됩니다.",
+    "settings.plugins.shorts.title": "쇼츠 보조 기능",
+    "settings.plugins.shorts.description": "쇼츠 이동, 자동 재생, 게시자 차단 기능을 사용합니다. 아래 쇼츠 옵션은 이 기능이 켜져 있을 때만 적용됩니다.",
     "settings.shorts.title": "쇼츠",
     "settings.shorts.description": "쇼츠 재생과 피드에서 숨길 게시자를 관리합니다.",
     "settings.short-form-video.auto-advance.title": "다음 쇼츠 자동 재생",
@@ -26,6 +34,10 @@
     "shorts.announcement.previous": "이전 쇼츠"
   },
   "ja-JP": {
+    "settings.plugins.title": "Provider プラグイン",
+    "settings.plugins.description": "保存時に適用され、現在開いているサイトは再読み込みされます。",
+    "settings.plugins.shorts.title": "Shorts 補助機能",
+    "settings.plugins.shorts.description": "Shorts の移動、自動再生、投稿者フィルターを有効にします。以下の Shorts 設定はこの機能が有効な場合のみ適用されます。",
     "settings.shorts.title": "Shorts",
     "settings.shorts.description": "Shorts の再生とフィードから非表示にする投稿者を管理します。",
     "settings.short-form-video.auto-advance.title": "次の Shorts を自動再生",

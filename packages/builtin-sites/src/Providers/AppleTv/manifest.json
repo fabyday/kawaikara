@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
+  "plugins": ["Plugins/Storefront"],
   "permissions": ["navigation", "network-interception", "script-injection"],
   "contributes": {
     "address": { "hosts": ["tv.apple.com"] },
@@ -15,6 +16,7 @@
     },
     "shortcut": { "defaultKey": "Control+Alt+A" },
     "locale": {
+      "resource": "locale.json",
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },

@@ -348,19 +348,22 @@ export class IpcManager {
       throw new TypeError('Overlay view must be menu, preference, or update.');
     });
     ipcMain.handle(
-      IPC_CHANNELS.video.openDroppedFiles,
-      async (_event, paths: unknown) => {
-        if (!(await this.windows.queueDroppedVideoFiles(paths))) {
-          return false;
-        }
-        this.windows.hideOverlay();
-        await this.sites.load('kawaikara.video');
-        const request = this.windows.getCurrentVideoOpenRequest();
-        if (request?.kind === 'local') {
-          await this.videoLibrary.recordVideo(request);
-        }
-        return true;
-      },
+      IPC_CHANNELS.dragDrop.openFiles,
+      (_event, paths: unknown) => this.sites.dragDrop.openFiles(
+        paths,
+        () => this.sites.getActiveProviderId(),
+        async (registration, files) => {
+          // Only the app-owned Video action is implemented in this phase.
+          if (registration.contribution.action !== 'open-local-video') return false;
+          if (!(await this.windows.queueDroppedVideoFiles(files))) return false;
+          await this.presentQueuedVideo(registration.providerId);
+          const request = this.windows.getCurrentVideoOpenRequest();
+          if (request?.kind === 'local') {
+            await this.videoLibrary.recordVideo(request);
+          }
+          return true;
+        },
+      ),
     );
     ipcMain.handle(IPC_CHANNELS.application.isFullScreen, () =>
       this.windows.isAppFullScreen(),
@@ -464,14 +467,7 @@ export class IpcManager {
             ? this.videoLibrary.createFolderRequest(result.listing.directory)
             : result.request,
         );
-        this.windows.hideOverlay();
-        if (
-          this.sites.isCurrentSite('kawaikara.video') &&
-          this.windows.presentQueuedVideoOpenRequest()
-        ) {
-          return;
-        }
-        await this.sites.load('kawaikara.video');
+        await this.presentQueuedVideo();
       },
     );
     ipcMain.handle(IPC_CHANNELS.video.thumbnail, (_event, value: unknown) =>
@@ -620,6 +616,16 @@ export class IpcManager {
     }, 200);
   }
 
+  /** Opens dropped/recent files through the same persistent Video surface. */
+  private async presentQueuedVideo(providerId = 'kawaikara.video'): Promise<void> {
+    this.windows.hideOverlay();
+    if (
+      this.sites.isCurrentSite(providerId) &&
+      this.windows.presentQueuedVideoOpenRequest()
+    ) return;
+    await this.sites.load(providerId);
+  }
+
   /** Releases the operation. */
   dispose(): void {
     this.disposeDevelopmentSubscription?.();
@@ -686,7 +692,7 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.sites.open,
   IPC_CHANNELS.overlay.close,
   IPC_CHANNELS.overlay.setView,
-  IPC_CHANNELS.video.openDroppedFiles,
+  IPC_CHANNELS.dragDrop.openFiles,
   IPC_CHANNELS.video.selectLocalFile,
   IPC_CHANNELS.video.getPlaybackCapabilities,
   IPC_CHANNELS.video.getOpenRequest,

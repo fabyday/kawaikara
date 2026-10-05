@@ -784,6 +784,16 @@ export interface LogViewerMessages {
 
 /** Describes the video messages contract. */
 export interface VideoMessages {
+  /** Localized OS file-drop invitation. */
+  readonly dropVideo: string;
+  /** Explains how a multi-file drop is handled. */
+  readonly dropVideoHint: string;
+  /** A drop is being handed to the Video view. */
+  readonly dropVideoOpening: string;
+  /** Validation or handoff failed. */
+  readonly dropVideoFailed: string;
+  /** Overlapping Providers require a chooser; never silently select an owner. */
+  readonly dropSelectionRequired: string;
   /** Accessible action for returning from PiP to the main viewer. */
   readonly returnToApp: string;
   /** Localized hls copy. */

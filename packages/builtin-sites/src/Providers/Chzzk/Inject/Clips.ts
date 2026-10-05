@@ -10,6 +10,8 @@ import { serializePageInjectionWithOptions } from '@kawaikara/site-api';
 export interface ChzzkClipsInjectionOptions {
   /** Whether the auto advance option is enabled. */
   readonly autoAdvance: boolean;
+  /** Whether NAVER-labelled advertising clips may be skipped (default: true). */
+  readonly skipAdvertisements?: boolean;
   /** Whether the announce option is enabled. */
   readonly announce: boolean;
   /** The skip advertisement action URL value. */
@@ -625,6 +627,7 @@ function installChzzkClips(options: ChzzkClipsInjectionOptions): void {
   let pendingAdvertisement: Element | null = null;
   /** Schedules the advertisement skip. */
   const scheduleAdvertisementSkip = (delayMilliseconds = 80): void => {
+    if (options.skipAdvertisements === false) return;
     if (!isEmbeddedChzzkShorts()) return;
     const advertisement = getCurrentShortsAdvertisement();
     if (!advertisement) {

@@ -50,6 +50,26 @@ test('every catalog has exactly the same nonempty keys and interpolation variabl
   }
 });
 
+test('Korean preferences use consistent Korean menu and bundle terminology', () => {
+  const { getAppMessages } = loadSource('src/Main/Functional/RendererMessages.ts');
+  const messages = getAppMessages('ko-KR', 'en-US');
+  for (const [key, expected] of Object.entries({
+    bundles: '번들', video: '비디오', developer: '개발자',
+    bundleManagement: '번들 관리', installedBundles: '설치된 번들',
+    videoShortcuts: '비디오 단축키', pluginProfiles: '번들 프로필',
+    providerShortcuts: '사이트 동작', developmentMode: '번들 개발 기능',
+  })) assert.equal(messages[key], expected, key);
+  for (const [key, value] of Object.entries(messages)) {
+    if (typeof value === 'string') {
+      assert.doesNotMatch(value, /\b(?:Bundles?|Developer|Video|Provider|Plugin|Session|DevTools)\b/, key);
+    }
+  }
+  for (const provider of ['Chzzk', 'YouTube', 'AppleTv', 'Wavve']) {
+    const resource = require(path.join(root, 'packages/builtin-sites/src/Providers', provider, 'locale.json'));
+    assert.equal(resource['ko-KR']['settings.plugins.title'], '사이트 플러그인', provider);
+  }
+});
+
 test('Main resolves explicit, regional, system and unsupported locales through one catalog policy', () => {
   const { getLocaleMessages } = loadSource('src/Main/Functional/Locale.ts');
   const { getRendererMessages, getAppMessages } = loadSource('src/Main/Functional/RendererMessages.ts');

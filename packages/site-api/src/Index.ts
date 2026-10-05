@@ -1,4 +1,9 @@
 export { DisposableStore, type Disposable } from './Disposable';
+export type { FileDropScope, ProviderFileDropContribution } from './DragDrop';
+export { defineCapability, type CapabilityToken, type CapabilityRegistry,
+  type PluginNetworkAPI, type PluginActionsAPI, type PluginSettingsAPI,
+  type PluginLifetime, type PluginAppAPI, type PluginPageAPI, type PluginRuntimeState,
+} from './PluginAPI';
 export type {
   PictureInPictureSubtitleController,
   PictureInPictureSubtitleAlignment,
@@ -91,6 +96,7 @@ export {
 } from './Provider';
 export {
   SHORT_FORM_VIDEO_ACTIONS,
+  SHORT_FORM_PUBLISHER_CAPABILITY,
   SHORT_FORM_VIDEO_AUTO_ADVANCE_SETTING,
   SHORT_FORM_VIDEO_BANNED_PUBLISHERS_SETTING,
   normalizeShortFormVideoPublisher,

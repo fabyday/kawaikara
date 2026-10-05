@@ -8,6 +8,7 @@ import { type useVideoState } from './useVideoState';
 
 /** Inputs used by useTimelineScrubbing. */
 type TimelineScrubbingOptions = Pick<ReturnType<typeof useVideoState>,
+  | 'mpvSeekQueueRef'
   | 'scrubbingRef'
   | 'scrubPointerIdRef'
   | 'scrubTargetRef'
@@ -23,6 +24,7 @@ type TimelineScrubbingOptions = Pick<ReturnType<typeof useVideoState>,
 
 /** Coordinates timeline scrubbing behavior for this View. */
 export function useTimelineScrubbing({
+  mpvSeekQueueRef,
   scrubbingRef,
   scrubPointerIdRef,
   scrubTargetRef,
@@ -64,6 +66,7 @@ export function useTimelineScrubbing({
     }
     scrubbingRef.current = false;
     scrubPointerIdRef.current = undefined;
+    mpvSeekQueueRef.current?.finish();
     scrubTargetRef.current = playerStateRef.current.time;
     lastScrubPreviewAtRef.current = Number.NEGATIVE_INFINITY;
     setScrubTime(undefined);

@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
+  "plugins": ["Plugins/AdBlock","Plugins/Quality","Plugins/Clips"],
   "permissions": ["navigation", "network-interception", "script-injection"],
   "contributes": {
     "address": { "hosts": ["chzzk.naver.com"] },

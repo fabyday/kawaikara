@@ -25,14 +25,6 @@ export interface ChromiumSourceHandle {
   readonly ready: Promise<void>;
 }
 
-/** Describes the pending MPV seek contract. */
-export interface PendingMpvSeek {
-  /** Whether the report error option is enabled. */
-  readonly reportError: boolean;
-  /** The seconds value. */
-  readonly seconds: number;
-}
-
 /** Describes a raw event emitted by the libmpv renderer element. */
 export interface MpvRawEvent {
   /** The event type. */

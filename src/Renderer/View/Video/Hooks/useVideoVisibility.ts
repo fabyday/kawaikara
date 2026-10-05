@@ -6,6 +6,7 @@ import { type useVideoState } from './useVideoState';
 
 /** Inputs used by useVideoVisibility. */
 type VideoVisibilityOptions = Pick<ReturnType<typeof useVideoState>,
+  | 'mpvSeekQueueRef'
   | 'viewVisibleRef'
   | 'playerStateRef'
   | 'sourceRef'
@@ -21,6 +22,7 @@ type VideoVisibilityOptions = Pick<ReturnType<typeof useVideoState>,
 
 /** Coordinates video visibility behavior for this View. */
 export function useVideoVisibility({
+  mpvSeekQueueRef,
   viewVisibleRef,
   playerStateRef,
   sourceRef,
@@ -49,6 +51,7 @@ export function useVideoVisibility({
         });
         return;
       }
+      mpvSeekQueueRef.current?.cancel();
       clearControlsHideTimer();
       clearTitleHideTimer();
       setControlsVisible(false);

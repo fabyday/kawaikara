@@ -40,10 +40,10 @@ import {
   type VideoLibrarySnapshot,
   type VideoPathOpenResult,
 } from '../Common/IPC';
-import { installVideoDropTarget } from './VideoDrop';
+import { installDragDropTarget } from './DragDrop';
 import { installEditableFocusReporter } from './EditableFocus';
 
-installVideoDropTarget();
+installDragDropTarget();
 installEditableFocusReporter();
 
 /** Stores the API value. */

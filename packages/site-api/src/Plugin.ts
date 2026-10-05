@@ -1,11 +1,15 @@
 import { DisposableStore } from './Disposable';
 import type { ProviderLocaleResource } from './Locale';
 import type { SiteContext } from './SiteContext';
+import type { PluginAppAPI, PluginPageAPI, PluginNetworkAPI, PluginActionsAPI,
+  PluginSettingsAPI, PluginLifetime, CapabilityRegistry } from './PluginAPI';
 import type {
   PluginViewPanelContribution,
   ProviderConstructor,
   ProviderDecoratorMetadata,
   ProviderMetadata,
+  ProviderBooleanSettingContribution,
+  ProviderSettingContribution,
   SitePermission,
 } from './Provider';
 
@@ -86,6 +90,10 @@ export type BundleUpdateDefinition =
 
 /** Describes the plugin metadata contract. */
 export interface PluginMetadata {
+  /** Localized activation switch; omitted keys default to plugins.<id>.enabled. */
+  readonly activation?: ProviderBooleanSettingContribution;
+  /** Plugin-owned settings, scoped by Provider; keys must be unique. */
+  readonly settings?: readonly ProviderSettingContribution[];
   /** The ID value. */
   readonly id: string;
   /** The name value. */
@@ -100,6 +108,20 @@ export interface PluginMetadata {
 
 /** Describes the plugin context contract. */
 export interface PluginContext {
+  /** App services, excluding Electron and application managers. */
+  readonly app: PluginAppAPI;
+  /** Permission-checked and independently revocable page operations. */
+  readonly page?: PluginPageAPI;
+  /** Requires the Provider's network-interception permission. */
+  readonly network?: PluginNetworkAPI;
+  /** App-owned action routing. */
+  readonly actions: PluginActionsAPI;
+  /** Only settings declared by this Plugin are exposed. */
+  readonly settings: PluginSettingsAPI;
+  /** Versioned services within this Provider lifetime. */
+  readonly capabilities: CapabilityRegistry;
+  /** Automatically cleaned registration and cancellation scope. */
+  readonly lifetime: PluginLifetime;
   /** The provider value. */
   readonly provider: SiteContext & {
     /** The metadata value. */
@@ -120,6 +142,12 @@ export abstract class AbstractPlugin {
 
   /** Performs the activate operation. */
   abstract activate(): Promise<void> | void;
+
+  /** Fail clearly when a Plugin requires a capability its Provider did not request. */
+  protected requirePage(): PluginPageAPI {
+    if (!this.context.page) throw new Error('This Plugin requires script-injection permission.');
+    return this.context.page;
+  }
 
   /** Performs the deactivate operation. */
   async deactivate(): Promise<void> {

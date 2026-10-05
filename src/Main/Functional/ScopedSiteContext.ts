@@ -60,12 +60,12 @@ export function createScopedSiteContext(source: SiteContext): ScopedSiteContext 
         /** Rejects reinjection after retirement. */
         refresh: async (id) => { requireActive(); await page.refresh(id); },
         /** An execution still targets the original document, never the successor. */
-        execute: async <T>(id: string, script: string): Promise<T> => {
-          requireActive(); return page.execute<T>(id, script);
+        execute: async <T>(id: string, script: string, signal?: AbortSignal): Promise<T> => {
+          requireActive(); return page.execute<T>(id, script, signal);
         },
         /** Rejects new frame operations by a retired Provider. */
-        executeInAllFrames: async <T>(id: string, script: string): Promise<readonly T[]> => {
-          requireActive(); return page.executeInAllFrames<T>(id, script);
+        executeInAllFrames: async <T>(id: string, script: string, signal?: AbortSignal): Promise<readonly T[]> => {
+          requireActive(); return page.executeInAllFrames<T>(id, script, signal);
         },
         /** Input must not outlive the active Provider. */
         sendKeyPress: (key) => { requireActive(); page.sendKeyPress(key); },

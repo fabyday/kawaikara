@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.wavve.responsive-viewport",
+  "name": "Wavve Responsive Viewport",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Plugin.js"
+}

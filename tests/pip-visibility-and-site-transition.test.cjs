@@ -72,13 +72,59 @@ function realLifecycleManager(events) {
   return { manager, contexts };
 }
 
+test('plugin settings reload only the active Provider, restore its address and retire old authority', async () => {
+  const events = [], { manager } = realLifecycleManager(events);
+  const preferences = { providerSettings: {} };
+  manager.getPreferences = () => preferences;
+  manager.getCurrentAddress = () => 'https://fixture.example/watch/42';
+  manager.sites.get('old').metadata.settings = { categories: [{ settings: [
+    { type: 'boolean', key: 'plugin.enabled', defaultValue: true, reloadOnChange: true },
+  ] }] };
+  await manager.load('old');
+  const original = manager.currentProvider;
+  const addresses = [];
+  const createContext = manager.createContext;
+  manager.createContext = async (...args) => {
+    const context = await createContext(...args);
+    context.viewer.loadURL = async url => { addresses.push(url); };
+    return context;
+  };
+  preferences.providerSettings.old = { 'plugin.enabled': true };
+  await manager.applyCurrentProviderSettings(); assert.equal(manager.currentProvider, original);
+  preferences.providerSettings.old = { 'plugin.enabled': false };
+  await manager.applyCurrentProviderSettings();
+  assert.notEqual(manager.currentProvider, original);
+  assert.equal(manager.currentProviderSettings['plugin.enabled'], false);
+  assert.equal(addresses.at(-1), 'https://fixture.example/watch/42');
+  await assert.rejects(original.context.viewer.loadURL('https://late.example/'), /no longer active/);
+  const replacement = manager.currentProvider;
+  await manager.applyCurrentProviderSettings(); assert.equal(manager.currentProvider, replacement);
+  preferences.providerSettings.old = {};
+  await manager.applyCurrentProviderSettings(); assert.notEqual(manager.currentProvider, replacement);
+  await manager.dispose();
+});
+
+test('a queued preference save cannot bring back a Provider after a site switch', async () => {
+  const events = [], { manager } = realLifecycleManager(events);
+  await manager.load('old');
+  const switchSite = manager.load('next');
+  const save = manager.applyCurrentProviderSettings();
+  await Promise.all([switchSite, save]);
+  assert.equal(manager.currentSiteId, 'next');
+  assert.equal(events.filter(event => event === 'old:context').length, 1);
+  await manager.dispose();
+});
+
 test('next Provider loads while captured outgoing Plugin/Provider/login cleanup remains pending', async () => {
   const events = [], plugin = deferred(), login = deferred();
   const { manager, contexts } = realLifecycleManager(events);
   await manager.load('old');
   const outgoing = manager.currentProvider;
   contexts.get('old').externalBrowser.close = () => { events.push('old:close'); return login.promise; };
-  manager.currentPlugins.push({ async deactivate() { events.push('old:plugin-start'); await plugin.promise; events.push('old:plugin-done'); } });
+  await manager.currentPluginRuntime.sync([{ metadata: { id: 'fixture.held' }, constructor: class {
+    activate() {}
+    async deactivate() { events.push('old:plugin-start'); await plugin.promise; events.push('old:plugin-done'); }
+  } }], {});
   await manager.load('next');
   assert.ok(events.includes('next:navigate'));
   assert.ok(!events.includes('old:plugin-done'));

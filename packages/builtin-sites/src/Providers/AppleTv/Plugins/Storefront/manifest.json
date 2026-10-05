@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.apple-tv.storefront",
+  "name": "Apple TV Storefront",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Plugin.js"
+}

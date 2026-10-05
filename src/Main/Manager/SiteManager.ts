@@ -1,7 +1,7 @@
 import {
   getPluginMetadata,
+  SHORT_FORM_PUBLISHER_CAPABILITY,
   getProviderMetadata,
-  type AbstractPlugin,
   type AbstractProvider,
   type BundleDefinition,
   type Disposable,
@@ -41,6 +41,10 @@ import { resolvePictureInPictureOverlaySelectors } from '../Functional/PictureIn
 import { createProviderPictureInPictureSubtitleController } from '../Functional/PictureInPictureSubtitleRuntime';
 import type { SiteTransitionState } from '../../Common/SiteTransition';
 import { createScopedSiteContext } from '../Functional/ScopedSiteContext';
+import { PluginRuntime } from '../Functional/PluginRuntime';
+import { DragDropManager } from './DragDropManager';
+import { pluginMatchesProvider, isPluginEnabled, withPluginSettings } from '../Functional/PluginContributions';
+import { requiresProviderReload } from '../Functional/ProviderSettings';
 import {
   resolveGlobalLocale,
   resolveProviderLocaleContributions,
@@ -67,6 +71,8 @@ import {
 
 /** Coordinates site behavior. */
 export class SiteManager {
+  /** Drop discovery includes inactive Providers and follows Bundle ownership. */
+  readonly dragDrop = new DragDropManager();
   /** The sites value. */
   private readonly sites = new Map<string, RegisteredProvider>();
   /** The bundles value. */
@@ -75,8 +81,10 @@ export class SiteManager {
   private readonly runtimePlugins = new Map<string, RegisteredRuntimePlugin>();
   /** The current provider value. */
   private currentProvider?: AbstractProvider;
-  /** The current plugins value. */
-  private readonly currentPlugins: AbstractPlugin[] = [];
+  /** Plugin authority belongs to one Provider activation, never a global singleton. */
+  private currentPluginRuntime?: PluginRuntime;
+  /** Snapshot actually applied to the current instance, not the preference draft. */
+  private currentProviderSettings: ProviderSettings = {};
   /** The current site ID value. */
   private currentSiteId?: string;
   /** The current locale value. */
@@ -166,6 +174,10 @@ export class SiteManager {
       }
       stagedPluginIds.add(id);
     }
+    const composedProviders = [...this.sites.values(), ...stagedProviders].map(registration => ({
+      ...registration, metadata: withPluginSettings(registration.metadata, [...this.runtimePlugins.values(), ...stagedPlugins]),
+    }));
+    for (const registration of composedProviders) validateProviderContributions(registration.metadata);
     const actionShortcutIds = new Set(
       [...this.sites.values()].flatMap(({ metadata }) =>
         (metadata.shortcut?.actions ?? []).map(({ id }) => id),
@@ -185,9 +197,8 @@ export class SiteManager {
       }
     }
 
-    for (const registration of stagedProviders) {
-      this.sites.set(registration.metadata.id, registration);
-    }
+    for (const registration of composedProviders) this.sites.set(registration.metadata.id, registration);
+    for (const registration of stagedProviders) this.dragDrop.registerProvider(registration.metadata);
     for (const registration of stagedPlugins) {
       this.runtimePlugins.set(registration.metadata.id, registration);
     }
@@ -207,7 +218,10 @@ export class SiteManager {
     const registered = this.bundles.get(bundleId);
     if (!registered) return;
     for (const [siteId, site] of this.sites) {
-      if (site.bundleId === bundleId) this.sites.delete(siteId);
+      if (site.bundleId === bundleId) {
+        this.sites.delete(siteId);
+        this.dragDrop.unregisterProvider(siteId);
+      }
     }
     for (const [pluginId, plugin] of this.runtimePlugins) {
       if (plugin.bundleId === bundleId) this.runtimePlugins.delete(pluginId);
@@ -216,6 +230,9 @@ export class SiteManager {
       this.pluginBrowserProfiles.delete(profile.id);
     }
     this.bundles.delete(bundleId);
+    for (const [id, registration] of this.sites) {
+      this.sites.set(id, { ...registration, metadata: withPluginSettings(registration.metadata, [...this.runtimePlugins.values()]) });
+    }
   }
 
   /**
@@ -233,7 +250,8 @@ export class SiteManager {
       const activeRegistration = activeSiteId
         ? this.sites.get(activeSiteId)
         : undefined;
-      const ownedActiveSiteId = activeRegistration?.bundleId === bundleId
+      const ownedActiveSiteId = activeRegistration?.bundleId === bundleId ||
+          (activeSiteId && this.pluginsFor(activeSiteId).some(plugin => plugin.bundleId === bundleId))
         ? activeSiteId
         : undefined;
       const activeUrl = ownedActiveSiteId
@@ -342,6 +360,13 @@ export class SiteManager {
                       : undefined,
                   }),
             })),
+            plugins: [...this.runtimePlugins.values()]
+              .filter(plugin => pluginMatchesProvider(plugin, metadata.id))
+              .map(plugin => this.currentSiteId === metadata.id
+                ? this.currentPluginRuntime?.listStates().find(state => state.id === plugin.metadata.id) ?? {
+                    id: plugin.metadata.id, enabled: isPluginEnabled(plugin.metadata, this.getProviderSettings(metadata.id)), state: 'inactive' as const,
+                  }
+                : { id: plugin.metadata.id, enabled: isPluginEnabled(plugin.metadata, this.getProviderSettings(metadata.id)), state: 'inactive' as const }),
             shortFormVideo: metadata.shortFormVideo
               ? {
                   previous: metadata.shortFormVideo.previous === true,
@@ -365,6 +390,11 @@ export class SiteManager {
   /** Determines whether the current site condition applies. */
   isCurrentSite(id: string): boolean {
     return this.currentSiteId === id;
+  }
+
+  /** Current drop target for Local registrations; menu layers do not change it. */
+  getActiveProviderId(): string | undefined {
+    return this.currentSiteId;
   }
 
   /** Loads the operation. */
@@ -433,7 +463,11 @@ export class SiteManager {
     this.currentContextRetirement = scoped.retire;
     this.activeContext = providerContext;
     try {
-      const provider = new registration.constructor(providerContext);
+      const pluginRuntime = new PluginRuntime(providerContext, registration.metadata);
+      this.currentPluginRuntime = pluginRuntime;
+      const contextWithCapabilities = { ...providerContext, capabilities: pluginRuntime.capabilities };
+      this.activeContext = contextWithCapabilities;
+      const provider = new registration.constructor(contextWithCapabilities);
       this.currentProvider = provider;
       this.currentSiteId = id;
       this.currentLocale = locale;
@@ -445,8 +479,9 @@ export class SiteManager {
         ? this.installPagePictureInPicturePolicy(context, registration.metadata)
         : async () => undefined;
       this.installBrowserIdentity(providerContext, registration.metadata);
-      await provider.onSettingsChanged(this.getProviderSettings(id));
-      await this.activatePlugins(registration, providerContext);
+      this.currentProviderSettings = this.getProviderSettings(id);
+      await provider.onSettingsChanged(this.currentProviderSettings);
+      await this.activatePlugins(registration);
       await provider.load();
       await refreshPagePictureInPicturePolicy();
     } catch (error) {
@@ -490,7 +525,8 @@ export class SiteManager {
   async getCurrentShortFormVideoPublisher(): Promise<
     ShortFormVideoPublisher | undefined
   > {
-    return this.currentProvider?.getShortFormVideoPublisher();
+    const service = this.currentPluginRuntime?.capabilities.get(SHORT_FORM_PUBLISHER_CAPABILITY);
+    return service ? service.getPublisher() : this.currentProvider?.getShortFormVideoPublisher();
   }
 
   /** Push the latest app-persisted values into the active Provider. */
@@ -498,7 +534,29 @@ export class SiteManager {
     const provider = this.currentProvider;
     const siteId = this.currentSiteId;
     if (!provider || !siteId) return;
-    await provider.onSettingsChanged(this.getProviderSettings(siteId));
+    await this.runSiteTransition(async () => {
+      // A queued save must never resurrect a Provider that the user left.
+      if (this.currentProvider !== provider || this.currentSiteId !== siteId) return;
+      const settings = this.getProviderSettings(siteId);
+      const registration = this.sites.get(siteId);
+      if (registration && requiresProviderReload(
+        registration.metadata, this.currentProviderSettings, settings,
+      )) {
+        const address = this.getCurrentAddress();
+        await this.loadSite(siteId);
+        if (address && /^https?:\/\//i.test(address)) {
+          try {
+            await this.currentProviderContext().viewer.loadURL(address);
+          } catch (error) {
+            if (!isNavigationAborted(error)) throw error;
+          }
+        }
+        return;
+      }
+      await provider.onSettingsChanged(settings);
+      await this.currentPluginRuntime?.sync(this.pluginsFor(siteId), settings);
+      this.currentProviderSettings = settings;
+    });
   }
 
   /** Performs the refresh current browser profile operation. */
@@ -589,12 +647,14 @@ export class SiteManager {
 
   /** Handles the action. */
   async handleAction(action: string): Promise<boolean> {
-    return (await this.currentProvider?.onAction(action)) ?? false;
+    const provider = this.currentProvider;
+    if (await this.currentPluginRuntime?.handleAction(action)) return true;
+    return (await provider?.onAction(action)) ?? false;
   }
 
   /** Returns the provider settings. */
   private getProviderSettings(providerId: string): ProviderSettings {
-    return { ...(this.getPreferences().providerSettings[providerId] ?? {})
+    return { ...(this.getPreferences().providerSettings?.[providerId] ?? {})
     };
   }
 
@@ -663,7 +723,8 @@ export class SiteManager {
   /** Performs the transform request operation. */
   transformRequest(details: SiteRequestDetails): SiteRequestRedirect | undefined {
     if (!this.currentProviderHasPermission('network-interception')) return undefined;
-    return this.currentProvider?.onBeforeRequest(details);
+    const base = this.currentProvider?.onBeforeRequest(details);
+    return this.currentPluginRuntime?.transformRequest(details, base) ?? base;
   }
 
   /** Performs the allow picture in picture operation. */
@@ -769,6 +830,7 @@ export class SiteManager {
     const unresolvedMetadata = {
       ...metadata,
       ...contributions,
+      fileDrop: contributions.fileDrop,
       id: manifest.id,
       title: manifest.name,
       description: manifest.description,
@@ -790,13 +852,16 @@ export class SiteManager {
       definition.localization,
       manifest.id,
     );
+    if (effectiveMetadata.settings?.categories.some(category => category.id.startsWith('plugin.'))) {
+      throw new Error(`Provider ${manifest.id} uses the reserved plugin. settings category namespace.`);
+    }
     const defaultProfile = effectiveMetadata.isolation?.defaultBrowserProfile;
     if (defaultProfile && !localProfileIds.has(defaultProfile)) {
       throw new Error(
         `Provider ${manifest.id} references unknown browser profile ${defaultProfile}.`,
       );
     }
-    validateProviderContributions(effectiveMetadata);
+
 
     return {
       /** The bundle ID value. */
@@ -829,6 +894,9 @@ export class SiteManager {
     if (manifest.apiVersion !== 1 || manifest.schemaVersion !== 1) {
       throw new Error(`Plugin ${manifest.id} uses an unsupported manifest or API version.`);
     }
+    if (metadata.activation && metadata.activation.type !== 'boolean') {
+      throw new Error(`Plugin ${manifest.id} activation must be a boolean setting.`);
+    }
     if (
       !scopedProviderId &&
       metadata.providerIds?.length &&
@@ -846,10 +914,11 @@ export class SiteManager {
         `Provider-owned Plugin ${metadata.id} excludes its owner ${scopedProviderId}.`,
       );
     }
-    const effectiveMetadata = scopedProviderId
-      ? metadata
-      : { ...metadata, providerIds: manifest.providerIds
-      };
+    const effectiveMetadata = {
+      ...metadata,
+      name: manifest.name,
+      providerIds: scopedProviderId ? metadata.providerIds : manifest.providerIds,
+    };
     validatePanelContributions(
       effectiveMetadata.panels ?? [],
       `Plugin ${manifest.id}`,
@@ -907,6 +976,10 @@ export class SiteManager {
       ) {
         continue;
       }
+      if (!isPluginEnabled(plugin.metadata, this.getProviderSettings(provider.id))) continue;
+      if (!provider.permissions?.includes('plugin-view')) continue;
+      if (this.currentSiteId === provider.id && this.currentPluginRuntime?.listStates()
+        .find(state => state.id === plugin.metadata.id)?.state !== 'active') continue;
       append(`plugin:${plugin.metadata.id}`, plugin.metadata.panels ?? []);
     }
     return panels.sort((left, right) =>
@@ -951,26 +1024,13 @@ export class SiteManager {
   /** Performs the activate plugins operation. */
   private async activatePlugins(
     registration: RegisteredProvider,
-    context: SiteContext,
   ): Promise<void> {
-    for (const plugin of this.runtimePlugins.values()) {
-      if (
-        plugin.scopedProviderId &&
-        plugin.scopedProviderId !== registration.metadata.id
-      ) {
-        continue;
-      }
-      const providerIds = plugin.metadata.providerIds;
-      if (providerIds?.length && !providerIds.includes(registration.metadata.id)) {
-        continue;
-      }
-      const instance = new plugin.constructor({
-        provider: { ...context, metadata: registration.metadata
-        },
-      });
-      this.currentPlugins.push(instance);
-      await instance.activate();
-    }
+    await this.currentPluginRuntime?.sync(this.pluginsFor(registration.metadata.id), this.currentProviderSettings);
+  }
+
+  /** All attached Plugins use the same physical/declared scope resolution. */
+  private pluginsFor(providerId: string): RegisteredRuntimePlugin[] {
+    return [...this.runtimePlugins.values()].filter(plugin => pluginMatchesProvider(plugin, providerId));
   }
 
   /** Performs the unload current operation. */
@@ -982,13 +1042,15 @@ export class SiteManager {
   /** Releases app-owned policy authority immediately, then retires captured instances. */
   private retireCurrent(): Promise<void> {
     const provider = this.currentProvider;
-    const plugins = this.currentPlugins.splice(0).reverse();
+    const pluginCleanup = this.currentPluginRuntime?.retire();
+    this.currentPluginRuntime = undefined;
     const context = this.activeContext;
     const pipeline = this.currentPagePipeline;
     const retireContext = this.currentContextRetirement;
     this.currentContextRetirement = undefined;
     this.currentPagePipeline = undefined;
     this.currentProvider = undefined;
+    this.currentProviderSettings = {};
     this.currentSiteId = undefined;
     this.currentLocale = undefined;
     this.currentRuntime = undefined;
@@ -997,7 +1059,7 @@ export class SiteManager {
     this.disposeCurrentRuntimeServices();
     try { pipeline?.dispose(); }
     catch (error) { console.error('Retired page pipeline disposal failed.', error); }
-    if (!provider && !context && plugins.length === 0) return Promise.resolve();
+    if (!provider && !context && !pluginCleanup) return Promise.resolve();
     let loginClose: Promise<void>;
     try {
       loginClose = retireContext?.() ?? context?.externalBrowser.close() ?? Promise.resolve();
@@ -1007,10 +1069,7 @@ export class SiteManager {
     void loginClose.catch(() => undefined);
     // Defer Plugin/Provider hooks until after the native handoff can start.
     const cleanup = Promise.resolve().then(async () => {
-      for (const plugin of plugins) {
-        try { await plugin.deactivate(); }
-        catch (error) { console.error('Retired Plugin deactivation failed.', error); }
-      }
+      await pluginCleanup;
       try { await provider?.unload(); }
       catch (error) { console.error('Retired Provider unload failed.', error); }
       try { await loginClose; }

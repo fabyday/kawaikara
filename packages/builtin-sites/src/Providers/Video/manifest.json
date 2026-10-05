@@ -8,6 +8,11 @@
   "main": "Provider.js",
   "permissions": ["internal-view", "plugin-view"],
   "contributes": {
+    "fileDrop": {
+      "scope": "global",
+      "action": "open-local-video",
+      "extensions": [".3gp", ".avi", ".flv", ".m2ts", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".mts", ".ogv", ".ts", ".webm", ".wmv"]
+    },
     "shortcut": { "defaultKey": "Control+Alt+4" },
     "locale": {
       "resource": "locale.json",

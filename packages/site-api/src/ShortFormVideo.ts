@@ -1,3 +1,11 @@
+import { defineCapability } from './PluginAPI';
+
+/** Optional publisher service consumed by App without accessing Plugin instances. */
+export const SHORT_FORM_PUBLISHER_CAPABILITY = defineCapability<{
+  /** Resolve the current publisher through the active page integration. */
+  getPublisher(): Promise<ShortFormVideoPublisher | undefined>;
+}>('kawaikara.short-form-publisher', 1);
+
 /** Provider action contract used by short-form video integrations. */
 export const SHORT_FORM_VIDEO_ACTIONS = {
   /** The previous value. */

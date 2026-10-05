@@ -13,11 +13,11 @@ import {
   type VideoPathOpenResult,
   type RendererMessages,
 } from '../Common/IPC';
-import { installVideoDropTarget } from './VideoDrop';
+import { installDragDropTarget } from './DragDrop';
 import { installEditableFocusReporter } from './EditableFocus';
 import { subscribeDirectoryNavigation } from './VideoDirectoryNavigation';
 
-installVideoDropTarget();
+installDragDropTarget();
 installEditableFocusReporter();
 installScrollbarTheme();
 

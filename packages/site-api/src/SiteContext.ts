@@ -1,4 +1,5 @@
 import type { Disposable } from './Disposable';
+import type { CapabilityRegistry } from './PluginAPI';
 
 /** Defines the new window policy type. */
 export type NewWindowPolicy =
@@ -143,6 +144,8 @@ export type SitePageFrameScope = 'main' | 'all';
 
 /** Describes the site page injection contract. */
 export interface SitePageInjection {
+  /** Host-supplied activation cancellation; prevents queued work after Plugin disable. */
+  readonly signal?: AbortSignal;
   /** Stable, Provider-scoped name used in diagnostics. */
   readonly id: string;
   /** Rebuilt before every pass so settings and action URLs can stay current. */
@@ -165,9 +168,9 @@ export interface SitePagePipeline {
   /** Performs the refresh operation. */
   refresh(id: string): Promise<void>;
   /** Executes the operation. */
-  execute<T = unknown>(id: string, source: string): Promise<T>;
+  execute<T = unknown>(id: string, source: string, signal?: AbortSignal): Promise<T>;
   /** Executes the in all frames. */
-  executeInAllFrames<T = unknown>(id: string, source: string): Promise<readonly T[]>;
+  executeInAllFrames<T = unknown>(id: string, source: string, signal?: AbortSignal): Promise<readonly T[]>;
   /** Handles the operation. */
   on(phase: SitePagePhase, listener: () => void | Promise<void>): Disposable;
   /** Send one trusted keyboard press to the active page. */
@@ -200,6 +203,8 @@ export interface SiteLocaleContext {
 
 /** Describes the site context contract. */
 export interface SiteContext {
+  /** Versioned services shared with attached Plugins, scoped to this activation. */
+  readonly capabilities?: CapabilityRegistry;
   /** The viewer value. */
   readonly viewer: SiteViewer;
   /** Available only with the network-interception permission. */

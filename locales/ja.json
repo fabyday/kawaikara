@@ -413,6 +413,11 @@
     "metadataDeviceId": "デバイスID"
   },
   "video": {
+    "dropSelectionRequired": "複数のプロバイダーが対応しています。自動では開きませんでした。使用するプロバイダーから直接開いてください。",
+    "dropVideo": "ここに動画をドロップして再生",
+    "dropVideoHint": "対応する最初の動画ファイルを開きます。",
+    "dropVideoOpening": "動画を開いています…",
+    "dropVideoFailed": "ファイルを開けませんでした。対応するローカル動画をもう一度ドロップしてください。",
     "welcome": "動画を開く",
     "changeSource": "別の動画を開く",
     "sourceDescription": "ローカルファイルと通常のHLSを同じプレーヤーで再生します。",

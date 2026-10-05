@@ -558,6 +558,7 @@ export function validateProviderManifestContributions(
     }
   }
   const allowed = new Set([
+    'fileDrop',
     'address',
     'menu',
     'shortcut',

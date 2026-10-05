@@ -13,7 +13,7 @@ type PlaybackSourceOptions = Pick<ReturnType<typeof useVideoState>,
   | 'source'
   | 'openGenerationRef'
   | 'sourceOpeningRef'
-  | 'pendingMpvSeekRef'
+  | 'mpvSeekQueueRef'
   | 'scrubbingRef'
   | 'scrubPointerIdRef'
   | 'setScrubTime'
@@ -50,7 +50,7 @@ export function usePlaybackSource({
   source,
   openGenerationRef,
   sourceOpeningRef,
-  pendingMpvSeekRef,
+  mpvSeekQueueRef,
   scrubbingRef,
   scrubPointerIdRef,
   setScrubTime,
@@ -76,13 +76,13 @@ export function usePlaybackSource({
   sourceRevision,
 }: PlaybackSourceOptions) {
   useEffect(() => {
+    mpvSeekQueueRef.current?.cancel();
     const labels = labelsRef.current;
     if (!localizationReady || !labels || backend === 'detecting' || !source) return;
     const generation = ++openGenerationRef.current;
     /** Cancels validation when this source-opening effect is superseded. */
     let cancelSourceValidation: () => void = () => undefined;
     sourceOpeningRef.current = true;
-    pendingMpvSeekRef.current = undefined;
     scrubbingRef.current = false;
     scrubPointerIdRef.current = undefined;
     setScrubTime(undefined);

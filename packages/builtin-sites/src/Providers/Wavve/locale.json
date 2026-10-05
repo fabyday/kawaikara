@@ -1,0 +1,20 @@
+{
+  "en-US": {
+    "settings.plugins.title": "Provider plugins",
+    "settings.plugins.description": "Changes take effect when saved and reload this site if it is open.",
+    "settings.plugins.responsive-viewport.title": "Responsive layout correction",
+    "settings.plugins.responsive-viewport.description": "Adapt the player layout to the app window size."
+  },
+  "ko-KR": {
+    "settings.plugins.title": "사이트 플러그인",
+    "settings.plugins.description": "저장하면 적용되며, 현재 열려 있는 사이트는 새로고침됩니다.",
+    "settings.plugins.responsive-viewport.title": "반응형 화면 보정",
+    "settings.plugins.responsive-viewport.description": "앱 창 크기에 맞도록 플레이어 레이아웃을 보정합니다."
+  },
+  "ja-JP": {
+    "settings.plugins.title": "Provider プラグイン",
+    "settings.plugins.description": "保存時に適用され、現在開いているサイトは再読み込みされます。",
+    "settings.plugins.responsive-viewport.title": "レスポンシブ表示補正",
+    "settings.plugins.responsive-viewport.description": "アプリのウィンドウサイズに合わせてプレイヤーの配置を補正します。"
+  }
+}

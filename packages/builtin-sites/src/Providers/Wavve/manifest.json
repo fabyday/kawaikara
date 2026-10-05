@@ -5,11 +5,13 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
+  "plugins": ["Plugins/ResponsiveViewport"],
   "permissions": ["navigation", "script-injection"],
   "contributes": {
     "address": { "hosts": ["wavve.com"] },
     "shortcut": { "defaultKey": "Control+Alt+7" },
     "locale": {
+      "resource": "locale.json",
       "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
       "defaultLocale": "inherit"
     },

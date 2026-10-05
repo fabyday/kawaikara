@@ -172,10 +172,13 @@ export const IPC_CHANNELS = defineIpcChannels({
     /** The picture in picture changed value. */
     pictureInPictureChanged: 'kawaikara:media:picture-in-picture-changed',
   },
-  /** The video value. */
+  /** Provider-registered file drop routing. */
+  dragDrop: {
+    /** OS file drops are routed by registered Providers in Main. */
+    openFiles: 'kawaikara:drag-drop:open-files',
+  },
+  /** Video playback and library operations. */
   video: {
-    /** The open dropped files value. */
-    openDroppedFiles: 'kawaikara:video:open-dropped-files',
     /** The select local file value. */
     selectLocalFile: 'kawaikara:video:select-local-file',
     /** The get playback capabilities value. */
@@ -372,6 +375,8 @@ export interface ProviderActionShortcutInfo {
 
 /** Describes the provider runtime info contract. */
 export interface ProviderRuntimeInfo {
+  /** Desired and actual state of the Plugins attached to this Provider. */
+  readonly plugins?: readonly import('@kawaikara/site-api').PluginRuntimeState[];
   /** The ID value. */
   readonly id: string;
   /** The title value. */

@@ -413,6 +413,11 @@
     "metadataDeviceId": "Device ID"
   },
   "video": {
+    "dropSelectionRequired": "Multiple providers support these files. Nothing was opened automatically; open the file from your preferred provider.",
+    "dropVideo": "Drop a video here to play",
+    "dropVideoHint": "The first supported video file will open.",
+    "dropVideoOpening": "Opening video…",
+    "dropVideoFailed": "Could not open the dropped file. Choose a supported local video and try again.",
     "welcome": "Open a video",
     "changeSource": "Open another video",
     "sourceDescription": "Play local files and regular HLS streams in the same player.",

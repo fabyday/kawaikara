@@ -1,4 +1,5 @@
 import { DisposableStore } from './Disposable';
+import type { ProviderFileDropContribution } from './DragDrop';
 import type {
   PictureInPictureSubtitleController,
   ProviderPictureInPictureSession,
@@ -121,6 +122,8 @@ export interface ProviderBooleanSettingContribution
   readonly type: 'boolean';
   /** Whether the default value option is enabled. */
   readonly defaultValue: boolean;
+  /** Recreate the Provider and reload its page when this value changes. */
+  readonly reloadOnChange?: boolean;
 }
 
 /** Describes the provider item list setting contribution contract. */
@@ -216,6 +219,8 @@ export interface SiteAddressContribution {
 
 /** Describes the provider metadata contract. */
 export interface ProviderMetadata {
+  /** Manifest-owned OS file-drop registration, available before activation. */
+  readonly fileDrop?: ProviderFileDropContribution;
   /** The ID value. */
   readonly id: string;
   /** The title value. */
@@ -253,7 +258,7 @@ export type ProviderDecoratorMetadata =
   Partial<
     Omit<
       ProviderMetadata,
-      'id' | 'title' | 'description' | 'permissions' | 'menu' | 'shortcut' | 'settings'
+      'id' | 'title' | 'description' | 'permissions' | 'menu' | 'shortcut' | 'settings' | 'fileDrop'
     >
   > & {
     /** The menu value. */

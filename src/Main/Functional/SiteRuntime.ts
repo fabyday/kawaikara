@@ -9,6 +9,7 @@ import {
   type SiteContext,
 } from '@kawaikara/site-api';
 import type { BrowserProfileInfo } from '../../Common/IPC';
+import { validateFileDropContribution } from './FileDropContributions';
 
 /** Describes the registered provider contract. */
 export interface RegisteredProvider {
@@ -87,6 +88,7 @@ const CONTRIBUTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 
 /** Validates the provider contributions. */
 export function validateProviderContributions(metadata: ProviderMetadata): void {
+  validateFileDropContribution(metadata);
   if (
     !metadata.menu ||
     typeof metadata.menu.category !== 'string' ||
@@ -240,6 +242,10 @@ export function validateProviderContributions(metadata: ProviderMetadata): void 
       }
       if (setting.type === 'boolean' && typeof setting.defaultValue !== 'boolean') {
         throw new Error(`Provider ${metadata.id} setting ${setting.key} needs a boolean default.`);
+      }
+      if (setting.type === 'boolean' && setting.reloadOnChange !== undefined &&
+          typeof setting.reloadOnChange !== 'boolean') {
+        throw new Error(`Provider ${metadata.id} setting ${setting.key} needs a boolean reloadOnChange.`);
       }
       validateLocalizedText(setting.title, `${metadata.id} setting title`);
       if (setting.description) {

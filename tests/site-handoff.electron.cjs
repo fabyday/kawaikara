@@ -102,7 +102,10 @@ async function main() {
   oldView.webContents.setAudioMuted = value => { if (value) muteIssued = true; mute(value); };
   // An outgoing renderer that never responds must not gate native replacement.
   oldView.webContents.executeJavaScript = () => { forbiddenCleanupCalls++; return new Promise(() => {}); };
-  sites.currentPlugins.push({ async deactivate() { await outgoingPlugin.promise; events.push('old:plugin-done'); } });
+  await sites.currentPluginRuntime.sync([{ metadata: { id: 'fixture.held' }, constructor: class {
+    activate() {}
+    async deactivate() { await outgoingPlugin.promise; events.push('old:plugin-done'); }
+  } }], {});
   sites.currentProvider.unload = async () => { await outgoingUnload.promise; events.push('old:unload-done'); };
   const nativeOwnershipPending = deferred(), restoreNativeOwnership = deferred();
   windows.pictureInPicture.exitAllModes = async () => {

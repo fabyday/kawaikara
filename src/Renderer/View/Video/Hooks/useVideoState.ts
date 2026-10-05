@@ -14,8 +14,9 @@ import type {
 import {
   DEFAULT_VIDEO_SEEK_SECONDS
 } from '../../../../Common/VideoControls';
+import type { MpvSeekQueue } from '../Playback/MpvSeekQueue';
 import { INITIAL_PLAYER_STATE } from '../Playback/PlayerDefaults';
-import { FallbackReason, PendingMpvSeek, PlaybackBackend, PlayerSource, VideoPreferences, VideoSeekRange } from '../Types';
+import { FallbackReason, PlaybackBackend, PlayerSource, VideoPreferences, VideoSeekRange } from '../Types';
 
 /** Coordinates video state behavior for this View. */
 export function useVideoState() {
@@ -67,9 +68,7 @@ export function useVideoState() {
 
   const sourceOpeningRef = useRef(false);
 
-  const mpvSeekInFlightRef = useRef(false);
-
-  const pendingMpvSeekRef = useRef<PendingMpvSeek | undefined>(undefined);
+  const mpvSeekQueueRef = useRef<MpvSeekQueue | undefined>(undefined);
 
   const replayInFlightRef = useRef(false);
 
@@ -195,10 +194,8 @@ export function useVideoState() {
     openGenerationRef,
     /** The sourceOpeningRef value. */
     sourceOpeningRef,
-    /** The mpvSeekInFlightRef value. */
-    mpvSeekInFlightRef,
-    /** The pendingMpvSeekRef value. */
-    pendingMpvSeekRef,
+    /** Completion-aware native seek scheduling. */
+    mpvSeekQueueRef,
     /** The replayInFlightRef value. */
     replayInFlightRef,
     /** The labelsRef value. */
