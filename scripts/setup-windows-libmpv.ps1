@@ -1,25 +1,36 @@
 $ErrorActionPreference = 'Stop'
 
+$sdkLock = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'windows-libmpv.lock.json') -Raw | ConvertFrom-Json
+if ($sdkLock.sha256 -notmatch '^[0-9a-f]{64}$' -or
+    $sdkLock.url -notmatch '^https://github\.com/shinchiro/mpv-winbuild-cmake/releases/download/[^/]+/mpv-dev-x86_64-[^/]+\.7z$') {
+  throw 'Invalid pinned libmpv archive URL or SHA-256.'
+}
+if (-not $env:RUNNER_TEMP) { throw 'RUNNER_TEMP must be set to the build temporary directory.' }
 $sdkRoot = Join-Path $env:USERPROFILE 'libmpv'
 $tempRoot = Join-Path $env:RUNNER_TEMP 'kawaikara-libmpv'
 $archivePath = Join-Path $tempRoot 'libmpv.7z'
-$extractRoot = Join-Path $tempRoot 'extracted'
+$extractRoot = Join-Path $tempRoot ([guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Force -Path $tempRoot, $extractRoot | Out-Null
 
-$headersReady = Test-Path (Join-Path $sdkRoot 'include\mpv\client.h')
-$dllReady = Test-Path (Join-Path $sdkRoot 'bin\libmpv-2.dll')
-if (-not ($headersReady -and $dllReady)) {
-  $release = Invoke-RestMethod `
-    -Headers @{ Accept = 'application/vnd.github+json' } `
-    -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest'
-  $asset = $release.assets |
-    Where-Object { $_.name -match '^mpv-dev-x86_64-.*\.7z$' -and $_.name -notmatch '-v3-' } |
-    Select-Object -First 1
-  if (-not $asset) {
-    throw 'The latest mpv-winbuild release has no non-v3 x86_64 development archive.'
+if (-not (Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+  try {
+    # Public pinned assets need no API lookup or authorization header.
+    # Do not retry rate limits or restart the workflow automatically.
+    Invoke-WebRequest -Uri $sdkLock.url -OutFile $archivePath -TimeoutSec 180
+  } catch {
+    throw "libmpv download failed. No automatic retry was attempted. If GitHub reports a rate limit, wait until its reset time, then manually run Nightly again. $($_.Exception.Message)"
   }
+} else {
+  Write-Host "Using cached libmpv archive ($($sdkLock.version)); no download needed."
+}
 
-  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archivePath
+$actualHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualHash -ne $sdkLock.sha256) {
+  throw 'libmpv SHA-256 mismatch. Refusing to extract or cache this archive. Remove the affected Actions cache before manually rerunning.'
+}
+
+# Always extract verified bytes, even when an older SDK already exists locally.
+& {
   & 7z.exe x $archivePath "-o$extractRoot" -y | Out-Host
   if ($LASTEXITCODE -ne 0) { throw '7-Zip could not extract the libmpv SDK.' }
 

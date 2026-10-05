@@ -161,14 +161,27 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+      - name: Restore pinned Windows libmpv archive
+        if: matrix.platform == 'windows'
+        id: libmpv-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/kawaikara-libmpv/libmpv.7z
+          key: windows-libmpv-archive-v1-${{ hashFiles('scripts/windows-libmpv.lock.json') }}
       - name: Install libmpv SDK on Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: ./scripts/setup-windows-libmpv.ps1
+      - name: Cache verified Windows libmpv archive
+        if: matrix.platform == 'windows' && steps.libmpv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/kawaikara-libmpv/libmpv.7z
+          key: ${{ steps.libmpv-cache.outputs.cache-primary-key }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - name: Test Netflix login and VMP packaging regressions
-        run: node --test tests/external-login.test.cjs tests/widevine-packaging.test.cjs
+        run: node --test tests/external-login.test.cjs tests/widevine-packaging.test.cjs tests/windows-libmpv-cache.test.cjs
       - name: Authenticate Widevine signing
         env:
           KAWAIKARA_EVS_ACCOUNT: ${{ secrets.ACCOUNT }}
