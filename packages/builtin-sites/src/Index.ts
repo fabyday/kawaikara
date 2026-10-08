@@ -15,6 +15,8 @@ import ChzzkAdBlockManifest from './Providers/Chzzk/Plugins/AdBlock/manifest.jso
 import ChzzkQualityPlugin from './Providers/Chzzk/Plugins/Quality/Plugin';
 import ChzzkQualityManifest from './Providers/Chzzk/Plugins/Quality/manifest.json';
 import ChzzkClipsPlugin from './Providers/Chzzk/Plugins/Clips/Plugin';
+import ChzzkUpscalingPlugin from './Providers/Chzzk/Plugins/Upscaling/Plugin';
+import ChzzkUpscalingManifest from './Providers/Chzzk/Plugins/Upscaling/manifest.json';
 import ChzzkClipsManifest from './Providers/Chzzk/Plugins/Clips/manifest.json';
 import YouTubeShortsPlugin from './Providers/YouTube/Plugins/Shorts/Plugin';
 import YouTubeShortsManifest from './Providers/YouTube/Plugins/Shorts/manifest.json';
@@ -136,7 +138,7 @@ export const builtinBundle = defineBundle({
     provider(tvingManifest as ProviderManifest, TvingProvider),
     provider(appleTvManifest as ProviderManifest, AppleTvProvider, appleTvLocalization, [builtinPlugin(AppleTvStorefrontManifest as PluginManifest, AppleTvStorefrontPlugin)]),
     provider(crunchyrollManifest as ProviderManifest, CrunchyrollProvider),
-    provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization, [builtinPlugin(ChzzkAdBlockManifest as PluginManifest, ChzzkAdBlockPlugin), builtinPlugin(ChzzkQualityManifest as PluginManifest, ChzzkQualityPlugin), builtinPlugin(ChzzkClipsManifest as PluginManifest, ChzzkClipsPlugin)]),
+    provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization, [builtinPlugin(ChzzkAdBlockManifest as PluginManifest, ChzzkAdBlockPlugin), builtinPlugin(ChzzkQualityManifest as PluginManifest, ChzzkQualityPlugin), builtinPlugin(ChzzkClipsManifest as PluginManifest, ChzzkClipsPlugin), builtinPlugin(ChzzkUpscalingManifest as PluginManifest, ChzzkUpscalingPlugin)]),
     provider(twitchManifest as ProviderManifest, TwitchProvider),
     provider(appleMusicManifest as ProviderManifest, AppleMusicProvider),
     provider(spotifyManifest as ProviderManifest, SpotifyProvider),

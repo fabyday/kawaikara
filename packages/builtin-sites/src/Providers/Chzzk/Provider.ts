@@ -1,6 +1,8 @@
 import { AbstractUrlProvider, provider, webAuthenticationPolicy, matchesSiteUrlHost,
+  VIDEO_CONTENT, type SiteContext,
   type NewWindowPolicy, type PictureInPictureSubtitleController,
   type ProviderPictureInPictureSession } from '@kawaikara/site-api';
+import { resolveChzzkVideoContent } from './Inject/VideoContent';
 
 /** Site identity and player policy; optional behavior belongs to attached Plugins. */
 @provider({
@@ -16,6 +18,14 @@ import { AbstractUrlProvider, provider, webAuthenticationPolicy, matchesSiteUrlH
   },
 })
 export class ChzzkProvider extends AbstractUrlProvider {
+  /** Publish before attached Plugins activate; App never interprets CHZZK routes. */
+  constructor(context: SiteContext) {
+    super(context);
+    const registration = context.capabilities?.provide(VIDEO_CONTENT, {
+      resolver: () => resolveChzzkVideoContent.toString(),
+    });
+    if (registration) this.subscriptions.add(registration);
+  }
   /** The URL value. */
   protected readonly url = 'https://chzzk.naver.com/';
 

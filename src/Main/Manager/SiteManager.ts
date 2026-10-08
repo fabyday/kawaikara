@@ -348,7 +348,12 @@ export class SiteManager {
                       : undefined,
                     defaultValue: setting.defaultValue,
                   }
-                : {
+                : setting.type === 'select' ? {
+                    ...setting,
+                    title: cloneLocalizedText(setting.title),
+                    description: setting.description ? cloneLocalizedText(setting.description) : undefined,
+                    options: setting.options.map(option => ({ value: option.value, label: cloneLocalizedText(option.label) })),
+                  } : {
                     type: setting.type,
                     key: setting.key,
                     title: cloneLocalizedText(setting.title),

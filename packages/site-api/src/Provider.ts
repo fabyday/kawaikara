@@ -136,8 +136,26 @@ export interface ProviderItemListSettingContribution
 }
 
 /** Defines the provider setting contribution type. */
+export interface ProviderSelectSettingContribution extends ProviderSettingContributionBase {
+  /** Single-choice control rendered by the App. */
+  readonly type: 'select';
+  /** Value used when persisted data is absent or invalid. */
+  readonly defaultValue: string;
+  /** Stable values and Bundle-localized display names. */
+  readonly options: readonly {
+    /** Persisted identifier, not translated. */
+    readonly value: string;
+    /** Localized display name. */
+    readonly label: ProviderLocalizedText;
+  }[];
+  /** Optional compatibility behavior for document patches. */
+  readonly reloadOnChange?: boolean;
+}
+
+/** Supported Provider and Plugin preference controls. */
 export type ProviderSettingContribution =
   | ProviderBooleanSettingContribution
+  | ProviderSelectSettingContribution
   | ProviderItemListSettingContribution;
 
 /** Describes the provider setting category contribution contract. */

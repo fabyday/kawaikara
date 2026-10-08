@@ -1,4 +1,5 @@
 import type { Disposable } from './Disposable';
+import type { VideoEffectsAPI } from './VideoEffects';
 import type { ProviderSettings, SiteRequestDetails, SiteRequestRedirect } from './Provider';
 import type { SiteActions, SiteLogger, SiteLocaleContext, SitePagePipeline } from './SiteContext';
 
@@ -61,6 +62,8 @@ export interface PluginLifetime {
 
 /** Narrow services; not an Electron BrowserWindow or App attachment target. */
 export interface PluginAppAPI {
+  /** Permission-filtered and lifetime-scoped video processing service. */
+  readonly videoEffects?: VideoEffectsAPI;
   /** App tags the logger with the Plugin id. */
   readonly logger: SiteLogger;
   /** Main resolves locale; translation resources remain Bundle-owned. */

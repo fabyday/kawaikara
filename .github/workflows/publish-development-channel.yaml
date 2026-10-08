@@ -379,6 +379,11 @@ jobs:
           path: ${{ runner.temp }}/kawaikara-libmpv/libmpv.7z
           key: ${{ steps.libmpv-cache.outputs.cache-primary-key }}
       - run: pnpm install --frozen-lockfile
+      - name: Cache pinned video-effect assets
+        uses: actions/cache@v4
+        with:
+          path: .cache/video-effects
+          key: video-effects-v1-${{ runner.os }}-${{ hashFiles('scripts/video-effects-assets.lock.json') }}
       - run: pnpm typecheck
       - name: Test Netflix login and VMP packaging regressions
         run: node --test tests/external-login.test.cjs tests/widevine-packaging.test.cjs tests/windows-libmpv-cache.test.cjs

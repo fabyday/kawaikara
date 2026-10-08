@@ -68,10 +68,16 @@ export class PluginScope {
         this.assertActive(); return track(registerAction(id, () => this.run(handler)));
       },
     };
+    const videoEffects = source.videoEffects && provider.permissions?.includes('script-injection') ? {
+      register: (effect: Parameters<NonNullable<SiteContext['videoEffects']>['register']>[0]) => {
+        this.assertActive();
+        return track(source.videoEffects!.register({ ...effect, id: `${metadata.id}:${effect.id}` }));
+      },
+    } : undefined;
     // Keep the v1 provider facade for compatibility, but revoke every side effect
     // independently from the Provider and auto-track every registration.
     const providerFacade: SiteContext & { metadata: ProviderMetadata } = {
-      ...source, metadata: provider, capabilities, logger, actions,
+      ...source, metadata: provider, capabilities, logger, actions, videoEffects,
       page: page ? { ...page, dispose: () => { /* App alone owns the pipeline. */ } } : undefined,
       viewer: {
         loadURL: url => this.run(() => { requirePermission('navigation'); return source.viewer.loadURL(url); }),
@@ -91,7 +97,7 @@ export class PluginScope {
       openExternal: url => this.run(() => { requirePermission('external-browser'); return source.openExternal(url); }),
     };
     this.context = {
-      app: { logger, locale: source.locale }, provider: providerFacade, page, actions, capabilities,
+      app: { logger, locale: source.locale, videoEffects }, provider: providerFacade, page, actions, capabilities,
       network: network ? { onBeforeRequest: (handler, priority) => {
         this.assertActive();
         return track(network.onBeforeRequest(request => {
@@ -153,7 +159,9 @@ export class PluginScope {
     return structuredClone(Object.fromEntries([pluginActivation(this.metadata), ...(this.metadata.settings ?? [])].map(setting => [
       setting.key, setting.type === 'boolean'
         ? (typeof this.values[setting.key] === 'boolean' ? this.values[setting.key] : setting.defaultValue)
-        : (Array.isArray(this.values[setting.key]) ? this.values[setting.key] : []),
+        : setting.type === 'select'
+          ? (setting.options.some(option => option.value === this.values[setting.key]) ? this.values[setting.key] : setting.defaultValue)
+          : (Array.isArray(this.values[setting.key]) ? this.values[setting.key] : []),
     ])));
   }
 

@@ -293,9 +293,12 @@ function enterUnifiedPictureInPicture(
     'object-fit:contain!important;object-position:50% 50%!important;background:#000!important;' +
     'visibility:visible!important;pointer-events:none!important;' +
     'z-index:2147483646!important';
+  const effectStyleText =
+    `video[data-kawaikara-unified-pip-video="true"] + canvas[data-kawaikara-video-effect]{${videoStyleText}}`;
   const shadowControlsStyleText =
     ':host *{visibility:hidden!important;pointer-events:none!important}' +
     `video[data-kawaikara-unified-pip-video="true"]{${videoStyleText}}` +
+    effectStyleText +
     shadowContentOverlayStyleText;
   const controlsStyleText =
     'html,body{position:fixed!important;inset:0!important;' +
@@ -313,6 +316,7 @@ function enterUnifiedPictureInPicture(
     'transform:none!important;filter:none!important;perspective:none!important;' +
     'contain:none!important;clip-path:none!important;opacity:1!important}' +
     `body video[data-kawaikara-unified-pip-video="true"]{${videoStyleText}}` +
+    effectStyleText +
     'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls,' +
     'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-enclosure,' +
     'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls-panel,' +
@@ -325,6 +329,7 @@ function enterUnifiedPictureInPicture(
     'body [data-kawaikara-unified-pip-backdrop="true"]{visibility:visible!important;' +
     'pointer-events:none!important}' +
     `body video[data-kawaikara-unified-pip-video="true"]{${videoStyleText}}` +
+    effectStyleText +
     'video[data-kawaikara-unified-pip-video="true"]::-webkit-media-controls{' +
     'display:none!important;opacity:0!important;visibility:hidden!important}' +
     contentOverlayStyleText;

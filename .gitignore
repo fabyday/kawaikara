@@ -153,3 +153,5 @@ storybook-static
 
 # build output
 output_dist/
+packages/builtin-sites/src/Providers/Chzzk/Plugins/Upscaling/Generated/
+.cache/video-effects/

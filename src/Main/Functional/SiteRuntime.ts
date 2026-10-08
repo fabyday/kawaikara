@@ -194,7 +194,7 @@ export function validateProviderContributions(metadata: ProviderMetadata): void 
     throw new Error(`Provider ${metadata.id} has invalid Picture in Picture metadata.`);
   }
 
-  const settingTypes = new Map<string, 'boolean' | 'item-list'>();
+  const settingTypes = new Map<string, 'boolean' | 'item-list' | 'select'>();
   if (
     metadata.settings?.categories !== undefined &&
     !Array.isArray(metadata.settings.categories)
@@ -237,17 +237,32 @@ export function validateProviderContributions(metadata: ProviderMetadata): void 
       if (settingTypes.has(setting.key)) {
         throw new Error(`Provider ${metadata.id} repeats setting key ${setting.key}.`);
       }
-      if (setting.type !== 'boolean' && setting.type !== 'item-list') {
+      if (setting.type !== 'boolean' && setting.type !== 'item-list' && setting.type !== 'select') {
         throw new Error(`Provider ${metadata.id} uses an unsupported setting control.`);
       }
       if (setting.type === 'boolean' && typeof setting.defaultValue !== 'boolean') {
         throw new Error(`Provider ${metadata.id} setting ${setting.key} needs a boolean default.`);
       }
-      if (setting.type === 'boolean' && setting.reloadOnChange !== undefined &&
+      if (setting.type !== 'item-list' && setting.reloadOnChange !== undefined &&
           typeof setting.reloadOnChange !== 'boolean') {
         throw new Error(`Provider ${metadata.id} setting ${setting.key} needs a boolean reloadOnChange.`);
       }
       validateLocalizedText(setting.title, `${metadata.id} setting title`);
+      if (setting.type === 'select') {
+        if (!Array.isArray(setting.options) || !setting.options.length || setting.options.length > 64 ||
+            !setting.options.some((option: {
+              /** The value value. */
+              value: string }) => option.value === setting.defaultValue) ||
+            new Set(setting.options.map((option: {
+              /** The value value. */
+              value: string }) => option.value)).size !== setting.options.length) {
+          throw new Error(`Provider ${metadata.id} has an invalid select setting.`);
+        }
+        for (const option of setting.options) {
+          requireContributionId(option.value, `${metadata.id} select option`);
+          validateLocalizedText(option.label, `${metadata.id} select option label`);
+        }
+      }
       if (setting.description) {
         validateLocalizedText(setting.description, `${metadata.id} setting description`);
       }
@@ -378,7 +393,7 @@ function requireSettingType(
   providerId: string,
   key: string,
   expected: 'boolean' | 'item-list',
-  settingTypes: ReadonlyMap<string, 'boolean' | 'item-list'>,
+  settingTypes: ReadonlyMap<string, 'boolean' | 'item-list' | 'select'>,
 ): void {
   if (settingTypes.get(key) !== expected) {
     throw new Error(

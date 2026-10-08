@@ -12,7 +12,7 @@ export function createSitePagePipeline(
   logger: SiteLogger,
 ): SitePagePipeline {
   const injections = new Map<string, Parameters<SitePagePipeline['register']>[0]>();
-  const disposables: Disposable[] = [];
+  const disposables = new Set<Disposable>();
   let disposed = false;
   /** Returns the web contents. */
   const getWebContents = (): WebContents => {
@@ -99,6 +99,7 @@ export function createSitePagePipeline(
     }
     const disposable: Disposable = {
       dispose: () => {
+        if (!disposables.delete(disposable)) return;
         if (webContents.isDestroyed()) return;
         if (phase === 'dom-ready') webContents.off('dom-ready', wrapped);
         else if (phase === 'did-finish-load') {
@@ -108,7 +109,7 @@ export function createSitePagePipeline(
         }
       },
     };
-    disposables.push(disposable);
+    disposables.add(disposable);
     return disposable;
   };
 
@@ -166,7 +167,7 @@ export function createSitePagePipeline(
       if (disposed) return;
       disposed = true;
       injections.clear();
-      disposables.splice(0).forEach((disposable) => disposable.dispose());
+      [...disposables].forEach((disposable) => disposable.dispose());
     },
   };
 }

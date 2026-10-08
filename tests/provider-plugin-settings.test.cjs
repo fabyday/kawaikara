@@ -172,15 +172,15 @@ test('reverse teardown follows immediate revocation, even during pending activat
   assert.equal(other.injections.size, 0); assert.equal(captured.lifetime.signal.aborted, true);
 });
 
-test('distribution manifests load the same six real Provider-owned Plugins', async () => {
+test('distribution manifests load the same seven real Provider-owned Plugins', async () => {
   const { inspectBundle, readBundleManifest, loadBundleDefinition } = loadSource('src/Main/Functional/BundleRuntime.ts');
   const directory = path.resolve(__dirname, '../packages/builtin-sites/dist');
   const inspected = await inspectBundle(directory, await readBundleManifest(directory));
   const packaged = loadBundleDefinition(inspected);
   const ids = bundle => bundle.providers.flatMap(provider => provider.plugins.map(plugin => plugin.manifest.id)).sort();
-  assert.equal(ids(packaged).length, 6); assert.deepEqual(ids(packaged), ids(builtinBundle));
+  assert.equal(ids(packaged).length, 7); assert.deepEqual(ids(packaged), ids(builtinBundle));
   const manager = new SiteManager(() => {}, () => ({ providerSettings: {} }), () => '');
-  manager.registerBundle(packaged); assert.equal(manager.listBundles()[0].pluginCount, 6);
+  manager.registerBundle(packaged); assert.equal(manager.listBundles()[0].pluginCount, 7);
   for (const provider of packaged.providers) for (const plugin of provider.plugins) {
     assert.equal(getPluginMetadata(plugin.plugin).id, plugin.manifest.id);
     assert.ok(manager.pluginsFor(provider.manifest.id).some(entry => entry.metadata.id === plugin.manifest.id));
@@ -317,21 +317,21 @@ function fixture(Provider) {
   return { provider, instance, runtime, injections, refreshed, keys, navigations };
 }
 
-test('Kawaikara bundle exposes six localized, default-on plugin switches in provider options', () => {
+test('Kawaikara bundle keeps six default-on plugins and one opt-in upscaling plugin', () => {
   const manager = new SiteManager(() => {}, () => ({}), () => '');
   manager.registerBundle(builtinBundle);
   const providers = manager.listBundles()[0].providers;
   const switches = providers.flatMap(provider => provider.settings.filter(category => category.id.startsWith('plugin.'))
     .map(category => category.settings[0]));
-  assert.equal(switches.length, 6);
+  assert.equal(switches.length, 7);
   for (const setting of switches) {
-    assert.equal(setting.type, 'boolean'); assert.equal(setting.defaultValue, true);
+    assert.equal(setting.type, 'boolean'); assert.equal(setting.defaultValue, setting.key !== 'plugins.upscaling');
     for (const locale of ['ko-KR', 'en-US', 'ja-JP']) assert.ok(setting.title[locale]);
   }
   for (const registration of manager.sites.values()) {
     for (const category of registration.metadata.settings?.categories ?? []) {
       for (const setting of category.settings) {
-        if (setting === category.settings[0] && category.id.startsWith('plugin.')) assert.equal(setting.reloadOnChange, true);
+        if (setting === category.settings[0] && category.id.startsWith('plugin.')) assert.equal(setting.reloadOnChange, setting.key !== 'plugins.upscaling');
       }
     }
   }

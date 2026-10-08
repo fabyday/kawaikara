@@ -1,5 +1,6 @@
 import type { Disposable } from './Disposable';
 import type { CapabilityRegistry } from './PluginAPI';
+import type { VideoEffectsAPI } from './VideoEffects';
 
 /** Defines the new window policy type. */
 export type NewWindowPolicy =
@@ -203,6 +204,8 @@ export interface SiteLocaleContext {
 
 /** Describes the site context contract. */
 export interface SiteContext {
+  /** Optional technically supported video-effect host, independent of site identity. */
+  readonly videoEffects?: VideoEffectsAPI;
   /** Versioned services shared with attached Plugins, scoped to this activation. */
   readonly capabilities?: CapabilityRegistry;
   /** The viewer value. */

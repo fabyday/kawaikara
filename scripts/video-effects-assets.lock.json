@@ -1,0 +1,26 @@
+{
+  "websr-weights.json": {
+    "url": "https://raw.githubusercontent.com/sb2702/websr/a756eb82ec7d95553bded6bbd669d85bf2b288ff/weights/anime4k/cnn-2x-s-rl.json",
+    "sha256": "28f9853f8a4640dbc2bef0617e8dc5929590f46c16c5a5fd50a9de2502f8724b"
+  },
+  "onnxruntime-license.txt": {
+    "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/LICENSE",
+    "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+  },
+  "onnxruntime-notices.txt": {
+    "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/v1.30.0/ThirdPartyNotices.txt",
+    "sha256": "143764b952fdb1a7c69ce653bfba74a7744d6a8a573bfb73e235fba356c83de3"
+  },
+  "realesrgan-license.txt": {
+    "url": "https://raw.githubusercontent.com/xinntao/Real-ESRGAN/v0.3.0/LICENSE",
+    "sha256": "4a699ec4863d96a91fc265948a0c90033f7e8735d515524dcf3444736406e0c2"
+  },
+  "anime4k-license.txt": {
+    "url": "https://raw.githubusercontent.com/bloc97/Anime4K/v4.0.1/LICENSE",
+    "sha256": "5bad448b737378e3d0c977ad0d0521fa37ad279a7e76ea9a31d9257eeb6953f5"
+  },
+  "realesrgan.onnx": {
+    "url": "https://huggingface.co/skillsafe-ai/realesr-general-x4v3/resolve/042a40bc4c918349ad3e2e607a68ae509a4c27b5/model.onnx",
+    "sha256": "a946f7a9397021b9b6b7e71df3d2821b04cc09ff244423b7ca79cb191ce4a00e"
+  }
+}

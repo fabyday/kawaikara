@@ -66,8 +66,12 @@
     "release:auto": "node scripts/package-channel.cjs auto always",
     "typecheck:packages": "pnpm build:packages",
     "typecheck:app": "tsc --noEmit -p tsconfig.json",
+    "typecheck:video-effects": "tsc -p tsconfig.video-effects.json",
+    "video-effects:test:unit": "node --test tests/provider-plugin-settings.test.cjs tests/video-effects.test.cjs",
+    "video-effects:test:gpu": "electron tests/video-effects.electron.cjs",
+    "video-effects:test:ui": "electron tests/video-effect-settings.electron.cjs",
     "typecheck:storybook": "tsc --noEmit -p tsconfig.storybook.json",
-    "typecheck": "pnpm docs:source:check && pnpm typecheck:packages && pnpm typecheck:app && pnpm typecheck:storybook",
+    "typecheck": "pnpm docs:source:check && pnpm typecheck:packages && pnpm typecheck:app && pnpm typecheck:video-effects && pnpm typecheck:storybook",
     "docs:source:check": "node scripts/source-documentation.cjs",
     "docs:source": "pnpm docs:source:check && typedoc"
   },
@@ -91,6 +95,12 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@pmndrs/upscaler": "0.5.0",
+    "@webgpu/types": "0.1.71",
+    "@websr/websr": "0.0.16",
+    "anime4k-webgpu": "1.0.0",
+    "onnxruntime-web": "1.30.0",
+    "three": "0.184.0",
     "@storybook/addon-a11y": "10.5.7",
     "@storybook/addon-docs": "10.5.7",
     "@storybook/builder-vite": "10.5.7",

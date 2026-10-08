@@ -79,6 +79,7 @@ import {
 } from '../Functional/PictureInPictureVisibility';
 import { openInDefaultBrowser } from '../Functional/DefaultBrowser';
 import { createSitePagePipeline } from '../Functional/SitePagePipeline';
+import { createVideoEffectsHost } from '../Functional/VideoEffectsHost';
 import type {
   InternalVideoPictureInPictureState,
   PictureInPictureManagerFactory,
@@ -525,7 +526,9 @@ export class WindowManager {
       this.editingWebContentsIds.delete(viewerWebContentsId);
       this.destroySiteView();
       if (this.videoView && !this.videoView.webContents.isDestroyed()) {
-        viewerWindow.contentView.removeChildView(this.videoView);
+        // `closed` has already destroyed the native container; the retained
+        // video renderer can still be alive during application shutdown.
+        if (!viewerWindow.isDestroyed()) viewerWindow.contentView.removeChildView(this.videoView);
         this.videoView.webContents.close();
       }
       if (!overlaySurface.webContents.isDestroyed()) {
@@ -1015,13 +1018,16 @@ export class WindowManager {
         ? this.cancelExternalLogin()
         : Promise.resolve(),
     };
+    const page = createSitePagePipeline(webContents, logger);
     return {
+      /** The video effects value. */
+      videoEffects: permissions.has('script-injection') ? createVideoEffectsHost(webContents, page, logger) : undefined,
       /** The viewer value. */
       viewer,
       // SiteManager keeps this core pipeline for application-owned policies
       // and removes it from the Provider view when permission is not granted.
       /** The page value. */
-      page: createSitePagePipeline(webContents, logger),
+      page,
       /** The browser value. */
       browser: permissions.has('network-interception')
         ? {
@@ -2238,7 +2244,7 @@ export class WindowManager {
     this.logging.attachRenderer(
       siteView.webContents,
       'rendererSite',
-      (message) => message.includes('[Kawaikara/'),
+      (message) => message.includes('[Kawaikara/') || message.startsWith('[video-effects]'),
       runtime.siteId,
     );
     this.attachSiteWebContents(siteView.webContents, siteSession);

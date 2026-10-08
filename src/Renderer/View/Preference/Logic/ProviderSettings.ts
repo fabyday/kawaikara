@@ -24,7 +24,7 @@ export function onUpdateProviderSetting(
   preferences: PreferenceState,
   providerId: string,
   key: string,
-  value: boolean | readonly ProviderSettingListItem[],
+  value: boolean | string | readonly ProviderSettingListItem[],
   onUpdate: (patch: PreferencePatch) => void,
 ): void {
   onUpdate({

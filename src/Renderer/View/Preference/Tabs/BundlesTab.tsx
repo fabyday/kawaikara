@@ -1,6 +1,7 @@
 import {
   Button,
   Flex,
+  Select,
   Stack,
   Switch,
   Text
@@ -223,6 +224,22 @@ function ProviderSettingControl({
     );
   }
   const value = preferences.providerSettings[provider.id]?.[setting.key];
+  if (setting.type === 'select') {
+    return (
+      <Select
+        label={title}
+        description={description}
+        disabled={saving}
+        options={setting.options.map(option => ({
+          value: option.value,
+          label: resolveProviderText(option.label, preferences.appLocale),
+        }))}
+        value={typeof value === 'string' && setting.options.some(option => option.value === value)
+          ? value : setting.defaultValue}
+        onValueChange={next => onUpdateProviderSetting(preferences, provider.id, setting.key, next, onUpdate)}
+      />
+    );
+  }
   const items = Array.isArray(value) ? value : [];
   return (
     <ProviderItemListSetting

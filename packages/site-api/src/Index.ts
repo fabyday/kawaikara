@@ -143,3 +143,4 @@ export {
   webPopupPolicy,
   type SiteLoginControlInjectionOptions,
 } from './SiteUtilities';
+export * from './VideoEffects';

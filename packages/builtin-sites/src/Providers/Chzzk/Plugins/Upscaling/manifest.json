@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "kawaikara.chzzk.upscaling",
+  "name": "CHZZK Video Upscaling",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "main": "Plugin.js"
+}

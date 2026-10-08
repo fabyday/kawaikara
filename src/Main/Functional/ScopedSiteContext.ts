@@ -17,10 +17,25 @@ export function createScopedSiteContext(source: SiteContext): ScopedSiteContext 
     if (!active) throw new Error('The site context is no longer active.');
   };
   const page = source.page;
+  const effects = new Set<{ dispose(): void }>();
   return {
     /** Preserve read-only locale/logger/action values and fence side effects. */
     context: {
       ...source,
+      /** The video effects value. */
+      videoEffects: source.videoEffects ? {
+        /** The register value. */
+        register: contribution => {
+          requireActive();
+          const registration = source.videoEffects!.register(contribution);
+          const handle = { dispose: () => {
+            if (!effects.delete(handle)) return;
+            registration.dispose();
+          } };
+          effects.add(handle);
+          return handle;
+        },
+      } : undefined,
       /** The old viewer may never invoke global PiP/internal-view transitions. */
       viewer: {
         /** Starts navigation only while this Provider owns the context. */
@@ -77,6 +92,7 @@ export function createScopedSiteContext(source: SiteContext): ScopedSiteContext 
     retire: () => {
       if (retirement) return retirement;
       active = false;
+      [...effects].forEach(effect => effect.dispose());
       page?.dispose();
       try {
         retirement = Promise.resolve(source.externalBrowser.close());
