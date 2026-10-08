@@ -13,6 +13,8 @@ import {
 } from 'node:fs';
 import { app } from 'electron';
 import applicationIdentities from '../../../config/application-identities.json';
+import { readWindowsDataRoot, resolveWindowsDataRootSelection, writeWindowsDataRoot } from './WindowsDataLocation';
+import type { ApplicationDataLocation } from '../../Common/IPC';
 import {
   BUILD_CHANNEL,
   IS_DISTRIBUTION_BUILD,
@@ -32,7 +34,7 @@ const applicationIdentity = isDevelopmentApplication
 if (!UPDATE_TEST_PROFILE) app.setName(applicationIdentity.productName);
 
 /** Stores the user root path value. */
-const userRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (
+const defaultUserRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (
   isDevelopmentApplication && !app.isPackaged
     ? path.join(
         app.getAppPath(),
@@ -41,6 +43,12 @@ const userRootPath = UPDATE_TEST_PROFILE?.stateRoot ?? (
       )
     : path.join(app.getPath('appData'), applicationIdentity.productName)
 );
+/** Only packaged Windows apps consume installer preferences; local dev and tests stay isolated. */
+const customUserRootPath = process.platform === 'win32' && app.isPackaged && !UPDATE_TEST_PROFILE
+  ? readWindowsDataRoot(app.getPath('appData'), applicationIdentity.appId, applicationIdentity.productName, process.execPath)
+  : undefined;
+/** Keep Electron and app-owned data together under the user-selected root. */
+const userRootPath = customUserRootPath ?? defaultUserRootPath;
 /** Stores the pre-identity-split channel path when one could exist. */
 const legacyChannelUserRootPath =
   !isDevelopmentApplication && !UPDATE_TEST_PROFILE && BUILD_CHANNEL !== 'stable'
@@ -57,6 +65,31 @@ const kawaiDataPath = path.join(userRootPath, 'KawaiData');
 const pendingResetPath = path.join(userRootPath, '.pending-data-reset');
 /** Stores the configured value. */
 let configured = false;
+
+/** Main owns the capability; renderers must not infer it from a translated OS label. */
+export function getApplicationDataLocation(): ApplicationDataLocation | undefined {
+  if (process.platform !== 'win32') return undefined;
+  return {
+    /** Root used by the currently running process. */
+    currentPath: userRootPath,
+    /** Standard storage location for this channel. */
+    defaultPath: defaultUserRootPath,
+    /** Local source and update fixtures must remain isolated. */
+    canChange: app.isPackaged && !UPDATE_TEST_PROFILE,
+  };
+}
+
+/** Validates without changing the currently running profile. */
+export function resolveApplicationDataLocation(input: string): string {
+  if (!getApplicationDataLocation()?.canChange) throw new Error('Data location changes require a packaged Windows application.');
+  return resolveWindowsDataRootSelection(input, applicationIdentity.productName, process.execPath, userRootPath);
+}
+
+/** Save only the next-launch pointer; active sessions keep their original directory until shutdown. */
+export async function saveApplicationDataLocation(input: string): Promise<void> {
+  const selected = resolveApplicationDataLocation(input);
+  await writeWindowsDataRoot(app.getPath('appData'), applicationIdentity.appId, selected, userRootPath, process.execPath);
+}
 
 /** Defines the user data reset mode type. */
 export type UserDataResetMode = 'cache' | 'application';
@@ -92,6 +125,7 @@ export function configureUserDataPaths(): void {
 function migrateLegacyChannelRoot(): void {
   if (
     !legacyChannelUserRootPath ||
+    (customUserRootPath && path.resolve(customUserRootPath) !== path.resolve(defaultUserRootPath)) ||
     path.resolve(legacyChannelUserRootPath) === path.resolve(userRootPath) ||
     !existsSync(legacyChannelUserRootPath) ||
     existsSync(userRootPath)
@@ -151,7 +185,7 @@ export async function initializeUserDataLayout(): Promise<void> {
     mkdir(kawaiDataPath, { recursive: true
     }),
   ]);
-  if (BUILD_CHANNEL === 'stable' && !UPDATE_TEST_PROFILE) {
+  if (BUILD_CHANNEL === 'stable' && !UPDATE_TEST_PROFILE && (!customUserRootPath || customUserRootPath === defaultUserRootPath)) {
     await Promise.all(
       ['preferences.json', 'video-library.json'].map((fileName) =>
         copyLegacyFileIfNeeded(

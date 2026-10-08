@@ -966,6 +966,8 @@ export function installKawaikaraMock(
       },
     },
     data: {
+      selectLocation: async () => undefined,
+      changeLocation: async () => ({ status: 'cancelled' }),
       clearBrowserProfile: async () => ({ status: 'cleared' }),
       clearIsolatedSite: async () => ({ status: 'cleared' }),
       clearAllBrowserProfiles: async () => ({ status: 'cleared' }),

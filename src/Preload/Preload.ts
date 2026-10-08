@@ -409,6 +409,10 @@ const api: KawaikaraRendererApi = {
   },
   /** The data value. */
   data: {
+    /** Opens the app data directory picker. */
+    selectLocation: (locale: AppLocale) => ipcRenderer.invoke(IPC_CHANNELS.data.selectLocation, locale) as Promise<string | undefined>,
+    /** Changes only the next-launch profile root after Main confirms. */
+    changeLocation: (directory: string, locale: AppLocale) => ipcRenderer.invoke(IPC_CHANNELS.data.changeLocation, directory, locale) as Promise<ApplicationDataActionResult>,
     /** The clear browser profile value. */
     clearBrowserProfile: (profileId, locale) =>
       ipcRenderer.invoke(

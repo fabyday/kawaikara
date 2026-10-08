@@ -27,6 +27,5 @@ module.exports = {
     guid: dev.nsisGuid,
     shortcutName: dev.productName,
     uninstallDisplayName: dev.productName,
-    include: null,
   },
 };

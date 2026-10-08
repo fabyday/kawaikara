@@ -59,6 +59,7 @@ function loadUserDataPaths({
   initialUserData,
   appPath,
   updateTestProfile = null,
+  platform = process.platform,
 }) {
   const sourcePath = path.join(root, 'src/Main/Functional/UserDataPaths.ts');
   const events = [];
@@ -98,6 +99,7 @@ function loadUserDataPaths({
     write: false,
     external: ['electron'],
     define: {
+      'process.platform': JSON.stringify(platform),
       __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify(channel),
       __KAWAIKARA_DISTRIBUTION_BUILD__: JSON.stringify(distribution),
       __KAWAIKARA_DISCORD_APP_ID__: '""',
@@ -126,9 +128,7 @@ test('release packages use separate package, executable, updater, and NSIS ident
     assert.equal(config.nsis.uninstallDisplayName, identity.productName);
     assert.equal(
       config.nsis.include,
-      channel === 'nightly'
-        ? 'packaging/nsis/nightly-identity-migration.nsh'
-        : undefined,
+      'packaging/nsis/installer-options.nsh',
     );
     if (config.nsis.include) {
       assert.ok(existsSync(path.join(root, config.nsis.include)));
@@ -150,7 +150,7 @@ test('release packages use separate package, executable, updater, and NSIS ident
   assert.equal(development.extraMetadata.name, identities.dev.packageName);
   assert.equal(development.win.executableName, identities.dev.productName);
   assert.equal(development.nsis.guid, identities.dev.nsisGuid);
-  assert.equal(development.nsis.include, null);
+  assert.equal(development.nsis.include, 'packaging/nsis/installer-options.nsh');
 });
 
 test('local pnpm start data stays under the repository tmp directory', () => {
@@ -249,4 +249,35 @@ test('the isolated update test profile remains authoritative', () => {
 
   assert.equal(loaded.exports.getUserDataLayout().userRoot, stateRoot);
   assert.equal(loaded.events.some((event) => event[0] === 'setName'), false);
+});
+
+test('packaged Windows uses the saved data root without migrating or deleting the old profile', () => {
+  const appData = path.join(temporaryRoot, 'custom-location-appdata');
+  const customRoot = path.join(temporaryRoot, 'custom-location', 'Kawaikara Nightly');
+  // Windows paths are resolved by Main with Win32 semantics, including on non-Windows CI.
+  const windowsRoot = process.platform === 'win32' ? customRoot : 'D:\\Profiles\\Kawaikara Nightly';
+  mkdirSync(path.join(appData, 'Kawaikara Installations'), { recursive: true });
+  writeFileSync(path.join(appData, 'Kawaikara Installations/day.faby.kawaikara.nightly.ini'),
+    Buffer.from(`\ufeff[storage]\r\nroot=${windowsRoot}\r\n`, 'utf16le'));
+  const parameters = {
+    channel: 'nightly', distribution: true, isPackaged: true, platform: 'win32',
+    appData, initialUserData: path.join(appData, 'Kawaikara Nightly'), appPath: root,
+  };
+  assert.equal(loadUserDataPaths(parameters).exports.getUserDataLayout().userRoot, windowsRoot);
+  assert.equal(loadUserDataPaths({ ...parameters, platform: 'darwin' }).exports.getUserDataLayout().userRoot,
+    path.join(appData, 'Kawaikara Nightly'));
+  assert.equal(loadUserDataPaths({ ...parameters, updateTestProfile: { stateRoot: 'isolated-test' } }).exports.getUserDataLayout().userRoot,
+    'isolated-test');
+  assert.equal(loadUserDataPaths({ ...parameters, distribution: false, isPackaged: false }).exports.getUserDataLayout().userRoot,
+    path.join(root, 'tmp', 'kawaikara Dev'));
+  if (process.platform === 'win32') {
+    const legacyRoot = path.join(appData, 'Kawaikara Nightly Nightly');
+    mkdirSync(legacyRoot, { recursive: true });
+    writeFileSync(path.join(legacyRoot, 'retained'), 'original data');
+    const loaded = loadUserDataPaths(parameters);
+    loaded.exports.configureUserDataPaths();
+    assert.ok(existsSync(path.join(customRoot, 'Electron')));
+    assert.ok(existsSync(path.join(customRoot, 'KawaiData')));
+    assert.ok(existsSync(path.join(legacyRoot, 'retained')));
+  }
 });

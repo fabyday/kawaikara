@@ -1,4 +1,5 @@
-import { app, clipboard, ipcMain, type IpcMainEvent } from 'electron';
+import { app, clipboard, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
 import {
@@ -103,6 +104,7 @@ export class IpcManager {
       this.handleEditingChanged,
     );
     ipcMain.handle(IPC_CHANNELS.application.info, () => ({
+      dataLocation: this.data.getLocation(),
       name: app.getName(),
       version: app.getVersion(),
       siteApiVersion: KAWAIKARA_SITE_API_VERSION,
@@ -512,6 +514,18 @@ export class IpcManager {
       this.downloads.openReleasePage(),
     );
     ipcMain.handle(IPC_CHANNELS.preferences.get, () => this.preferences.get());
+    ipcMain.handle(IPC_CHANNELS.data.selectLocation, (event, locale: unknown) => {
+      requireDataLocationSender(event);
+      return this.data.selectLocation(requireAppLocale(locale));
+    });
+    ipcMain.handle(IPC_CHANNELS.data.changeLocation, (event, directory: unknown, locale: unknown) => {
+      requireDataLocationSender(event);
+      const requestedLocale = requireAppLocale(locale);
+      if (['downloading', 'preparing', 'installing'].includes(this.updates.getState()?.phase ?? '')) {
+        throw new Error(getRendererMessages(requestedLocale, app.getLocale()).app.appDataLocation.busy);
+      }
+      return this.data.changeLocation(requirePathString(directory), requestedLocale);
+    });
     ipcMain.handle(
       IPC_CHANNELS.data.clearBrowserProfile,
       (_event, profileId: unknown, locale: unknown) =>
@@ -713,6 +727,8 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.downloads.open,
   IPC_CHANNELS.downloads.openReleasePage,
   IPC_CHANNELS.preferences.get,
+  IPC_CHANNELS.data.selectLocation,
+  IPC_CHANNELS.data.changeLocation,
   IPC_CHANNELS.data.clearBrowserProfile,
   IPC_CHANNELS.data.clearIsolatedSite,
   IPC_CHANNELS.data.clearAllBrowserProfiles,
@@ -721,6 +737,14 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.preferences.previewTheme,
   IPC_CHANNELS.preferences.update,
 ] as const satisfies readonly IpcChannel[];
+
+/** A remote Provider or subframe must never redirect the application's data root. */
+function requireDataLocationSender(event: IpcMainInvokeEvent): void {
+  const frame = event.senderFrame;
+  const expected = path.resolve(__dirname, '../renderer/index.html');
+  if (!frame || frame !== event.sender.mainFrame || !frame.url.startsWith('file:')
+    || path.resolve(fileURLToPath(frame.url)) !== expected) throw new Error('Only the application settings UI may change data location.');
+}
 
 /** Requires a supported application log repository. */
 function requireLogRepository(value: unknown): ApplicationLogRepository {

@@ -64,9 +64,6 @@ if (!RELEASE_CHANNELS.includes(channel)) {
 
 const updateChannel = channel === 'stable' ? 'latest' : channel;
 const channelIdentity = applicationIdentities[channel];
-const nsisIdentityMigrationInclude = channel === 'nightly'
-  ? 'packaging/nsis/nightly-identity-migration.nsh'
-  : undefined;
 const artifactProductName = channelIdentity.productName.replace(/\s+/g, '-');
 const defaultPublishRepositories = {
   stable: 'fabyday/kawaikara',
@@ -87,8 +84,7 @@ if (!publishOwner || !publishRepo || unexpectedRepositoryParts.length > 0) {
 module.exports = {
   appId: channelIdentity.appId,
   productName: channelIdentity.productName,
-  // NSIS one-click uses package.json's `name`, not productName, for its
-  // installation directory and updater cache. Keep those namespaces separate.
+  // Keep installer and updater-cache identities separate across channels.
   extraMetadata: {
     name: channelIdentity.packageName,
     productName: channelIdentity.productName,
@@ -119,6 +115,7 @@ module.exports = {
     // as mac/ and mac-arm64/ within this platform directory.
     output: `builds/${channel}/\${os}`,
   },
+  beforePack: 'packaging/before-pack.cjs',
   afterPack: 'packaging/after-pack.cjs',
   afterSign: 'packaging/after-sign.cjs',
   protocols: [
@@ -159,14 +156,17 @@ module.exports = {
     ],
   },
   nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    deleteAppDataOnUninstall: false,
+    installerLanguages: ['en_US', 'ko_KR', 'ja_JP'],
+    include: 'packaging/nsis/installer-options.nsh',
     // Nightly intentionally uses a new installer identity so machines affected
     // by the former shared `kawaikara` folder do not reuse it.
     guid: channelIdentity.nsisGuid,
     shortcutName: channelIdentity.productName,
     uninstallDisplayName: channelIdentity.productName,
-    ...(nsisIdentityMigrationInclude
-      ? { include: nsisIdentityMigrationInclude }
-      : {}),
   },
   linux: {
     category: 'AudioVideo',

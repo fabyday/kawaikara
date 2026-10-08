@@ -24,7 +24,6 @@ export function ShortcutKeycaps({
         parts.map((part, index) => (
           <span className="shortcut-key-part" key={`${part}-${String(index)}`}>
             <kbd>{part}</kbd>
-            {index < parts.length - 1 ? <i>+</i> : null}
           </span>
         ))
       ) : emptyLabel ? (

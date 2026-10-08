@@ -2270,6 +2270,7 @@ img {
 
 .shortcut-key-group {
   display: flex;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   align-items: center;
@@ -2278,6 +2279,12 @@ img {
   padding-inline: 10px;
   pointer-events: none;
 }
+
+.shortcut-default-caps { margin-top: 3px; flex-wrap: wrap; }
+.shortcut-default-caps .shortcut-key-group { width: auto; padding: 0; justify-content: start; }
+.shortcut-default-caps .shortcut-key-part kbd { min-width: 19px; height: 21px; padding-inline: 5px; font-size: 10px; }
+.app-data-path-row { flex-wrap: wrap; }
+.app-data-path-input { flex: 1; min-width: 160px; }
 
 .shortcut-key-part {
   display: inline-flex;
@@ -2304,13 +2311,6 @@ img {
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.shortcut-key-part i {
-  margin-inline: 3px;
-  color: var(--kawai-color-muted-foreground);
-  font-size: 11px;
-  font-style: normal;
 }
 
 .shortcut-empty {

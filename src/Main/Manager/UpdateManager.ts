@@ -28,6 +28,8 @@ import type { WindowManager } from './WindowManager';
 
 /** Defines the shared check timeout ms constant. */
 const CHECK_TIMEOUT_MS = 60_000;
+/** Give the renderer time to paint a readable restart notice before installer handoff. */
+const RESTART_NOTICE_MS = 1_200;
 
 /** Coordinates update behavior. */
 export class UpdateManager {
@@ -224,6 +226,10 @@ export class UpdateManager {
       preparationStarted = true;
       await this.installLifecycle?.prepare();
       this.updateState({ ...downloaded, phase: 'installing' });
+      // Keep the overlay alive briefly; immediate quit often prevents this state
+      // from ever being painted. This only runs after the user/automatic policy
+      // has committed to installation, never on a manual download alone.
+      await new Promise<void>((resolve) => setTimeout(resolve, RESTART_NOTICE_MS));
       autoUpdater.on('error', onInstallError);
       this.installingUpdate = true;
       // Only now may before-quit bypass ordinary app.exit teardown, allowing

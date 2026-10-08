@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useEffect, useState } from 'react';
 import { STORY_MESSAGES } from '../Mocks/KawaikaraMock';
-import { UpdatePanel } from '../../src/Renderer/View/Update/UpdatePanel';
+import { UpdatePanel, type UpdatePanelProps } from '../../src/Renderer/View/Update/UpdatePanel';
+import type { ApplicationUpdatePanelState } from '../../src/Common/IPC';
 
 /** Stores the meta value. */
 const meta = {
@@ -314,3 +316,29 @@ export const SignatureVerificationError = {
     },
   },
 } satisfies Story;
+
+/** Includes the phases that add/remove actions, release notes and long diagnostics. */
+const automaticUpdatePhases: ApplicationUpdatePanelState['phase'][] = [
+  'checking', 'available', 'downloading', 'downloaded', 'preparing', 'installing', 'error',
+];
+
+/** Replays automatic-update phases without invoking any updater or installer. */
+function AutomaticPhaseCycle(args: UpdatePanelProps) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setIndex(value => (value + 1) % automaticUpdatePhases.length), 1800);
+    return () => clearInterval(timer);
+  }, []);
+  const phase = automaticUpdatePhases[index];
+  return <UpdatePanel {...args} view="status" state={{
+    ...DownloadingAutomatically.args.state,
+    phase,
+    error: phase === 'error' ? SignatureVerificationError.args.state.error : undefined,
+    progress: phase === 'downloading' ? DownloadingAutomatically.args.state.progress : undefined,
+  }} />;
+}
+
+/** The outer panel must stay still while messages, progress and actions change. */
+export const AutomaticStateTransitions: Story = {
+  render: args => <AutomaticPhaseCycle {...args} />,
+};

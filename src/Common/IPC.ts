@@ -249,6 +249,10 @@ export const IPC_CHANNELS = defineIpcChannels({
   },
   /** The data value. */
   data: {
+    /** Selects a directory using the native Windows folder picker. */
+    selectLocation: 'kawaikara:data:select-location',
+    /** Confirms and schedules a different next-launch data root. */
+    changeLocation: 'kawaikara:data:change-location',
     /** The clear browser profile value. */
     clearBrowserProfile: 'kawaikara:data:clear-browser-profile',
     /** The clear isolated site value. */
@@ -607,8 +611,20 @@ export type ApplicationDataActionResult =
     readonly status: 'restarting';
   };
 
-/** Describes the application info contract. */
+/** Describes the Windows next-launch data-root capability. */
+export interface ApplicationDataLocation {
+  /** Active UserRoot containing Electron and KawaiData. */
+  readonly currentPath: string;
+  /** Platform default for this application/channel. */
+  readonly defaultPath: string;
+  /** False for uninstalled development/test instances. */
+  readonly canChange: boolean;
+}
+
+/** Main-resolved application information. */
 export interface ApplicationInfo {
+  /** Omitted entirely on macOS and other unsupported platforms. */
+  readonly dataLocation?: ApplicationDataLocation;
   /** The name value. */
   readonly name: string;
   /** The version value. */
@@ -1405,6 +1421,10 @@ export interface KawaikaraRendererApi {
   };
   /** The data value. */
   data: {
+    /** Opens a native folder picker; cancellation leaves the draft unchanged. */
+    selectLocation(locale: AppLocale): Promise<string | undefined>;
+    /** Confirms the next-launch path without migrating the old profile. */
+    changeLocation(path: string, locale: AppLocale): Promise<ApplicationDataActionResult>;
     /** Clears the browser profile. */
     clearBrowserProfile(
       profileId: string,

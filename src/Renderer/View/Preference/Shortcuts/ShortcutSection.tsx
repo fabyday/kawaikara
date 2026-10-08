@@ -8,7 +8,8 @@ import type {
   PreferenceState
 } from '../../../../Common/IPC';
 import { ShortcutItem } from '../Types';
-import { formatAccelerator, getEffectiveShortcut } from './ShortcutBindings';
+import { getEffectiveShortcut } from './ShortcutBindings';
+import { ShortcutKeycaps } from '../../../Component/ShortcutKeycaps';
 import { ShortcutRecorder } from './ShortcutRecorder';
 
 /** Performs the shortcut section operation. */
@@ -66,12 +67,10 @@ export function ShortcutSection({
                     {item.description}
                   </Text>
                 ) : null}
-                <Text className="shortcut-default" size="xs" tone="muted">
-                  {messages.defaultValue}:{' '}
-                  {item.defaultKey
-                    ? formatAccelerator(item.defaultKey).join(' + ')
-                    : messages.empty}
-                </Text>
+                <Stack className="shortcut-default-caps" direction="row" align="center" gap="xs">
+                  <Text size="xs" tone="muted">{messages.defaultValue}:</Text>
+                  <ShortcutKeycaps accelerator={item.defaultKey} emptyLabel={messages.empty} />
+                </Stack>
               </div>
               <ShortcutRecorder
                 disabled={saving}

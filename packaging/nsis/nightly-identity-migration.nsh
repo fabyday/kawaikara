@@ -1,4 +1,4 @@
-!macro customInstall
+!macro kawaikaraMigrateNightlyIdentity
   ; Before the package-name split, Nightly's own installer record pointed at
   ; Stable's shared `kawaikara` directory. The new installer has already
   ; written its separate identity, so remove only that obsolete Nightly record.

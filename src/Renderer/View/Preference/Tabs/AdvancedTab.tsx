@@ -6,6 +6,7 @@ import {
 } from '@kawaikara/kawai-ui';
 import type {
   AppMessages,
+  ApplicationDataLocation,
   PreferencePatch,
   PreferenceState,
 } from '../../../../Common/IPC';
@@ -14,6 +15,7 @@ import {
   MIN_KAWAI_SHORTCUT_DELAY_SECONDS,
 } from '../../../../Common/KawaiShortcut';
 import { NumberInput } from '../NumberInput';
+import { AppDataLocationControl } from './AppDataLocationControl';
 
 /** Renders advanced application behavior preferences. */
 export function AdvancedTab({
@@ -21,6 +23,8 @@ export function AdvancedTab({
   preferences,
   saving,
   onUpdate,
+  dataLocation,
+  onSavePreferences,
 }: {
   /** Localized application messages. */
   readonly messages: AppMessages;
@@ -30,9 +34,15 @@ export function AdvancedTab({
   readonly saving: boolean;
   /** Updates the preference draft. */
   readonly onUpdate: (patch: PreferencePatch) => void;
+  /** Windows-only capability returned by Main. */
+  readonly dataLocation?: ApplicationDataLocation;
+  /** Saves ordinary preferences before changing the next-launch data root. */
+  readonly onSavePreferences?: () => Promise<PreferenceState | undefined>;
 }) {
   return (
     <Stack gap="lg">
+      {dataLocation && onSavePreferences ? <AppDataLocationControl location={dataLocation} messages={messages.appDataLocation}
+        locale={preferences.appLocale} saving={saving} onSavePreferences={onSavePreferences} /> : null}
       <section>
         <Text className="preference-section-title" weight="semibold">
           {messages.kawaiShortcut}

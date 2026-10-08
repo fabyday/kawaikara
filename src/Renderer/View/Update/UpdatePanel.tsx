@@ -2,19 +2,18 @@ import {
   Badge,
   Button,
   Flex,
-  Head,
   Panel,
-  Progress,
   Stack,
-  Text,
 } from '@kawaikara/kawai-ui';
+import { AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import kawaikaraImage from '../../../../imgs/kawaikara_banner2.png';
 import { selectLocalizedReleaseNotes } from '../../../Common/ReleaseNotes';
 import { UpdatePanelProps } from './Types';
 import { UpdateActions } from './UpdateActions';
-import { formatBytes, formatChannel, formatProgress, getPhaseCopy, getProgressValue, versionSummary } from './UpdatePresentation';
+import { formatChannel } from './UpdatePresentation';
 import { UpdateReleaseNotesView } from './UpdateReleaseNotesView';
+import { UpdateStatusContent } from './UpdateStatusContent';
 
 export type { UpdatePanelProps } from './Types';
 /** Updates the panel. */
@@ -32,8 +31,6 @@ export function UpdatePanel({
 }: UpdatePanelProps) {
   const [internalView, setInternalView] = useState(initialView);
   const view = controlledView ?? internalView;
-  const copy = getPhaseCopy(state, labels);
-  const progress = getProgressValue(state);
   const notes = selectLocalizedReleaseNotes(state.releaseNotes, locale)
     || labels.noReleaseNotes;
   const releaseIdentity = `${state.channel}:${state.latestVersion ?? state.currentVersion}`;
@@ -65,46 +62,25 @@ export function UpdatePanel({
   }
 
   return (
-    <main className={`update-shell is-${state.origin}`}>
-      <Panel className="update-panel" padding="lg" radius="lg">
-        <Stack align="center" gap="md">
-          <img
-            alt=""
-            className="update-kawaikara-image"
-            src={kawaikaraImage}
-          />
-
-          <Stack className="update-heading" align="center" gap="xs">
-            <Badge dot tone={state.phase === 'error' ? 'neutral' : 'primary'}>
-              {labels.channel}: {formatChannel(state.channel, labels)}
-            </Badge>
-            <Head level={1} size="lg">{copy.title}</Head>
-            <Text size="sm" tone="muted">{copy.description}</Text>
+    <main className={`update-shell is-${state.origin}`} onDragStart={event => event.preventDefault()}>
+      <Panel className="update-panel update-status-panel" padding="none" radius="lg">
+        <img
+          alt=""
+          className="update-kawaikara-image"
+          draggable={false}
+          src={kawaikaraImage}
+        />
+        <Stack className="update-status-body" align="center" gap="sm">
+          <Badge dot tone={state.phase === 'error' ? 'neutral' : 'primary'}>
+            {labels.channel}: {formatChannel(state.channel, labels)}
+          </Badge>
+          <Stack className="update-phase-slot" gap="none">
+            <AnimatePresence initial={false}>
+              <UpdateStatusContent key={state.phase} state={state} labels={labels} />
+            </AnimatePresence>
           </Stack>
-
-          <Stack className="update-progress-block" gap="sm">
-            <Progress aria-label={copy.title} value={progress} />
-            <Flex className="update-progress-meta" align="start" justify="between" gap="sm">
-              <Text className="update-version-summary" size="xs" tone="muted">
-                {versionSummary(state, labels)}
-              </Text>
-              {state.phase === 'downloading' && state.progress ? (
-                <Text className="update-progress-summary" size="xs" tone="muted">
-                  {formatProgress(state.progress.percent)}
-                  {state.progress.total > 0
-                    ? ` · ${formatBytes(state.progress.transferred)} / ${formatBytes(state.progress.total)}`
-                    : ''}
-                </Text>
-              ) : null}
-            </Flex>
-          </Stack>
-
-          {state.error ? (
-            <Text className="update-error-message" size="sm">
-              {state.error}
-            </Text>
-          ) : null}
-
+        </Stack>
+        <Flex key={state.phase} className="update-status-footer" align="center" justify="end" gap="sm">
           {canShowReleaseNotes ? (
             <Button
               className="update-release-notes-button"
@@ -124,7 +100,7 @@ export function UpdatePanel({
             onInstall={onInstall}
             onRetry={onRetry}
           />
-        </Stack>
+        </Flex>
       </Panel>
     </main>
   );

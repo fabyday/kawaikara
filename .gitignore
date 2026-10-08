@@ -155,3 +155,4 @@ storybook-static
 output_dist/
 packages/builtin-sites/src/Providers/Chzzk/Plugins/Upscaling/Generated/
 .cache/video-effects/
+/resources/generated/

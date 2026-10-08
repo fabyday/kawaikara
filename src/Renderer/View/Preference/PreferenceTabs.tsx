@@ -49,6 +49,7 @@ type PreferenceTabsProps = Pick<ReturnType<typeof usePreferenceState>,
   | 'setLogViewerOpen'
 > & Pick<ReturnType<typeof usePreferenceDraft>,
   | 'hasChanges'
+  | 'save'
   | 'updateDraft'
   | 'checkForUpdates'
   | 'openApplicationLink'
@@ -103,6 +104,7 @@ export function PreferenceTabs({
   setBundleTabActivation,
   dataActionId,
   hasChanges,
+  save,
   displays,
   graphicsRestartRequest,
   draftPreferences,
@@ -294,6 +296,8 @@ export function PreferenceTabs({
       <TabPanel className="preference-tab-panel" value="advanced">
         <PreferenceTabScroll label={messages.advanced}>
           <AdvancedTab
+            dataLocation={appInfo?.dataLocation}
+            onSavePreferences={save}
             messages={messages}
             preferences={draftPreferences}
             saving={saving}

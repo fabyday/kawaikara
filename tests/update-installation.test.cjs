@@ -120,6 +120,21 @@ test('Windows automatic NSIS handoff is silent, relaunches, and recovers emitted
   assert.equal(calls.filter((call) => Array.isArray(call) && call[0] === 'quit').length, 2);
 });
 
+test('restart notice stays visible before installer handoff and repeated clicks do not restart twice', async () => {
+  const { manager, calls } = fixture('win32', 'automatic');
+  const started = Date.now();
+  const first = manager.installUpdate();
+  const second = manager.installUpdate();
+  await new Promise(setImmediate);
+  assert.equal(manager.getState().phase, 'installing');
+  assert.equal(manager.isInstalling(), false);
+  assert.equal(calls.some(call => Array.isArray(call) && call[0] === 'quit'), false);
+  await assert.rejects(manager.checkForUpdates(), /already/);
+  await Promise.all([first, second]);
+  assert.ok(Date.now() - started >= 1100, 'restart notice was dismissed too soon');
+  assert.equal(calls.filter(call => Array.isArray(call) && call[0] === 'quit').length, 1);
+});
+
 test('failed preparation restores input without calling the installer', async () => {
   const { manager, calls } = fixture('win32');
   manager.setInstallLifecycle({

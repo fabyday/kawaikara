@@ -34,7 +34,7 @@ export const SHORT_FORM_VIDEO_SHORTCUTS = [
     /** The ID value. */
     id: 'short-form-video.toggle-auto-advance',
     /** The default key value. */
-    defaultKey: 'CommandOrControl+Alt+A',
+    defaultKey: 'CommandOrControl+Alt+N',
   },
   {
     /** The ID value. */

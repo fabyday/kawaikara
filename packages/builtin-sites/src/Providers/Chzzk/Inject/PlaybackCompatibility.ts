@@ -1887,10 +1887,6 @@ function installChzzkAdSkipper(): void {
     video: HTMLVideoElement;
     /** The source value. */
     source: string;
-    /** Whether the muted option is enabled. */
-    muted: boolean;
-    /** Whether the muted by Kawaikara option is enabled. */
-    mutedByKawaikara: boolean;
     /** The playback rate value. */
     playbackRate: number;
     /** Whether the playback rate changed option is enabled. */
@@ -2324,7 +2320,6 @@ function installChzzkAdSkipper(): void {
     if (runtime.fallbackTimer !== undefined) {
       window.clearTimeout(runtime.fallbackTimer);
     }
-    if (runtime.mutedByKawaikara && video.muted) video.muted = runtime.muted;
     if (runtime.playbackRateChanged && video.playbackRate !== runtime.playbackRate) {
       try {
         video.playbackRate = runtime.playbackRate;
@@ -2402,7 +2397,9 @@ function installChzzkAdSkipper(): void {
     }
 
     try {
-      if (runtime.mutedByKawaikara) video.muted = true;
+      // Do not touch muted/volume, even temporarily. The site's volumechange
+      // handler may persist that value and initialize the next broadcast from
+      // it before cleanup restores the old (possibly detached) video element.
       if (video.playbackRate < 16) {
         try {
           video.playbackRate = 16;
@@ -2496,8 +2493,6 @@ function installChzzkAdSkipper(): void {
       runtime = {
         video,
         source,
-        muted: video.muted,
-        mutedByKawaikara: !video.muted,
         playbackRate: video.playbackRate,
         playbackRateChanged: false,
         fastForwardStarted: false,

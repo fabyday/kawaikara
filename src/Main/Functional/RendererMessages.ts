@@ -4,6 +4,8 @@ import { getLocaleMessages, resolveAppLocale } from './Locale';
 
 /** Describes the app messages contract. */
 export interface AppMessages {
+  /** Windows data-location control and native confirmation copy. */
+  readonly appDataLocation: typeof en.app.appDataLocation;
   /** Compact label for the homepage link button. */
   readonly homepage: string;
   /** Localized availableSites copy. */

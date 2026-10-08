@@ -11,6 +11,9 @@
   inset: 0;
   padding: clamp(20px, 5vw, 64px);
   place-items: center;
+  /* Content changes must not resize the grid track containing the panel. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   box-sizing: border-box;
   background:
     radial-gradient(circle at 50% 18%, rgb(112 77 178 / 30%), transparent 38%),
@@ -26,7 +29,13 @@
 
 .update-panel {
   width: min(640px, 100%);
+  /* Keep the same outer bounds through every updater phase; constrain to the viewport. */
+  height: min(600px, 100%);
+  min-width: 0;
+  min-height: 0;
   max-height: 100%;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
   overflow-x: hidden;
   overflow-y: auto;
   border-color: rgb(255 255 255 / 12%);
@@ -35,15 +44,127 @@
 }
 
 .update-kawaikara-image {
-  width: calc(100% + 64px);
+  display: block;
+  width: 100%;
   height: auto;
   aspect-ratio: 2 / 1;
-  margin: -32px -32px 0;
-  object-fit: cover;
+  flex: none;
+  margin: 0;
+  object-fit: contain;
   object-position: center;
   border-bottom: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 16px 16px 0 0;
   background: #f5f5f4;
+}
+
+.update-panel,
+.update-panel * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.update-status-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+.update-status-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 16px 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges;
+}
+
+.update-status-body > * {
+  flex-shrink: 0;
+}
+
+.update-phase-slot {
+  position: relative;
+  width: 100%;
+}
+
+.update-phase-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.update-phase-content[data-exiting] {
+  position: absolute;
+  inset: 0 0 auto;
+  max-height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.update-status-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.update-activity-ring {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  fill: none;
+  stroke: #c084fc;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.update-activity-track { opacity: 0.18; }
+.update-activity-tail { stroke-dasharray: 26 74; opacity: 0.3; }
+.update-activity-head { stroke-dasharray: 8 92; }
+.update-activity-tail,
+.update-activity-head { animation: update-orbit 1.1s linear infinite; }
+.update-activity-tail { animation-name: update-orbit-tail; }
+
+@keyframes update-orbit {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -100; }
+}
+
+@keyframes update-orbit-tail {
+  from { stroke-dashoffset: 26; }
+  to { stroke-dashoffset: -74; }
+}
+
+@keyframes update-actions-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.kawai-theme-light .update-activity-ring { stroke: #7e22ce; }
+
+.update-status-footer {
+  flex: none;
+  min-height: 52px;
+  padding: 0 24px 16px;
+  flex-wrap: wrap;
+  animation: update-actions-enter 0.2s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-activity-tail,
+  .update-activity-head,
+  .update-status-footer { animation: none; }
+}
+
+.update-status-footer .update-release-notes-button {
+  width: auto;
+  margin-right: auto;
+}
+
+.update-status-footer .update-actions {
+  width: auto;
+  margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .update-heading {
@@ -193,25 +314,14 @@
 }
 
 @media (max-height: 780px) {
-  .update-shell { padding: 14px; }
+  .update-shell,
+  .update-shell.is-manual { padding: 14px; }
   .update-release-notes-panel { height: 100%; }
-  .update-panel:not(.update-release-notes-panel) .update-kawaikara-image {
-    height: clamp(130px, 22vh, 170px);
-    aspect-ratio: auto;
-    object-position: center 34%;
-  }
-}
-
-@media (max-height: 680px) {
-  .update-kawaikara-image {
-    height: clamp(132px, 24vh, 172px);
-    aspect-ratio: auto;
-    object-position: center 34%;
-  }
 }
 
 @media (max-width: 620px) {
-  .update-shell { padding: 14px; }
+  .update-shell,
+  .update-shell.is-manual { padding: 14px; }
   .update-panel { width: 100%; }
   .update-progress-meta { grid-template-columns: 1fr; }
   .update-progress-summary { white-space: normal; }

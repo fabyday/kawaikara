@@ -1,5 +1,21 @@
 {
   "app": {
+    "appDataLocation": {
+      "label": "앱 데이터 경로",
+      "browse": "폴더 찾기…",
+      "chooseFolder": "앱 데이터 폴더 선택",
+      "apply": "적용 후 재시작",
+      "cancel": "취소",
+      "confirm": "재시작 후 이 데이터 위치를 사용할까요?",
+      "warning": "기존 데이터는 이동하거나 삭제하지 않습니다. 빈 경로를 선택하면 설정·로그인 정보·사용자 설치 번들이 없는 상태로 시작합니다. 유지하려면 앱을 종료한 뒤 기존 데이터 폴더를 먼저 복사해 주세요.",
+      "builtin": "기본 내장 Provider·Plugin은 이 폴더가 아닌 앱 패키지에 포함되어 새 데이터 폴더에서도 사용할 수 있습니다.",
+      "hint": "기존 앱·채널 폴더 또는 상위 폴더를 선택할 수 있습니다. 확인창에서 실제 적용 경로를 보여줍니다. 이 항목은 다른 설정과 별도로 적용합니다.",
+      "unavailable": "데이터 경로 변경은 설치된 Windows 빌드에서만 사용할 수 있습니다.",
+      "invalidPath": "설치·시스템 폴더와 현재 데이터 폴더 밖의 로컬 절대 경로를 선택해 주세요. 데이터 폴더끼리 겹칠 수 없습니다.",
+      "saveFailed": "데이터 경로를 저장하지 못했습니다. 폴더의 쓰기 권한과 드라이브 연결을 확인해 주세요. 현재 사용 중인 데이터 위치는 바뀌지 않았습니다.",
+      "busy": "업데이트·재시작 또는 다른 데이터 경로 변경이 진행 중입니다.",
+      "restarting": "선택한 데이터 위치로 재시작합니다…"
+    },
     "title": "카와이카라",
     "chooseSite": "불러올 사이트를 선택하세요",
     "siteTransitionFailed": "사이트를 불러오지 못했습니다",
@@ -567,7 +583,7 @@
     "downloadedTitle": "업데이트 준비 완료",
     "preparingTitle": "업데이트 설치 준비 중",
     "preparingDescription": "다운로드한 파일을 검증하고 앱을 안전하게 종료할 준비를 합니다.",
-    "installingTitle": "업데이트 적용 중",
+    "installingTitle": "재시작합니다",
     "downloadedDescription": "앱을 다시 시작하면 업데이트가 적용됩니다.",
     "automaticRestartDescription": "업데이트를 적용하기 위해 Kawaikara를 다시 시작합니다.",
     "currentTitle": "최신 버전입니다",
@@ -661,6 +677,19 @@
     "downloads": "다운로드",
     "videos": "동영상",
     "documents": "문서"
+  },
+  "installer": {
+    "title": "설치 옵션",
+    "description": "바로가기와 현재 Windows 사용자의 앱 데이터 저장 위치를 선택합니다.",
+    "desktopShortcut": "바탕화면 바로가기 만들기",
+    "customData": "앱 데이터 저장 위치 직접 지정",
+    "warning": "주의: 재설치 시 다른 위치를 선택하면 기존 설정·로그인 정보를 찾지 못할 수 있습니다. 폴더 이동·삭제 또는 드라이브 연결 해제 시 앱 실행에 문제가 생길 수 있습니다. 기존 데이터는 자동으로 이동하지 않으므로 먼저 백업해 주세요.",
+    "browse": "찾아보기…",
+    "chooseFolder": "앱 데이터를 저장할 상위 폴더 선택",
+    "dataHint": "선택한 위치 아래에 앱·채널별 전용 폴더를 만들고 Electron 캐시와 KawaiData를 저장합니다. 앱을 제거해도 데이터는 보존됩니다.",
+    "allUsers": "직접 지정은 현재 사용자용 설치에서만 가능합니다. 모든 사용자용 설치는 사용자별 AppData 위치를 사용합니다.",
+    "invalidPath": "설치 폴더와 Windows 시스템 폴더 밖에 있는, 쓰기 가능한 로컬 폴더를 선택해 주세요.",
+    "saveFailed": "앱 데이터 저장 위치를 기록하지 못해 설치를 계속할 수 없습니다. 폴더 권한을 확인하고 다시 시도해 주세요."
   },
   "presence": {
     "details": "Kawaikara OTT 뷰어",

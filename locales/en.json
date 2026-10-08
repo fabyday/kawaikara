@@ -1,5 +1,21 @@
 {
   "app": {
+    "appDataLocation": {
+      "label": "AppData path",
+      "browse": "Browse…",
+      "chooseFolder": "Choose an app data folder",
+      "apply": "Apply and restart",
+      "cancel": "Cancel",
+      "confirm": "Use this data location after restarting?",
+      "warning": "Existing data is not moved or deleted. An empty location starts with default settings and no saved sign-ins or user-installed bundles. To keep them, close the app and copy your existing data folder first.",
+      "builtin": "Built-in Providers and Plugins are included with the app, not this folder. They remain available in a fresh profile.",
+      "hint": "You can select an existing app/channel folder or its parent. The confirmation shows the exact path. This change is applied separately from other preferences.",
+      "unavailable": "Data location changes are available in installed Windows builds only.",
+      "invalidPath": "Choose an absolute local path outside the installation/system folders and current data folder. Overlapping profiles are not supported.",
+      "saveFailed": "Could not save the data location. Check that the folder and drive are writable and available. The active profile has not changed.",
+      "busy": "Another update, restart or data location change is in progress.",
+      "restarting": "Restarting with the selected data location…"
+    },
     "title": "Kawaikara",
     "chooseSite": "Choose a site to load",
     "siteTransitionFailed": "The site could not be loaded",
@@ -567,7 +583,7 @@
     "downloadedTitle": "Update ready",
     "preparingTitle": "Preparing installation",
     "preparingDescription": "Verifying the download and preparing to close the app safely.",
-    "installingTitle": "Installing update",
+    "installingTitle": "Restarting Kawaikara",
     "downloadedDescription": "Restart Kawaikara to finish installing the update.",
     "automaticRestartDescription": "Restarting Kawaikara to finish the update.",
     "currentTitle": "Kawaikara is up to date",
@@ -661,6 +677,19 @@
     "downloads": "Downloads",
     "videos": "Videos",
     "documents": "Documents"
+  },
+  "installer": {
+    "title": "Installation options",
+    "description": "Choose shortcuts and where this Windows user stores app data.",
+    "desktopShortcut": "Create a desktop shortcut",
+    "customData": "Use a custom app data location",
+    "warning": "Warning: reinstalling with a different location can hide existing settings and sign-ins. Moving/deleting the folder or disconnecting its drive can prevent startup. Existing data is not moved automatically; back it up first.",
+    "browse": "Browse…",
+    "chooseFolder": "Select the parent folder for app data",
+    "dataHint": "A separate app/channel folder will contain Electron caches and KawaiData. Uninstalling keeps this data.",
+    "allUsers": "Custom app data is available for current-user installations only. All-users installations use each user's AppData location.",
+    "invalidPath": "Choose a writable local folder outside the installation directory and Windows system folders.",
+    "saveFailed": "The app data location could not be saved. Installation cannot continue. Check folder permissions and try again."
   },
   "presence": {
     "details": "Kawaikara OTT Viewer",
