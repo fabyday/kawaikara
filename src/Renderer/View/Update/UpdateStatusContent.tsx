@@ -3,6 +3,7 @@ import { motion, useIsPresent, useReducedMotion } from 'motion/react';
 import type { UpdatePanelProps } from './Types';
 import { formatBytes, formatProgress, getPhaseCopy, getProgressValue, versionSummary } from './UpdatePresentation';
 
+/** Adds phase crossfades to the shared Stack without changing panel geometry. */
 const MotionStack = motion.create(Stack);
 
 /** Crossfades phase content without animating panel geometry or retaining interactive controls. */

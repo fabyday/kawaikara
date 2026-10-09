@@ -11,13 +11,21 @@ export function installVideoEffect(
 ): void {
   /** Page-local diagnostics contain dimensions/timing only, never source URLs or frames. */
   type EffectStatus = {
+    /** Current effect lifecycle phase, including graceful fallback to the original video. */
     state: 'waiting' | 'initializing' | 'ready' | 'applied' | 'suspended' | 'fallback';
+    /** Diagnostic reason for the current lifecycle phase. */
     reason: string;
+    /** Decoded source dimensions, without the source URL. */
     input: string;
+    /** Processed canvas dimensions. */
     output: string;
+    /** Number of frames successfully processed by the effect engine. */
     renderedFrames: number;
+    /** Number of timely processed frames exposed on the visible effect canvas. */
     presentedFrames: number;
+    /** Elapsed milliseconds for the most recent effect render. */
     processingMs: number;
+    /** Rolling mean of recorded effect-render durations in milliseconds. */
     averageProcessingMs: number;
   };
   const scope = window as unknown as {

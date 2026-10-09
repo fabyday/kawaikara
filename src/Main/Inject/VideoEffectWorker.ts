@@ -1,8 +1,24 @@
 /** Serializable dedicated-worker entry. Bundle code stays compressed until inside this worker. */
-export function runVideoEffectWorker(load: (url: string) => Promise<{ default: (
-  video: { videoWidth: number; videoHeight: number; frame?: VideoFrame }, canvas: OffscreenCanvas,
-  options: Readonly<Record<string, unknown>>,
-) => Promise<{ render(): Promise<void>; dispose(): void | Promise<void> }> }>): void {
+export function runVideoEffectWorker(load: (url: string) => Promise<{
+  /** Creates the effect engine from the decompressed module inside the worker. */
+  default: (
+    video: {
+      /** Decoded source width in pixels. */
+      videoWidth: number;
+      /** Decoded source height in pixels. */
+      videoHeight: number;
+      /** Transferred frame available only during the current render request. */
+      frame?: VideoFrame;
+    },
+    canvas: OffscreenCanvas,
+    options: Readonly<Record<string, unknown>>,
+  ) => Promise<{
+    /** Processes the current transferred frame into the output canvas. */
+    render(): Promise<void>;
+    /** Releases resources owned by the worker-side effect engine. */
+    dispose(): void | Promise<void>;
+  }>;
+}>): void {
   const scope = globalThis as unknown as {
     onmessage: (event: MessageEvent) => void;
     postMessage(message: unknown): void;
@@ -50,7 +66,12 @@ export function runVideoEffectWorker(load: (url: string) => Promise<{ default: (
 export async function createVideoEffectWorker(
   video: HTMLVideoElement, canvas: HTMLCanvasElement, signal: AbortSignal,
   workerSource: string, gzipBase64: string, scale: number, options: Readonly<Record<string, unknown>>,
-): Promise<{ render(): Promise<void>; dispose(): Promise<void> }> {
+): Promise<{
+  /** Captures and transfers one decoded frame, waiting for worker completion. */
+  render(): Promise<void>;
+  /** Releases the engine and terminates its worker, safely allowing repeated calls. */
+  dispose(): Promise<void>;
+}> {
   if (signal.aborted) throw new Error('Effect initialization cancelled');
   if (typeof Worker === 'undefined' || typeof VideoFrame === 'undefined' ||
       typeof canvas.transferControlToOffscreen !== 'function') throw new Error('Worker video effects unavailable');
@@ -70,6 +91,7 @@ export async function createVideoEffectWorker(
     stopped = true; worker.terminate(); signal.removeEventListener('abort', abort);
     if (pending) { clearTimeout(pending.timer); pending.reject(error); pending = undefined; }
   };
+  /** Cancels an in-flight operation immediately or disposes an idle engine gracefully. */
   const abort = (): void => {
     if (pending) stop(new Error('Effect operation cancelled'));
     else void dispose().catch(() => undefined);
@@ -82,6 +104,7 @@ export async function createVideoEffectWorker(
     const request = pending; pending = undefined; clearTimeout(request.timer);
     if (data.error) request.reject(new Error(String(data.error))); else request.resolve();
   };
+  /** Sends one correlated request with transfer ownership and a bounded response wait. */
   const request = (data: Record<string, unknown>, transfer: Transferable[], timeout: number): Promise<void> => {
     if (stopped || pending) return Promise.reject(new Error(stopped ? 'Effect worker stopped' : 'Effect frame already in flight'));
     return new Promise((resolve, reject) => {
@@ -102,12 +125,14 @@ export async function createVideoEffectWorker(
     const output = canvas.transferControlToOffscreen();
     await request({ type: 'init', gzipBase64, width, height, canvas: output, options }, [output], 30000);
     return {
+      /** Transfers the current frame and closes the sender's handle after completion or failure. */
       async render() {
         if (stopped || pending) throw new Error('Effect worker not ready');
         const frame = new VideoFrame(video);
         try { await request({ type: 'frame', frame }, [frame], 15000); }
         finally { frame.close(); }
       },
+      /** Shares the idempotent worker shutdown operation with the page-side host. */
       dispose,
     };
   } catch (error) { stop(); throw error; }

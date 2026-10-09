@@ -340,5 +340,6 @@ function AutomaticPhaseCycle(args: UpdatePanelProps) {
 
 /** The outer panel must stay still while messages, progress and actions change. */
 export const AutomaticStateTransitions: Story = {
+  /** Cycles update phases to inspect content transitions and stable outer bounds. */
   render: args => <AutomaticPhaseCycle {...args} />,
 };
