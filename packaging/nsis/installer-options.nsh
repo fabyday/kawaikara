@@ -3,6 +3,9 @@
 !include FileFunc.nsh
 !include "${BUILD_RESOURCES_DIR}\generated\installer-locales.nsh"
 !include "${__FILEDIR__}\nightly-identity-migration.nsh"
+!include "${__FILEDIR__}\installer-pages.nsh"
+!include "${__FILEDIR__}\installer-branding.nsh"
+!include "${__FILEDIR__}\video-associations.nsh"
 
 !ifndef BUILD_UNINSTALLER
   Var kawaiOptionsVisited
@@ -20,6 +23,11 @@
   Var kawaiCustomSelected
 
   !macro customInit
+    ; Older app versions can hand off --updated without /S. Do not show Setup
+    ; even in that case; interactive installation is reserved for direct opens.
+    ${If} ${isUpdated}
+      SetSilent silent
+    ${EndIf}
     ; A small per-user locator survives uninstall. Never put it in $INSTDIR:
     ; NSIS replaces that directory on update. No application data is deleted here.
     SetShellVarContext current
@@ -79,7 +87,6 @@
       SetCtlColors $kawaiWarning CC2222 transparent
       ${NSD_CreateText} 0 86u 75% 14u "$kawaiDataRoot"
       Pop $kawaiPathField
-      SendMessage $kawaiPathField ${EM_SETREADONLY} 1 0
       ${NSD_CreateButton} 77% 85u 23% 16u "$(kawai_browse)"
       Pop $kawaiBrowseButton
       ${NSD_OnClick} $kawaiBrowseButton kawaiBrowseData
@@ -96,6 +103,9 @@
 
     Function kawaiToggleCustomData
       Pop $0
+      ${If} $kawaiCustomSelected == ${BST_CHECKED}
+        ${NSD_GetText} $kawaiPathField $kawaiDataRoot
+      ${EndIf}
       Call kawaiUpdateDataControls
     FunctionEnd
 
@@ -104,10 +114,12 @@
       ${If} $kawaiCustomSelected == ${BST_CHECKED}
         ShowWindow $kawaiWarning ${SW_SHOW}
         EnableWindow $kawaiBrowseButton 1
+        EnableWindow $kawaiPathField 1
         ${NSD_SetText} $kawaiPathField $kawaiDataRoot
       ${Else}
         ShowWindow $kawaiWarning ${SW_HIDE}
         EnableWindow $kawaiBrowseButton 0
+        EnableWindow $kawaiPathField 0
         ${NSD_SetText} $kawaiPathField $kawaiDefaultDataRoot
       ${EndIf}
       ${If} $installMode == "all"
@@ -121,7 +133,11 @@
       Pop $0
       ${If} $0 != error
         ; Always isolate channels. The selected folder is a parent, not UserRoot.
-        GetFullPathName $kawaiDataRoot "$0\${PRODUCT_NAME}"
+        GetFullPathName $kawaiDataRoot "$0"
+        ${GetFileName} $kawaiDataRoot $1
+        ${If} $1 != "${PRODUCT_NAME}"
+          StrCpy $kawaiDataRoot "$kawaiDataRoot\${PRODUCT_NAME}"
+        ${EndIf}
         ${NSD_SetText} $kawaiPathField $kawaiDataRoot
       ${EndIf}
     FunctionEnd
@@ -130,7 +146,47 @@
       ${NSD_GetState} $kawaiDesktopCheckbox $kawaiDesktopSelected
       ${NSD_GetState} $kawaiCustomCheckbox $kawaiCustomSelected
       ${If} $installMode != "all"
-        ${If} $kawaiCustomSelected != ${BST_CHECKED}
+        ${If} $kawaiCustomSelected == ${BST_CHECKED}
+          ${NSD_GetText} $kawaiPathField $kawaiDataRoot
+          StrCpy $0 $kawaiDataRoot 2 1
+          ${If} $0 != ":\"
+            Goto kawaiInvalidDataPath
+          ${EndIf}
+          ; Reject invalid path characters and alternate data streams before normalization.
+          StrCpy $0 2
+          kawaiValidatePathCharacter:
+            StrCpy $1 $kawaiDataRoot 1 $0
+            ${If} $1 == ""
+              Goto kawaiNormalizeDataPath
+            ${EndIf}
+            ${If} $1 == ":"
+            ${OrIf} $1 == "*"
+            ${OrIf} $1 == "?"
+            ${OrIf} $1 == '$\"'
+            ${OrIf} $1 == "<"
+            ${OrIf} $1 == ">"
+            ${OrIf} $1 == "|"
+            ${OrIf} $1 == "$\r"
+            ${OrIf} $1 == "$\n"
+            ${OrIf} $1 == "$\t"
+              Goto kawaiInvalidDataPath
+            ${EndIf}
+            IntOp $0 $0 + 1
+            Goto kawaiValidatePathCharacter
+          kawaiNormalizeDataPath:
+          ; Unlike NSIS GetFullPathName's long-name lookup, this also accepts
+          ; folders that have not been created yet.
+          System::Call 'kernel32::GetFullPathNameW(w "$kawaiDataRoot", i ${NSIS_MAX_STRLEN}, w .r2, p 0) i.r3'
+          ${If} $3 == 0
+          ${OrIf} $3 >= ${NSIS_MAX_STRLEN}
+            Goto kawaiInvalidDataPath
+          ${EndIf}
+          StrCpy $kawaiDataRoot $2
+          ${GetFileName} $kawaiDataRoot $0
+          ${If} $0 != "${PRODUCT_NAME}"
+            StrCpy $kawaiDataRoot "$kawaiDataRoot\${PRODUCT_NAME}"
+          ${EndIf}
+        ${Else}
           StrCpy $kawaiDataRoot $kawaiDefaultDataRoot
         ${EndIf}
         ${If} $kawaiDataRoot == $kawaiDefaultDataRoot
@@ -168,6 +224,7 @@
           Goto kawaiInvalidDataPath
         ${EndIf}
         kawaiProbeDataPath:
+        !ifndef KAWAI_INSTALLER_PREVIEW
         ClearErrors
         StrCpy $2 $kawaiDataRoot
         ${If} $kawaiDataRoot == $kawaiDefaultDataRoot
@@ -184,6 +241,7 @@
         ${EndIf}
         ; Only the newly generated write-probe is removed, never existing data.
         Delete $0
+        !endif
       ${EndIf}
       StrCpy $kawaiOptionsVisited 1
       Return
@@ -195,6 +253,7 @@
 !endif
 
 !macro customInstall
+  !insertmacro kawaiRegisterVideoAssociations
   ${If} $kawaiOptionsVisited == 1
     ${If} $kawaiDesktopSelected == ${BST_CHECKED}
       CreateShortCut "$newDesktopLink" "$INSTDIR\${PRODUCT_FILENAME}.exe" "" "$INSTDIR\${PRODUCT_FILENAME}.exe"

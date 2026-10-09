@@ -37,6 +37,7 @@ import {
 } from '../Functional/IPCValidation';
 import { getRendererMessages } from '../Functional/RendererMessages';
 import { getOperatingSystemLabel } from '../Functional/PlatformInfo';
+import { canConfigureDefaultVideoApp, openDefaultVideoAppSettings } from '../Functional/DefaultVideoApp';
 
 /** Coordinates IPC behavior. */
 export class IpcManager {
@@ -104,6 +105,7 @@ export class IpcManager {
       this.handleEditingChanged,
     );
     ipcMain.handle(IPC_CHANNELS.application.info, () => ({
+      canConfigureDefaultVideoApp: process.platform === 'win32' ? canConfigureDefaultVideoApp() : undefined,
       dataLocation: this.data.getLocation(),
       name: app.getName(),
       version: app.getVersion(),
@@ -127,6 +129,15 @@ export class IpcManager {
     ipcMain.handle(IPC_CHANNELS.application.listDisplays, () =>
       this.windows.listDisplays(),
     );
+    ipcMain.handle(IPC_CHANNELS.application.openDefaultVideoAppSettings, async (event, locale: unknown) => {
+      requireDataLocationSender(event);
+      const copy = getRendererMessages(requireAppLocale(locale), app.getLocale()).app.defaultVideoApp;
+      try { await openDefaultVideoAppSettings(); }
+      catch (reason) {
+        this.logging.getLogger('ipcManager', 'defaultVideoApp').warn('Could not open default app settings.', reason);
+        throw new Error(copy.failed);
+      }
+    });
     ipcMain.handle(
       IPC_CHANNELS.application.openLink,
       async (_event, id: unknown) => {
@@ -662,6 +673,7 @@ export class IpcManager {
 
 /** Defines the shared IPC handler channels constant. */
 const IPC_HANDLER_CHANNELS = [
+  IPC_CHANNELS.application.openDefaultVideoAppSettings,
   IPC_CHANNELS.sites.list,
   IPC_CHANNELS.sites.currentAddress,
   IPC_CHANNELS.sites.navigationState,

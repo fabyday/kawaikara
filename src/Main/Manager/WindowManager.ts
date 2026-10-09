@@ -39,6 +39,7 @@ import {
 } from '@kawaikara/site-api';
 import { ExternalBrowserManager } from './ExternalBrowserManager';
 import { UnifiedPictureInPictureManager } from './UnifiedPictureInPictureManager';
+import { attachVideoPictureInPictureDrag } from '../Functional/PictureInPictureAlignment';
 import type { SiteRuntimeProfile } from '../Functional/SiteRuntime';
 import {
   IPC_CHANNELS,
@@ -512,6 +513,7 @@ export class WindowManager {
       }
     });
     viewerWindow.on('closed', () => {
+      this.internalVideoPictureInPicture?.disposeDrag?.();
       this.clearInternalVideoPictureInPictureReassertions();
       this.clearInternalVideoPictureInPicturePointerMonitor();
       this.clearOverlayRevealTimer();
@@ -589,7 +591,7 @@ export class WindowManager {
         input.key.toLowerCase() === 'tab'
       ) {
         event.preventDefault();
-        overlaySurface.webContents.send(IPC_CHANNELS.overlay.requestClose);
+        overlaySurface.webContents.send(IPC_CHANNELS.overlay.requestClose, 'toggle');
         return;
       }
       if (
@@ -1836,6 +1838,9 @@ export class WindowManager {
       });
       viewer.hide();
       this.startInternalVideoPictureInPicturePointerMonitor(pip);
+      this.internalVideoPictureInPicture.disposeDrag = attachVideoPictureInPictureDrag(
+        pip, video.webContents, () => this.pictureInPicturePlacement.align === true,
+      );
       if (process.platform === 'darwin') {
         this.presentInternalVideoPictureInPicture(pip);
         this.scheduleInternalVideoPictureInPictureReassertion();
@@ -1863,6 +1868,7 @@ export class WindowManager {
   private async exitInternalVideoPictureInPicture(notify = true): Promise<void> {
     const state = this.internalVideoPictureInPicture;
     if (!state) return;
+    state.disposeDrag?.();
     this.clearInternalVideoPictureInPictureReassertions();
     this.clearInternalVideoPictureInPicturePointerMonitor();
     const viewer = this.viewerWindow;
@@ -2153,7 +2159,7 @@ export class WindowManager {
   toggleOverlay(): void {
     if (this.overlayVisible) {
       const overlay = this.requireOverlaySurface();
-      overlay.webContents.send(IPC_CHANNELS.overlay.requestClose);
+      overlay.webContents.send(IPC_CHANNELS.overlay.requestClose, 'toggle');
     } else {
       this.showOverlay();
     }

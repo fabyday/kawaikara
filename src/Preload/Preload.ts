@@ -50,6 +50,8 @@ installEditableFocusReporter();
 const api: KawaikaraRendererApi = {
   /** The application value. */
   application: {
+    /** Opens the Windows default app picker through Main's fixed channel policy. */
+    openDefaultVideoAppSettings: (locale: AppLocale) => ipcRenderer.invoke(IPC_CHANNELS.application.openDefaultVideoAppSettings, locale),
     /** The get info value. */
     getInfo: () =>
       ipcRenderer.invoke(IPC_CHANNELS.application.info) as Promise<ApplicationInfo>,
@@ -354,7 +356,8 @@ const api: KawaikaraRendererApi = {
     /** The on request close value. */
     onRequestClose: (handler) => {
       /** Performs the listener operation. */
-      const listener = () => handler();
+      const listener = (_event: Electron.IpcRendererEvent, reason: unknown) =>
+        handler(reason === 'toggle' ? 'toggle' : 'back');
       ipcRenderer.on(IPC_CHANNELS.overlay.requestClose, listener);
       return () => ipcRenderer.off(IPC_CHANNELS.overlay.requestClose, listener);
     },

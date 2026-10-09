@@ -203,6 +203,7 @@ export function PreferenceTabs({
       <TabPanel className="preference-tab-panel" value="video">
         <PreferenceTabScroll label={messages.video}>
           <VideoTab
+            canConfigureDefaultVideoApp={appInfo?.canConfigureDefaultVideoApp}
             messages={messages}
             preferences={draftPreferences}
             saving={saving}

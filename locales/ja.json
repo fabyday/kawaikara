@@ -1,5 +1,12 @@
 {
   "app": {
+    "defaultVideoApp": {
+      "title": "既定の動画アプリに設定",
+      "button": "設定",
+      "description": "Windows の既定のアプリ設定で使用する Kawaikara チャンネルを選択してください。確認なしに既定のアプリは変更しません。",
+      "unavailable": "インストール済みの Windows ビルドで利用できます。",
+      "failed": "Windows の既定のアプリ設定を開けませんでした。設定 → アプリ → 既定のアプリから選択してください。"
+    },
     "appDataLocation": {
       "label": "アプリデータのパス",
       "browse": "フォルダーを選択…",
@@ -50,7 +57,7 @@
     "pipHeight": "高さ",
     "pixels": "px",
     "pictureInPicturePosition": "デフォルト位置",
-    "pictureInPicturePositionDescription": "ウィンドウPiPを開く隅、または最後に移動した位置を選択します。",
+    "pictureInPicturePositionDescription": "PiPを開く隅を選択します。最後のPiP位置を記憶する場合は保存された座標を優先します。",
     "pipPositionTopLeft": "左上",
     "pipPositionTopRight": "右上",
     "pipPositionBottomLeft": "左下",
@@ -61,6 +68,9 @@
     "pipMonitorCurrent": "Kawaikaraがあるディスプレイ",
     "pipMonitorVideo": "Video PiPがあるディスプレイ",
     "pipMonitorLast": "最後に使用したPiPディスプレイ",
+    "pipMonitorLastPosition": "最後のPiP位置を記憶（ディスプレイと座標）",
+    "pipAlign": "自動整列",
+    "pipAlignDescription": "PiPを離すと、ウィンドウの中心がある四分区画の隅へ滑らかに移動します。",
     "pipMonitorDisplay": "ディスプレイ",
     "primaryDisplay": "メイン",
     "unavailableDisplay": "切断されたディスプレイ",
@@ -79,6 +89,8 @@
     "kawaiShortcut": "Kawai Shortcut",
     "kawaiShortcutDescription": "カテゴリのショートカットを押した後、一時的に表示される番号でそのカテゴリのサイトを開きます。",
     "kawaiShortcutDelay": "サイト選択の待ち時間",
+    "kawaiShortcutUnlimitedWait": "無制限に待機",
+    "kawaiShortcutUnlimitedWaitDescription": "サイトを選択するか、Escでキャンセルするか、メニューを閉じるまで待機します。",
     "kawaiShortcutDelayDescription": "カテゴリの強調表示を維持し、サイト番号の入力を待つ時間です。",
     "browserProfiles": "ブラウザープロファイル",
     "browserProfilesDescription": "プロファイルはログインとブラウザーストレージを共有します。サイトのWebContentsは毎回新しく作成されます。",
@@ -679,6 +691,14 @@
     "documents": "書類"
   },
   "installer": {
+    "welcomeTitle": "{app}のセットアップへようこそ",
+    "welcomeBody": "次の画面でインストール先、ショートカット、アプリデータの保存先を選択できます。",
+    "finishedTitle": "インストールが完了しました",
+    "finishedBody": "{app}を使用できます。この画面を閉じた後に起動するか選択してください。",
+    "launchApp": "{app}を起動",
+    "finishButton": "完了",
+    "openVideo": "{app}で開く",
+    "videoDescription": "{app}でローカル動画を再生します。",
     "title": "インストール設定",
     "description": "ショートカットと現在のWindowsユーザーのアプリデータ保存先を選択します。",
     "desktopShortcut": "デスクトップにショートカットを作成する",

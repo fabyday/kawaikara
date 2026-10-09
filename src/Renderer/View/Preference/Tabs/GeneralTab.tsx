@@ -326,7 +326,7 @@ function PictureInPictureSettings({
               currentDisplay: messages.pipMonitorCurrent,
               display: messages.pipMonitorDisplay,
               lastDisplay: messages.pipMonitorLast,
-              lastPosition: messages.pipPositionLast,
+              lastPosition: messages.pipMonitorLastPosition,
               monitor: messages.pictureInPictureMonitor,
               monitorDescription: messages.pictureInPictureMonitorDescription,
               position: messages.pictureInPicturePosition,
@@ -334,8 +334,8 @@ function PictureInPictureSettings({
               primary: messages.primaryDisplay,
               topLeft: messages.pipPositionTopLeft,
               topRight: messages.pipPositionTopRight,
-              unavailableDisplay: messages.unavailableDisplay,
-              videoDisplay: messages.pipMonitorVideo,
+              align: messages.pipAlign,
+              alignDescription: messages.pipAlignDescription,
             }}
             value={preferences.pictureInPicturePlacement}
             onChange={(pictureInPicturePlacement) =>

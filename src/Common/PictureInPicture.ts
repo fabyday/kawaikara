@@ -135,7 +135,8 @@ export type PictureInPicturePosition =
 /** Defines the picture in picture monitor mode type. */
 export type PictureInPictureMonitorMode =
   | 'current'
-  | 'video'
+  | 'primary'
+  | 'last-position'
   | 'last'
   | 'display';
 
@@ -155,6 +156,10 @@ export interface PictureInPictureLastPlacement {
   readonly xRatio: number;
   /** The y ratio value. */
   readonly yRatio: number;
+  /** Exact DIP coordinates for same-monitor restoration; absent in older preferences. */
+  readonly x?: number;
+  /** Exact vertical DIP coordinate. */
+  readonly y?: number;
 }
 
 /** Describes the picture in picture placement preference contract. */
@@ -165,6 +170,8 @@ export interface PictureInPicturePlacementPreference {
   readonly monitor: PictureInPictureMonitorPreference;
   /** The last placement value. */
   readonly lastPlacement?: PictureInPictureLastPlacement;
+  /** Whether a completed drag springs to the corner of its current quadrant. */
+  readonly align?: boolean;
 }
 
 /** Defines the shared default picture in picture size constant. */
@@ -342,6 +349,7 @@ export function validatePictureInPicturePlacement(
     return DEFAULT_PICTURE_IN_PICTURE_PLACEMENT;
   }
   const candidate = value as {
+    align?: unknown;
     lastPlacement?: unknown;
     monitor?: unknown;
     position?: unknown;
@@ -353,9 +361,14 @@ export function validatePictureInPicturePlacement(
     : DEFAULT_PICTURE_IN_PICTURE_PLACEMENT.position;
   return {
     /** The position value. */
-    position,
+    position: position === 'last' ? 'top-right' : position,
+    /** Existing installations keep free positioning until explicitly enabled. */
+    align: candidate.align === true,
     /** The monitor value. */
-    monitor: validatePictureInPictureMonitor(candidate.monitor),
+    monitor: position === 'last' ? {
+      /** Migrate legacy position memory to a single monitor policy. */
+      mode: 'last-position',
+    } : validatePictureInPictureMonitor(candidate.monitor),
     ...validateLastPlacement(candidate.lastPlacement),
   };
 }
@@ -369,7 +382,7 @@ function validatePictureInPictureMonitor(
   }
   const candidate = value as { displayId?: unknown; mode?: unknown
   };
-  const mode = ['current', 'video', 'last', 'display'].includes(
+  const mode = ['current', 'primary', 'last-position', 'last', 'display'].includes(
     String(candidate.mode),
   )
     ? (candidate.mode as PictureInPictureMonitorMode)
@@ -403,6 +416,8 @@ function validateLastPlacement(
     displayId?: unknown;
     xRatio?: unknown;
     yRatio?: unknown;
+    x?: unknown;
+    y?: unknown;
   };
   if (
     typeof candidate.displayId !== 'string' ||
@@ -423,6 +438,9 @@ function validateLastPlacement(
       xRatio: Math.min(1, Math.max(0, candidate.xRatio)),
       /** The y ratio value. */
       yRatio: Math.min(1, Math.max(0, candidate.yRatio)),
+      ...(typeof candidate.x === 'number' && Number.isFinite(candidate.x) &&
+        typeof candidate.y === 'number' && Number.isFinite(candidate.y)
+        ? { x: Math.round(candidate.x), y: Math.round(candidate.y) } : {}),
     },
   };
 }

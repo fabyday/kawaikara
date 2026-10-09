@@ -14,6 +14,7 @@ import {
   MIN_VIDEO_SEEK_SECONDS
 } from '../../../../Common/VideoControls';
 import { NumberInput } from '../NumberInput';
+import { DefaultVideoAppControl } from './DefaultVideoAppControl';
 
 /** Performs the video tab operation. */
 export function VideoTab({
@@ -21,6 +22,7 @@ export function VideoTab({
   preferences,
   saving,
   onUpdate,
+  canConfigureDefaultVideoApp,
 }: {
   /** The messages value. */
   readonly messages: AppMessages;
@@ -30,6 +32,8 @@ export function VideoTab({
   readonly saving: boolean;
   /** Callback used to handle on update. */
   readonly onUpdate: (patch: PreferencePatch) => void;
+  /** Omitted by Main on platforms without the Windows default-app capability. */
+  readonly canConfigureDefaultVideoApp?: boolean;
 }
 ) {
   return (
@@ -95,6 +99,10 @@ export function VideoTab({
           />
         </Stack>
       </section>
+      {canConfigureDefaultVideoApp !== undefined ? (
+        <DefaultVideoAppControl enabled={canConfigureDefaultVideoApp} disabled={saving}
+          locale={preferences.appLocale} messages={messages.defaultVideoApp} />
+      ) : null}
     </Stack>
   );
 }

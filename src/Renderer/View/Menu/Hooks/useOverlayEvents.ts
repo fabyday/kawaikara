@@ -198,7 +198,7 @@ export function useOverlayEvents({
         setUpdateState(state);
         updateStateRef.current = state;
       });
-    const removeCloseListener = window.kawaikara.overlay.onRequestClose(() => {
+    const removeCloseListener = window.kawaikara.overlay.onRequestClose((reason) => {
       if (viewRef.current === 'update') {
         if (updatePanelViewRef.current === 'release-notes') {
           setUpdatePanelView('status');
@@ -220,7 +220,7 @@ export function useOverlayEvents({
         void window.kawaikara.overlay.setView('menu');
         return;
       }
-      if (kawaiShortcutActiveRef.current) {
+      if (kawaiShortcutActiveRef.current && reason !== 'toggle') {
         kawaiShortcutActiveRef.current = false;
         if (shortcutHighlightTimer.current !== undefined) {
           window.clearTimeout(shortcutHighlightTimer.current);

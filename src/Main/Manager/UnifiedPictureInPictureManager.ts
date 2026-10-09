@@ -8,6 +8,7 @@ import {
   type WebFrameMain,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { PictureInPictureAlignment } from '../Functional/PictureInPictureAlignment';
 import { getLocaleMessages } from '../Functional/Locale';
 import type { AppLocale, PictureInPictureResult } from '../../Common/IPC';
 import {
@@ -166,6 +167,7 @@ export class UnifiedPictureInPictureManager {
   /** Sets the window placement. */
   setWindowPlacement(preference: PictureInPicturePlacementPreference): void {
     this.placementPreference = preference;
+    if (!preference.align) this.state?.alignment?.cancel();
   }
 
   /** Determines whether the active condition applies. */
@@ -341,6 +343,8 @@ export class UnifiedPictureInPictureManager {
         viewerWindow,
       };
       this.state = state;
+      state.alignment = new PictureInPictureAlignment(pipWindow, () =>
+        this.state === state && !state.closing && this.placementPreference.align === true);
       this.attachWindowEvents(state);
       siteView.webContents.on('console-message', consoleListener);
       siteView.webContents.on('before-input-event', inputListener);
@@ -559,6 +563,7 @@ export class UnifiedPictureInPictureManager {
 
   /** Attaches the window events. */
   private attachWindowEvents(state: UnifiedPictureInPictureState): void {
+    state.pipWindow.on('will-resize', () => this.clearResizeAnimation(state));
     state.pipWindow.on('resize', () => this.syncSiteViewBounds(state));
     state.pipWindow.on('blur', () => {
       this.scheduleFullscreenReassertion(state);
@@ -652,11 +657,18 @@ export class UnifiedPictureInPictureManager {
     }
 
     if (input.type === 'mouseUp' || input.type === 'mouseLeave') {
+      const drag = state.dragState;
+      const released = state.pipWindow.getBounds();
+      const moved = drag && Math.hypot(released.x - drag.windowX, released.y - drag.windowY) >= 3;
       state.dragState = undefined;
       const pendingAspectRatio = state.pendingAspectRatio;
       state.pendingAspectRatio = undefined;
       if (pendingAspectRatio !== undefined) {
         this.updateAspectRatio(state, pendingAspectRatio);
+      }
+      if (input.type === 'mouseUp' && moved) {
+        if (state.resizeAnimation) state.alignAfterResize = true;
+        else state.alignment?.snap();
       }
       return;
     }
@@ -971,6 +983,10 @@ export class UnifiedPictureInPictureManager {
         state.aspectRatio = aspectRatio;
         pipWindow.setAspectRatio(aspectRatio);
         this.syncSiteViewBounds(state);
+        if (state.alignAfterResize) {
+          state.alignAfterResize = false;
+          state.alignment?.snap();
+        }
         return;
       }
       animation.timer = setTimeout(
@@ -983,6 +999,8 @@ export class UnifiedPictureInPictureManager {
 
   /** Stops the current smooth PiP resize without moving it again. */
   private clearResizeAnimation(state: UnifiedPictureInPictureState): void {
+    state.alignment?.cancel();
+    state.alignAfterResize = false;
     if (state.resizeAnimation?.timer !== undefined) {
       clearTimeout(state.resizeAnimation.timer);
     }

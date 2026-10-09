@@ -9,7 +9,8 @@ function writeInstallerLocales(projectRoot, resourcesDirectory) {
     const { installer } = JSON.parse(readFileSync(path.join(projectRoot, 'locales', `${locale}.json`), 'utf8'));
     for (const [key, value] of Object.entries(installer)) {
       if (!/^[a-zA-Z]+$/.test(key) || typeof value !== 'string') throw new Error('Invalid installer locale entry');
-      lines.push(`LangString kawai_${key} ${languageId} "${escape(value)}"`);
+      // Only this build-owned placeholder may interpolate into a native product name.
+      lines.push(`LangString kawai_${key} ${languageId} "${escape(value).replace(/\{app\}/g, '${PRODUCT_NAME}')}"`);
     }
   }
   const directory = path.join(resourcesDirectory, 'generated');

@@ -4,6 +4,30 @@ import { app } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { UPDATE_TEST_PROFILE } from '../../Common/BuildConfig';
 import { getKawaiDataPath } from './UserDataPaths';
+import type { ExternalOpenRequest } from './ExternalOpen';
+
+/** Routes OS requests through the same retained video surface used by the library. */
+export async function openExternalRequest(
+  application: InitializedApplication,
+  request: ExternalOpenRequest,
+): Promise<boolean> {
+  const { sites, windows, videoLibrary } = application;
+  if (request.localVideoPath) {
+    const result = await videoLibrary.openPath(request.localVideoPath);
+    if (result.kind !== 'video') return false;
+    windows.queueVideoOpenRequest(result.request);
+    windows.hideOverlay();
+    if (!(sites.isCurrentSite('kawaikara.video') && windows.presentQueuedVideoOpenRequest())) {
+      await sites.load('kawaikara.video');
+    }
+  } else {
+    const resolved = sites.resolveAddress(request.targetUrl);
+    if (!resolved) return false;
+    await sites.openUrl(resolved.siteId, resolved.url);
+  }
+  windows.focusViewer();
+  return true;
+}
 
 /** Load the first UI/site and start services that depend on initialized managers. */
 export async function postInitializeApplication(
@@ -27,15 +51,12 @@ export async function postInitializeApplication(
   });
   const startupRequest = lifecycle.takeStartupRequest();
   const resolvedStartupRequest = startupRequest
-    ? sites.resolveAddress(startupRequest.targetUrl)
-    : undefined;
-  if (resolvedStartupRequest) {
-    await sites.openUrl(
-      resolvedStartupRequest.siteId,
-      resolvedStartupRequest.url,
-    );
-    windows.focusViewer();
-  } else {
+    ? await openExternalRequest(application, startupRequest).catch((error: unknown) => {
+      applicationLog.warn('The startup file or URL could not be opened.', error);
+      return false;
+    })
+    : false;
+  if (!resolvedStartupRequest) {
     const configuredSite = UPDATE_TEST_PROFILE ? 'kawaikara.video' : preferences.get().defaultSiteId;
     await sites.load(
       sites.has(configuredSite) ? configuredSite : 'kawaikara.youtube',
@@ -43,15 +64,12 @@ export async function postInitializeApplication(
   }
 
   lifecycle.activateExternalOpenHandler(async (request) => {
-    const resolved = sites.resolveAddress(request.targetUrl);
-    if (!resolved) {
+    if (!await openExternalRequest(application, request)) {
       applicationLog.warn(
         `No installed Provider accepts external URL: ${request.targetUrl}`,
       );
       return;
     }
-    await sites.openUrl(resolved.siteId, resolved.url);
-    windows.focusViewer();
   });
 
   if (!resolvedStartupRequest && preferences.get().openMenuOnStartup) {

@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isVideoPath } from './VideoLibrary';
+
 /** Defines the shared Kawaikara protocol constant. */
 export const KAWAIKARA_PROTOCOL = 'kawaikara';
 
@@ -10,6 +14,8 @@ const MAX_TARGET_URL_LENGTH = 8_192;
 export interface ExternalOpenRequest {
   /** The target URL value. */
   readonly targetUrl: string;
+  /** Absolute local video supplied by the operating system, never by a deep link. */
+  readonly localVideoPath?: string;
 }
 
 /** Parses the external open URL. */
@@ -66,8 +72,25 @@ export function parseExternalOpenUrl(
 export function parseExternalOpenArguments(
   args: readonly string[],
 ): ExternalOpenRequest[] {
-  return args.flatMap((value) => {
-    const request = parseExternalOpenUrl(value);
+  return args.flatMap((value, index) => {
+    const request = parseExternalOpenUrl(value) ?? (index > 0 ? parseExternalVideoFile(value) : undefined);
     return request ? [request] : [];
   });
+}
+
+/** Accepts absolute video arguments without granting local access to protocol URLs. */
+export function parseExternalVideoFile(value: string): ExternalOpenRequest | undefined {
+  if (!value || value.length > 4096 || value.includes('\0')) return undefined;
+  try {
+    const filename = value.startsWith('file:') ? fileURLToPath(value) : value;
+    if (!path.isAbsolute(filename) || /^\\\\[?.]\\/.test(filename) || !isVideoPath(filename)) return undefined;
+    return {
+      /** Canonical file URL used in diagnostics. */
+      targetUrl: pathToFileURL(filename).href,
+      /** OS-provided path validated again by the video library before playback. */
+      localVideoPath: filename,
+    };
+  } catch {
+    return undefined;
+  }
 }

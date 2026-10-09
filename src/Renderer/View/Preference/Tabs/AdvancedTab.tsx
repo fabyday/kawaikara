@@ -59,20 +59,29 @@ export function AdvancedTab({
               })}
             />
           </Panel>
-          <NumberInput
-            disabled={saving || !preferences.kawaiShortcutEnabled}
-            label={messages.kawaiShortcutDelay}
-            live
-            max={MAX_KAWAI_SHORTCUT_DELAY_SECONDS}
-            min={MIN_KAWAI_SHORTCUT_DELAY_SECONDS}
-            step={0.1}
-            unit={messages.seconds}
-            value={preferences.kawaiShortcutDelaySeconds}
-            description={messages.kawaiShortcutDelayDescription}
-            onValueChange={(kawaiShortcutDelaySeconds) => onUpdate({
-              kawaiShortcutDelaySeconds,
-            })}
-          />
+          <Panel className="advanced-setting-card" padding="md" radius="md">
+            <Stack gap="md">
+              <Switch
+                checked={preferences.kawaiShortcutUnlimitedWait}
+                disabled={saving || !preferences.kawaiShortcutEnabled}
+                label={messages.kawaiShortcutUnlimitedWait}
+                description={messages.kawaiShortcutUnlimitedWaitDescription}
+                onCheckedChange={(kawaiShortcutUnlimitedWait) => onUpdate({ kawaiShortcutUnlimitedWait })}
+              />
+              <NumberInput
+                disabled={saving || !preferences.kawaiShortcutEnabled || preferences.kawaiShortcutUnlimitedWait}
+                label={messages.kawaiShortcutDelay}
+                live
+                max={MAX_KAWAI_SHORTCUT_DELAY_SECONDS}
+                min={MIN_KAWAI_SHORTCUT_DELAY_SECONDS}
+                step={0.1}
+                unit={messages.seconds}
+                value={preferences.kawaiShortcutDelaySeconds}
+                description={messages.kawaiShortcutDelayDescription}
+                onValueChange={(kawaiShortcutDelaySeconds) => onUpdate({ kawaiShortcutDelaySeconds })}
+              />
+            </Stack>
+          </Panel>
         </Stack>
       </section>
     </Stack>

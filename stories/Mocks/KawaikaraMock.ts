@@ -241,6 +241,8 @@ const DEFAULT_PREFERENCES: PreferenceState = {
   alwaysOnTop: false,
   /** Whether Kawai Shortcut navigation is enabled. */
   kawaiShortcutEnabled: true,
+  /** Unlimited selection is opt-in. */
+  kawaiShortcutUnlimitedWait: false,
   /** The Kawai Shortcut selection window in seconds. */
   kawaiShortcutDelaySeconds: 1,
   /** The graphics mode value. */
@@ -421,7 +423,7 @@ export function installKawaikaraMock(
   const hiddenHandlers = new Set<() => void>();
   const menuHandlers = new Set<() => void>();
   const preferenceHandlers = new Set<() => void>();
-  const requestCloseHandlers = new Set<() => void>();
+  const requestCloseHandlers = new Set<(reason?: 'back' | 'toggle') => void>();
   const updateHandlers = new Set<(state: ApplicationUpdatePanelState) => void>();
   const updateStateHandlers = new Set<
     (state: ApplicationUpdatePanelState) => void
@@ -524,6 +526,7 @@ export function installKawaikaraMock(
 
   const api: KawaikaraRendererApi = {
     application: {
+      openDefaultVideoAppSettings: async () => undefined,
       getInfo: async () => ({
         name: 'Kawaikara',
         version: appVersion,
@@ -917,7 +920,7 @@ export function installKawaikaraMock(
           if (event.key !== 'Tab') return;
           event.preventDefault();
           if (overlayVisible) {
-            requestCloseHandlers.forEach((closeHandler) => closeHandler());
+            requestCloseHandlers.forEach((closeHandler) => closeHandler('toggle'));
           } else {
             emitMenu();
           }

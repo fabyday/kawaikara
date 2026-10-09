@@ -74,6 +74,8 @@ export function useMenuShortcuts({
     if (shortcutHighlightTimer.current !== undefined) {
       window.clearTimeout(shortcutHighlightTimer.current);
     }
+    shortcutHighlightTimer.current = undefined;
+    if (preferences.kawaiShortcutEnabled && preferences.kawaiShortcutUnlimitedWait) return;
     shortcutHighlightTimer.current = window.setTimeout(() => {
       shortcutHighlightTimer.current = undefined;
       kawaiShortcutActiveRef.current = false;
@@ -190,8 +192,12 @@ export function useMenuShortcuts({
           const site = activeGroup[1][
             (kawaiShortcutPage * MAX_KAWAI_SHORTCUT_SITES) + siteIndex
           ];
-          cancelKawaiShortcut();
-          if (site) void openSite(site.id);
+          if (site) {
+            cancelKawaiShortcut();
+            void openSite(site.id);
+          } else if (!preferences.kawaiShortcutUnlimitedWait) {
+            cancelKawaiShortcut();
+          }
           return;
         }
       }
@@ -205,6 +211,7 @@ export function useMenuShortcuts({
       if (!target) {
         if (
           preferences.kawaiShortcutEnabled &&
+          !preferences.kawaiShortcutUnlimitedWait &&
           activeGroup &&
           !['Control', 'Meta', 'Alt', 'Shift'].includes(event.key)
         ) {

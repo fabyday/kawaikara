@@ -1,5 +1,12 @@
 {
   "app": {
+    "defaultVideoApp": {
+      "title": "기본 비디오 앱으로 설정하기",
+      "button": "설정",
+      "description": "Windows 기본 앱 설정에서 사용할 Kawaikara 채널을 선택하세요. 사용자 확인 없이 기존 기본 앱을 변경하지 않습니다.",
+      "unavailable": "설치된 Windows 빌드에서 사용할 수 있습니다.",
+      "failed": "Windows 기본 앱 설정을 열지 못했습니다. Windows 설정 → 앱 → 기본 앱에서 직접 선택해 주세요."
+    },
     "appDataLocation": {
       "label": "앱 데이터 경로",
       "browse": "폴더 찾기…",
@@ -50,7 +57,7 @@
     "pipHeight": "높이",
     "pixels": "px",
     "pictureInPicturePosition": "기본 위치",
-    "pictureInPicturePositionDescription": "창 PiP를 열 모서리를 선택하거나 마지막으로 옮긴 위치를 다시 사용합니다.",
+    "pictureInPicturePositionDescription": "PiP를 열 기본 모서리입니다. 마지막 위치 기억을 선택하면 저장된 좌표를 우선합니다.",
     "pipPositionTopLeft": "왼쪽 위",
     "pipPositionTopRight": "오른쪽 위",
     "pipPositionBottomLeft": "왼쪽 아래",
@@ -61,6 +68,9 @@
     "pipMonitorCurrent": "Kawaikara가 있는 모니터",
     "pipMonitorVideo": "비디오 PiP가 있는 모니터",
     "pipMonitorLast": "마지막으로 사용한 PiP 모니터",
+    "pipMonitorLastPosition": "마지막 PiP 위치 기억 (모니터와 좌표)",
+    "pipAlign": "자동 정렬",
+    "pipAlignDescription": "PiP를 놓으면 창 중앙이 속한 사분면의 모서리로 부드럽게 이동합니다.",
     "pipMonitorDisplay": "모니터",
     "primaryDisplay": "주 모니터",
     "unavailableDisplay": "현재 연결되지 않은 모니터",
@@ -79,6 +89,8 @@
     "kawaiShortcut": "Kawai 단축키",
     "kawaiShortcutDescription": "카테고리 단축키를 누른 뒤 일시적으로 표시되는 번호로 해당 카테고리의 사이트를 엽니다.",
     "kawaiShortcutDelay": "사이트 선택 대기 시간",
+    "kawaiShortcutUnlimitedWait": "무제한 대기",
+    "kawaiShortcutUnlimitedWaitDescription": "사이트를 선택하거나 Esc로 취소하거나 메뉴를 닫을 때까지 기다립니다.",
     "kawaiShortcutDelayDescription": "카테고리 강조를 유지하고 사이트 번호 입력을 기다리는 시간입니다.",
     "browserProfiles": "브라우저 프로필",
     "browserProfilesDescription": "프로필은 로그인과 브라우저 저장소를 공유합니다. 각 사이트의 화면은 항상 새로 생성됩니다.",
@@ -679,6 +691,14 @@
     "documents": "문서"
   },
   "installer": {
+    "welcomeTitle": "{app} 설치를 시작합니다",
+    "welcomeBody": "다음 화면에서 설치 폴더, 바로가기와 앱 데이터 위치를 선택할 수 있습니다.",
+    "finishedTitle": "설치가 완료되었습니다",
+    "finishedBody": "{app}를 사용할 준비가 되었습니다. 설치창을 닫은 뒤 실행할지 선택하세요.",
+    "launchApp": "{app} 실행",
+    "finishButton": "마침",
+    "openVideo": "{app}로 열기",
+    "videoDescription": "{app}로 로컬 동영상을 재생합니다.",
     "title": "설치 옵션",
     "description": "바로가기와 현재 Windows 사용자의 앱 데이터 저장 위치를 선택합니다.",
     "desktopShortcut": "바탕화면 바로가기 만들기",

@@ -1,5 +1,12 @@
 {
   "app": {
+    "defaultVideoApp": {
+      "title": "Set as default video app",
+      "button": "Settings",
+      "description": "Choose this installed Kawaikara channel in Windows default apps. Existing defaults will not change without your confirmation.",
+      "unavailable": "Available in installed Windows builds.",
+      "failed": "Could not open Windows default app settings. Open Settings → Apps → Default apps manually."
+    },
     "appDataLocation": {
       "label": "AppData path",
       "browse": "Browse…",
@@ -50,7 +57,7 @@
     "pipHeight": "Height",
     "pixels": "px",
     "pictureInPicturePosition": "Default position",
-    "pictureInPicturePositionDescription": "Choose a corner for window PiP or reuse its last moved position.",
+    "pictureInPicturePositionDescription": "Choose the starting corner. Remember last PiP position restores saved coordinates instead.",
     "pipPositionTopLeft": "Top left",
     "pipPositionTopRight": "Top right",
     "pipPositionBottomLeft": "Bottom left",
@@ -61,6 +68,9 @@
     "pipMonitorCurrent": "Display containing Kawaikara",
     "pipMonitorVideo": "Display containing Video PiP",
     "pipMonitorLast": "Last used PiP display",
+    "pipMonitorLastPosition": "Remember last PiP position (display and coordinates)",
+    "pipAlign": "Auto-align",
+    "pipAlignDescription": "After dragging, gently move PiP to the corner of the quadrant containing its center.",
     "pipMonitorDisplay": "Display",
     "primaryDisplay": "Primary",
     "unavailableDisplay": "Disconnected display",
@@ -79,6 +89,8 @@
     "kawaiShortcut": "Kawai Shortcut",
     "kawaiShortcutDescription": "After choosing a category shortcut, use the temporary number keys to open a site in that category.",
     "kawaiShortcutDelay": "Site selection time",
+    "kawaiShortcutUnlimitedWait": "Wait indefinitely",
+    "kawaiShortcutUnlimitedWaitDescription": "Wait until you select a site, cancel with Esc, or close the menu.",
     "kawaiShortcutDelayDescription": "How long the category stays highlighted and waits for the site number.",
     "browserProfiles": "Browser profiles",
     "browserProfilesDescription": "Profiles share sign-in and browser storage. Every site still runs in a fresh WebContents.",
@@ -679,6 +691,14 @@
     "documents": "Documents"
   },
   "installer": {
+    "welcomeTitle": "Welcome to {app}",
+    "welcomeBody": "This wizard will guide you through installation. Choose the installation folder, shortcuts, and app data location on the following pages.",
+    "finishedTitle": "Installation complete",
+    "finishedBody": "{app} is ready. Select whether to launch it after closing this installer.",
+    "launchApp": "Launch {app}",
+    "finishButton": "Finish",
+    "openVideo": "Open with {app}",
+    "videoDescription": "Play local videos with {app}.",
     "title": "Installation options",
     "description": "Choose shortcuts and where this Windows user stores app data.",
     "desktopShortcut": "Create a desktop shortcut",

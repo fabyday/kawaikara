@@ -28,7 +28,11 @@ export function VideoPictureInPicture({
     <div
       className="video-pip-overlay"
     >
-      <div className="video-pip-drag-surface" aria-hidden="true" />
+      <div className="video-pip-drag-surface" aria-hidden="true"
+        onPointerDown={(event) => {
+          if (event.button === 0) event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+      />
       <button
         className="video-icon-button video-pip-button video-pip-restore-button"
         type="button"

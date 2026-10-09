@@ -62,6 +62,8 @@ export const IPC_CHANNELS = defineIpcChannels({
   },
   /** The application value. */
   application: {
+    /** Opens Windows' user-controlled default video application settings. */
+    openDefaultVideoAppSettings: 'kawaikara:application:default-video-app-settings',
     /** The info value. */
     info: 'kawaikara:application:info',
     /** The list displays value. */
@@ -623,6 +625,8 @@ export interface ApplicationDataLocation {
 
 /** Main-resolved application information. */
 export interface ApplicationInfo {
+  /** Absent on other OSes; false for unpackaged Windows runs. */
+  readonly canConfigureDefaultVideoApp?: boolean;
   /** Omitted entirely on macOS and other unsupported platforms. */
   readonly dataLocation?: ApplicationDataLocation;
   /** The name value. */
@@ -789,6 +793,8 @@ export interface PreferenceState {
   readonly kawaiShortcutEnabled: boolean;
   /** Time available to choose a site after selecting a menu category. */
   readonly kawaiShortcutDelaySeconds: number;
+  /** Keeps site selection active until selection, cancellation, or menu dismissal. */
+  readonly kawaiShortcutUnlimitedWait: boolean;
   /** Selects native GPU, capture-compatible GPU, or process-wide software rendering. */
   readonly graphicsMode: GraphicsMode;
   /** Whether the open menu on startup option is enabled. */
@@ -1260,6 +1266,8 @@ export interface SiteNavigationState {
 export interface KawaikaraRendererApi {
   /** The application value. */
   application: {
+    /** Main chooses a fixed OS settings URI for the installed channel. */
+    openDefaultVideoAppSettings(locale: AppLocale): Promise<void>;
     /** Returns the info. */
     getInfo(): Promise<ApplicationInfo>;
     /** Returns the messages. */
@@ -1392,7 +1400,7 @@ export interface KawaikaraRendererApi {
       handler: (state: ApplicationUpdatePanelState) => void,
     ): () => void;
     /** Handles the request close. */
-    onRequestClose(handler: () => void): () => void;
+    onRequestClose(handler: (reason?: 'back' | 'toggle') => void): () => void;
     /** Handles the hidden. */
     onHidden(handler: () => void): () => void;
   };

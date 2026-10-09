@@ -40,6 +40,10 @@ export interface PictureInPictureVideoCandidate {
 
 /** Describes the unified picture in picture state contract. */
 export interface UnifiedPictureInPictureState {
+  /** Shared drag-release alignment controller. */
+  alignment?: import('./PictureInPictureAlignment').PictureInPictureAlignment;
+  /** Deferred snap while an aspect ratio transition owns the window bounds. */
+  alignAfterResize?: boolean;
   /** The currently applied video aspect ratio value. */
   aspectRatio?: number;
   /** Whether the closing option is enabled. */
@@ -124,8 +128,10 @@ export function resolvePictureInPictureDisplay(
     case 'display':
       return byId(preference.monitor.displayId) ?? currentDisplay;
     case 'last':
+    case 'last-position':
       return byId(preference.lastPlacement?.displayId) ?? currentDisplay;
-    case 'video':
+    case 'primary':
+      return screen.getPrimaryDisplay();
     case 'current':
       return currentDisplay;
   }
@@ -140,12 +146,14 @@ export function resolvePictureInPictureBounds(
 ): Rectangle {
   const availableWidth = Math.max(0, workArea.width - width);
   const availableHeight = Math.max(0, workArea.height - height);
-  if (preference.position === 'last' && preference.lastPlacement) {
+  if ((preference.monitor.mode === 'last-position' || preference.position === 'last') && preference.lastPlacement) {
     return {
       /** The x value. */
-      x: Math.round(workArea.x + availableWidth * preference.lastPlacement.xRatio),
+      x: Math.round(Math.max(workArea.x, Math.min(workArea.x + availableWidth,
+        preference.lastPlacement.x ?? workArea.x + availableWidth * preference.lastPlacement.xRatio))),
       /** The y value. */
-      y: Math.round(workArea.y + availableHeight * preference.lastPlacement.yRatio),
+      y: Math.round(Math.max(workArea.y, Math.min(workArea.y + availableHeight,
+        preference.lastPlacement.y ?? workArea.y + availableHeight * preference.lastPlacement.yRatio))),
       /** The width value. */
       width,
       /** The height value. */
@@ -182,6 +190,10 @@ export function capturePictureInPicturePlacement(
   return {
     /** The display ID value. */
     displayId: String(display.id),
+    /** Exact saved horizontal position. */
+    x: bounds.x,
+    /** Exact saved vertical position. */
+    y: bounds.y,
     /** The x ratio value. */
     xRatio: availableWidth > 0
       ? clampRatio((bounds.x - display.workArea.x) / availableWidth)

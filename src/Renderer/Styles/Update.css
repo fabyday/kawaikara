@@ -64,6 +64,8 @@
 }
 
 .update-status-panel {
+  /* Intrinsic text/button sizes must never participate in the outer grid sizing. */
+  contain: size;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -144,11 +146,17 @@
 
 .update-status-footer {
   flex: none;
-  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: 68px;
+  min-height: 68px;
+  box-sizing: border-box;
   padding: 0 24px 16px;
-  flex-wrap: wrap;
   animation: update-actions-enter 0.2s ease-in-out;
 }
+
+.update-release-notes-slot,
+.update-actions-slot { min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .update-activity-tail,
@@ -164,7 +172,7 @@
 .update-status-footer .update-actions {
   width: auto;
   margin-left: auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .update-heading {
@@ -325,4 +333,26 @@
   .update-panel { width: 100%; }
   .update-progress-meta { grid-template-columns: 1fr; }
   .update-progress-summary { white-space: normal; }
+  /* Reserve both rows even when checking/downloading has no corresponding buttons. */
+  .update-status-footer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 40px 56px;
+    gap: 8px;
+    height: 120px;
+    min-height: 120px;
+    padding: 0 16px 16px;
+  }
+  .update-actions-slot { height: 56px; }
+  .update-status-footer .update-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .update-status-footer .update-actions button {
+    min-width: 0;
+    height: 56px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }

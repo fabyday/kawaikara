@@ -33,9 +33,9 @@ const messages = {
   /** The top right value. */
   topRight: 'Top right',
   /** The unavailable display value. */
-  unavailableDisplay: 'Unavailable display',
+  align: 'Auto-align',
   /** The video display value. */
-  videoDisplay: 'Video PiP display',
+  alignDescription: 'Move smoothly to the corner of the current quadrant after dragging.',
 };
 
 /** Stores the displays value. */
@@ -126,8 +126,8 @@ export const LastPosition = {
   /** The render value. */
   render: () => {
     const [value, setValue] = useState<PictureInPicturePlacementPreference>({
-      position: 'last',
-      monitor: { mode: 'last' },
+      position: 'top-right',
+      monitor: { mode: 'last-position' },
       lastPlacement: { displayId: '2', xRatio: 0.74, yRatio: 0.18 },
     });
     return (

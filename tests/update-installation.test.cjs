@@ -120,6 +120,12 @@ test('Windows automatic NSIS handoff is silent, relaunches, and recovers emitted
   assert.equal(calls.filter((call) => Array.isArray(call) && call[0] === 'quit').length, 2);
 });
 
+test('Windows manual in-app updates also suppress Setup and relaunch normally', async () => {
+  const { manager, calls } = fixture('win32', 'manual');
+  await manager.installUpdate();
+  assert.deepEqual(calls.slice(-1), [['quit', true, true]]);
+});
+
 test('restart notice stays visible before installer handoff and repeated clicks do not restart twice', async () => {
   const { manager, calls } = fixture('win32', 'automatic');
   const started = Date.now();

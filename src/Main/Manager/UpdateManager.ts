@@ -177,7 +177,9 @@ export class UpdateManager {
 
   /** Validates native staging before any application resources are released. */
   private async performInstallation(downloaded: ApplicationUpdatePanelState): Promise<void> {
-    const isSilent = downloaded.origin === 'automatic' && process.platform === 'win32';
+    // Both automatic and user-triggered in-app updates have already obtained
+    // consent in our overlay. Only a directly opened installer shows the wizard.
+    const isSilent = process.platform === 'win32';
     this.updateLog.info('Starting application update installation.', {
       currentVersion: downloaded.currentVersion,
       targetVersion: downloaded.latestVersion,

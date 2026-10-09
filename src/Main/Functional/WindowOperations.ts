@@ -14,13 +14,17 @@ import type {
   PictureInPicturePlacementPreference,
 } from '../../Common/PictureInPicture';
 import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../Inject/MediaCleanup';
+import {
+  capturePictureInPicturePlacement,
+  fitPictureInPictureSize,
+  resolvePictureInPictureBounds,
+  resolvePictureInPictureDisplay,
+} from './PictureInPictureRuntime';
 
 /** Defines the shared navigation handoff settle ms constant. */
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
 /** Outgoing renderer cleanup must not hold a new Provider hostage. */
 const NAVIGATION_MEDIA_CLEANUP_TIMEOUT_MS = 200;
-/** Defines the shared internal video PiP margin constant. */
-const INTERNAL_VIDEO_PIP_MARGIN = 20;
 
 /** Resolves the MPV addon path. */
 export function resolveMpvAddonPath(): string {
@@ -365,71 +369,14 @@ export function resolveInternalVideoPictureInPictureBounds(
   },
   preference: PictureInPicturePlacementPreference,
 ): Rectangle {
-  const displays = screen.getAllDisplays();
-  /** Performs the by ID operation. */
-  const byId = (id: string | undefined) =>
-    id ? displays.find((display) => String(display.id) === id) : undefined;
-  const current = screen.getDisplayMatching(previousBounds);
-  const display = preference.monitor.mode === 'display'
-    ? byId(preference.monitor.displayId) ?? current
-    : preference.monitor.mode === 'last'
-      ? byId(preference.lastPlacement?.displayId) ?? current
-      : current;
-  const workArea = display.workArea;
-  const width = Math.min(preferred.width, workArea.width);
-  const height = Math.min(preferred.height, workArea.height);
-  const availableWidth = Math.max(0, workArea.width - width);
-  const availableHeight = Math.max(0, workArea.height - height);
-  if (preference.position === 'last' && preference.lastPlacement) {
-    return {
-      /** The x value. */
-      x: Math.round(workArea.x + availableWidth * preference.lastPlacement.xRatio),
-      /** The y value. */
-      y: Math.round(workArea.y + availableHeight * preference.lastPlacement.yRatio),
-      /** The width value. */
-      width,
-      /** The height value. */
-      height,
-    };
-  }
-  const right = preference.position.endsWith('right');
-  const bottom = preference.position.startsWith('bottom');
-  return {
-    /** The x value. */
-    x: right
-      ? workArea.x + workArea.width - width - INTERNAL_VIDEO_PIP_MARGIN
-      : workArea.x + INTERNAL_VIDEO_PIP_MARGIN,
-    /** The y value. */
-    y: bottom
-      ? workArea.y + workArea.height - height - INTERNAL_VIDEO_PIP_MARGIN
-      : workArea.y + INTERNAL_VIDEO_PIP_MARGIN,
-    /** The width value. */
-    width,
-    /** The height value. */
-    height,
-  };
+  const display = resolvePictureInPictureDisplay(previousBounds, preference);
+  const size = fitPictureInPictureSize(preferred, display.workArea);
+  return resolvePictureInPictureBounds(display.workArea, size.width, size.height, preference);
 }
 
 /** Performs the capture internal video picture in picture placement operation. */
 export function captureInternalVideoPictureInPicturePlacement(
   viewer: BrowserWindow,
 ): PictureInPictureLastPlacement | undefined {
-  const bounds = viewer.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const availableWidth = Math.max(1, display.workArea.width - bounds.width);
-  const availableHeight = Math.max(1, display.workArea.height - bounds.height);
-  return {
-    /** The display ID value. */
-    displayId: String(display.id),
-    /** The x ratio value. */
-    xRatio: Math.min(
-      1,
-      Math.max(0, (bounds.x - display.workArea.x) / availableWidth),
-    ),
-    /** The y ratio value. */
-    yRatio: Math.min(
-      1,
-      Math.max(0, (bounds.y - display.workArea.y) / availableHeight),
-    ),
-  };
+  return capturePictureInPicturePlacement(viewer);
 }

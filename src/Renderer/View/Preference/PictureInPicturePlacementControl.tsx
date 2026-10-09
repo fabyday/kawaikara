@@ -1,4 +1,4 @@
-import { Flex, Select } from '@kawaikara/kawai-ui';
+import { Flex, Select, Switch } from '@kawaikara/kawai-ui';
 import type { DisplayInfo } from '../../../Common/IPC';
 import type {
   PictureInPictureMonitorMode,
@@ -34,10 +34,10 @@ export interface PictureInPicturePlacementControlMessages {
   readonly topLeft: string;
   /** The top right value. */
   readonly topRight: string;
-  /** The unavailable display value. */
-  readonly unavailableDisplay: string;
-  /** The video display value. */
-  readonly videoDisplay: string;
+  /** The automatic alignment toggle label. */
+  readonly align: string;
+  /** Explains snapping after a drag. */
+  readonly alignDescription: string;
 }
 
 /** Describes the picture in picture placement control props contract. */
@@ -64,30 +64,22 @@ export function PictureInPicturePlacementControl({
 }: PictureInPicturePlacementControlProps) {
   const monitorValue =
     value.monitor.mode === 'display' && value.monitor.displayId
-      ? `display:${value.monitor.displayId}`
+      ? displays.some(display => display.id === value.monitor.displayId)
+        ? `display:${value.monitor.displayId}` : 'current'
       : value.monitor.mode;
   const monitorOptions = [
     { label: messages.currentDisplay, value: 'current'
     },
-    { label: messages.videoDisplay, value: 'video'
+    { label: messages.lastPosition, value: 'last-position'
     },
     { label: messages.lastDisplay, value: 'last'
     },
+    { label: messages.primary, value: 'primary' },
     ...displays.map((display, index) => ({
       label: displayLabel(display, index, messages),
       value: `display:${display.id}`,
     })),
   ];
-  if (
-    value.monitor.mode === 'display' &&
-    value.monitor.displayId &&
-    !displays.some((display) => display.id === value.monitor.displayId)
-  ) {
-    monitorOptions.push({
-      label: `${messages.unavailableDisplay} · ${value.monitor.displayId}`,
-      value: monitorValue,
-    });
-  }
 
   return (
     <Flex className="pip-placement-control" direction="column" gap="sm">
@@ -103,6 +95,13 @@ export function PictureInPicturePlacementControl({
             position: position as PictureInPicturePosition,
           })
         }
+      />
+      <Switch
+        checked={value.align === true}
+        disabled={disabled}
+        label={messages.align}
+        description={messages.alignDescription}
+        onCheckedChange={(align) => onChange({ ...value, align })}
       />
       <Select
         disabled={disabled}
@@ -165,12 +164,6 @@ function positionOptions(
       label: messages.bottomRight,
       /** The value value. */
       value: 'bottom-right',
-    },
-    {
-      /** The label value. */
-      label: messages.lastPosition,
-      /** The value value. */
-      value: 'last',
     },
   ];
 }

@@ -14,6 +14,7 @@ import type { ShortcutManager } from '../Manager/ShortcutManager';
 import type { SiteManager } from '../Manager/SiteManager';
 import type { UpdateManager } from '../Manager/UpdateManager';
 import type { WindowManager } from '../Manager/WindowManager';
+import type { VideoLibraryManager } from '../Manager/VideoLibraryManager';
 import type { PreInitializedApplication } from './ApplicationPreInitialization';
 import {
   getKawaiDataPath,
@@ -39,6 +40,8 @@ export interface InitializedApplication extends PreInitializedApplication {
   readonly updates: UpdateManager;
   /** The Windows value. */
   readonly windows: WindowManager;
+  /** Local video validation and library persistence. */
+  readonly videoLibrary: VideoLibraryManager;
   /** Releases the operation. */
   dispose(): Promise<void>;
 }
@@ -145,6 +148,8 @@ export async function initializeApplication(
     updates,
     /** The Windows value. */
     windows,
+    /** Local video validation and library persistence. */
+    videoLibrary,
     /** The dispose value. */
     dispose: async () => {
       shortcuts.dispose();

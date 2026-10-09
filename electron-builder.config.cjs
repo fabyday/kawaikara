@@ -156,6 +156,7 @@ module.exports = {
     ],
   },
   nsis: {
+    installerIcon: 'resources/icons/kawaikara.ico',
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,

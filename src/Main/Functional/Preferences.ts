@@ -40,6 +40,8 @@ export const DEFAULT_PREFERENCES: PreferenceState = {
   kawaiShortcutEnabled: true,
   /** Time available for the second numeric key. */
   kawaiShortcutDelaySeconds: DEFAULT_KAWAI_SHORTCUT_DELAY_SECONDS,
+  /** Unlimited selection is opt-in; preserve the existing timed default. */
+  kawaiShortcutUnlimitedWait: false,
   /** The graphics mode value. */
   graphicsMode: 'capture',
   /** The open menu on startup value. */
@@ -126,6 +128,8 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
     kawaiShortcutDelaySeconds: validateKawaiShortcutDelaySeconds(
       candidate.kawaiShortcutDelaySeconds,
     ),
+    /** Only an explicit boolean enables indefinite selection. */
+    kawaiShortcutUnlimitedWait: candidate.kawaiShortcutUnlimitedWait === true,
     /** The graphics mode value. */
     graphicsMode: resolveGraphicsMode(candidate.graphicsMode, value),
     /** The open menu on startup value. */

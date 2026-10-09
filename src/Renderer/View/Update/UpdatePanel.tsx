@@ -81,25 +81,28 @@ export function UpdatePanel({
           </Stack>
         </Stack>
         <Flex key={state.phase} className="update-status-footer" align="center" justify="end" gap="sm">
-          {canShowReleaseNotes ? (
-            <Button
-              className="update-release-notes-button"
-              variant="secondary"
-              onClick={() => setView('release-notes')}
-            >
-              <span>{labels.releaseNotes}</span>
-              <span aria-hidden="true">→</span>
-            </Button>
-          ) : null}
-
-          <UpdateActions
-            labels={labels}
-            state={state}
-            onDismiss={onDismiss}
-            onDownload={onDownload}
-            onInstall={onInstall}
-            onRetry={onRetry}
-          />
+          <Flex className="update-release-notes-slot" align="center">
+            {canShowReleaseNotes ? (
+              <Button
+                className="update-release-notes-button"
+                variant="secondary"
+                onClick={() => setView('release-notes')}
+              >
+                <span>{labels.releaseNotes}</span>
+                <span aria-hidden="true">→</span>
+              </Button>
+            ) : null}
+          </Flex>
+          <Flex className="update-actions-slot" align="center" justify="end">
+            <UpdateActions
+              labels={labels}
+              state={state}
+              onDismiss={onDismiss}
+              onDownload={onDownload}
+              onInstall={onInstall}
+              onRetry={onRetry}
+            />
+          </Flex>
         </Flex>
       </Panel>
     </main>

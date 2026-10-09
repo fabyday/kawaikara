@@ -10,4 +10,6 @@ export type PictureInPictureManagerFactory = (
 export interface InternalVideoPictureInPictureState {
   /** Native PiP host for the retained Video renderer view. */
   readonly window: BrowserWindow;
+  /** Removes local PiP pointer listeners and cancels alignment. */
+  disposeDrag?: () => void;
 }

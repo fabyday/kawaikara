@@ -121,7 +121,7 @@ body,
   position: absolute;
   inset: 0;
   pointer-events: auto;
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
 }
 
 .video-pip-button {

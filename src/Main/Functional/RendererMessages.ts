@@ -4,6 +4,8 @@ import { getLocaleMessages, resolveAppLocale } from './Locale';
 
 /** Describes the app messages contract. */
 export interface AppMessages {
+  /** OS-owned default video app configuration control. */
+  readonly defaultVideoApp: typeof en.app.defaultVideoApp;
   /** Windows data-location control and native confirmation copy. */
   readonly appDataLocation: typeof en.app.appDataLocation;
   /** Compact label for the homepage link button. */
@@ -110,6 +112,12 @@ export interface AppMessages {
   readonly pipMonitorVideo: string;
   /** The PiP monitor last value. */
   readonly pipMonitorLast: string;
+  /** Restore both monitor and coordinates. */
+  readonly pipMonitorLastPosition: string;
+  /** Automatically align a released PiP window to its quadrant. */
+  readonly pipAlign: string;
+  /** Explains quadrant-based smooth alignment. */
+  readonly pipAlignDescription: string;
   /** The PiP monitor display value. */
   readonly pipMonitorDisplay: string;
   /** The primary display value. */
@@ -386,6 +394,10 @@ export interface AppMessages {
   readonly kawaiShortcutDescription: string;
   /** The Kawai Shortcut delay value. */
   readonly kawaiShortcutDelay: string;
+  /** Unlimited site selection toggle. */
+  readonly kawaiShortcutUnlimitedWait: string;
+  /** Cancellation instructions for unlimited site selection. */
+  readonly kawaiShortcutUnlimitedWaitDescription: string;
   /** The Kawai Shortcut delay description value. */
   readonly kawaiShortcutDelayDescription: string;
   /** The open menu on startup value. */

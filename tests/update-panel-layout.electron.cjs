@@ -16,20 +16,23 @@ const fixture = buildSync({ stdin: { resolveDir: root, loader: 'tsx', contents: 
   import {createRoot} from 'react-dom/client';
   import {flushSync} from 'react-dom';
   import {KawaiProvider} from '@kawaikara/kawai-ui';
+  import {motion} from 'motion/react';
   import {UpdatePanel} from './src/Renderer/View/Update/UpdatePanel';
   const root=createRoot(document.getElementById('root')),labels=${JSON.stringify(labels)};
   window.updateActions=[];
   window.renderUpdate=(state,locale,theme,view='status')=>flushSync(()=>root.render(
-    <KawaiProvider><section className={'kawai-theme kawai-theme-'+theme}>
+    state ? <KawaiProvider><motion.div className={'update-motion-shell kawai-theme kawai-theme-'+theme}
+      initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.2}}>
       <UpdatePanel state={state} labels={labels[locale]} locale={locale} view={view}
         onDismiss={()=>window.updateActions.push('dismiss')} onDownload={()=>window.updateActions.push('download')}
         onInstall={()=>window.updateActions.push('install')} onRetry={()=>window.updateActions.push('retry')} />
-    </section></KawaiProvider>));
+    </motion.div></KawaiProvider> : null));
 ` }, bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
   loader: { '.png': 'dataurl' }, define: { 'process.env.NODE_ENV': '"production"' },
 }).outputFiles[0].text;
 const css = [require.resolve('@kawaikara/kawai-ui/styles.css'),
-  path.join(root, 'src/Renderer/Styles/Overlay.css'), path.join(root, 'src/Renderer/Styles/Update.css')]
+  path.join(root, 'src/Renderer/Styles/Overlay.css'), path.join(root, 'src/Renderer/Styles/LogViewer.css'),
+  path.join(root, 'src/Renderer/Styles/Update.css')]
   .map(file => readFileSync(file, 'utf8')).join('\n');
 const watchdog = setTimeout(() => { console.error('Update layout test timed out'); app.exit(1); }, 60000);
 app.whenReady().then(async () => {
@@ -43,22 +46,32 @@ app.whenReady().then(async () => {
       const wait=()=>new Promise(r=>setTimeout(r,20));
       await wait();const results=[];
       for(const origin of ['automatic','manual'])for(const locale of ['en','ko','ja'])for(const theme of ['dark','light']){
+        // Reopen from preferences: include the first layout before image decode/entry animation.
+        renderUpdate(null,locale,theme);
         const phases=['checking','available','downloading','downloaded','preparing','installing','up-to-date','unsupported','error'];
         for(const phase of phases){
           renderUpdate({phase,origin,channel:'nightly',currentVersion:'3.0.0-nightly.20261009.1234.1.g01234567',
             latestVersion:phase==='checking'?undefined:'3.0.0-nightly.20261010.1235.1.g89abcdef',
             releaseNotes:['available','downloading','downloaded'].includes(phase)?'Release notes':undefined,
             progress:phase==='downloading'?{percent:63.4,transferred:63400000,total:100000000,bytesPerSecond:5800000}:undefined,
+            canRetryInstall:phase==='error',
             error:phase==='error'?'Signature verification failed. '.repeat(150):undefined},locale,theme);
+          const firstPaint=document.querySelector('.update-panel').getBoundingClientRect().toJSON();
           await wait();const panel=document.querySelector('.update-panel'),rect=panel.getBoundingClientRect();
           const image=panel.querySelector('img'),imageRect=image.getBoundingClientRect();
           const body=panel.querySelector('.update-status-body');
+          const footer=panel.querySelector('.update-status-footer');
           const heading=panel.querySelector('.update-heading');
           const drag=new DragEvent('dragstart',{bubbles:true,cancelable:true});heading.dispatchEvent(drag);
           panel.scrollTop=panel.scrollHeight;const actions=panel.querySelector('.update-actions')?.getBoundingClientRect();
           results.push({origin,locale,theme,phase,width:rect.width,height:rect.height,x:rect.x,y:rect.y,
+            firstPaint,
+            bodyHeight:body.getBoundingClientRect().height,footerHeight:footer.getBoundingClientRect().height,
             viewport:[innerWidth,innerHeight],horizontalOverflow:panel.scrollWidth>panel.clientWidth+1,
             actionsReachable:!actions||actions.bottom<=rect.bottom+1,
+            buttonsFit:[...panel.querySelectorAll('.update-status-footer button')].every(button=>{
+              const bounds=button.getBoundingClientRect();return bounds.x>=rect.x&&bounds.right<=rect.right+1&&bounds.bottom<=rect.bottom+1;
+            }),
             imageFits:Math.abs(imageRect.width-panel.clientWidth)<1&&Math.abs(imageRect.height-imageRect.width/2)<=1,
             imageUncropped:getComputedStyle(image).objectFit==='contain',
             selectionDisabled:getComputedStyle(heading).userSelect==='none',
@@ -72,9 +85,13 @@ app.whenReady().then(async () => {
       const baseline = results.find(r => r.origin === result.origin);
       const label = `${width}x${height}/${result.origin}/${result.locale}/${result.theme}/${result.phase}`;
       for (const key of ['width', 'height', 'x', 'y']) assert.ok(Math.abs(result[key] - baseline[key]) < 1, `${label}: ${key} ${result[key]} != ${baseline[key]}`);
+      for (const key of ['width', 'height', 'x', 'y']) assert.ok(Math.abs(result.firstPaint[key] - baseline[key]) < 1, `${label}: first paint ${key} changed`);
+      for (const key of ['bodyHeight', 'footerHeight']) assert.ok(Math.abs(result[key] - baseline[key]) < 1, `${label}: ${key} ${result[key]} != ${baseline[key]}`);
       assert.ok(result.x >= 0 && result.y >= 0 && result.x + result.width <= result.viewport[0] + 1 && result.y + result.height <= result.viewport[1] + 1, `${label}: panel outside viewport`);
       assert.equal(result.horizontalOverflow, false, `${label}: horizontal overflow`);
       assert.equal(result.actionsReachable, true, `${label}: actions unreachable`);
+      assert.equal(result.buttonsFit, true, `${label}: footer buttons overflow`);
+      if(width===1100)assert.ok(Math.abs(result.width-640)<1&&Math.abs(result.height-600)<1,`${label}: original panel dimensions changed`);
       assert.equal(result.imageFits && result.imageUncropped, true, `${label}: banner cropped or distorted`);
       assert.equal(result.selectionDisabled && result.dragDisabled, true, `${label}: text/image selectable or draggable`);
       assert.equal(result.bodyHorizontalOverflow, false, `${label}: body horizontal overflow`);
