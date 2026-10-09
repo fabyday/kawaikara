@@ -58,9 +58,7 @@ export function getPhaseCopy(
         /** The title value. */
         title: labels.downloadedTitle,
         /** The description value. */
-        description: state.origin === 'automatic'
-          ? labels.automaticRestartDescription
-          : labels.downloadedDescription,
+        description: labels.automaticRestartDescription,
       };
     case 'up-to-date':
       return {

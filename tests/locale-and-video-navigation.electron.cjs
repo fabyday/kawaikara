@@ -278,23 +278,26 @@ async function main() {
 
   stage = 'Update actions and flat image boundary';
   for (const [phase, expected] of [
-    ['available', enCatalog.update.download],
-    ['downloaded', enCatalog.update.restart],
+    ['available', [enCatalog.update.download, enCatalog.update.later]],
+    ['downloaded', []],
   ]) {
     await execute(`window.renderUpdate(${JSON.stringify(phase)})`);
-    assert.deepEqual(await execute(`[...document.querySelectorAll('.update-actions button')].map(button => button.textContent)`), [expected]);
+    assert.deepEqual(await execute(`[...document.querySelectorAll('.update-actions button')].map(button => button.textContent)`), expected);
   }
   await execute(`window.renderUpdate('downloading', 'automatic')`);
   assert.equal(await execute(`Boolean(document.querySelector('.update-actions'))`), false);
   await execute(`window.renderUpdate('available')`);
   const imageBoundary = await execute(`(() => {
     const style=getComputedStyle(document.querySelector('.update-kawaikara-image'));
+    const panel=getComputedStyle(document.querySelector('.update-panel'));
     return {topLeft:style.borderTopLeftRadius,topRight:style.borderTopRightRadius,
       bottomLeft:style.borderBottomLeftRadius,bottomRight:style.borderBottomRightRadius,
-      divider:style.borderBottomWidth};
+      divider:style.borderBottomWidth,
+      panelClipsRoundedCorners:parseFloat(panel.borderTopLeftRadius)>0 && panel.overflowX==='hidden'};
   })()`);
-  assert.deepEqual(imageBoundary, { topLeft: '16px', topRight: '16px',
-    bottomLeft: '0px', bottomRight: '0px', divider: '1px' });
+  // The panel clips the banner; the image itself has square corners.
+  assert.deepEqual(imageBoundary, { topLeft: '0px', topRight: '0px',
+    bottomLeft: '0px', bottomRight: '0px', divider: '1px', panelClipsRoundedCorners: true });
   await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
   const updateScreenshot = path.join(profile, 'update-panel-flat-image-boundary.png');
   writeFileSync(updateScreenshot, (await win.webContents.capturePage()).toPNG());

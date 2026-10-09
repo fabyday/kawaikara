@@ -162,12 +162,105 @@ test('a thrown installer startup error restores the app and the download can be 
   assert.equal(updater.listenerCount('error'), 1);
 });
 
-test('an explicit download of a startup prompt stays manual when automatic installation is disabled', async () => {
-  const { manager, updater } = fixture('win32', 'automatic');
-  manager.currentState = { ...manager.currentState, phase: 'available' };
-  updater.downloadUpdate = async () => [];
-  const result = await manager.downloadUpdate();
-  assert.equal(result.phase, 'downloaded');
-  assert.equal(result.origin, 'manual');
+function updateFixture(automaticUpdates) {
+  const f = fixture('win32');
+  f.manager.currentState = undefined;
+  f.manager.downloadedState = undefined;
+  f.updater.setFeedURL = () => {};
+  f.updater.checkForUpdates = async () => {
+    f.calls.push('check');
+    f.updater.emit('update-available', { version: '3.0.0-nightly.2' });
+    return {};
+  };
+  f.updater.downloadUpdate = async () => { f.calls.push('download'); return []; };
+  if (automaticUpdates !== undefined) f.manager.configure({ automaticUpdates });
+  return f;
+}
+
+test('automatic updates are opt-in even in Nightly and invalid/missing settings default to off', () => {
+  const output = buildSync({
+    entryPoints: [path.join(__dirname, '../src/Main/Functional/Preferences.ts')],
+    bundle: true, write: false, platform: 'node', format: 'cjs',
+    define: { __KAWAIKARA_BUILD_CHANNEL__: '"nightly"', __KAWAIKARA_DISTRIBUTION_BUILD__: 'true',
+      __KAWAIKARA_DISCORD_APP_ID__: '""', __KAWAIKARA_UPDATE_TEST_PROFILE__: 'null' },
+  }).outputFiles[0].text;
+  const loaded = { exports: {} };
+  new Function('require', 'module', output)(require, loaded);
+  const { DEFAULT_PREFERENCES, mergeValidatedPreferences } = loaded.exports;
+  assert.equal(DEFAULT_PREFERENCES.automaticUpdates, false);
+  for (const value of [{}, { automaticUpdates: 'true' }, { automaticUpdates: false }]) {
+    assert.equal(mergeValidatedPreferences(value).automaticUpdates, false);
+  }
+  assert.equal(mergeValidatedPreferences({ automaticUpdates: true }).automaticUpdates, true);
+});
+
+test('startup does not check, display, download or install with automatic updates off or unset', async () => {
+  for (const preference of [false, undefined]) {
+    const { manager, calls } = updateFixture(preference);
+    await manager.checkAtStartup();
+    assert.deepEqual(calls, []);
+  }
+});
+
+test('enabled automatic updates download, install and restart without user commands', async () => {
+  const { manager, calls } = updateFixture(true);
+  await manager.checkAtStartup();
+  assert.equal(manager.getState().origin, 'automatic');
+  assert.deepEqual(calls.filter(c => typeof c === 'string'), ['check', 'download', 'prepare']);
+  assert.deepEqual(calls.at(-1), ['quit', true, true]);
+});
+
+test('manual check waits for Update now even when automatic updates are enabled', async () => {
+  for (const preference of [false, true]) {
+    const { manager, calls } = updateFixture(preference);
+    await manager.checkForUpdates();
+    assert.equal(manager.getState().phase, 'available');
+    assert.equal(manager.getState().origin, 'manual');
+    assert.equal(calls.includes('download'), false);
+    assert.equal(calls.includes('prepare'), false);
+    const results = await Promise.all([manager.downloadUpdate(), manager.downloadUpdate()]);
+    assert.equal(results[0].phase, 'installing');
+    assert.equal(results[0].origin, 'manual');
+    assert.equal(calls.filter(c => c === 'download').length, 1);
+    assert.equal(calls.filter(c => Array.isArray(c) && c[0] === 'quit').length, 1);
+  }
+});
+
+test('turning automatic updates off during a check prevents download and the startup prompt', async () => {
+  const { manager, updater, calls } = updateFixture(true);
+  let finish;
+  updater.checkForUpdates = () => new Promise(resolve => { finish = () => {
+    updater.emit('update-available', { version: '3.0.0-nightly.2' }); resolve({});
+  }; });
+  const pending = manager.checkAtStartup();
+  manager.configure({ automaticUpdates: false });
+  finish();
+  await pending;
+  assert.deepEqual(calls, []);
+});
+
+test('opting out during a download requires Update now before reusing the file and restarting', async () => {
+  const { manager, updater, calls } = updateFixture(true);
+  updater.downloadUpdate = async () => {
+    calls.push('download'); manager.configure({ automaticUpdates: false }); return [];
+  };
+  await manager.checkAtStartup();
+  assert.equal(manager.getState().phase, 'available');
+  assert.equal(manager.getState().origin, 'manual');
   assert.equal(manager.isInstalling(), false);
+  assert.equal(calls.includes('prepare'), false);
+  await manager.downloadUpdate();
+  assert.equal(calls.filter(c => c === 'download').length, 1);
+  assert.deepEqual(calls.at(-1), ['quit', true, true]);
+});
+
+test('failed download never starts installation or restarts the app', async () => {
+  const { manager, updater, calls } = updateFixture(false);
+  updater.downloadUpdate = async () => { throw new Error('network failure'); };
+  await manager.checkForUpdates();
+  const result = await manager.downloadUpdate();
+  assert.equal(result.phase, 'error');
+  assert.equal(result.errorStage, 'download');
+  assert.equal(calls.includes('prepare'), false);
+  assert.equal(calls.some(c => Array.isArray(c) && c[0] === 'quit'), false);
 });

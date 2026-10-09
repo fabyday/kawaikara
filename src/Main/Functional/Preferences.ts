@@ -51,7 +51,7 @@ export const DEFAULT_PREFERENCES: PreferenceState = {
   /** The close menu on outside click value. */
   closeMenuOnOutsideClick: true,
   /** The automatic updates value. */
-  automaticUpdates: true,
+  automaticUpdates: false,
   /** The update channel value. */
   updateChannel: BUILD_CHANNEL,
   /** The default site ID value. */

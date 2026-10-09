@@ -33,20 +33,15 @@ export function UpdateActions({
   const { phase } = state;
   if (phase === 'preparing' || phase === 'installing') return null;
   if (phase === 'available') {
-    return (
-      <Flex className="update-actions" align="center" justify="end" gap="sm">
-        <Button onClick={() => void onDownload()}>{labels.download}</Button>
-      </Flex>
-    );
-  }
-  if (phase === 'downloaded') {
     if (state.origin === 'automatic') return null;
     return (
       <Flex className="update-actions" align="center" justify="end" gap="sm">
-        <Button onClick={() => void onInstall()}>{labels.restart}</Button>
+        <Button onClick={() => void onDownload()}>{labels.download}</Button>
+        <Button variant="secondary" onClick={onDismiss}>{labels.later}</Button>
       </Flex>
     );
   }
+  if (phase === 'downloaded') return null;
   if (phase === 'error') {
     const canRetry = state.errorStage !== 'install'
       && state.errorCode !== 'ERR_UPDATER_INVALID_SIGNATURE';

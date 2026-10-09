@@ -101,14 +101,35 @@ app.whenReady().then(async () => {
   }
   win.setContentSize(1100, 950);
   const clicked=await win.webContents.executeJavaScript(`(async()=>{
-    renderUpdate({phase:'available',origin:'automatic',channel:'nightly',currentVersion:'3.0.0-nightly.12',
+    renderUpdate({phase:'available',origin:'manual',channel:'nightly',currentVersion:'3.0.0-nightly.12',
       latestVersion:'3.0.0-nightly.13',releaseNotes:'Release notes'},'ko','dark');
     await document.querySelector('.update-kawaikara-image').decode();
     const button=document.querySelector('.update-actions button'),rect=button.getBoundingClientRect();
     if(!button.contains(document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)))return false;
     button.click();return updateActions.includes('download');
   })()`);
-  assert.equal(clicked,true,'Download button blocked by drag/selection prevention');
+  assert.equal(clicked,true,'Update now button blocked by drag/selection prevention');
+  for (const locale of ['en', 'ko', 'ja']) {
+    const actions = await win.webContents.executeJavaScript(`(() => {
+      const state={phase:'available',origin:'manual',channel:'nightly',currentVersion:'3.0.0-nightly.12'};
+      renderUpdate(state,'${locale}','dark');
+      const buttons=[...document.querySelectorAll('.update-actions button')];
+      const labels=buttons.map(button=>button.textContent);
+      window.updateActions=[];buttons[1].click();
+      const deferred=[...updateActions];
+      const busy=[];
+      for(const origin of ['manual','automatic'])for(const phase of ['downloading','downloaded','preparing','installing']){
+        renderUpdate({...state,origin,phase},'${locale}','dark');
+        busy.push(document.querySelectorAll('.update-actions button').length);
+      }
+      renderUpdate({...state,origin:'automatic'},'${locale}','dark');
+      return {labels,deferred,busy,automatic:document.querySelectorAll('.update-actions button').length};
+    })()`);
+    assert.deepEqual(actions.labels, [labels[locale].download, labels[locale].later]);
+    assert.deepEqual(actions.deferred, ['dismiss'], 'Later must not download or install');
+    assert.ok(actions.busy.every(count=>count===0), 'An accepted update has no second installation button');
+    assert.equal(actions.automatic, 0, 'Automatic updates do not ask for confirmation');
+  }
   const activity=await win.webContents.executeJavaScript(`(()=>{
     const state={phase:'installing',origin:'automatic',channel:'nightly',currentVersion:'3.0.0-nightly.12'};
     renderUpdate(state,'ko','dark');

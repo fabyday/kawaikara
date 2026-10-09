@@ -119,18 +119,13 @@ export class UpdateManager {
 
   /** Performs the check at startup operation. */
   async checkAtStartup(): Promise<void> {
-    // Every packaged channel checks its own feed. The preference controls
-    // automatic download/install, not whether the application can discover
-    // and present a release at all.
-    await this.checkForUpdatesInternal(
-      'automatic',
-      this.preferences?.automaticUpdates === true,
-    );
+    if (this.preferences?.automaticUpdates !== true) return;
+    await this.checkForUpdatesInternal('automatic');
   }
 
   /** Performs the check for updates operation. */
   checkForUpdates(): Promise<ApplicationUpdateCheckResult> {
-    return this.checkForUpdatesInternal('manual', false);
+    return this.checkForUpdatesInternal('manual');
   }
 
   /** Returns the state. */
@@ -143,7 +138,7 @@ export class UpdateManager {
     return this.installingUpdate;
   }
 
-  /** Performs the download update operation. */
+  /** Starts the user-approved download, installation and restart as one operation. */
   async downloadUpdate(): Promise<ApplicationUpdatePanelState> {
     if (this.downloadRequest) return this.downloadRequest;
     const state = this.currentState;
@@ -151,7 +146,11 @@ export class UpdateManager {
       throw new Error('No checked update is ready to download.');
     }
 
-    const request = this.performDownload({ ...state, origin: 'manual' });
+    const manual = { ...state, origin: 'manual' as const };
+    const cached = this.downloadedState;
+    const request = cached && cached.latestVersion === state.latestVersion
+      ? this.completeDownload({ ...cached, origin: 'manual' })
+      : this.performDownload(manual);
     this.downloadRequest = request;
     try {
       return await request;
@@ -230,7 +229,7 @@ export class UpdateManager {
       this.updateState({ ...downloaded, phase: 'installing' });
       // Keep the overlay alive briefly; immediate quit often prevents this state
       // from ever being painted. This only runs after the user/automatic policy
-      // has committed to installation, never on a manual download alone.
+      // has committed to the complete download/install/restart operation.
       await new Promise<void>((resolve) => setTimeout(resolve, RESTART_NOTICE_MS));
       autoUpdater.on('error', onInstallError);
       this.installingUpdate = true;
@@ -245,7 +244,6 @@ export class UpdateManager {
   /** Performs the check for updates internal operation. */
   private async checkForUpdatesInternal(
     origin: ApplicationUpdatePanelState['origin'],
-    downloadAutomatically: boolean,
   ): Promise<ApplicationUpdateCheckResult> {
     if (this.installRequest || this.installingUpdate || this.downloadRequest || this.currentState?.phase === 'downloading') {
       throw new Error('An update is already downloading or being installed.');
@@ -256,7 +254,7 @@ export class UpdateManager {
       }
       return this.checkRequest;
     }
-    const request = this.performCheck(origin, downloadAutomatically);
+    const request = this.performCheck(origin);
     this.checkRequest = request;
     try {
       return await request;
@@ -269,7 +267,6 @@ export class UpdateManager {
   /** Performs the perform check operation. */
   private async performCheck(
     origin: ApplicationUpdatePanelState['origin'],
-    downloadAutomatically: boolean,
   ): Promise<ApplicationUpdateCheckResult> {
     const currentVersion = app.getVersion();
     const checkingState: ApplicationUpdatePanelState = {
@@ -317,13 +314,9 @@ export class UpdateManager {
         releaseNotes: signal.releaseNotes,
       };
 
-      if (signal.available && downloadAutomatically) {
+      if (signal.available && origin === 'automatic' && this.preferences?.automaticUpdates === true) {
         this.currentState = checkedState;
         await this.performDownload(checkedState, true);
-      } else if (signal.available && origin === 'automatic') {
-        // Users who disabled automatic installation still receive the update
-        // prompt and can explicitly choose whether to download it.
-        this.presentState(checkedState);
       } else {
         this.finishCheckState(checkedState);
       }
@@ -421,6 +414,7 @@ export class UpdateManager {
     available: ApplicationUpdatePanelState,
     presentAutomatically = false,
   ): Promise<ApplicationUpdatePanelState> {
+    this.downloadedState = undefined;
     const downloading: ApplicationUpdatePanelState = {
       ...available,
       phase: 'downloading',
@@ -464,16 +458,7 @@ export class UpdateManager {
           total,
         },
       };
-      this.updateState(downloaded);
-      this.downloadedState = downloaded;
-      if (available.origin === 'automatic') {
-        // Automatic updates are opt-in. Once the opted-in download completes,
-        // briefly publish the completed state and restart into the new build.
-        setTimeout(() => {
-          if (this.currentState === downloaded) void this.installUpdate();
-        }, 750);
-      }
-      return downloaded;
+      return await this.completeDownload(downloaded);
     } catch (reason) {
       const error = reason instanceof Error ? reason.message : String(reason);
       this.updateLog.error('Update download failed.', error);
@@ -492,6 +477,23 @@ export class UpdateManager {
         window.setProgressBar(-1);
       }
     }
+  }
+
+  /** Continues a verified download without asking for a second installation approval. */
+  private async completeDownload(downloaded: ApplicationUpdatePanelState): Promise<ApplicationUpdatePanelState> {
+    this.downloadedState = downloaded;
+    if (downloaded.origin === 'automatic' && this.preferences?.automaticUpdates !== true) {
+      // Opting out while downloading prevents a restart. Keep the verified file
+      // available for a later explicit Update action instead of redownloading it.
+      const available: ApplicationUpdatePanelState = {
+        ...downloaded, phase: 'available', origin: 'manual', progress: undefined,
+      };
+      this.presentState(available);
+      return available;
+    }
+    this.updateState(downloaded);
+    await this.installUpdate();
+    return this.currentState!;
   }
 
   /** Performs the present state operation. */
