@@ -52,6 +52,7 @@
     "update:test:unit": "node --experimental-strip-types --test tests/application-identity.test.cjs tests/local-update-server.test.cjs tests/local-update-feed.test.cjs tests/update-installation.test.cjs tests/windows-update-signature.test.cjs",
     "update:test:layout": "electron tests/update-panel-layout.electron.cjs",
     "installer:test": "node --experimental-strip-types --test tests/windows-installer.test.cjs tests/application-identity.test.cjs",
+    "logs:test": "node --test tests/log-viewer.test.cjs && electron tests/log-viewer.electron.cjs",
     "data-location:test": "node --experimental-strip-types --test tests/data-location.test.cjs && electron tests/data-location.electron.cjs",
     "chzzk:test:audio": "electron tests/chzzk-audio.electron.cjs",
     "pip:test:unit": "pnpm build:packages && node --test tests/picture-in-picture-subtitles.test.cjs",

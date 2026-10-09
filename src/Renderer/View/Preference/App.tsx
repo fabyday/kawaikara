@@ -9,7 +9,6 @@ import {
   useEffect,
   useMemo
 } from 'react';
-import { LogViewer } from '../LogViewer/App';
 import { useBundleActions } from './Hooks/useBundleActions';
 import { useDevelopmentActions } from './Hooks/useDevelopmentActions';
 import { useGraphicsModeChange } from './Hooks/useGraphicsModeChange';
@@ -56,11 +55,17 @@ export function PreferenceView({
     discardConfirmationOpen,
     setDiscardConfirmationOpen,
     messages,
-    logViewerMessages,
-    resolvedLocale,
     logViewerOpen,
     setLogViewerOpen,
   } = preferenceState;
+
+  useEffect(() => {
+    if (!logViewerOpen) return;
+    setLogViewerOpen(false);
+    void window.kawaikara.logViewer.command('open').catch((reason) => {
+      preferenceState.setError(reason instanceof Error ? reason.message : String(reason));
+    });
+  }, [logViewerOpen]);
 
   usePreferenceInitialization({
     ...preferenceState,
@@ -239,32 +244,6 @@ export function PreferenceView({
           ) : null}
         </AnimatePresence>
       </div>
-
-      <AnimatePresence>
-        {logViewerOpen ? (
-          <motion.div
-            animate={{
-              opacity: 1, scale: 1, y: 0
-            }}
-            className="log-viewer-motion-shell"
-            exit={{
-              opacity: 0, scale: 0.985, y: 10
-            }}
-            initial={{
-              opacity: 0, scale: 0.985, y: 10
-            }}
-            transition={{
-              duration: 0.2, ease: [0.22, 1, 0.36, 1]
-            }}
-          >
-            <LogViewer
-              locale={resolvedLocale}
-              messages={logViewerMessages}
-              onClose={() => setLogViewerOpen(false)}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
 
       <AnimatePresence>
         {menuOrderEditorOpen && draftPreferences ? (

@@ -97,6 +97,10 @@ export class IpcManager {
 
   /** Initializes the operation. */
   initialize(): void {
+    ipcMain.handle(IPC_CHANNELS.logViewer.command, (event, command: unknown) => {
+      if (event.senderFrame !== event.sender.mainFrame) throw new Error('Log viewer commands require the main frame.');
+      return this.windows.commandLogViewer(event.sender.id, command);
+    });
     this.disposeDevelopmentSubscription = this.development.subscribe((state) =>
       this.windows.notifyDevelopmentStateChanged(state),
     );
@@ -686,6 +690,7 @@ const IPC_HANDLER_CHANNELS = [
   IPC_CHANNELS.application.openLink,
   IPC_CHANNELS.application.openDevTools,
   IPC_CHANNELS.application.openLogDirectory,
+  IPC_CHANNELS.logViewer.command,
   IPC_CHANNELS.application.openLogRepositoryDirectory,
   IPC_CHANNELS.application.listLogGroups,
   IPC_CHANNELS.application.listLogFiles,

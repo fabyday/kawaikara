@@ -38,6 +38,8 @@ import {
   setRequestHeader,
 } from '@kawaikara/site-api';
 import { ExternalBrowserManager } from './ExternalBrowserManager';
+import { LogViewerWindowManager } from './LogViewerWindowManager';
+import type { LogViewerHostState } from '../../Common/LogViewer';
 import { UnifiedPictureInPictureManager } from './UnifiedPictureInPictureManager';
 import { attachVideoPictureInPictureDrag } from '../Functional/PictureInPictureAlignment';
 import type { SiteRuntimeProfile } from '../Functional/SiteRuntime';
@@ -169,6 +171,23 @@ const REMOTE_SCROLLBAR_CSS = `
 
 /** Coordinates window behavior. */
 export class WindowManager {
+  /** Dedicated host lifecycle, independent of Provider and overlay renderers. */
+  private readonly logViewer = new LogViewerWindowManager(
+    () => this.viewerWindow!,
+    () => this.focusUnderlyingLogViewer(),
+    () => ({ theme: this.appTheme, locale: this.appLocale }),
+  );
+
+  /** Only the app overlay may open a viewer; only that viewer may move or close itself. */
+  async commandLogViewer(senderId: number, command: unknown): Promise<LogViewerHostState> {
+    const owns = this.logViewer.owns(senderId);
+    if (command === 'open' && senderId === this.overlaySurface?.webContents.id) {
+      await this.logViewer.open();
+    } else if (owns && command === 'toggle') await this.logViewer.toggle();
+    else if (owns && command === 'close') this.logViewer.close();
+    else if (!(owns && command === 'state')) throw new Error('Invalid log viewer command or sender.');
+    return this.logViewer.getState();
+  }
   /** The external browser value. */
   private readonly externalBrowser: ExternalBrowserManager;
   /** The MPV value. */
@@ -497,6 +516,7 @@ export class WindowManager {
     });
     viewerWindow.on('focus', () => {
       this.refreshExternalFullscreenState();
+      if (this.logViewer.focusEmbedded()) return;
       // Restore keyboard focus to the active Video view after host activation.
       if (!this.internalVideoVisible || this.overlayVisible) return;
       setTimeout(() => this.focusInternalVideoView(), 0);
@@ -513,6 +533,7 @@ export class WindowManager {
       }
     });
     viewerWindow.on('closed', () => {
+      this.logViewer.dispose();
       this.internalVideoPictureInPicture?.disposeDrag?.();
       this.clearInternalVideoPictureInPictureReassertions();
       this.clearInternalVideoPictureInPicturePointerMonitor();
@@ -704,6 +725,7 @@ export class WindowManager {
   /** Releases the operation. */
   async dispose(): Promise<void> {
     this.disposing = true;
+    this.logViewer.dispose();
     this.stopExternalFullscreenMonitoring();
     this.clearVideoRendererInitializationWatchdog();
     await this.exitInternalVideoPictureInPicture(false);
@@ -1620,6 +1642,7 @@ export class WindowManager {
   /** Sets the app locale. */
   setAppLocale(locale: AppLocale, systemLocale: string): void {
     this.appLocale = locale;
+    this.logViewer.notifyAppearance();
     this.systemLocale = systemLocale;
     this.appTitle = getAppMessages(locale, systemLocale).title;
     this.viewerWindow?.setTitle(this.appTitle);
@@ -1640,6 +1663,7 @@ export class WindowManager {
   /** Sets the app theme. */
   setAppTheme(theme: AppTheme): void {
     this.appTheme = theme;
+    this.logViewer.notifyAppearance();
     // Electron propagates this value to every current and future renderer as
     // the native prefers-color-scheme media query. Do not replace it with a
     // DevTools emulation override: a persistent override prevents renderers
@@ -1719,7 +1743,7 @@ export class WindowManager {
         /** Time to first presentable main-frame DOM. */
         elapsedMs: Date.now() - this.siteTransitionStartedAt,
       });
-      if (!this.overlayVisible) contents.focus();
+      if (!this.overlayVisible && !this.logViewer.focusEmbedded()) contents.focus();
     }
   }
 
@@ -1897,7 +1921,7 @@ export class WindowManager {
       });
       this.syncVideoViewBounds();
       video.setVisible(this.internalVideoVisible);
-      if (this.overlayVisible) this.syncOverlayBounds();
+      this.syncOverlayBounds();
     }
     if (!pip.isDestroyed()) pip.destroy();
     this.restoreViewerAlwaysOnTopAfterPictureInPicture();
@@ -2132,11 +2156,15 @@ export class WindowManager {
       this.syncOverlayBounds();
     }
     this.viewerWindow?.focus();
-    if (this.internalVideoVisible) {
-      this.videoView?.webContents.focus();
-    } else if (this.siteView && !this.siteView.webContents.isDestroyed()) {
-      this.siteView.webContents.focus();
-    }
+    if (!this.logViewer.focusEmbedded()) this.focusUnderlyingLogViewer();
+  }
+
+  /** Closing a log viewer must not create menu/preferences or focus a hidden surface. */
+  private focusUnderlyingLogViewer(): void {
+    const contents = this.overlayVisible
+      ? this.overlaySurface?.webContents
+      : this.getActiveViewerWebContents();
+    if (contents && !contents.isDestroyed()) contents.focus();
   }
 
   /** Prepares the overlay for picture in picture. */
@@ -2183,9 +2211,7 @@ export class WindowManager {
     });
     viewer.moveTop();
     viewer.focus();
-    if (this.internalVideoVisible) {
-      this.videoView?.webContents.focus();
-    } else this.siteView?.webContents.focus();
+    if (!this.logViewer.focusEmbedded()) this.focusUnderlyingLogViewer();
   }
 
   /** Performs the activate site view operation. */
@@ -2257,12 +2283,8 @@ export class WindowManager {
     viewerWindow.contentView.addChildView(siteView);
     this.siteViewAttached = true;
     this.syncSiteViewBounds();
-    if (this.overlayVisible) {
-      this.syncOverlayBounds();
-      this.overlaySurface?.webContents.focus();
-    } else {
-      siteView.webContents.focus();
-    }
+    this.syncOverlayBounds();
+    if (!this.logViewer.focusEmbedded()) this.focusUnderlyingLogViewer();
     this.logger.info(
       `Activated ${runtime.siteId} in browser profile ${runtime.id} (${runtime.partition}).`,
     );
@@ -2748,7 +2770,7 @@ export class WindowManager {
             request,
           );
         }
-        video.webContents.focus();
+        if (!this.logViewer.focusEmbedded()) this.focusUnderlyingLogViewer();
       },
     };
   }
@@ -3104,6 +3126,7 @@ export class WindowManager {
       height,
     };
     this.overlaySurface.setBounds(bounds);
+    this.logViewer.layout();
   }
 
   /** Performs the reveal overlay operation. */
@@ -3111,7 +3134,7 @@ export class WindowManager {
     this.clearOverlayRevealTimer();
     if (overlay.getVisible()) {
       this.viewerWindow?.focus();
-      overlay.webContents.focus();
+      if (!this.logViewer.focusEmbedded()) overlay.webContents.focus();
       return;
     }
 
@@ -3123,7 +3146,7 @@ export class WindowManager {
       if (!this.overlayVisible || overlay.webContents.isDestroyed()) return;
       overlay.setVisible(true);
       this.viewerWindow?.focus();
-      overlay.webContents.focus();
+      if (!this.logViewer.focusEmbedded()) overlay.webContents.focus();
     }, 34);
   }
 
@@ -3211,6 +3234,7 @@ export class WindowManager {
     if (
       !this.internalVideoVisible ||
       this.overlayVisible ||
+      this.logViewer.isEmbedded() ||
       !video ||
       video.webContents.isDestroyed() ||
       !video.getVisible()
@@ -3267,7 +3291,7 @@ export class WindowManager {
     if (visible) {
       this.viewerWindow?.contentView.addChildView(video);
       this.syncVideoViewBounds();
-      if (this.overlayVisible) this.syncOverlayBounds();
+      this.syncOverlayBounds();
     }
   }
 

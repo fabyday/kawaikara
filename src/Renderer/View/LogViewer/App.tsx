@@ -34,7 +34,7 @@ import { LogViewerProps } from './Types';
 
 export type { LogViewerProps } from './Types';
 /** Renders the layered application log viewer. */
-export function LogViewer({ messages, locale, onClose }: LogViewerProps) {
+export function LogViewer({ messages, locale, onClose, detached = false, onToggleDetached }: LogViewerProps) {
 
   const logViewerState = useLogViewerState();
   const {
@@ -116,7 +116,7 @@ export function LogViewer({ messages, locale, onClose }: LogViewerProps) {
     if (!followLatestRef.current) return;
     const scrollArea = scrollRef.current;
     if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-  }, [visibleEntries.length, activeFile?.fileName]);
+  }, [visibleEntries, activeFile?.fileName]);
 
   /** Replaces excluded values from a selected-value result. */
   const applySelection = (
@@ -150,7 +150,7 @@ export function LogViewer({ messages, locale, onClose }: LogViewerProps) {
   });
 
   return (
-    <Box as="main" className="log-viewer-shell">
+    <Box as="main" className={`log-viewer-shell${detached ? ' is-detached' : ''}`}>
       <Panel className="log-viewer-surface" padding="none" radius="lg">
         <Flex className="log-viewer-header" align="center" justify="between" gap="lg">
           <Stack gap="xs">
@@ -158,6 +158,18 @@ export function LogViewer({ messages, locale, onClose }: LogViewerProps) {
             <Text size="xs" tone="muted">{messages.description}</Text>
           </Stack>
           <Flex gap="xs">
+            {onToggleDetached ? (
+              <Button
+                aria-label={detached ? messages.attach : messages.detach}
+                size="icon"
+                title={detached ? messages.attach : messages.detach}
+                variant="ghost"
+                disabled={Boolean(importSelection) || importing || deleting}
+                onClick={onToggleDetached}
+              >
+                <Text as="span" aria-hidden="true" className="log-viewer-header-glyph">{detached ? '↙' : '↗'}</Text>
+              </Button>
+            ) : null}
             <Button
               aria-label={messages.refresh}
               size="icon"

@@ -666,6 +666,10 @@ export interface AppMessages {
 
 /** Describes the log viewer messages contract. */
 export interface LogViewerMessages {
+  /** Opens the same log viewer in an independent window. */
+  readonly detach: string;
+  /** Returns the log viewer to the app window. */
+  readonly attach: string;
   /** The title value. */
   readonly title: string;
   /** The description value. */

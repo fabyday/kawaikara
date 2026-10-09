@@ -49,6 +49,8 @@ export function useLogViewerKeyboard({
     onClose();
   }, [contextMenu, deleteReferences, deleting, importSelection, onClose]);
 
+  useEffect(() => window.kawaikara.logViewer?.onRequestClose(requestClose), [requestClose]);
+
   useEffect(() => {
     /** Handles viewer-level keyboard commands. */
     const handleKeyDown = (event: KeyboardEvent) => {

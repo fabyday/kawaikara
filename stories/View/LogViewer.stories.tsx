@@ -43,6 +43,17 @@ type Story = StoryObj<typeof meta>;
 /** Stores the default log viewer story. */
 export const Default = {} satisfies Story;
 
+/** Displays both host states without creating native windows inside Storybook. */
+export const Detached = {
+  /** Exercises the return button next to Refresh in the detached layout. */
+  args: {
+    /** Fits the panel to the detached viewport. */
+    detached: true,
+    /** Native handoff is tested in the Electron fixture instead. */
+    onToggleDetached: () => undefined,
+  },
+} satisfies Story;
+
 /** Stores and verifies a long, independently scrollable history. */
 export const ScrollableHistory = {
   /** Installs enough history items to require the custom scrollbar. */

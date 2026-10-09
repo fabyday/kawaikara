@@ -525,6 +525,11 @@ export function installKawaikaraMock(
   };
 
   const api: KawaikaraRendererApi = {
+    logViewer: {
+      command: async () => ({ detached: false, theme: 'dark', locale: 'system' }),
+      onStateChanged: () => () => undefined,
+      onRequestClose: () => () => undefined,
+    },
     application: {
       openDefaultVideoAppSettings: async () => undefined,
       getInfo: async () => ({

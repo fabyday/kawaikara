@@ -44,4 +44,8 @@ export interface LogViewerProps {
   readonly locale: string;
   /** Callback used to close the viewer. */
   readonly onClose: () => void;
+  /** Whether the same viewer is hosted in a separate native window. */
+  readonly detached?: boolean;
+  /** Moves the viewer between its embedded and detached hosts. */
+  readonly onToggleDetached?: () => void;
 }

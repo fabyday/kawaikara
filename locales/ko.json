@@ -375,6 +375,8 @@
     "homepage": "홈페이지"
   },
   "logViewer": {
+    "detach": "별도 창으로 분리",
+    "attach": "Kawaikara로 돌아오기",
     "title": "로그 뷰어",
     "description": "앱 로그 파일을 선택하고 시간, 레벨, 주체별로 확인합니다.",
     "close": "로그 뷰어 닫기",

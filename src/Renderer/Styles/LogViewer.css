@@ -1,3 +1,9 @@
+.log-viewer-shell.is-detached { padding: 0; background: transparent; }
+.is-detached .log-viewer-surface { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+.is-detached .log-viewer-header { -webkit-app-region: drag; user-select: none; }
+.log-viewer-header button,
+.log-viewer-header button * { -webkit-app-region: no-drag; }
+
 .log-viewer-motion-shell {
   position: absolute;
   z-index: 8;
@@ -9,6 +15,7 @@
 }
 
 .log-viewer-shell {
+  user-select: none;
   display: flex;
   width: 100%;
   height: 100%;
@@ -34,6 +41,7 @@
 }
 
 .log-viewer-header {
+  -webkit-app-region: no-drag;
   flex: 0 0 auto;
   padding: 18px 20px 14px;
 }
@@ -141,7 +149,8 @@
 }
 
 .log-viewer-file-scroll {
-  width: 100%;
+  width: calc(100% - 6px);
+  margin-bottom: 8px;
   min-height: 0;
   flex: 1 1 auto;
   box-sizing: border-box;
@@ -150,11 +159,15 @@
 }
 
 .log-viewer-log-scroll {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 6px);
+  flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
   overflow: auto;
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+  scroll-behavior: auto;
+  border-radius: 0;
 }
 
 .log-viewer-file-scroll {
@@ -313,6 +326,9 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 8px;
   background: #111114;
 }
 
@@ -339,9 +355,31 @@
 
 .log-viewer-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.log-viewer-header-viewport {
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-bottom: 1px solid rgb(255 255 255 / 15%);
+  background: #1b1b20;
+  box-shadow: 0 5px 12px rgb(0 0 0 / 18%);
+}
+
+.log-viewer-header-content {
+  width: calc(100% - 6px - var(--log-scrollbar-width, 10px));
+  overflow: hidden;
+}
+
+.log-viewer-column-header,
+.log-viewer-entries {
+  width: max(100%, calc(var(--log-time-width, 180px) + var(--log-level-width, 92px) + var(--log-location-width, 230px) + 364px));
 }
 
 .log-viewer-grid-row {
@@ -356,14 +394,11 @@
 }
 
 .log-viewer-column-header {
-  position: sticky;
+  position: relative;
   z-index: 3;
   top: 0;
   align-items: center;
-  border-bottom: 1px solid rgb(255 255 255 / 15%);
   padding: 9px 14px;
-  background: #1b1b20;
-  box-shadow: 0 5px 12px rgb(0 0 0 / 18%);
   color: #b8b8c2;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -423,10 +458,9 @@
 }
 
 .log-viewer-entries {
-  width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding-bottom: 24px;
+  padding-bottom: 0;
 }
 
 .log-viewer-entry {
@@ -496,6 +530,7 @@
 }
 
 .log-viewer-table-empty {
+  min-width: calc(var(--log-time-width, 180px) + var(--log-level-width, 92px) + var(--log-location-width, 230px) + 364px);
   display: block;
   padding: 28px 20px;
   text-align: center;
@@ -651,6 +686,11 @@
   background-clip: padding-box;
 }
 
+.log-viewer-file-scroll::-webkit-scrollbar-corner,
+.log-viewer-log-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .kawai-theme-light .log-viewer-shell {
   background: rgb(49 38 68 / 22%);
 }
@@ -700,10 +740,13 @@
   border-bottom-color: rgb(45 35 65 / 7%);
 }
 
-.kawai-theme-light .log-viewer-column-header {
+.kawai-theme-light .log-viewer-header-viewport {
   border-bottom-color: rgb(45 35 65 / 14%);
   background: #efebf4;
   box-shadow: 0 5px 12px rgb(45 35 65 / 10%);
+}
+
+.kawai-theme-light .log-viewer-column-header {
   color: #554d60;
 }
 

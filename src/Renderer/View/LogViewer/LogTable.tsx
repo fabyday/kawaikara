@@ -6,7 +6,10 @@ import {
   Text
 } from '@kawaikara/kawai-ui';
 import {
-  type CSSProperties
+  type CSSProperties,
+  memo,
+  useLayoutEffect,
+  useRef
 } from 'react';
 import { HighlightedText } from './HighlightedText';
 import { type useLogColumnResize } from './Hooks/useLogColumnResize';
@@ -55,6 +58,21 @@ export function LogTable({
   query,
   timestampMode,
 }: LogTableProps) {
+  const headerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const scroll = scrollRef.current;
+    const table = tableRef.current;
+    if (!scroll || !table) return;
+    /** Uses the actual gutter, including macOS overlay-scrollbar layouts. */
+    const measure = () => {
+      table.style.setProperty('--log-scrollbar-width', `${scroll.offsetWidth - scroll.clientWidth}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroll);
+    return () => observer.disconnect();
+  }, [Boolean(document)]);
   return (
     <Box as="section" className="log-viewer-log-panel">
       {document?.truncated ? (
@@ -62,30 +80,34 @@ export function LogTable({
           {messages.truncated}
         </Text>
       ) : null}
-      {error ? (
+      {error && !document ? (
         <Text className="log-viewer-status" size="sm" tone="danger">{error}</Text>
-      ) : loading ? (
+      ) : loading && !document ? (
         <Text className="log-viewer-status" size="sm" tone="muted">{messages.loading}</Text>
       ) : !document ? (
         <Text className="log-viewer-status" size="sm" tone="muted">{messages.noFiles}</Text>
       ) : (
-        <ScrollArea
-          className="log-viewer-log-scroll"
-          label={document.file.fileName}
-          ref={scrollRef}
-          scrollbar="auto"
-          onScroll={(event) => {
-            const target = event.currentTarget;
-            followLatestRef.current =
-              target.scrollHeight - target.scrollTop - target.clientHeight < 40;
-          }}
-        >
-          <Box className="log-viewer-table" role="table" style={tableStyle}>
-            <LogTableHeader
-              messages={messages}
-              setTimestampMode={setTimestampMode}
-              startColumnResize={startColumnResize}
-            />
+        <Box className="log-viewer-table" ref={tableRef} role="table" style={tableStyle}>
+          <Box className="log-viewer-header-viewport">
+            <Box className="log-viewer-header-content">
+              <Box ref={headerRef}>
+                <LogTableHeader messages={messages} setTimestampMode={setTimestampMode}
+                  startColumnResize={startColumnResize} />
+              </Box>
+            </Box>
+          </Box>
+          <ScrollArea
+            className="log-viewer-log-scroll"
+            label={document.file.fileName}
+            ref={scrollRef}
+            scrollbar="auto"
+            onScroll={(event) => {
+              const target = event.currentTarget;
+              if (headerRef.current) headerRef.current.style.transform = `translateX(${-target.scrollLeft}px)`;
+              followLatestRef.current =
+                target.scrollHeight - target.scrollTop - target.clientHeight < 40;
+            }}
+          >
             {visibleEntries.length === 0 ? (
               <Text className="log-viewer-table-empty" size="sm" tone="muted">
                 {messages.noEntries}
@@ -108,8 +130,8 @@ export function LogTable({
                 ))}
               </Stack>
             )}
-          </Box>
-        </ScrollArea>
+          </ScrollArea>
+        </Box>
       )}
     </Box>
   );
@@ -164,7 +186,7 @@ function LogTableHeader({
 }
 
 /** One highlighted log entry with separate time, level, source, and message cells. */
-function LogEntryRow({
+const LogEntryRow = memo(function LogEntryRow({
   locale,
   query,
   timestampMode,
@@ -221,4 +243,4 @@ function LogEntryRow({
       />
     </Box>
   );
-}
+});

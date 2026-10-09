@@ -48,6 +48,25 @@ installEditableFocusReporter();
 
 /** Stores the API value. */
 const api: KawaikaraRendererApi = {
+  /** Fixed presentation API; no arbitrary window options cross the bridge. */
+  logViewer: {
+    /** Passes a fixed command to the owning Main manager. */
+    command: (command) => ipcRenderer.invoke(IPC_CHANNELS.logViewer.command, command),
+    /** Subscribes with an explicit cleanup for renderer teardown. */
+    onStateChanged: (handler) => {
+      /** Omits Electron's event from the context bridge callback. */
+      const listener = (_event: Electron.IpcRendererEvent, state: Parameters<typeof handler>[0]) => handler(state);
+      ipcRenderer.on(IPC_CHANNELS.logViewer.stateChanged, listener);
+      return () => { ipcRenderer.removeListener(IPC_CHANNELS.logViewer.stateChanged, listener); };
+    },
+    /** Receives native close requests using the existing dialog close policy. */
+    onRequestClose: (handler) => {
+      /** Omits Electron's event from the context bridge callback. */
+      const listener = () => handler();
+      ipcRenderer.on(IPC_CHANNELS.logViewer.requestClose, listener);
+      return () => { ipcRenderer.removeListener(IPC_CHANNELS.logViewer.requestClose, listener); };
+    },
+  },
   /** The application value. */
   application: {
     /** Opens the Windows default app picker through Main's fixed channel policy. */

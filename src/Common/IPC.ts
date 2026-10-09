@@ -10,6 +10,7 @@ import type {
   PictureInPictureSizePreference,
 } from './PictureInPicture';
 import type { RendererMessages } from '../Main/Functional/RendererMessages';
+import type { LogViewerCommand, LogViewerHostState } from './LogViewer';
 import type {
   ProviderSettingCategoryContribution,
   ProviderLocalizedText,
@@ -43,6 +44,15 @@ function defineIpcChannels<const T extends IpcChannelTree>(channels: T): T {
 
 /** Defines the shared IPC channels constant. */
 export const IPC_CHANNELS = defineIpcChannels({
+  /** Commands and lifecycle events for the app-owned log viewer. */
+  logViewer: {
+    /** Performs a guarded presentation command. */
+    command: 'kawaikara:log-viewer:command',
+    /** Publishes Main-owned presentation state. */
+    stateChanged: 'kawaikara:log-viewer:state-changed',
+    /** Asks the renderer to close its current transient layer first. */
+    requestClose: 'kawaikara:log-viewer:request-close',
+  },
   /** The sites value. */
   sites: {
     /** The list value. */
@@ -1264,6 +1274,15 @@ export interface SiteNavigationState {
 
 /** Describes the Kawaikara renderer API contract. */
 export interface KawaikaraRendererApi {
+  /** Moves one retained log viewer between native hosts. */
+  logViewer: {
+    /** Executes a presentation command and returns the actual resulting state. */
+    command(command: LogViewerCommand): Promise<LogViewerHostState>;
+    /** Observes host, locale, and theme changes. */
+    onStateChanged(handler: (state: LogViewerHostState) => void): () => void;
+    /** Observes native close requests. */
+    onRequestClose(handler: () => void): () => void;
+  };
   /** The application value. */
   application: {
     /** Main chooses a fixed OS settings URI for the installed channel. */

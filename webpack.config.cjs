@@ -108,6 +108,7 @@ module.exports = (_environment, arguments_) => {
     target: 'electron-renderer',
     entry: {
       overlay: path.join(root, 'src/Renderer/View/Overlay/Index.tsx'),
+      'log-viewer': path.join(root, 'src/Renderer/View/LogViewer/Index.tsx'),
       video: path.join(root, 'src/Renderer/View/Video/Index.tsx'),
       'external-login': path.join(
         root,
@@ -144,6 +145,11 @@ module.exports = (_environment, arguments_) => {
       ],
     },
     plugins: [
+      new HtmlWebpackPlugin({
+        template: path.join(root, 'src/Renderer/View/LogViewer/Index.html'),
+        filename: 'log-viewer.html',
+        chunks: ['log-viewer'],
+      }),
       new HtmlWebpackPlugin({
         template: path.join(root, 'src/Renderer/View/Overlay/Index.html'),
         filename: 'index.html',

@@ -375,6 +375,8 @@
     "homepage": "ホームページ"
   },
   "logViewer": {
+    "detach": "別ウィンドウに分離",
+    "attach": "Kawaikaraに戻す",
     "title": "ログビューアー",
     "description": "アプリログを選択し、時刻・レベル・出力元別に確認します。",
     "close": "ログビューアーを閉じる",

@@ -1,7 +1,9 @@
 import {
   useCallback,
-  useEffect
+  useEffect,
+  useRef
 } from 'react';
+import { mergeLogDocument } from '../LogDocumentUpdate';
 import { formatError } from '../LogFormatting';
 import { ACTIVE_LOG_REFRESH_INTERVAL_MS, LOG_HISTORY_REFRESH_INTERVAL_MS } from '../LogViewerDefaults';
 import { type useLogViewerState } from './useLogViewerState';
@@ -47,6 +49,10 @@ export function useLogRepository({
   followLatestRef,
   activeFileIsCurrent,
 }: LogRepositoryOptions) {
+  const activeRef = useRef(activeFile);
+  activeRef.current = activeFile;
+  const readInFlight = useRef<Promise<void> | undefined>(undefined);
+  const fileName = activeFile?.fileName;
   /** Refreshes the external group history. */
   const refreshGroups = useCallback(async () => {
     const sequence = groupSequenceRef.current + 1;
@@ -85,10 +91,18 @@ export function useLogRepository({
       );
       if (sequence !== listSequenceRef.current) return;
       setFiles(next);
-      setSelectedFileNames((current) => new Set(
-        [...current].filter((fileName) =>
-          next.some((file) => file.fileName === fileName)),
-      ));
+      const prior = activeRef.current;
+      const retained = prior?.repository === repository && prior.groupId === selectedGroupId
+        ? next.find((file) => file.fileName === prior.fileName) : undefined;
+      const automatic = retained ? undefined : next.find((file) => file.active) ?? next[0];
+      setSelectedFileNames((current) => {
+        if (automatic) {
+          selectionAnchorRef.current = next.indexOf(automatic);
+          return new Set([automatic.fileName]);
+        }
+        const retainedNames = [...current].filter((name) => next.some((file) => file.fileName === name));
+        return retainedNames.length === current.size ? current : new Set(retainedNames);
+      });
       setActiveFile((current) => {
         if (
           current?.repository === repository &&
@@ -110,7 +124,7 @@ export function useLogRepository({
   }, [repository, selectedGroupId]);
 
   /** Refreshes the active log document when it still belongs to this view. */
-  const refreshDocument = useCallback(async () => {
+  const readDocument = useCallback(async () => {
     if (
       !activeFile ||
       activeFile.repository !== repository ||
@@ -127,16 +141,26 @@ export function useLogRepository({
         activeFile.groupId,
       );
       if (sequence !== readSequenceRef.current) return;
-      setDocument(next);
+      setDocument((current) => mergeLogDocument(current, next));
       setError(undefined);
     } catch (reason) {
       if (sequence === readSequenceRef.current) setError(formatError(reason));
     } finally {
       if (sequence === readSequenceRef.current) setLoading(false);
     }
-  }, [activeFile, repository, selectedGroupId]);
+  }, [fileName, repository, selectedGroupId]);
+
+  const refreshDocument = useCallback(() => {
+    if (readInFlight.current) return readInFlight.current;
+    const pending = readDocument().finally(() => {
+      if (readInFlight.current === pending) readInFlight.current = undefined;
+    });
+    readInFlight.current = pending;
+    return pending;
+  }, [readDocument]);
 
   useEffect(() => {
+    readInFlight.current = undefined;
     if (repository !== 'external') return;
     void refreshGroups();
     const timer = window.setInterval(
@@ -178,6 +202,7 @@ export function useLogRepository({
     }
     setLoading(true);
     setDocument(undefined);
+    readInFlight.current = undefined;
     followLatestRef.current = true;
     void refreshDocument();
     if (!activeFileIsCurrent) {
@@ -193,7 +218,7 @@ export function useLogRepository({
       readSequenceRef.current += 1;
       window.clearInterval(timer);
     };
-  }, [activeFile, activeFileIsCurrent, refreshDocument]);
+  }, [fileName, repository, selectedGroupId, activeFileIsCurrent, refreshDocument]);
 
   return {
     /** The refreshGroups value. */

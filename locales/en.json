@@ -375,6 +375,8 @@
     "homepage": "Homepage"
   },
   "logViewer": {
+    "detach": "Open in separate window",
+    "attach": "Return to Kawaikara",
     "title": "Log viewer",
     "description": "Select an app log and inspect it by time, level, and source.",
     "close": "Close log viewer",
