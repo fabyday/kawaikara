@@ -2,7 +2,7 @@ import { BrowserWindow, screen, WebContentsView } from 'electron';
 import path from 'node:path';
 import { IPC_CHANNELS } from '../../Common/IPC';
 import type { LogViewerHostState } from '../../Common/LogViewer';
-import { transferWebContentsView } from '../Functional/WebContentsViewTransfer';
+import { transferWebContentsView, waitForVisibleRendererFrames } from '../Functional/WebContentsViewTransfer';
 
 /** Owns one log renderer, moving it without a reload or a second polling loop. */
 export class LogViewerWindowManager {
@@ -102,10 +102,15 @@ export class LogViewerWindowManager {
     if (this.detachedWindow) {
       const detached = this.detachedWindow;
       this.retiringWindow = detached;
+      // Clear native drag regions while the renderer still belongs to its old host.
+      this.notifyAppearance(false);
+      await waitForVisibleRendererFrames(view);
+      if (this.view !== view || parent.isDestroyed()) return;
       this.detachedWindow = undefined;
-      this.notifyAppearance();
       if (parent.isMinimized()) parent.restore();
-      await transferWebContentsView({ sourceWindow: detached, targetWindow: parent, view });
+      await transferWebContentsView({ sourceWindow: detached, targetWindow: parent, view,
+        onTransferred: () => this.notifyAppearance(),
+      });
       if (this.view !== view || parent.isDestroyed()) return;
       if (!detached.isDestroyed()) detached.destroy();
       this.retiringWindow = undefined;
@@ -132,8 +137,9 @@ export class LogViewerWindowManager {
         // Let import/delete dialogs apply the same close policy as X and Escape.
         view.webContents.send(IPC_CHANNELS.logViewer.requestClose);
       });
-      this.notifyAppearance();
-      await transferWebContentsView({ sourceWindow: parent, targetWindow: detached, view });
+      await transferWebContentsView({ sourceWindow: parent, targetWindow: detached, view,
+        onTransferred: () => this.notifyAppearance(),
+      });
       if (this.view !== view || detached.isDestroyed()) return;
       detached.show();
       detached.focus();
@@ -153,9 +159,9 @@ export class LogViewerWindowManager {
   }
 
   /** Applies Main-owned locale/theme changes without restarting the viewer. */
-  notifyAppearance(): void {
+  notifyAppearance(detached = Boolean(this.detachedWindow)): void {
     if (this.view && !this.view.webContents.isDestroyed()) {
-      this.view.webContents.send(IPC_CHANNELS.logViewer.stateChanged, this.getState());
+      this.view.webContents.send(IPC_CHANNELS.logViewer.stateChanged, { ...this.getState(), detached });
     }
   }
 

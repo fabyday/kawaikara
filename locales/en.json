@@ -593,7 +593,6 @@
     "availableTitle": "An update is available",
     "availableDescription": "Download the update whenever you are ready.",
     "downloadingTitle": "Downloading the update",
-    "downloadingDescription": "You can continue using Kawaikara while it downloads.",
     "downloadedTitle": "Update ready",
     "preparingTitle": "Preparing installation",
     "preparingDescription": "Verifying the download and preparing to close the app safely.",

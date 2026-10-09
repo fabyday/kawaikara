@@ -51,7 +51,7 @@ export function getPhaseCopy(
         /** The title value. */
         title: labels.downloadingTitle,
         /** The description value. */
-        description: labels.downloadingDescription,
+        description: undefined,
       };
     case 'downloaded':
       return {

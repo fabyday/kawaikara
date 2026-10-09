@@ -11,6 +11,8 @@ export interface WebContentsViewTransferOptions {
   readonly targetWindow: BrowserWindow;
   /** The view value. */
   readonly view: WebContentsView;
+  /** Applies host-specific layout after native ownership changes, before painting. */
+  readonly onTransferred?: () => void;
 }
 
 /**
@@ -22,6 +24,7 @@ export async function transferWebContentsView({
   sourceWindow,
   targetWindow,
   view,
+  onTransferred,
 }: WebContentsViewTransferOptions): Promise<void> {
   if (targetWindow.isDestroyed()) {
     throw new Error('Cannot transfer a WebContentsView to a destroyed window.');
@@ -40,6 +43,8 @@ export async function transferWebContentsView({
   // first target frame should already use the target content dimensions.
   view.setBounds(getWindowContentViewBounds(targetWindow));
   targetWindow.contentView.addChildView(view);
+  // Chromium must publish changed draggable regions to the new native host.
+  onTransferred?.();
   view.webContents.invalidate();
 
   await waitForVisibleRendererFrames(view);
@@ -60,8 +65,8 @@ export function getWindowContentViewBounds(window: BrowserWindow): Rectangle {
   };
 }
 
-/** Waits for the for visible renderer frames. */
-async function waitForVisibleRendererFrames(
+/** Waits for layout and native drag regions to settle while the current host is alive. */
+export async function waitForVisibleRendererFrames(
   view: WebContentsView,
 ): Promise<void> {
   if (view.webContents.isDestroyed()) return;

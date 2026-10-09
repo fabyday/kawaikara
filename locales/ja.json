@@ -593,7 +593,6 @@
     "availableTitle": "新しいアップデートがあります",
     "availableDescription": "準備ができたらアップデートをダウンロードできます。",
     "downloadingTitle": "アップデートをダウンロード中",
-    "downloadingDescription": "ダウンロード中もKawaikaraを使用できます。",
     "downloadedTitle": "アップデートの準備完了",
     "preparingTitle": "インストールの準備中",
     "preparingDescription": "ダウンロードを検証し、安全に終了する準備をしています。",

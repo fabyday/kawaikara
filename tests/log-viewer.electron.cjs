@@ -114,8 +114,8 @@ app.whenReady().then(async () => {
   assert.equal(await evalView('document.querySelectorAll(".log-viewer-entry").length'), 141);
   assert.equal(await evalView('retainedRow===document.querySelector(".log-viewer-entry") && retainedScroll===document.querySelector(".log-viewer-log-scroll")'), true);
   assert.equal(await evalView('retainedScroll.scrollTop'), 0);
-  await evalView(`document.querySelector('.log-viewer-file.is-selected').click();
-    document.querySelector('[title="${labels.en.refresh}"]').click();`);
+  await evalView(`document.querySelector('.log-viewer-file.is-selected').click();`);
+  assert.equal(await evalView(`Boolean(document.querySelector('[title="${labels.en.refresh}"]'))`), false);
   await pause(100);
   assert.equal(await evalView('retainedRow===document.querySelector(".log-viewer-entry")'), true);
   await pause(2600); // Cross a history refresh without resetting the table or selection.
@@ -155,10 +155,10 @@ app.whenReady().then(async () => {
     assert.equal(parent.contentView.children.at(-1), view, 'Viewer must stay above current app content');
     assert.equal(contents.isFocused(), true, 'Docking restores input without a focus-only click');
     assert.equal(await evalView('getComputedStyle(document.querySelector(".log-viewer-header")).webkitAppRegion'), 'no-drag');
+    assert.equal(await evalView(`Boolean(document.querySelector('[title="${labels.en.refresh}"]'))`), false);
     const beforeRefresh = readCount;
-    await clickButton(labels.en.refresh);
-    for (let j = 0; j < 20 && readCount === beforeRefresh; j++) await pause(10);
-    assert.ok(readCount > beforeRefresh, 'First refresh click after docking must work');
+    await pause(1400);
+    assert.ok(readCount > beforeRefresh, 'Automatic log updates continue after docking');
   }
   assert.equal(restoredFocus, 0);
   if (process.env.KAWAIKARA_LOG_VIEWER_CAPTURE === '1') {
@@ -203,8 +203,16 @@ app.whenReady().then(async () => {
   manager.dispose();
   await moving;
   assert.equal(BrowserWindow.getAllWindows().length, 1);
+  // Closing during the source-host drag-region barrier must also release that host.
+  await manager.open();
+  await manager.toggle();
+  const docking = manager.toggle();
+  manager.close();
+  await docking;
+  assert.equal(BrowserWindow.getAllWindows().length, 1);
+  assert.equal(manager.isEmbedded(), false);
   underlying.webContents.close();
   parent.destroy();
-  console.log('PASS: initial selection, stable append, full-width header, contained scrollbars, column alignment, first-click detach/attach/refresh/close, unchanged underlying layers, appearance, cleanup.');
+  console.log('PASS: initial selection, stable append, full-width header, contained scrollbars, column alignment, first-click detach/attach/close, automatic refresh, unchanged underlying layers, appearance, cleanup.');
   clearTimeout(timeout); app.exit(0);
 }).catch(error => { console.error(error); clearTimeout(timeout); app.exit(1); });

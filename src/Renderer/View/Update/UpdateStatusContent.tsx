@@ -28,7 +28,7 @@ export function UpdateStatusContent({ state, labels }: Pick<UpdatePanelProps, 's
           {state.phase === 'preparing' || state.phase === 'installing' ? <UpdateActivityRing /> : null}
           <Head level={1} size="lg">{copy.title}</Head>
         </Flex>
-        <Text size="sm" tone="muted">{copy.description}</Text>
+        {copy.description ? <Text size="sm" tone="muted">{copy.description}</Text> : null}
       </Stack>
       <Stack className="update-progress-block" gap="sm">
         <Progress aria-label={copy.title} value={getProgressValue(state)} />

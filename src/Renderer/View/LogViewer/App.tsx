@@ -87,11 +87,6 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
   const logRepository = useLogRepository({
     ...logViewerState,
   });
-  const {
-    refreshGroups,
-    refreshFiles,
-    refreshDocument,
-  } = logRepository;
 
   const logFilters = useLogFilters({
     ...logViewerState,
@@ -170,19 +165,6 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
                 <Text as="span" aria-hidden="true" className="log-viewer-header-glyph">{detached ? '↙' : '↗'}</Text>
               </Button>
             ) : null}
-            <Button
-              aria-label={messages.refresh}
-              size="icon"
-              title={messages.refresh}
-              variant="ghost"
-              onClick={() => {
-                void refreshGroups();
-                void refreshFiles();
-                void refreshDocument();
-              }}
-            >
-              <Text as="span" aria-hidden="true" className="log-viewer-header-glyph">↻</Text>
-            </Button>
             <Button
               aria-label={messages.close}
               size="icon"
