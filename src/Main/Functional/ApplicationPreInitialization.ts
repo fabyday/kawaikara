@@ -39,7 +39,7 @@ export function preInitializeApplication(): PreInitializedApplication {
 }
 
 /** Performs the configure graphics operation. */
-function configureGraphics(
+export function configureGraphics(
   preferenceFilePath: string,
   applicationLog: ReturnType<LoggingManager['getLogger']>,
 ): void {
@@ -61,9 +61,8 @@ function configureGraphics(
         : 'Electron graphics mode: software.',
     );
   } else {
-    app.commandLine.appendSwitch('ignore-gpu-blocklist');
-    app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('enable-zero-copy');
+    // Preserve Chromium's driver workarounds and default rasterization policy.
+    // Capture compatibility changes overlays only, not GPU safety decisions.
     if (graphicsMode === 'capture') {
       if (process.platform === 'darwin') {
         appendDisabledChromiumFeature('avfoundation-overlays');

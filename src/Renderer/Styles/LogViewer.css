@@ -471,6 +471,15 @@
   user-select: text;
 }
 
+.log-viewer-entries[data-all-selected="true"] .log-viewer-entry {
+  background: Highlight;
+  color: HighlightText;
+}
+
+.log-viewer-entries[data-all-selected="true"] .log-viewer-entry > * {
+  color: inherit;
+}
+
 .log-viewer-entry:hover {
   background: rgb(255 255 255 / 3%);
 }

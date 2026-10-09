@@ -88,7 +88,8 @@ app.whenReady().then(async () => {
     if (await evalView('Boolean(document.querySelector(".log-viewer-entry"))')) break;
     await pause(40);
   }
-  assert.equal(await evalView('document.querySelectorAll(".log-viewer-entry").length'), 140);
+  assert.equal(await evalView('Number(document.querySelector(".log-viewer-table").getAttribute("aria-rowcount"))'), 141);
+  assert.ok(await evalView('document.querySelectorAll(".log-viewer-entry").length < 100'));
   assert.equal(await evalView('document.querySelectorAll(".log-viewer-file.is-selected").length'), 1);
   assert.equal(await evalView('document.querySelector(".log-viewer-file.is-selected").getAttribute("aria-pressed")'), 'true');
   assert.equal(await evalView('document.querySelector(".log-viewer-log-scroll").contains(document.querySelector(".log-viewer-column-header"))'), false);
@@ -105,13 +106,15 @@ app.whenReady().then(async () => {
     return Math.abs(header.getBoundingClientRect().right - panel.getBoundingClientRect().right) < 1 &&
       getComputedStyle(header).backgroundColor !== 'rgba(0, 0, 0, 0)';
   })()`), true, 'Header paints all the way across the data scrollbar gutter');
-  await evalView(`window.retainedRow=document.querySelector('.log-viewer-entry');
-    window.retainedScroll=document.querySelector('.log-viewer-log-scroll');
+  await evalView(`window.retainedScroll=document.querySelector('.log-viewer-log-scroll');
+    retainedScroll.dispatchEvent(new WheelEvent('wheel',{bubbles:true}));
     retainedScroll.scrollTop=0; retainedScroll.scrollLeft=80;
     retainedScroll.dispatchEvent(new Event('scroll'));`);
+  await pause(200);
+  await evalView(`window.retainedRow=document.querySelector('.log-viewer-entry');`);
   entries.push({ ...entries[0], id: 'new', message: '<script>should remain text</script>' });
   await pause(1600);
-  assert.equal(await evalView('document.querySelectorAll(".log-viewer-entry").length'), 141);
+  assert.equal(await evalView('Number(document.querySelector(".log-viewer-table").getAttribute("aria-rowcount"))'), 142);
   assert.equal(await evalView('retainedRow===document.querySelector(".log-viewer-entry") && retainedScroll===document.querySelector(".log-viewer-log-scroll")'), true);
   assert.equal(await evalView('retainedScroll.scrollTop'), 0);
   await evalView(`document.querySelector('.log-viewer-file.is-selected').click();`);
@@ -141,7 +144,10 @@ app.whenReady().then(async () => {
     assert.equal(detached.getParentWindow(), null);
     assert.ok(detached.contentView.children.includes(view));
     assert.equal(contents.id, originalId);
-    assert.equal(await evalView('retainedRow===document.querySelector(".log-viewer-entry")'), true);
+    await pause(200);
+    assert.equal(await evalView('retainedScroll===document.querySelector(".log-viewer-log-scroll")'), true);
+    assert.equal(await evalView('document.querySelector(".log-viewer-entry:last-child .log-viewer-message").textContent'), 'Follow latest');
+    assert.equal(await evalView('retainedScroll.scrollHeight-retainedScroll.scrollTop-retainedScroll.clientHeight<40'), true);
     assert.equal(await evalView('getComputedStyle(document.querySelector(".log-viewer-header")).webkitAppRegion'), 'drag');
     // The app may close every overlay while the independent viewer is in use.
     underlying.setVisible(i === 0);

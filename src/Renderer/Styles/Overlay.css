@@ -1252,7 +1252,8 @@ img {
 
 .graphics-mode-control button {
   min-width: 86px;
-  height: 34px;
+  min-height: 34px;
+  height: auto;
   border: 0;
   border-radius: 0;
   padding: 0 13px;

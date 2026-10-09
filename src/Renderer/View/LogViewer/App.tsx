@@ -10,8 +10,7 @@ import {
 } from '@kawaikara/kawai-ui';
 import {
   type CSSProperties,
-  useEffect,
-  useLayoutEffect
+  useEffect
 } from 'react';
 import {
   MultiSelectFilter,
@@ -54,19 +53,9 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
     deleteReferences,
     setDeleteReferences,
     deleting,
-    scrollRef,
-    followLatestRef,
     resizeCleanupRef,
     importSelectionRef,
   } = logViewerState;
-
-  const logViewerKeyboard = useLogViewerKeyboard({
-    ...logViewerState,
-    onClose,
-  });
-  const {
-    requestClose,
-  } = logViewerKeyboard;
 
   useEffect(
     () => () => resizeCleanupRef.current?.(),
@@ -107,11 +96,14 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
     '--log-location-width': `${String(columnWidths.location)}px`,
   } as CSSProperties;
 
-  useLayoutEffect(() => {
-    if (!followLatestRef.current) return;
-    const scrollArea = scrollRef.current;
-    if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
-  }, [visibleEntries, activeFile?.fileName]);
+  const logViewerKeyboard = useLogViewerKeyboard({
+    ...logViewerState,
+    onClose,
+    visibleEntries,
+  });
+  const {
+    requestClose,
+  } = logViewerKeyboard;
 
   /** Replaces excluded values from a selected-value result. */
   const applySelection = (

@@ -2,15 +2,16 @@ import {
   Box,
   Button,
   ScrollArea,
-  Stack,
   Text
 } from '@kawaikara/kawai-ui';
 import {
   type CSSProperties,
   memo,
+  useCallback,
   useLayoutEffect,
   useRef
 } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { HighlightedText } from './HighlightedText';
 import { type useLogColumnResize } from './Hooks/useLogColumnResize';
 import { type useLogFilters } from './Hooks/useLogFilters';
@@ -60,11 +61,38 @@ export function LogTable({
 }: LogTableProps) {
   const headerRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const fileKey = document
+    ? `${document.file.repository}:${document.file.groupId ?? ''}:${document.file.fileName}` : '';
+  const getItemKey = useCallback((index: number) => `${fileKey}:${visibleEntries[index].id}`,
+    [fileKey, visibleEntries]);
+  const virtualRows = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: visibleEntries.length,
+    getScrollElement: () => scrollRef.current,
+    getItemKey,
+    estimateSize: () => 48,
+    overscan: 6,
+    enabled: Boolean(document),
+    anchorTo: 'end',
+    followOnAppend: true,
+    scrollEndThreshold: 40,
+  });
+  const rows = virtualRows.getVirtualItems();
+  useLayoutEffect(() => {
+    // A different file starts a new measurement cache. Width changes keep
+    // previous estimates; ResizeObserver measures visible rows without moving
+    // the user's anchor to a different item by resetting every offscreen row.
+    virtualRows.measure();
+    logEntriesRef.current?.querySelectorAll<HTMLDivElement>('[data-index]')
+      .forEach(virtualRows.measureElement);
+  }, [fileKey]);
+  useLayoutEffect(() => {
+    if (followLatestRef.current && visibleEntries.length) virtualRows.scrollToEnd();
+  }, [visibleEntries]);
   useLayoutEffect(() => {
     const scroll = scrollRef.current;
     const table = tableRef.current;
     if (!scroll || !table) return;
-    /** Uses the actual gutter, including macOS overlay-scrollbar layouts. */
+    /** Match the header gutter to the live scroll container. */
     const measure = () => {
       table.style.setProperty('--log-scrollbar-width', `${scroll.offsetWidth - scroll.clientWidth}px`);
     };
@@ -87,7 +115,7 @@ export function LogTable({
       ) : !document ? (
         <Text className="log-viewer-status" size="sm" tone="muted">{messages.noFiles}</Text>
       ) : (
-        <Box className="log-viewer-table" ref={tableRef} role="table" style={tableStyle}>
+        <Box className="log-viewer-table" ref={tableRef} role="table" aria-rowcount={visibleEntries.length + 1} style={tableStyle}>
           <Box className="log-viewer-header-viewport">
             <Box className="log-viewer-header-content">
               <Box ref={headerRef}>
@@ -101,6 +129,10 @@ export function LogTable({
             label={document.file.fileName}
             ref={scrollRef}
             scrollbar="auto"
+            onWheel={() => virtualRows.cancelScroll()}
+            onTouchStart={() => virtualRows.cancelScroll()}
+            onPointerDown={() => virtualRows.cancelScroll()}
+            onKeyDown={() => virtualRows.cancelScroll()}
             onScroll={(event) => {
               const target = event.currentTarget;
               if (headerRef.current) headerRef.current.style.transform = `translateX(${-target.scrollLeft}px)`;
@@ -113,22 +145,27 @@ export function LogTable({
                 {messages.noEntries}
               </Text>
             ) : (
-              <Stack
+              <Box
                 className="log-viewer-entries"
-                gap="none"
                 ref={logEntriesRef}
                 role="rowgroup"
+                style={{ position: 'relative', height: virtualRows.getTotalSize() }}
               >
-                {visibleEntries.map((entry) => (
-                  <LogEntryRow
-                    key={entry.id}
-                    locale={locale}
-                    query={query}
-                    timestampMode={timestampMode}
-                    entry={entry}
-                  />
-                ))}
-              </Stack>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%',
+                  transform: `translateY(${rows[0]?.start ?? 0}px)` }}>
+                  {rows.map((row) => (
+                    <LogEntryRow
+                      key={row.key}
+                      rowIndex={row.index}
+                      measureElement={virtualRows.measureElement}
+                      locale={locale}
+                      query={query}
+                      timestampMode={timestampMode}
+                      entry={visibleEntries[row.index]}
+                    />
+                  ))}
+                </div>
+              </Box>
             )}
           </ScrollArea>
         </Box>
@@ -187,17 +224,26 @@ function LogTableHeader({
 
 /** One highlighted log entry with separate time, level, source, and message cells. */
 const LogEntryRow = memo(function LogEntryRow({
+  rowIndex,
+  measureElement,
   locale,
   query,
   timestampMode,
   entry,
 }: Pick<LogTableProps, 'locale' | 'query' | 'timestampMode'> & {
+  /** Position in the complete filtered result, independent of mounted rows. */
+  readonly rowIndex: number;
+  /** Measures multiline row height when content or wrapping changes. */
+  readonly measureElement: (element: HTMLDivElement | null) => void;
   /** entry supplied by the owning composition. */
   readonly entry: LogTableProps['visibleEntries'][number];
 }) {
   return (
     <Box
       className="log-viewer-entry log-viewer-grid-row"
+      ref={measureElement}
+      data-index={rowIndex}
+      aria-rowindex={rowIndex + 2}
       role="row"
     >
       <HighlightedText

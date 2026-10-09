@@ -90,9 +90,11 @@ export function readRequestedGraphicsMode(
   }
   const value = (patch as { readonly graphicsMode?: unknown
   }).graphicsMode;
-  return value === 'native' || value === 'capture' || value === 'software'
-    ? value
-    : undefined;
+  if (!Object.prototype.hasOwnProperty.call(patch, 'graphicsMode')) return undefined;
+  if (value !== 'native' && value !== 'capture' && value !== 'software') {
+    throw new TypeError('A supported graphics mode is required.');
+  }
+  return value;
 }
 
 /** Determines whether the graphics restart confirmed condition applies. */

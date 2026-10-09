@@ -46,6 +46,7 @@ export function installVideoEffect(
   let source = '';
   let dimensions = '';
   let canvas: HTMLCanvasElement | undefined;
+  let appliedLayout = '';
   let engine: Awaited<ReturnType<typeof create>> | undefined;
   let initialization: ReturnType<typeof create> | undefined;
   let controller: AbortController | undefined;
@@ -84,7 +85,7 @@ export function installVideoEffect(
     if (current && seekListener) current.removeEventListener('seeking', seekListener);
     if (current && encryptedListener) current.removeEventListener('encrypted', encryptedListener);
     if (current && ownership.get(current) === id) ownership.delete(current);
-    canvas?.remove(); canvas = undefined;
+    canvas?.remove(); canvas = undefined; appliedLayout = '';
     const old = engine; engine = undefined;
     const starting = initialization; initialization = undefined;
     const pending = inFlight; inFlight = undefined;
@@ -106,8 +107,14 @@ export function installVideoEffect(
     const parent = canvas.parentElement;
     const bounds = parent?.getBoundingClientRect();
     const style = getComputedStyle(current);
-    canvas.style.cssText = `position:absolute;pointer-events:none;left:${box.left - (bounds?.left ?? 0) - (parent?.clientLeft ?? 0) + (parent?.scrollLeft ?? 0)}px;top:${box.top - (bounds?.top ?? 0) - (parent?.clientTop ?? 0) + (parent?.scrollTop ?? 0)}px;width:${box.width}px;height:${box.height}px;object-fit:${style.objectFit};object-position:${style.objectPosition};z-index:${style.zIndex};opacity:${style.opacity};border-radius:${style.borderRadius};`;
-    canvas.hidden = document.hidden || current.seeking || box.width <= 0 || box.height <= 0 || style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none';
+    const nextLayout = `position:absolute;pointer-events:none;left:${box.left - (bounds?.left ?? 0) - (parent?.clientLeft ?? 0) + (parent?.scrollLeft ?? 0)}px;top:${box.top - (bounds?.top ?? 0) - (parent?.clientTop ?? 0) + (parent?.scrollTop ?? 0)}px;width:${box.width}px;height:${box.height}px;object-fit:${style.objectFit};object-position:${style.objectPosition};z-index:${style.zIndex};opacity:${style.opacity};border-radius:${style.borderRadius};`;
+    // Avoid invalidating style/layout on every video and display frame.
+    if (nextLayout !== appliedLayout) {
+      canvas.style.cssText = nextLayout;
+      appliedLayout = nextLayout;
+    }
+    const hidden = document.hidden || current.seeking || box.width <= 0 || box.height <= 0 || style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none';
+    if (canvas.hidden !== hidden) canvas.hidden = hidden;
   };
   /** One asynchronous GPU submission at a time; never accumulate a frame queue. */
   const frame = async (token: number, video: HTMLVideoElement): Promise<void> => {
