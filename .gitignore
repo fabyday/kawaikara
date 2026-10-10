@@ -156,3 +156,6 @@ output_dist/
 packages/builtin-sites/src/Providers/Chzzk/Plugins/Upscaling/Generated/
 .cache/video-effects/
 /resources/generated/
+
+# Project-local test fixtures, generated installers, and native test output
+/tests/tmp/

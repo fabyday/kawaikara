@@ -56,7 +56,7 @@ dependencies and motion boundaries when moving code. File size is a review
 signal, not a splitting target.
 
 Regression checks: `pnpm typecheck`, `pnpm storybook:build`, and
-`node node_modules/electron/cli.js tests/renderer-views.electron.cjs`.
+`node node_modules/electron/cli.js tests/Electron/renderer-views.electron.cjs`.
 Video/library coverage also lives in `locale-and-video-navigation.electron.cjs`
 and `pip-visibility-and-site-transition.electron.cjs`.
 
@@ -67,7 +67,7 @@ function or add wrappers that change layout, refs, animation, or reconciliation.
 A local component does not need its own file and is not automatically shared UI.
 
 App-owned UI copy belongs in root locales/en.json, ko.json and ja.json. Main uses
-Functional/Locale.ts to select the catalog; Renderer receives message props/IPC
+Functional/Localization/Locale.ts to select the catalog; Renderer receives message props/IPC
 and never imports these JSON files. Keep shortcut IDs and default keys separate
 from translated names. External-site recognition text, protocol names, and raw
 diagnostic details are not UI translation dictionaries.

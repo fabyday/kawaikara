@@ -3,7 +3,7 @@ const { execFileSync } = require('node:child_process');
 const base = require('./electron-builder.config.cjs');
 
 if (process.env.KAWAIKARA_UPDATE_TEST_BUILD !== '1' || process.env.KAWAIKARA_BUILD_CHANNEL !== 'nightly') {
-  throw new Error('Use pnpm update:test:build; this configuration is exclusively for isolated Nightly tests.');
+  throw new Error('Use pnpm build:update-test; this configuration is exclusively for isolated Nightly tests.');
 }
 const version = process.env.KAWAIKARA_UPDATE_TEST_VERSION;
 if (!/^\d+\.\d+\.\d+-nightly\.\d+$/.test(version || '')) throw new Error('Invalid test version.');

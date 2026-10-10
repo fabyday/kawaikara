@@ -386,7 +386,7 @@ jobs:
           key: video-effects-v1-${{ runner.os }}-${{ hashFiles('scripts/video-effects-assets.lock.json') }}
       - run: pnpm typecheck
       - name: Test Netflix login and VMP packaging regressions
-        run: node --test tests/external-login.test.cjs tests/widevine-packaging.test.cjs tests/windows-libmpv-cache.test.cjs
+        run: node --test tests/Integration/external-login.test.cjs tests/Packaging/widevine-packaging.test.cjs tests/Packaging/windows-libmpv-cache.test.cjs
       - name: Authenticate Widevine signing
         run: pnpm widevine:auth
         env:

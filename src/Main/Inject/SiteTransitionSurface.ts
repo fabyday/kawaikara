@@ -1,27 +1,29 @@
 import type { AppTheme } from '../../Common/IPC';
 import type { SiteTransitionState } from '../../Common/SiteTransition';
-import type { AppMessages } from '../Functional/RendererMessages';
+import type { AppMessages } from '../Functional/Localization/RendererMessages';
 import { serializePageInjectionWithOptions } from './Serialize';
 
 /** Failure copy needed by the lightweight app-owned viewer backing page. */
-export type SiteTransitionMessages = Pick<AppMessages,
-  'siteTransitionFailed' | 'siteTransitionRecovery'>;
+export type SiteTransitionMessages = Pick<
+    AppMessages,
+    'siteTransitionFailed' | 'siteTransitionRecovery'
+>;
 
 /** Options serialized only into the app-owned document, never a Provider page. */
 interface SiteTransitionSurfaceOptions {
-  /** The current transition, absent when the backing page is idle. */
-  readonly state: SiteTransitionState | undefined;
-  /** Locale-backed failure and recovery copy. */
-  readonly messages: SiteTransitionMessages;
-  /** Resolved application language. */
-  readonly locale: string;
-  /** Selected application theme. */
-  readonly theme: AppTheme;
+    /** The current transition, absent when the backing page is idle. */
+    readonly state: SiteTransitionState | undefined;
+    /** Locale-backed failure and recovery copy. */
+    readonly messages: SiteTransitionMessages;
+    /** Resolved application language. */
+    readonly locale: string;
+    /** Selected application theme. */
+    readonly theme: AppTheme;
 }
 
 /** Creates an idle backing page that shows feedback only after activation fails. */
 export function createSiteTransitionSurfaceHtml(theme: AppTheme): string {
-  return `<!doctype html><html data-theme="${theme}" data-active="false"><head>
+    return `<!doctype html><html data-theme="${theme}" data-active="false"><head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
     <style>
@@ -42,39 +44,47 @@ export function createSiteTransitionSurfaceHtml(theme: AppTheme): string {
 }
 
 /** Applies inert locale/title/error text without replacing or reloading the document. */
-function updateSiteTransitionSurface(options: SiteTransitionSurfaceOptions): void {
-  const root = document.documentElement;
-  const state = options.state;
-  const active = state?.phase === 'failed';
-  root.lang = options.locale;
-  root.dataset.theme = options.theme;
-  root.dataset.active = String(active);
-  root.dataset.phase = state?.phase ?? 'ready';
-  const transition = document.getElementById('transition')!;
-  transition.setAttribute('aria-hidden', String(!active));
-  document.getElementById('site')!.textContent = active ? state.title : '';
-  document.getElementById('title')!.textContent = active ? options.messages.siteTransitionFailed : '';
-  document.getElementById('description')!.textContent = active ? state.error ?? '' : '';
-  const recovery = document.getElementById('recovery')!;
-  recovery.hidden = !active;
-  recovery.textContent = active ? options.messages.siteTransitionRecovery : '';
+function updateSiteTransitionSurface(
+    options: SiteTransitionSurfaceOptions,
+): void {
+    const root = document.documentElement;
+    const state = options.state;
+    const active = state?.phase === 'failed';
+    root.lang = options.locale;
+    root.dataset.theme = options.theme;
+    root.dataset.active = String(active);
+    root.dataset.phase = state?.phase ?? 'ready';
+    const transition = document.getElementById('transition')!;
+    transition.setAttribute('aria-hidden', String(!active));
+    document.getElementById('site')!.textContent = active ? state.title : '';
+    document.getElementById('title')!.textContent = active
+        ? options.messages.siteTransitionFailed
+        : '';
+    document.getElementById('description')!.textContent = active
+        ? (state.error ?? '')
+        : '';
+    const recovery = document.getElementById('recovery')!;
+    recovery.hidden = !active;
+    recovery.textContent = active
+        ? options.messages.siteTransitionRecovery
+        : '';
 }
 
 /** Creates the backing-page update command with a small locale-backed payload. */
 export function createUpdateSiteTransitionSurfaceScript(
-  state: SiteTransitionState | undefined,
-  messages: SiteTransitionMessages,
-  locale: string,
-  theme: AppTheme,
+    state: SiteTransitionState | undefined,
+    messages: SiteTransitionMessages,
+    locale: string,
+    theme: AppTheme,
 ): string {
-  return serializePageInjectionWithOptions(updateSiteTransitionSurface, {
-    /** Current Provider lifecycle. */
-    state,
-    /** Application transition copy only. */
-    messages,
-    /** Resolved application language. */
-    locale,
-    /** Application theme. */
-    theme,
-  });
+    return serializePageInjectionWithOptions(updateSiteTransitionSurface, {
+        /** Current Provider lifecycle. */
+        state,
+        /** Application transition copy only. */
+        messages,
+        /** Resolved application language. */
+        locale,
+        /** Application theme. */
+        theme,
+    });
 }
