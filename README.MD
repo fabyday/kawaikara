@@ -73,8 +73,7 @@ history are isolated, so Stable, Staging, and Nightly can be installed together.
 
 ### For more information, visit Home Page
 
-[![https://kawaikara.faby.day](https://img.shields.io/badge/kawaikara-webpage-blue?style=for-the-badge&labelColor=gray)](./README.MD)
-
+[![](https://img.shields.io/badge/kawaikara-webpage-blue?style=for-the-badge&labelColor=gray)](https://kawaikara.faby.day)
 ### See Also 
 
 #### [KawaiDownloader](https://github.com/fabyday/yt-downloader)
