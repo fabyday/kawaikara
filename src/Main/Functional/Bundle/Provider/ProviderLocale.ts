@@ -3,6 +3,8 @@ import type {
     ProviderLocalizedText,
     ProviderLocaleResource,
     ProviderMetadata,
+    WebExtensionDescriptor,
+    WebExtensionLabel,
 } from '@kawaikara/site-api';
 
 /** Defines the unresolved provider metadata type. */
@@ -72,6 +74,10 @@ export function resolveProviderLocaleDescriptors(
 
     return {
         ...metadata,
+        /** Browser labels are resolved before catalog validation and publication. */
+        webExtension: metadata.webExtension
+            ? resolveWebExtensionLocale(metadata.webExtension, localization, providerId)
+            : undefined,
         /** The menu value. */
         menu: {
             ...metadata.menu,
@@ -158,4 +164,48 @@ function readProviderLocaleText(
     return Object.keys(localized).length > 0
         ? Object.freeze(localized)
         : undefined;
+}
+
+/** Resolves manifest locale references while preserving optional inline label overrides. */
+function resolveWebExtensionLocale(
+    descriptor: WebExtensionDescriptor,
+    localization: ProviderLocaleResource | undefined,
+    providerId: string,
+): WebExtensionDescriptor {
+    /** Resolves one label without mutating the manifest or its locale resource. */
+    const resolveLabel = <T extends WebExtensionLabel>(item: T): T => {
+        const match = /^%([^%]+)%$/.exec(item.title);
+        if (!match) return item;
+        const text = readProviderLocaleText(localization, match[1]);
+        if (!text || typeof text === 'string') {
+            throw new Error(`Provider ${providerId} is missing locale message ${match[1]}.`);
+        }
+        const entries = Object.entries(text);
+        const fallback = entries.find(([locale]) => locale.toLowerCase() === 'en-us')
+            ?? entries.find(([locale]) => locale.toLowerCase().split('-')[0] === 'en')
+            ?? entries[0];
+        return {
+            ...item,
+            /** Plain text replaces the manifest reference in the browser catalog. */
+            title: fallback[1],
+            /** Locale files supply defaults; explicit inline labels remain supported. */
+            translations: { ...text, ...item.translations },
+        };
+    };
+    return {
+        ...descriptor,
+        /** Localized action summaries for permission and feature lists. */
+        actionDefinitions: Object.fromEntries(Object.entries(descriptor.actionDefinitions)
+            .map(([id, action]) => [id, resolveLabel(action)])),
+        /** Localized Provider browser settings. */
+        settings: descriptor.settings?.map(resolveLabel),
+        /** Localized native browser context menus. */
+        contextMenus: descriptor.contextMenus?.map(resolveLabel),
+        /** Localized page controls interpreted by the adapter. */
+        domActions: descriptor.domActions?.map((menu) => ({
+            ...menu,
+            /** Each DOM entry keeps its own stable locale reference. */
+            items: menu.items.map(resolveLabel),
+        })),
+    };
 }

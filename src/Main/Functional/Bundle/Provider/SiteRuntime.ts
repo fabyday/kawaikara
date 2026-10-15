@@ -1,5 +1,7 @@
 import {
     getPluginMetadata,
+    validateWebExtensionDescriptor,
+    validateWebExtensionProviders,
     type BundleDefinition,
     type PluginConstructor,
     type PluginViewPanelDescriptor,
@@ -84,11 +86,26 @@ export type SiteContextFactory = (
 ) => Promise<SiteContext>;
 
 /** Defines the shared descriptor ID pattern constant. */
-const CONTRIBUTION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
+const DESCRIPTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 
 /** Validates the provider descriptors. */
 export function validateProviderDescriptors(metadata: ProviderMetadata): void {
     validateFileDropDescriptor(metadata);
+    if (metadata.webExtension) {
+        if (!metadata.permissions?.includes('web-extension'))
+            throw new Error(
+                'Browser descriptors require web-extension permission.',
+            );
+        validateWebExtensionDescriptor(metadata.webExtension);
+        validateWebExtensionProviders([
+            {
+                ...metadata.webExtension,
+                id: metadata.id,
+                title: metadata.title,
+                domains: metadata.address?.hosts ?? [],
+            },
+        ]);
+    }
     if (
         !metadata.menu ||
         typeof metadata.menu.category !== 'string' ||
@@ -525,7 +542,7 @@ function requireSettingType(
 
 /** Performs the require descriptor ID operation. */
 function requireDescriptorId(value: string, label: string): void {
-    if (typeof value !== 'string' || !CONTRIBUTION_ID_PATTERN.test(value)) {
+    if (typeof value !== 'string' || !DESCRIPTOR_ID_PATTERN.test(value)) {
         throw new Error(`${label} has invalid id ${value}.`);
     }
 }

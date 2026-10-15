@@ -1,3 +1,4 @@
+import { WebExtensionControl } from './WebExtensionControl';
 import {
   Panel,
   Stack,
@@ -41,9 +42,10 @@ export function AdvancedTab({
 }) {
   return (
     <Stack gap="lg">
+      <WebExtensionControl messages={messages.webExtension} />
       {dataLocation && onSavePreferences ? <AppDataLocationControl location={dataLocation} messages={messages.appDataLocation}
         locale={preferences.appLocale} saving={saving} onSavePreferences={onSavePreferences} /> : null}
-      <section>
+      <Panel padding="md" radius="md" style={{ border: '1px solid var(--kawai-color-border, #ffffff25)' }}>
         <Text className="preference-section-title" weight="semibold">
           {messages.kawaiShortcut}
         </Text>
@@ -83,7 +85,7 @@ export function AdvancedTab({
             </Stack>
           </Panel>
         </Stack>
-      </section>
+      </Panel>
     </Stack>
   );
 }

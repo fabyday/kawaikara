@@ -64,7 +64,7 @@ export function withPluginSettings(
                 title: activation.title,
                 /** Explain reload behavior before the user saves. */
                 description: activation.description,
-                /** All controls are contributed by this Plugin. */
+                /** All controls are declared by this Plugin. */
                 settings: [activation, ...(plugin.settings ?? [])],
             };
         });

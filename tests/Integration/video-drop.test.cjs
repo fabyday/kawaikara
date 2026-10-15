@@ -416,7 +416,7 @@ test('Video manifest is the sole built-in route and Bundle rollback removes it',
     );
     assert.deepEqual(
         builtinBundle.providers
-            .filter((item) => item.manifest.contributes.fileDrop)
+            .filter((item) => item.manifest.descriptors.fileDrop)
             .map((item) => item.manifest.id),
         ['kawaikara.video'],
     );
@@ -444,10 +444,10 @@ test('failed Bundle staging leaves no partial drop registrations', () => {
                       ...item,
                       manifest: {
                           ...item.manifest,
-                          contributes: {
-                              ...item.manifest.contributes,
+                          descriptors: {
+                              ...item.manifest.descriptors,
                               fileDrop: {
-                                  ...item.manifest.contributes.fileDrop,
+                                  ...item.manifest.descriptors.fileDrop,
                                   scope: 'invalid',
                               },
                           },

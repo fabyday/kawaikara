@@ -2,7 +2,7 @@ import type {
     ApplicationLinkId,
     DeveloperYouTubeStatus,
 } from '../../Common/IPC';
-import { openInDefaultBrowser } from '../Platform/External/DefaultBrowser';
+import { openInDefaultBrowser } from '../Platform/DefaultBrowser';
 import {
     isYouTubeLivePage,
     type CachedDeveloperYouTubeStatus,

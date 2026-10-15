@@ -147,6 +147,7 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
           <Flex gap="xs">
             {onToggleDetached ? (
               <Button
+                className="log-viewer-window-button"
                 aria-label={detached ? messages.attach : messages.detach}
                 size="icon"
                 title={detached ? messages.attach : messages.detach}
@@ -158,6 +159,7 @@ export function LogViewer({ messages, locale, onClose, detached = false, onToggl
               </Button>
             ) : null}
             <Button
+              className="log-viewer-window-button"
               aria-label={messages.close}
               size="icon"
               title={messages.close}

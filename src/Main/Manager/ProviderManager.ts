@@ -1,3 +1,4 @@
+import type { WebExtensionProvider } from '@kawaikara/site-api';
 import {
     getPluginMetadata,
     SHORT_FORM_PUBLISHER_CAPABILITY,
@@ -242,6 +243,7 @@ export class ProviderManager {
             providerCount: stagedProviders.length,
             pluginCount: stagedPlugins.length,
         });
+        this.notifyWebExtensionChanges();
     }
 
     /** Removes staged registrations after an install failure or safe unload. */
@@ -270,6 +272,7 @@ export class ProviderManager {
                 ]),
             });
         }
+        this.notifyWebExtensionChanges();
     }
 
     /**
@@ -308,6 +311,67 @@ export class ProviderManager {
                 activeUrl,
             };
         });
+    }
+
+    /** Observers see committed registration changes, including temporary removal during replacement. */
+    private readonly webExtensionListeners = new Set<() => void>();
+    /** Subscribes the external catalog without activating a Provider instance. */
+    subscribeWebExtensions(listener: () => void): () => void {
+        this.webExtensionListeners.add(listener);
+        return () => {
+            this.webExtensionListeners.delete(listener);
+        };
+    }
+
+    /** Replacement temporarily unregisters Providers; permission scopes are reconciled at commit. */
+    private webExtensionUpdateDepth = 0;
+    /** Defers grant pruning across a transactional Bundle replacement or its rollback. */
+    beginWebExtensionUpdate(): () => void {
+        this.webExtensionUpdateDepth++;
+        let finished = false;
+        return () => {
+            if (finished) return;
+            finished = true;
+            this.webExtensionUpdateDepth--;
+            this.notifyWebExtensionChanges();
+        };
+    }
+    /** Announces only the settled registry, preserving consent for selector-only updates. */
+    private notifyWebExtensionChanges(): void {
+        if (this.webExtensionUpdateDepth) return;
+        for (const listener of this.webExtensionListeners) listener();
+    }
+
+    /** Publishes static declarations from every registered Provider, including inactive ones. */
+    listWebExtensionProviders(): WebExtensionProvider[] {
+        return [...this.sites.values()]
+            .flatMap(({ metadata }) =>
+                metadata.webExtension
+                    ? [
+                          {
+                              ...metadata.webExtension,
+                              id: metadata.id,
+                              title: metadata.title,
+                              ...(/^(https:\/\/|data:image\/)/i.test(metadata.menu.icon ?? "") ? { icon: metadata.menu.icon } : {}),
+                              domains: [...(metadata.address?.hosts ?? [])],
+                          },
+                      ]
+                    : [],
+            )
+            .sort((a, b) => a.id.localeCompare(b.id));
+    }
+
+    /** Routes only a declared custom browser action to its registered desktop Provider. */
+    async handleWebExtensionAction(
+        providerId: string,
+        request: import('@kawaikara/site-api').WebExtensionInvocation,
+    ): Promise<import('@kawaikara/site-api').WebExtensionResult | void> {
+        const registration = this.sites.get(providerId);
+        if (registration?.metadata.webExtension?.actionDefinitions[request.action]?.handler !== 'provider'
+            || !registration.constructor.onWebExtensionAction) {
+            throw new Error('Provider browser action is unavailable.');
+        }
+        return registration.constructor.onWebExtensionAction(request);
     }
 
     /** Lists the menu items. */
@@ -1021,11 +1085,12 @@ export class ProviderManager {
                 );
             }
         }
-        const descriptors = manifest.contributes;
+        const descriptors = manifest.descriptors;
         const unresolvedMetadata = {
             ...metadata,
             ...descriptors,
             fileDrop: descriptors.fileDrop,
+            webExtension: descriptors.webExtension,
             id: manifest.id,
             title: manifest.name,
             description: manifest.description,

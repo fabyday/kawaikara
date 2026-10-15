@@ -10,6 +10,3 @@ export interface ProviderFileDropDescriptor {
     /** App-owned Video handoff; additional payloads/actions are not implemented yet. */
     readonly action: 'open-local-video';
 }
-
-/** @deprecated Use ProviderFileDropDescriptor. */
-export type ProviderFileDropContribution = ProviderFileDropDescriptor;

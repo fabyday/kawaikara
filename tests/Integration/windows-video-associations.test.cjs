@@ -95,7 +95,7 @@ test('default app settings target this installed channel in the registered scope
         const opened = [],
             queries = [];
         const settings = load(
-            'src/Main/Platform/External/DefaultVideoApp.ts',
+            'src/Main/Platform/DefaultVideoApp.ts',
             {
                 electron: {
                     app: {
@@ -143,7 +143,7 @@ test('default app settings target this installed channel in the registered scope
         ['win32', true, {}],
     ]) {
         const settings = load(
-            'src/Main/Platform/External/DefaultVideoApp.ts',
+            'src/Main/Platform/DefaultVideoApp.ts',
             {
                 electron: {
                     app: { isPackaged: packaged },

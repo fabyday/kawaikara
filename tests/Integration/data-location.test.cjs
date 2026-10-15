@@ -99,7 +99,7 @@ test('new auto-advance default avoids built-in provider navigation shortcuts; cu
         if (!existsSync(file)) continue;
         const manifest = JSON.parse(readFileSync(file, 'utf8'));
         assert.notEqual(
-            manifest.contributes?.shortcut?.defaultKey?.replace(
+            manifest.descriptors?.shortcut?.defaultKey?.replace(
                 'Control',
                 'CommandOrControl',
             ),

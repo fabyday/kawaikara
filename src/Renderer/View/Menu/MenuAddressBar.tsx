@@ -156,8 +156,16 @@ export function MenuAddressBar({
             }
           }}
         />
+        <p className={`menu-address-help${addressError ? ' is-error' : ''}`}>
+          {addressError
+            ? messages.unsupportedAddress
+            : addressCopied
+              ? messages.addressCopied
+              : addressHelp}
+        </p>
         <button
           aria-label={messages.addressGo}
+          className="menu-address-go"
           disabled={addressLoading || !address.trim()}
           title={messages.addressGo}
           type="submit"
@@ -166,7 +174,7 @@ export function MenuAddressBar({
         </button>
         <button
           aria-label={messages.copyAddress}
-          className={addressCopied ? 'is-copied' : undefined}
+          className={`menu-address-copy${addressCopied ? ' is-copied' : ''}`}
           disabled={!address.trim()}
           title={messages.copyAddress}
           type="button"
@@ -175,13 +183,6 @@ export function MenuAddressBar({
           {addressCopied ? <CheckIcon /> : <CopyIcon />}
         </button>
       </form>
-      <p className={addressError ? 'is-error' : ''}>
-        {addressError
-          ? messages.unsupportedAddress
-          : addressCopied
-            ? messages.addressCopied
-            : addressHelp}
-      </p>
       {addressSuggestionsVisible ? (
         <AddressSuggestions
           messages={messages}

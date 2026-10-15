@@ -1,4 +1,14 @@
 import {
+    APP_WINDOW_SIZE_LIMITS,
+    DEFAULT_APP_WINDOW,
+    resolveAppWindowBounds,
+    resolveAppWindowDisplay,
+    fitAppWindowPreference,
+    validateAppWindow,
+    type AppWindowPreference,
+    type AppWindowLastPosition,
+} from '../../Common/AppWindow';
+import {
     hasNativeVideoBackend,
     shouldPrewarmVideoSurface,
 } from '../Platform/Graphics';
@@ -11,7 +21,7 @@ import {
     restorePictureInPicturePresentation,
     getPictureInPictureReassertionDelays,
     applyViewerAlwaysOnTop,
-} from '../Platform/Window/Presentation';
+} from '../Platform/Presentation';
 import { getLocaleMessages } from '../Functional/Localization/Locale';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
@@ -94,7 +104,7 @@ import {
     trackPictureInPictureVisibility,
     type PictureInPictureVisibilityTracker,
 } from '../Functional/Window/PictureInPicture/PictureInPictureVisibility';
-import { openInDefaultBrowser } from '../Platform/External/DefaultBrowser';
+import { openInDefaultBrowser } from '../Platform/DefaultBrowser';
 import { createSitePagePipeline } from '../Functional/Bundle/Provider/SitePagePipeline';
 import { createVideoEffectsHost } from '../Functional/Video/VideoEffectsHost';
 import type {
@@ -103,7 +113,7 @@ import type {
 } from '../Functional/Window/WindowRuntime';
 import { createRemoteThemeBridgeInjectionScript } from '../Inject/RemoteTheme';
 import type { LoggingManager } from './LoggingManager';
-import { createExternalFullscreenMonitor } from '../Platform/Window/ExternalFullscreenMonitor';
+import { createExternalFullscreenMonitor } from '../Platform/ExternalFullscreenMonitor';
 import {
     captureInternalVideoPictureInPicturePlacement,
     createSiteCookieStore,
@@ -181,6 +191,7 @@ const REMOTE_SCROLLBAR_CSS = `
 export class WindowManager {
     /** Dedicated host lifecycle, independent of Provider and overlay renderers. */
     private readonly logViewer = new DetachableWindowSurface({
+        retainOnClose: true,
         parent: () => this.viewerWindow!,
         focusUnderlying: () => this.focusUnderlyingLogViewer(),
         preload: path.resolve(__dirname, '../preload/preload.js'),
@@ -204,6 +215,7 @@ export class WindowManager {
         return {
             /** Whether the retained view currently belongs to a separate window. */
             detached,
+            visible: this.logViewer.isVisible(),
             /** Current application theme, including preference previews. */
             theme: this.appTheme,
             /** Current application locale, including preference previews. */
@@ -461,6 +473,103 @@ export class WindowManager {
         );
     }
 
+    /** Startup policy is configured before the native window is created. */
+    private appWindowPreference: AppWindowPreference = DEFAULT_APP_WINDOW;
+    /** Last normal position loaded from preferences. */
+    private appWindowLastPosition?: AppWindowLastPosition;
+    /** Persists the normal app position before native teardown. */
+    private appWindowPositionRecorder?: (
+        position: AppWindowLastPosition,
+    ) => Promise<void>;
+
+    /** Configures next-start placement without changing the live app window. */
+    configureStartupWindow(
+        preference: AppWindowPreference,
+        lastPosition: AppWindowLastPosition | undefined,
+        recorder: (position: AppWindowLastPosition) => Promise<void>,
+    ): void {
+        this.appWindowPreference = preference;
+        this.appWindowLastPosition = lastPosition;
+        this.appWindowPositionRecorder = recorder;
+    }
+
+    /** Uses saved placement for a new monitor policy and live placement for size-only edits. */
+    private appWindowPlacementForSave(preference: AppWindowPreference): AppWindowLastPosition | undefined {
+        if (preference.monitor !== this.appWindowPreference.monitor || preference.displayId !== this.appWindowPreference.displayId)
+            return this.appWindowLastPosition;
+        const viewer = this.viewerWindow;
+        if (!viewer || viewer.isDestroyed()) return this.appWindowLastPosition;
+        const bounds = viewer.getNormalBounds();
+        return {
+            /** Current normal-window display. */
+            displayId: String(screen.getDisplayMatching(bounds).id),
+            /** Current horizontal placement. */
+            x: bounds.x,
+            /** Current vertical placement. */
+            y: bounds.y,
+        };
+    }
+
+    /** Validates preferences against the current OS monitor work area at save time. */
+    normalizeAppWindowPreference(preference: AppWindowPreference): AppWindowPreference {
+        const value = validateAppWindow(preference);
+        const target = resolveAppWindowDisplay(value, this.appWindowPlacementForSave(value),
+            screen.getAllDisplays(), screen.getPrimaryDisplay());
+        return fitAppWindowPreference(value, target);
+    }
+
+    /** Applies explicit size/monitor changes immediately; memory-only changes keep the live size. */
+    async applyAppWindowPreference(preference: AppWindowPreference): Promise<void> {
+        const previous = this.appWindowPreference;
+        const position = this.appWindowPlacementForSave(preference);
+        this.appWindowPreference = preference;
+        if (previous.preset === preference.preset && previous.monitor === preference.monitor &&
+            previous.displayId === preference.displayId &&
+            (preference.preset !== 'custom' || (previous.width === preference.width && previous.height === preference.height))) return;
+        const viewer = this.viewerWindow;
+        if (!viewer || viewer.isDestroyed()) return;
+        const bounds = resolveAppWindowBounds({ ...preference, rememberSize: false }, position,
+            screen.getAllDisplays(), screen.getPrimaryDisplay());
+        if (viewer.isFullScreen()) {
+            await new Promise<void>(resolve => {
+                /** Finish on exit or teardown without retaining a listener. */
+                const finish = () => {
+                    viewer.removeListener('leave-full-screen', finish);
+                    viewer.removeListener('closed', finish);
+                    resolve();
+                };
+                viewer.once('leave-full-screen', finish);
+                viewer.once('closed', finish);
+                viewer.setFullScreen(false);
+            });
+        }
+        if (viewer.isDestroyed()) return;
+        if (viewer.isMaximized()) viewer.unmaximize();
+        viewer.setBounds(bounds);
+    }
+
+    /** Records normal bounds even when the viewer is maximized or fullscreen. */
+    private async recordAppWindowPosition(): Promise<void> {
+        const viewer = this.viewerWindow;
+        if (!viewer || viewer.isDestroyed() || !this.appWindowPositionRecorder)
+            return;
+        try {
+            const normal = viewer.getNormalBounds();
+            const display = screen.getDisplayMatching(viewer.getBounds());
+            const area = display.workArea;
+            const fillsWorkArea = viewer.isMaximized() || viewer.isFullScreen() ||
+                (Math.abs(normal.width - area.width) <= 2 && Math.abs(normal.height - area.height) <= 2);
+            const bounds = fillsWorkArea ? area : normal;
+            await this.appWindowPositionRecorder({
+                displayId: String(display.id),
+                x: bounds.x, y: bounds.y,
+                width: bounds.width, height: bounds.height, fillsWorkArea,
+            });
+        } catch (error) {
+            this.logger.warn('The app window position could not be saved.', error);
+        }
+    }
+
     /** Creates the Windows. */
     createWindows(): void {
         if (this.viewerWindow) {
@@ -468,10 +577,14 @@ export class WindowManager {
         }
 
         const viewerWindow = new BrowserWindow({
-            width: 1280,
-            height: 800,
-            minWidth: 720,
-            minHeight: 480,
+            ...resolveAppWindowBounds(
+                this.appWindowPreference,
+                this.appWindowLastPosition,
+                screen.getAllDisplays(),
+                screen.getPrimaryDisplay(),
+            ),
+            minWidth: APP_WINDOW_SIZE_LIMITS.minWidth,
+            minHeight: APP_WINDOW_SIZE_LIMITS.minHeight,
             title: this.appTitle,
             backgroundColor: this.getViewerSurfaceColor(),
             autoHideMenuBar: true,
@@ -813,6 +926,7 @@ export class WindowManager {
     /** Releases the operation. */
     async dispose(): Promise<void> {
         this.disposing = true;
+        await this.recordAppWindowPosition();
         this.logViewer.dispose();
         this.stopExternalFullscreenMonitoring();
         this.clearVideoRendererInitializationWatchdog();
@@ -1313,6 +1427,7 @@ export class WindowManager {
         viewer: BrowserWindow,
     ): Promise<void> {
         this.disposing = true;
+        await this.recordAppWindowPosition();
         try {
             // The title-bar close button means application shutdown on every
             // platform. Close both PiP modes first so their native windows cannot
@@ -1606,6 +1721,7 @@ export class WindowManager {
                 `${getLocaleMessages(this.appLocale, this.systemLocale).app.pipMonitorDisplay} ${String(index + 1)}`,
             width: display.size.width,
             height: display.size.height,
+            workArea: { ...display.workArea },
             scaleFactor: display.scaleFactor,
             primary: String(display.id) === primaryDisplayId,
             current: String(display.id) === currentDisplayId,
@@ -2281,6 +2397,8 @@ export class WindowManager {
 
     /** Performs the show preferences overlay operation. */
     showPreferencesOverlay(): void {
+        // Prepare only the shell while settings are open; log polling starts on presentation.
+        void this.logViewer.prepare().catch(() => undefined);
         const overlay = this.requireOverlaySurface();
         this.overlayView = 'preference';
         this.overlayVisible = true;

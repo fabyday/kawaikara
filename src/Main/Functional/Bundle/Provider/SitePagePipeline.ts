@@ -173,12 +173,26 @@ export function createSitePagePipeline(
                 on(phase, () => run(injection.id)),
             );
             if (injection.runImmediately) void run(injection.id);
-            return {
+            const registration: Disposable = {
                 dispose: () => {
+                    if (!disposables.delete(registration)) return;
                     injections.delete(injection.id);
                     hooks.forEach((hook) => hook.dispose());
+                    // Teardown belongs to the host: Plugin authority is already
+                    // revoked, so it must not use the activation AbortSignal.
+                    if (!injection.cleanup || webContents.isDestroyed()) return;
+                    const frames = injection.frames === 'all'
+                        ? webContents.mainFrame.framesInSubtree.filter(frame => !frame.isDestroyed())
+                        : [webContents];
+                    for (const frame of frames) {
+                        void frame.executeJavaScript(injection.cleanup).catch(error => {
+                            logger.warn(`Site page cleanup failed: ${injection.id}`, error);
+                        });
+                    }
                 },
             };
+            disposables.add(registration);
+            return registration;
         },
         /** The refresh value. */
         refresh: run,

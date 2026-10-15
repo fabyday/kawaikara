@@ -70,6 +70,19 @@ export function usePreferenceInitialization({
       });
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    /** Refresh OS work areas while this view remains open, including display hot-plug. */
+    const refreshDisplays = () => {
+      void window.kawaikara.application.listDisplays().then(next => {
+        if (active) setDisplays(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+      }).catch(() => undefined);
+    };
+    window.addEventListener('focus', refreshDisplays);
+    const timer = setInterval(refreshDisplays, 5000);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refreshDisplays); };
+  }, []);
+
   useEffect(
     () => window.kawaikara.development.onStateChanged(setDevelopmentState),
     [],

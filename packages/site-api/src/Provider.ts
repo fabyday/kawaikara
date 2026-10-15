@@ -1,3 +1,4 @@
+import type { WebExtensionDescriptor, WebExtensionInvocation, WebExtensionResult } from './WebExtension';
 import { DisposableStore } from './Disposable';
 import type { ProviderFileDropDescriptor } from './DragDrop';
 import type {
@@ -23,7 +24,8 @@ export type SitePermission =
     | 'script-injection'
     | 'cookies'
     | 'network-interception'
-    | 'external-browser';
+    | 'external-browser'
+    | 'web-extension';
 
 /** Describes the site menu descriptor contract. */
 export interface SiteMenuDescriptor {
@@ -56,7 +58,7 @@ export type PluginViewPanelContent =
 
 /** Describes the plugin view panel descriptor contract. */
 export interface PluginViewPanelDescriptor {
-    /** Stable id scoped to the contributing Provider or Plugin. */
+    /** Stable id scoped to the owning Provider or Plugin. */
     readonly id: string;
     /** Display title. Duplicate titles are allowed because selection uses the scoped id. */
     readonly title: ProviderLocalizedText;
@@ -233,6 +235,8 @@ export interface SiteAddressDescriptor {
 
 /** Describes the provider metadata contract. */
 export interface ProviderMetadata {
+    /** Manifest-owned browser descriptors, separate from in-app script injection. */
+    readonly webExtension?: WebExtensionDescriptor;
     /** Manifest-owned OS file-drop registration, available before activation. */
     readonly fileDrop?: ProviderFileDropDescriptor;
     /** The ID value. */
@@ -279,6 +283,7 @@ export type ProviderDecoratorMetadata = Partial<
         | 'shortcut'
         | 'settings'
         | 'fileDrop'
+        | 'webExtension'
     >
 > & {
     /** The menu value. */
@@ -499,51 +504,9 @@ function isNavigationAborted(error: unknown): boolean {
 }
 
 /** Defines the provider function Object() { [native code] } type. */
-export type ProviderConstructor = new (
-    context: SiteContext,
-) => AbstractProvider;
-
-/** @deprecated Use SiteMenuDescriptor. */
-export type SiteMenuContribution = SiteMenuDescriptor;
-
-/** @deprecated Use PluginViewPanelDescriptor. */
-export type PluginViewPanelContribution = PluginViewPanelDescriptor;
-
-/** @deprecated Use SiteShortcutDescriptor. */
-export type SiteShortcutContribution = SiteShortcutDescriptor;
-
-/** @deprecated Use SiteActionShortcutDescriptor. */
-export type SiteActionShortcutContribution = SiteActionShortcutDescriptor;
-
-/** @deprecated Use ProviderBooleanSettingDescriptor. */
-export type ProviderBooleanSettingContribution =
-    ProviderBooleanSettingDescriptor;
-
-/** @deprecated Use ProviderItemListSettingDescriptor. */
-export type ProviderItemListSettingContribution =
-    ProviderItemListSettingDescriptor;
-
-/** @deprecated Use ProviderSelectSettingDescriptor. */
-export type ProviderSelectSettingContribution = ProviderSelectSettingDescriptor;
-
-/** @deprecated Use ProviderSettingDescriptor. */
-export type ProviderSettingContribution = ProviderSettingDescriptor;
-
-/** @deprecated Use ProviderSettingCategoryDescriptor. */
-export type ProviderSettingCategoryContribution =
-    ProviderSettingCategoryDescriptor;
-
-/** @deprecated Use ProviderSettingsDescriptor. */
-export type ProviderSettingsContribution = ProviderSettingsDescriptor;
-
-/** @deprecated Use SiteLocaleDescriptor. */
-export type SiteLocaleContribution = SiteLocaleDescriptor;
-
-/** @deprecated Use SiteIsolationDescriptor. */
-export type SiteIsolationContribution = SiteIsolationDescriptor;
-
-/** @deprecated Use SitePictureInPictureDescriptor. */
-export type SitePictureInPictureContribution = SitePictureInPictureDescriptor;
-
-/** @deprecated Use SiteAddressDescriptor. */
-export type SiteAddressContribution = SiteAddressDescriptor;
+export type ProviderConstructor = {
+    /** Creates the viewer instance only when Kawaikara opens the Provider. */
+    new (context: SiteContext): AbstractProvider;
+    /** Optional desktop handler for browser actions, callable without loading a viewer. */
+    onWebExtensionAction?(request: WebExtensionInvocation): Promise<WebExtensionResult | void>;
+};

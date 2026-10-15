@@ -1,19 +1,12 @@
+import type { AppUpdater, VerifyUpdateCodeSignature } from 'electron-updater';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
-import type { AppUpdater, VerifyUpdateCodeSignature } from 'electron-updater';
+import type { UpdateLogger } from '../UpdateLogger';
 
 /** Describes the Windows updater surface that exposes signature verification. */
 export interface WindowsSignatureUpdater {
     /** Verifies a downloaded NSIS installer before it can be executed. */
     verifyUpdateCodeSignature?: VerifyUpdateCodeSignature;
-}
-
-/** Describes the logging surface used by Windows update verification. */
-export interface WindowsUpdateSignatureLogger {
-    /** Records an accepted certificate-continuity fallback. */
-    info(message: string, detail?: unknown): void;
-    /** Records a fallback inspection failure while retaining the default rejection. */
-    warn(message: string, detail?: unknown): void;
 }
 
 /** Describes one Authenticode identity returned by PowerShell. */
@@ -83,7 +76,7 @@ function Read-KawaikaraSignature([string]$Path) {
 export function configureWindowsUpdateSignatureVerification(
     updater: AppUpdater,
     currentExecutablePath: string,
-    logger: WindowsUpdateSignatureLogger,
+    logger: UpdateLogger,
 ): void {
     const windowsUpdater = updater as AppUpdater & WindowsSignatureUpdater;
     const defaultVerifier = windowsUpdater.verifyUpdateCodeSignature;
@@ -100,7 +93,7 @@ export function configureWindowsUpdateSignatureVerification(
 export function createWindowsUpdateSignatureVerifier(
     defaultVerifier: VerifyUpdateCodeSignature,
     currentExecutablePath: string,
-    logger: WindowsUpdateSignatureLogger,
+    logger: UpdateLogger,
     inspect: WindowsSignatureInspector = inspectWindowsUpdateSignatures,
 ): VerifyUpdateCodeSignature {
     return async (publisherNames, updateInstallerPath) => {

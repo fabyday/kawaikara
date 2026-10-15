@@ -1,3 +1,4 @@
+import { DEFAULT_APP_WINDOW } from '../../src/Common/AppWindow';
 import type {
     ApplicationUpdatePanelState,
     KawaikaraRendererApi,
@@ -280,6 +281,8 @@ const DEFAULT_PREFERENCES: PreferenceState = {
     pictureInPicturePlacement: DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
     /** The picture in picture portrait size value. */
     pictureInPicturePortraitSize: DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
+    /** Startup app window policy. */
+    appWindow: DEFAULT_APP_WINDOW,
     /** The picture in picture size value. */
     pictureInPictureSize: DEFAULT_PICTURE_IN_PICTURE_SIZE,
     /** Common PiP caption multiplier. */
@@ -557,6 +560,8 @@ export function installKawaikaraMock(
             onRequestClose: () => () => undefined,
         },
         application: {
+            /** Browser pairing does not access the OS clipboard in Storybook. */
+            webExtensionConnection: async () => ({connected: false, useDevelopment: true, client: ''}),
             openDefaultVideoAppSettings: async () => undefined,
             getInfo: async () => ({
                 name: 'Kawaikara',

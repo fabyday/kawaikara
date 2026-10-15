@@ -40,6 +40,11 @@ export class PreferenceManager {
     get(): PreferenceState {
         return {
             ...this.state,
+            /** Return independent editable startup settings. */
+            appWindow: { ...this.state.appWindow },
+            /** Keep the saved closing position private from callers. */
+            appWindowLastPosition: this.state.appWindowLastPosition
+                ? { ...this.state.appWindowLastPosition } : undefined,
             /** The picture in picture placement value. */
             pictureInPicturePlacement: {
                 ...this.state.pictureInPicturePlacement,

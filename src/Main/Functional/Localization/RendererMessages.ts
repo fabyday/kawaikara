@@ -4,6 +4,12 @@ import { getLocaleMessages, resolveAppLocale } from './Locale';
 
 /** Describes the app messages contract. */
 export interface AppMessages {
+    /** Shared app-information panel trigger. */
+    readonly appInfoDetails: string;
+    /** Provider browser integration setup and consent. */
+    readonly webExtension: typeof en.app.webExtension;
+    /** Startup app window controls. */
+    readonly appWindow: typeof en.app.appWindow;
     /** OS-owned default video app configuration control. */
     readonly defaultVideoApp: typeof en.app.defaultVideoApp;
     /** Windows data-location control and native confirmation copy. */

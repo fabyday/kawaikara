@@ -1,3 +1,4 @@
+import type { AppWindowPreference, AppWindowLastPosition, AppWindowDisplay } from './AppWindow';
 import type {
     ExternalDownloaderInstallResult,
     ExternalDownloaderOpenResult,
@@ -72,6 +73,8 @@ export const IPC_CHANNELS = defineIpcChannels({
     },
     /** The application value. */
     application: {
+        /** Manages the explicitly paired browser connection from trusted settings. */
+        webExtensionConnection: 'kawaikara:application:web-extension-connection',
         /** Opens Windows' user-controlled default video application settings. */
         openDefaultVideoAppSettings:
             'kawaikara:application:default-video-app-settings',
@@ -639,6 +642,8 @@ export interface ApplicationDataLocation {
 
 /** Main-resolved application information. */
 export interface ApplicationInfo {
+    /** Current session metadata shared with the diagnostic viewer. */
+    readonly metadata?: ApplicationLogMetadata;
     /** Absent on other OSes; false for unpackaged Windows runs. */
     readonly canConfigureDefaultVideoApp?: boolean;
     /** Omitted entirely on macOS and other unsupported platforms. */
@@ -673,6 +678,8 @@ export interface DisplayInfo {
     readonly width: number;
     /** The height value. */
     readonly height: number;
+    /** OS usable bounds in logical pixels, excluding dock and taskbar. */
+    readonly workArea?: AppWindowDisplay['workArea'];
     /** The scale factor value. */
     readonly scaleFactor: number;
     /** Whether the primary option is enabled. */
@@ -801,6 +808,10 @@ export type ProviderSettingRecord = Readonly<
 
 /** Describes the preference state contract. */
 export interface PreferenceState {
+    /** Startup app size and monitor selection. */
+    readonly appWindow: AppWindowPreference;
+    /** Last normal app position, recorded on shutdown. */
+    readonly appWindowLastPosition?: AppWindowLastPosition;
     /** Whether the always on top option is enabled. */
     readonly alwaysOnTop: boolean;
     /** Enables two-step category and site numeric navigation in the menu. */
@@ -1300,6 +1311,8 @@ export interface KawaikaraRendererApi {
     };
     /** The application value. */
     application: {
+        /** Copies an expiring setup code or revokes the current browser connection. */
+        webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{ browsers?: {id: 'chrome' | 'firefox'; name: string}[]; connections?: {id:string; client:string; extension?: {version:string; development:boolean; browser:string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string;}}[]; approval?: {id: string; detail: string}; connected: boolean; useDevelopment: boolean; client: string; extension?: { version: string; development: boolean; browser: string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string; } }>;
         /** Main chooses a fixed OS settings URI for the installed channel. */
         openDefaultVideoAppSettings(locale: AppLocale): Promise<void>;
         /** Returns the info. */

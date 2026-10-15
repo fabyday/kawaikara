@@ -1,3 +1,4 @@
+import { AppWindowSettings } from '../AppWindowSettings';
 import {
   Button,
   Select,
@@ -111,6 +112,14 @@ export function GeneralTab({
         saving={saving}
         sites={sites}
         onEditMenuOrder={onEditMenuOrder}
+      />
+
+      <AppWindowSettings
+        displays={displays}
+        messages={messages}
+        preferences={preferences}
+        saving={saving}
+        onUpdate={onUpdate}
       />
 
       <PictureInPictureSettings
@@ -474,15 +483,6 @@ function ViewerSettings({
       </Text>
       <Stack gap="md">
         <Switch
-          checked={preferences.alwaysOnTop}
-          disabled={saving}
-          label={messages.alwaysOnTop}
-          description={messages.alwaysOnTopDescription}
-          onCheckedChange={(alwaysOnTop) => onUpdate({
-            alwaysOnTop
-          })}
-        />
-        <Switch
           checked={preferences.openMenuOnStartup}
           disabled={saving}
           label={messages.openMenuOnStartup}
@@ -490,28 +490,6 @@ function ViewerSettings({
           onCheckedChange={(openMenuOnStartup) =>
             onUpdate({
               openMenuOnStartup
-            })
-          }
-        />
-        <Switch
-          checked={preferences.closeMenuOnEscape}
-          disabled={saving}
-          label={messages.closeMenuOnEscape}
-          description={messages.closeMenuOnEscapeDescription}
-          onCheckedChange={(closeMenuOnEscape) =>
-            onUpdate({
-              closeMenuOnEscape
-            })
-          }
-        />
-        <Switch
-          checked={preferences.closeMenuOnOutsideClick}
-          disabled={saving}
-          label={messages.closeMenuOnOutsideClick}
-          description={messages.closeMenuOnOutsideClickDescription}
-          onCheckedChange={(closeMenuOnOutsideClick) =>
-            onUpdate({
-              closeMenuOnOutsideClick
             })
           }
         />

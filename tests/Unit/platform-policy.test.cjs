@@ -20,6 +20,7 @@ function load(file, platform, imports = {}, arch = 'x64') {
         exports: module.exports,
         __filename: filename,
         Buffer,
+        URL,
         console,
         process: { ...process, platform, arch },
         require: (id) =>
@@ -59,7 +60,7 @@ function presentation(platform) {
         moveTop: () => calls.push(['raise']),
         focus: () => calls.push(['focus']),
     };
-    const api = load('Window/Presentation.ts', platform, {
+    const api = load('Presentation.ts', platform, {
         electron: { app },
         'node:module': {
             createRequire: () => () => ({
@@ -205,4 +206,164 @@ test('destroyed PiP windows cannot be shown or activated', () => {
         api.presentPictureInPicture(window);
         assert.deepEqual(calls, []);
     }
+});
+
+for (const platform of ['darwin', 'win32', 'linux']) {
+    test(`${platform}: default browser validates URLs before invoking native policy`, async () => {
+        const opened = [];
+        const api = load('DefaultBrowser.ts', platform, {
+            electron: {
+                shell: { openExternal: async (...args) => opened.push(args) },
+            },
+        });
+        for (const value of [
+            'file:///secret',
+            'https://user:pass@example.com',
+            'not a URL',
+        ]) {
+            await assert.rejects(api.openInDefaultBrowser(value));
+        }
+        assert.equal(opened.length, 0);
+        await api.openInDefaultBrowser('https://example.com');
+        assert.equal(opened[0][0], 'https://example.com/');
+        assert.deepEqual(
+            Object.keys(opened[0][1]),
+            platform === 'darwin'
+                ? ['activate']
+                : platform === 'win32'
+                  ? ['logUsage']
+                  : [],
+        );
+    });
+
+    test(`${platform}: companion selection and launch resolve the OS inside Platform`, async () => {
+        const { EventEmitter } = require('node:events');
+        const commands = [],
+            opened = [];
+        const api = load('ExternalDownloader.ts', platform, {
+            electron: {
+                shell: { openExternal: async (value) => opened.push(value) },
+            },
+            'node:child_process': {
+                spawn(command, args, options) {
+                    commands.push([command, [...args], options]);
+                    const child = new EventEmitter();
+                    child.stdout = new EventEmitter();
+                    child.stderr = new EventEmitter();
+                    child.stdout.setEncoding = child.stderr.setEncoding =
+                        () => {};
+                    child.unref = () => commands.push('unref');
+                    queueMicrotask(() => {
+                        child.emit('spawn');
+                        child.emit('close', 0);
+                    });
+                    return child;
+                },
+            },
+        });
+        const artifacts = [
+            { platform: 'darwin', arch: 'universal', kind: 'dmg' },
+            { platform: 'darwin', arch: 'arm64', kind: 'zip' },
+            { platform: 'win32', arch: 'x64', kind: 'exe' },
+        ];
+        const manifest = { version: '1.0.0', artifacts };
+        assert.equal(api.getExternalDownloaderPlatform(), platform);
+        if (platform === 'linux') {
+            assert.throws(
+                () => api.selectExternalDownloaderArtifact(manifest),
+                /No YT Downloader release/,
+            );
+        } else {
+            assert.equal(
+                api.selectExternalDownloaderArtifact(
+                    manifest,
+                    platform === 'darwin' ? 'arm64' : 'x64',
+                ),
+                artifacts[platform === 'darwin' ? 0 : 2],
+            );
+        }
+        const wrongArtifact = artifacts[platform === 'darwin' ? 2 : 0];
+        await assert.rejects(
+            api.installExternalDownloaderArtifact(manifest, wrongArtifact),
+            /unsupported/,
+        );
+        assert.equal(
+            commands.length,
+            0,
+            'incompatible artifacts never start a native command',
+        );
+        const deepLink = 'yt-downloader://open?url=https%3A%2F%2Fexample.com';
+        await api.launchExternalDownloader(deepLink, '/fixture/companion');
+        if (platform === 'darwin') {
+            assert.deepEqual(commands[0].slice(0, 2), [
+                '/usr/bin/open',
+                ['-a', '/fixture/companion', deepLink],
+            ]);
+        } else if (platform === 'win32') {
+            assert.deepEqual(commands[0].slice(0, 2), [
+                '/fixture/companion',
+                [deepLink],
+            ]);
+            assert.equal(commands[0][2].detached, true);
+            assert.equal(commands.at(-1), 'unref');
+        } else {
+            assert.deepEqual(opened, [deepLink]);
+        }
+    });
+
+    test(`${platform}: native addon loading is deferred until its feature is used`, () => {
+        let loads = 0;
+        const api = load('ExternalFullscreenMonitor.ts', platform, {
+            electron: {},
+            'node:module': {
+                createRequire: () => {
+                    loads++;
+                    throw new Error('unexpected addon load');
+                },
+            },
+        });
+        const monitor = api.createExternalFullscreenMonitor();
+        assert.equal(monitor.supported, platform === 'win32');
+        monitor.stop();
+        assert.equal(loads, 0);
+        if (platform !== 'win32') {
+            assert.equal(
+                monitor.start({}, () => assert.fail('unexpected notification')),
+                false,
+            );
+            assert.equal(monitor.refresh({}), false);
+            assert.equal(monitor.isAlwaysOnTopApplied({}), undefined);
+            assert.equal(monitor.getYieldTarget({}), undefined);
+        }
+    });
+}
+
+test('Darwin capture settings preserve existing disabled Chromium features', () => {
+    const switches = new Map([
+        ['disable-features', 'existing-feature,avfoundation-overlays'],
+    ]);
+    const api = load('Graphics.ts', 'darwin', {
+        electron: {
+            app: {
+                commandLine: {
+                    getSwitchValue: (name) => switches.get(name) ?? '',
+                    removeSwitch: (name) => switches.delete(name),
+                    appendSwitch: (name, value) => switches.set(name, value),
+                },
+            },
+        },
+    });
+    api.configureCaptureCompatibleGraphics();
+    api.configureCaptureCompatibleGraphics();
+    assert.equal(
+        switches.get('disable-features'),
+        'existing-feature,avfoundation-overlays',
+    );
+});
+
+test('unknown operating systems cannot silently inherit Linux behavior', () => {
+    assert.throws(
+        () => load('Keyboard.ts', 'freebsd'),
+        /Unsupported operating system: freebsd/,
+    );
 });

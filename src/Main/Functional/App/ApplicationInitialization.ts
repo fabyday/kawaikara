@@ -1,4 +1,5 @@
-import { restoreApplicationPresentation } from '../../Platform/Window/Presentation';
+import { WebExtensionManager } from '../../Manager/WebExtensionManager';
+import { restoreApplicationPresentation } from '../../Platform/Presentation';
 import { app, components } from 'electron';
 import { UPDATE_TEST_PROFILE } from '../../../Common/BuildConfig';
 import { builtinBundle } from '@kawaikara/builtin-sites';
@@ -121,7 +122,16 @@ export async function initializeApplication(
             await windows.recoverAfterFailedUpdate();
         },
     });
+    const webExtension = new WebExtensionManager(
+        getKawaiDataPath('web-extension.json'),
+        sites,
+        windows,
+        managers.resolve(MANAGER_TOKENS.downloads),
+        () => preferences.get().appLocale,
+    );
+    if (!UPDATE_TEST_PROFILE) await webExtension.start();
     const ipc = managers.resolve(MANAGER_TOKENS.ipc);
+    if (!UPDATE_TEST_PROFILE) ipc.setWebExtensionManager(webExtension);
     ipc.initialize();
 
     return {
@@ -147,6 +157,7 @@ export async function initializeApplication(
         /** The dispose value. */
         dispose: async () => {
             shortcuts.dispose();
+            await webExtension.dispose();
             await development.dispose();
             await sites.dispose();
             await Promise.all([discordPresence.dispose(), windows.dispose()]);
@@ -165,6 +176,13 @@ function configureWindows(
     const current = preferences.get();
     windows.setAppLocale(current.appLocale, app.getLocale());
     windows.setAppTheme(current.appTheme);
+    windows.configureStartupWindow(
+        current.appWindow,
+        current.appWindowLastPosition,
+        async (appWindowLastPosition) => {
+            await preferences.update({ appWindowLastPosition });
+        },
+    );
     windows.createWindows();
     windows.setAlwaysOnTop(current.alwaysOnTop);
     windows.setMenuDismissBehavior(

@@ -11,6 +11,8 @@ import {
 
 /** App-owned renderer configuration, independent of its feature's IPC or state. */
 export interface DetachableWindowSurfaceOptions {
+    /** Retain the loaded shell while closed; the feature must suspend its UI through state updates. */
+    readonly retainOnClose?: boolean;
     /** Main window that hosts the embedded surface. */
     readonly parent: () => BrowserWindow;
     /** Restores input to the screen underneath after an embedded close. */
@@ -52,6 +54,12 @@ export class DetachableWindowSurface {
     private retiringWindow?: BrowserWindow;
     /** Prevents close handlers from interfering with teardown. */
     private disposing = false;
+    /** Whether the retained shell is currently presented. */
+    private visible = false;
+    /** Exposes presentation state so feature timers can suspend while closed. */
+    isVisible(): boolean {
+        return this.visible;
+    }
 
     /** Captures presentation configuration without creating native resources. */
     constructor(
@@ -75,6 +83,7 @@ export class DetachableWindowSurface {
     /** Reports whether the surface currently covers the app overlay. */
     isEmbedded(): boolean {
         return Boolean(
+            this.visible &&
             this.view &&
             !this.detachedWindow &&
             !this.view.webContents.isDestroyed(),
@@ -88,8 +97,8 @@ export class DetachableWindowSurface {
         return true;
     }
 
-    /** Opens or focuses the one existing surface. */
-    async open(): Promise<void> {
+    /** Loads the shell without exposing a surface or starting feature work. */
+    async prepare(): Promise<void> {
         if (!this.view) {
             this.disposing = false;
             const view = new WebContentsView({
@@ -118,12 +127,20 @@ export class DetachableWindowSurface {
             if (this.view === view) this.dispose();
             throw error;
         }
-        if (this.view !== view || view.webContents.isDestroyed()) return;
+    }
+
+    /** Opens or focuses the one existing surface. */
+    async open(): Promise<void> {
+        this.visible = true;
+        await this.prepare();
+        const view = this.view;
+        if (!this.visible || !view || view.webContents.isDestroyed()) return;
         if (this.detachedWindow) {
             if (this.detachedWindow.isMinimized())
                 this.detachedWindow.restore();
             this.detachedWindow.show();
         }
+        this.notifyState();
         this.layout();
         view.setVisible(true);
         view.webContents.focus();
@@ -213,7 +230,8 @@ export class DetachableWindowSurface {
 
     /** Keeps an embedded surface above the menu/preferences and sizes either host. */
     layout(): void {
-        if (!this.view || this.view.webContents.isDestroyed()) return;
+        if (!this.visible || !this.view || this.view.webContents.isDestroyed())
+            return;
         const host = this.detachedWindow ?? this.options.parent();
         if (host.isDestroyed()) return;
         if (!this.detachedWindow) host.contentView.addChildView(this.view);
@@ -231,13 +249,30 @@ export class DetachableWindowSurface {
     /** Closes only this layer and restores input to the unchanged underlying screen. */
     close(): void {
         const embedded = !this.detachedWindow;
-        this.dispose();
+        if (
+            this.options.retainOnClose &&
+            this.view &&
+            !this.view.webContents.isDestroyed() &&
+            !this.moving
+        ) {
+            this.visible = false;
+            this.view.setVisible(false);
+            if (this.detachedWindow) {
+                const host = this.detachedWindow;
+                host.contentView.removeChildView(this.view);
+                this.options.parent().contentView.addChildView(this.view);
+                this.detachedWindow = undefined;
+                host.destroy();
+            }
+            this.notifyState(false);
+        } else this.dispose();
         if (embedded) this.options.focusUnderlying();
     }
 
     /** Releases both the retained renderer and detached host on app shutdown. */
     dispose(): void {
         this.disposing = true;
+        this.visible = false;
         const view = this.view;
         const detached = this.detachedWindow;
         const retiring = this.retiringWindow;

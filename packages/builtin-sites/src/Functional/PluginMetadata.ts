@@ -16,7 +16,7 @@ export function builtinPluginMetadata(
     return {
         /** Shared manifest/decorator identity. */
         id,
-        /** The real Plugin contributes its own switch. */
+        /** The real Plugin declares its own switch. */
         activation: {
             /** Supported UI control. */
             type: 'boolean',

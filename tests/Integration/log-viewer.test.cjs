@@ -88,6 +88,7 @@ test('WindowManager authorizes log surface commands and owns its appearance stat
         logViewer: {
             owns: (id) => id === 20,
             isDetached: () => detached,
+            isVisible: () => true,
             open: async () => calls.push('open'),
             toggle: async () => {
                 detached = !detached;
@@ -114,11 +115,13 @@ test('WindowManager authorizes log surface commands and owns its appearance stat
         detached: false,
         theme: 'dark',
         locale: 'ko',
+        visible: true,
     });
     assert.deepEqual(await windows.commandLogViewer(20, 'toggle'), {
         detached: true,
         theme: 'dark',
         locale: 'ko',
+        visible: true,
     });
     windows.appTheme = 'light';
     windows.appLocale = 'ja';
@@ -126,6 +129,7 @@ test('WindowManager authorizes log surface commands and owns its appearance stat
         detached: true,
         theme: 'light',
         locale: 'ja',
+        visible: true,
     });
     await windows.commandLogViewer(20, 'close');
     assert.deepEqual(calls, ['open', 'toggle', 'close']);

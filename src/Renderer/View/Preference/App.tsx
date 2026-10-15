@@ -1,3 +1,4 @@
+import { WebExtensionApproval } from './WebExtensionApproval';
 import {
   Button,
   Flex,
@@ -158,6 +159,7 @@ export function PreferenceView({
         if (event.target === event.currentTarget) requestBack();
       }}
     >
+      <WebExtensionApproval messages={messages.webExtension} />
       <div className="preference-surface" inert={logViewerOpen ? true : undefined}>
         <Flex className="preference-header" align="center" justify="between" gap="md">
           <div>
@@ -170,12 +172,12 @@ export function PreferenceView({
           </div>
           <Button
             className="overlay-icon-button preference-nav-button"
-            aria-label={messages.backToSites}
+            aria-label={messages.closePreferences}
             size="icon"
             variant="ghost"
             onClick={requestBack}
           >
-            <span aria-hidden="true" className="overlay-button-glyph">←</span>
+            <span aria-hidden="true" className="overlay-button-glyph">×</span>
           </Button>
         </Flex>
 

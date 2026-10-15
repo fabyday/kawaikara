@@ -73,42 +73,20 @@ history are isolated, so Stable, Staging, and Nightly can be installed together.
 
 ### For more information, visit Home Page
 
-[![github-page](https://img.shields.io/badge/kawaikara-webpage-blue?style=for-the-badge&labelColor=gray)](./README.MD)
+[![https://kawaikara.faby.day](https://img.shields.io/badge/kawaikara-webpage-blue?style=for-the-badge&labelColor=gray)](./README.MD)
 
 ### See Also 
 
-#### KawaiDownloader
+#### [KawaiDownloader](https://github.com/fabyday/yt-downloader)
 
 * It's Stand-alone KAWAI Video Downloader
 * Simple, Intuitive Usage
 * Extendable, Versatile
 
-#### Kawaikara Web Extension [ Chrome | Firefox ]
+#### [Kawaikara Web Extension](https://github.com/Kawaikara/KawaikaraWebExtension) [ Chrome | Firefox ]
 
 * Open websties directly in **Kawaikara**
 * Easily Share links with your friends
-
-
-## Bundle & Plugin System
-
-Kawaikara provides an extensible Bundle & Plugin System that allows support for websites and services to be added without modifying Kawaikara itself.
-
-Bundle is a package that adds support for a specific website or service to Kawaikara. A Bundle can contain Providers and Plugins that define how Kawaikara interacts with and extends the service.
-
-Provider defines how Kawaikara recognizes and interacts with a website or service. It provides the core integration required for Kawaikara to support that service.
-
-Plugin extends a Provider with additional features or behaviors. Plugins can modify or enhance the experience without changing the Provider itself.
-```
-Bundle
-├── Provider
-│   └── Core service integration
-│
-└── Plugins
-    ├── Additional feature
-    ├── UI enhancement
-    └── Custom behavior
-```
-This architecture makes Kawaikara extensible: new services and features can be distributed as Bundles and Plugins independently from the main application.
 
 
 ## MIT License

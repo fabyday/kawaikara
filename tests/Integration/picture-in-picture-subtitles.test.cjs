@@ -439,7 +439,7 @@ test('slow subtitle initialization cannot defer view transfer or first PiP prese
         'src/Main/Manager/UnifiedPictureInPictureManager.ts',
         {
             electron: { app: { getLocale: () => 'en-US' } },
-            '../Platform/Window/Presentation': {
+            '../Platform/Presentation': {
                 presentPictureInPicture() {
                     calls.push('present');
                 },
@@ -706,7 +706,7 @@ test('PiP exit waits for an in-flight iframe refresh before restoring the active
         manager[name] = () => {};
     manager.rememberCurrentPlacement = async () => {};
     manager.restoreSiteView = async () => {};
-    manager.restoreMacApplicationPresentation = async () => {};
+    manager.restoreApplicationPresentationAfterPictureInPicture = async () => {};
     let finishRefresh;
     manager.videoRefresh = new Promise((resolve) => {
         finishRefresh = resolve;

@@ -11,7 +11,10 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 - [Runtime and lifecycle](./Architecture/3.Runtime.md): windows, sessions, site loading, shortcuts, navigation, and cleanup
 - [Security boundaries](./Architecture/4.Security.md): renderer isolation, remote pages, cookies, plugins, and permissions
 - [Bundle, Provider, and Plugin](./Architecture/5.Bundle.md): extension units, lifecycle, validation, compatibility, and current limits
+- [Platform and native integration](./Architecture/7.Platform.md): parallel Electron/Platform dependencies, native implementation boundaries, and call-flow diagrams
+- [External apps: discovery and communication](./Architecture/8.ExternalApps.md): proposed NativeApp/WebExtension protocol, installer and portable discovery, and bidirectional sessions
 - [Branches and release channels](./1.BranchesAndChannels.md): `main` versus `dev`, Stable/Staging/Nightly, and the difference between a documentation preview and a published build
+- [Provider-owned WebExtension features](./Architecture/9.ProviderWebExtension.md): implemented declarations, permissions, browser bridge and synchronization
 
 ## Plugin development
 

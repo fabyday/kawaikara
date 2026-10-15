@@ -74,3 +74,8 @@ test('OS video arguments accept spaces, Unicode and encoded file URLs, not execu
         'https://youtube.com/watch?v=x',
     );
 });
+
+test('bridge wake only starts/focuses the app and accepts no command payload',()=>{
+  assert.equal(parser.parseExternalOpenUrl('kawaikara://bridge/wake').bridgeWake,true);
+  for(const url of ['kawaikara://bridge/wake?command=grant','kawaikara://bridge/wake#x','kawaikara://user@bridge/wake']) assert.equal(parser.parseExternalOpenUrl(url),undefined);
+});

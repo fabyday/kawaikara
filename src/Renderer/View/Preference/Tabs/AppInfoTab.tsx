@@ -1,3 +1,5 @@
+import { ApplicationInfoControl } from '../../../Component/ApplicationInfoControl';
+import type { LogViewerMessages } from '../../../../Common/IPC';
 import {
   Button,
   Flex,
@@ -22,6 +24,8 @@ import { DeveloperLinks } from '../DeveloperLinks';
 /** Performs the app info tab operation. */
 export function AppInfoTab({
   appInfo,
+  logViewerMessages,
+  locale,
   checkingUpdates,
   developerYouTubeStatus,
   messages,
@@ -36,6 +40,9 @@ export function AppInfoTab({
 }: {
   /** The app info value. */
   readonly appInfo?: ApplicationInfo;
+  /** Shared information labels and resolved UI locale. */
+  readonly logViewerMessages?: LogViewerMessages;
+  readonly locale?: string;
   /** Whether the checking updates option is enabled. */
   readonly checkingUpdates: boolean;
   /** The developer you tube status value. */
@@ -72,7 +79,7 @@ export function AppInfoTab({
       </div>
       {appInfo ? (
         <div className="app-info-card">
-          <Flex className="app-info-title" align="start" justify="between" gap="lg">
+          <Flex className="app-info-title" align="center" justify="between" gap="lg">
             <Flex className="app-info-identity" align="center" gap="sm">
               <img alt="" className="app-info-icon" src={kawaikaraIcon} />
               <Stack gap="xs">
@@ -84,6 +91,7 @@ export function AppInfoTab({
                 </Text>
               </Stack>
             </Flex>
+            <Flex className="app-info-actions" align="center" gap="sm">
             <Switch
               className="app-info-auto-update"
               checked={preferences.automaticUpdates}
@@ -98,6 +106,8 @@ export function AppInfoTab({
                 })
               }
             />
+            {logViewerMessages && <ApplicationInfoControl metadata={appInfo.metadata} messages={logViewerMessages} locale={locale ?? "en"} label={messages.appInfoDetails} />}
+            </Flex>
           </Flex>
           <div className="app-release-panel">
             <div className="app-release-row">

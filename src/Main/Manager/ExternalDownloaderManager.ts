@@ -18,7 +18,7 @@ import {
     getExternalDownloaderPlatform,
     requireExternalDownloaderSourceUrl,
     selectExternalDownloaderArtifact,
-} from '../Platform/External/ExternalDownloader';
+} from '../Platform/ExternalDownloader';
 import { ExternalDownloaderCallbackServer } from '../Functional/External/ExternalDownloaderCallback';
 import type { LoggingManager } from './LoggingManager';
 
@@ -43,7 +43,7 @@ export class ExternalDownloaderManager {
     /** Returns the status. */
     async getStatus(message?: string): Promise<ExternalDownloaderStatus> {
         const platform = getExternalDownloaderPlatform();
-        const installed = await findInstalledExternalDownloaderApp(platform);
+        const installed = await findInstalledExternalDownloaderApp();
         return {
             /** The installed value. */
             installed: Boolean(installed),
@@ -198,7 +198,6 @@ export class ExternalDownloaderManager {
         const manifest = await fetchExternalDownloaderReleaseManifest();
         const artifact = selectExternalDownloaderArtifact(
             manifest,
-            current.platform,
             process.arch,
         );
         const installed = await installExternalDownloaderArtifact(

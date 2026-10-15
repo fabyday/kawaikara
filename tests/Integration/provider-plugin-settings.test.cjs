@@ -431,9 +431,30 @@ test('reverse teardown follows immediate revocation, even during pending activat
     assert.equal(captured.lifetime.signal.aborted, true);
 });
 
+const bundleRuntime = loadSource('src/Main/Functional/Bundle/BundleRuntime.ts');
+
+test('Provider manifests use required descriptors throughout the runtime and schema', () => {
+    const { validateProviderManifest } = bundleRuntime;
+    const schema = require('../../packages/site-api/schemas/provider-manifest.schema.json');
+    assert.ok(schema.required.includes('descriptors'));
+    assert.equal(schema.properties.descriptors.$ref, '#/definitions/descriptors');
+    for (const definition of builtinBundle.providers) {
+        const manifest = validateProviderManifest(definition.manifest);
+        assert.deepEqual(
+            JSON.parse(JSON.stringify(manifest.descriptors)),
+            JSON.parse(JSON.stringify(definition.manifest.descriptors)),
+        );
+        assert.ok(Object.isFrozen(manifest.descriptors));
+        const { descriptors, ...withoutDescriptors } = definition.manifest;
+        assert.throws(() => validateProviderManifest(withoutDescriptors), /Provider descriptors/);
+        assert.throws(() => validateProviderManifest({
+            ...withoutDescriptors, descriptors: { ...descriptors, unsupported: true },
+        }), /unknown field unsupported/);
+    }
+});
+
 test('distribution manifests load the same seven real Provider-owned Plugins', async () => {
-    const { inspectBundle, readBundleManifest, loadBundleDefinition } =
-        loadSource('src/Main/Functional/Bundle/BundleRuntime.ts');
+    const { inspectBundle, readBundleManifest, loadBundleDefinition } = bundleRuntime;
     const directory = path.resolve(
         __dirname,
         '../../packages/builtin-sites/dist',
@@ -634,7 +655,7 @@ test('Bundle-global settings are composed for all matching Providers and removed
                         apiVersion: 1,
                         main: 'Provider.js',
                         permissions: [],
-                        contributes: { menu: { category: 'fixture' } },
+                        descriptors: { menu: { category: 'fixture' } },
                     },
                     provider: Provider,
                 }),
@@ -1057,4 +1078,124 @@ test('false plugin values survive persisted preference validation and stay scope
         restored.providerSettings['kawaikara.youtube']['plugins.shorts'],
         true,
     );
+});
+
+test('browser declarations publish inactive Providers and notify registration/removal without creating a context', () => {
+    const manager = new ProviderManager(async () => { throw new Error('Must remain inactive'); }, () => ({}), () => '');
+    let changed = 0;
+    const unsubscribe = manager.subscribeWebExtensions(() => changed++);
+    manager.registerBundle(builtinBundle);
+    const catalog = manager.listWebExtensionProviders();
+    assert.equal(catalog.length, 17);
+    assert.deepEqual(catalog.find(({ id }) => id === 'kawaikara.youtube').actions, ['open', 'copy-link', 'download']);
+    assert.equal(catalog.find(({ id }) => id === 'kawaikara.chzzk').domActions[0].layout, 'button-list');
+    assert.equal(changed, 1);
+    manager.rollbackBundleRegistration(builtinBundle.id);
+    assert.equal(manager.listWebExtensionProviders().length, 0);
+    assert.equal(changed, 2);
+    unsubscribe();
+});
+
+test('built-in browser labels come from locale resources and remain available before viewer activation', () => {
+    const { webExtensionItemTitle } = require('@kawaikara/site-api');
+    const manager = new ProviderManager(async () => { throw new Error('Must remain inactive'); }, () => ({}), () => '');
+    manager.registerBundle(builtinBundle);
+    const catalog = manager.listWebExtensionProviders();
+    for (const provider of catalog) {
+        const definition = builtinBundle.providers.find((item) => item.manifest.id === provider.id);
+        assert.equal(definition.manifest.descriptors.locale.resource, 'locale.json');
+        assert.equal(JSON.stringify(definition.manifest.descriptors.webExtension).includes('"translations"'), false);
+        const labels = [...provider.contextMenus, ...Object.values(provider.actionDefinitions),
+            ...(provider.settings ?? []), ...(provider.domActions ?? []).flatMap((menu) => menu.items)];
+        for (const label of labels) {
+            assert.equal(label.title.startsWith('%'), false);
+            for (const locale of ['en-US', 'ko-KR', 'ja-JP']) assert.ok(label.translations[locale]);
+        }
+    }
+    const chzzk = catalog.find((item) => item.id === 'kawaikara.chzzk');
+    assert.equal(webExtensionItemTitle(chzzk.contextMenus[0], 'ko'), '치지직을 카와이카라에서 열기');
+    assert.equal(webExtensionItemTitle(chzzk.actionDefinitions.open, 'ja'), 'Kawaikaraで開く');
+    assert.equal(webExtensionItemTitle(chzzk.settings[0], 'ko'), '브라우저 우클릭 메뉴');
+});
+
+test('missing browser locale references fail registration while inline third-party labels remain valid', () => {
+    const source = builtinBundle.providers.find((item) => item.manifest.id === 'kawaikara.chzzk');
+    const makeManager = () => new ProviderManager(async () => {}, () => ({}), () => '');
+    const replace = (definition) => ({ ...builtinBundle, providers: builtinBundle.providers.map(
+        (item) => item === source ? definition : item,
+    ) });
+    assert.throws(() => makeManager().registerBundle(replace({ ...source, localization: undefined })), /missing locale message/);
+    const inline = structuredClone(source.manifest);
+    inline.descriptors.webExtension.contextMenus[0].title = 'Custom open';
+    inline.descriptors.webExtension.contextMenus[0].translations = { ko: '사용자 열기' };
+    const manager = makeManager();
+    manager.registerBundle(replace({ ...source, manifest: inline }));
+    assert.equal(manager.listWebExtensionProviders().find((item) => item.id === source.manifest.id)
+        .contextMenus[0].translations.ko, '사용자 열기');
+});
+
+test('browser descriptors cannot borrow in-app script-injection permission or bypass Bundle grants', () => {
+    const manager = () => new ProviderManager(async () => {}, () => ({}), () => '');
+    assert.throws(() => manager().registerBundle({ ...builtinBundle, permissions: builtinBundle.permissions.filter((permission) => permission !== 'web-extension') }), /web-extension/);
+    const providers = builtinBundle.providers.map((definition) => ({ ...definition, manifest: { ...definition.manifest, permissions: definition.manifest.permissions.filter((permission) => permission !== 'web-extension') } }));
+    assert.throws(() => manager().registerBundle({ ...builtinBundle, providers }), /web-extension/);
+});
+
+test('transactional Provider replacement publishes only the settled browser scope', async () => {
+    const { BundleHost } = loadSource('src/Main/API/BundleHost.ts');
+    const manager = new ProviderManager(async () => { throw new Error('Must remain inactive'); }, () => ({}), () => '');
+    const host = new BundleHost(manager);
+    host.install(builtinBundle);
+    const snapshots = [];
+    manager.subscribeWebExtensions(() => snapshots.push(manager.listWebExtensionProviders()));
+    const providers = builtinBundle.providers.map((definition) => definition.manifest.id === 'kawaikara.youtube' ? {
+        ...definition, manifest: { ...definition.manifest, descriptors: { ...definition.manifest.descriptors,
+            webExtension: { ...definition.manifest.descriptors.webExtension, domActions: [{ ...definition.manifest.descriptors.webExtension.domActions[0], target: '.new-player-menu' }] },
+        } },
+    } : definition);
+    await host.replace({ ...builtinBundle, providers });
+    assert.equal(snapshots.length, 1);
+    assert.equal(snapshots[0].length, 17);
+    assert.equal(snapshots[0].find(({ id }) => id === 'kawaikara.youtube').domActions[0].target, '.new-player-menu');
+    await host.uninstall(builtinBundle.id);
+    assert.equal(snapshots.length, 2);
+    assert.equal(snapshots[1].length, 0);
+});
+
+test('a third-party browser action executes in its Provider without activating a viewer', async () => {
+    const manager = new ProviderManager(async () => { throw new Error('Must remain inactive'); }, () => ({}), () => '');
+    const source = builtinBundle.providers.find(entry => entry.manifest.id === 'kawaikara.youtube');
+    const requests = [];
+    class BrowserProvider extends source.provider {
+        static async onWebExtensionAction(request) { requests.push(request); return {clipboard:'Saved by third party'}; }
+    }
+    const declaration = { version:2, actions:['save-clip'], actionDefinitions:{'save-clip':{title:'Save clip',handler:'provider',clipboard:true}}, settings:[{id:'notify',title:'Notify',defaultValue:true}] };
+    const definition = { ...source, provider:BrowserProvider, manifest:{...source.manifest, descriptors:{...source.manifest.descriptors, webExtension:declaration}} };
+    manager.registerBundle({...builtinBundle, providers:builtinBundle.providers.map(entry=>entry===source?definition:entry)});
+    const request={action:'save-clip',url:'https://youtube.com/watch?v=fixture',settings:{notify:false}};
+    assert.deepEqual(await manager.handleWebExtensionAction(source.manifest.id,request),{clipboard:'Saved by third party'});
+    assert.deepEqual(requests,[request]);
+    await assert.rejects(()=>manager.handleWebExtensionAction(source.manifest.id,{...request,action:'undeclared'}));
+});
+
+test('page registration teardown runs after Plugin abort and only once, including pipeline retirement', async () => {
+    const { EventEmitter } = require('node:events');
+    const { createSitePagePipeline } = loadSource('src/Main/Functional/Bundle/Provider/SitePagePipeline.ts');
+    const contents = new EventEmitter();
+    const scripts = [];
+    contents.isDestroyed = () => false;
+    contents.executeJavaScript = async script => { scripts.push(script); };
+    const pipeline = createSitePagePipeline(contents, { debug() {}, warn() {} });
+    const abort = new AbortController();
+    const registration = pipeline.register({ id: 'shorts', source: 'install', cleanup: 'cleanup', signal: abort.signal, runImmediately: true });
+    await new Promise(setImmediate);
+    abort.abort();
+    registration.dispose();
+    registration.dispose();
+    contents.emit('dom-ready');
+    pipeline.register({ id: 'shorts', source: 'install-again', cleanup: 'cleanup-again', runImmediately: true });
+    await new Promise(setImmediate);
+    pipeline.dispose();
+    pipeline.dispose();
+    assert.deepEqual(scripts, ['install', 'cleanup', 'install-again', 'cleanup-again']);
 });

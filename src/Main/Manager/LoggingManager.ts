@@ -141,6 +141,9 @@ export class LoggingManager {
     /** Source IDs enabled for file logging; undefined means every source. */
     private enabledSourceIds?: ReadonlySet<string>;
 
+    /** Returns trusted current-session metadata without reading a log file. */
+    getMetadata(): ApplicationLogMetadata { return structuredClone(this.metadata); }
+
     /** Initializes the operation. */
     initialize(): void {
         if (this.initialized) return;
@@ -336,6 +339,8 @@ export class LoggingManager {
         return summaries.sort(compareLogFileSummaries);
     }
 
+    /** Keeps only the last parsed document; file identity and timestamps invalidate it. */
+    private cachedDocument?: {path:string; fingerprint:string; document:ApplicationLogDocument};
     /** Reads and parses one application log file. */
     async readFile(
         repository: ApplicationLogRepository,
@@ -345,6 +350,10 @@ export class LoggingManager {
         const file = await this.requireLogFile(repository, fileName, groupId);
         const directory = await this.getLogDirectory(repository, groupId);
         const filePath = path.join(directory, file.fileName);
+        const identity = await lstat(filePath);
+        if (!identity.isFile() || identity.isSymbolicLink()) throw new Error('A regular log file is required.');
+        const fingerprint = `${identity.dev}:${identity.ino}:${identity.size}:${identity.mtimeMs}:${identity.ctimeMs}`;
+        if (this.cachedDocument?.path === filePath && this.cachedDocument.fingerprint === fingerprint) return this.cachedDocument.document;
         const value =
             repository === 'external'
                 ? await readImportedLog(filePath)
@@ -356,7 +365,7 @@ export class LoggingManager {
         ) {
             throw new Error('The external log failed safety validation.');
         }
-        return {
+        const document = {
             /** The source file summary value. */
             file,
             /** The validated metadata header value. */
@@ -366,6 +375,8 @@ export class LoggingManager {
             /** Whether older entries were omitted. */
             truncated: parsed.truncated,
         };
+        this.cachedDocument = {path:filePath, fingerprint, document};
+        return document;
     }
 
     /** Opens one log repository or external group directory. */
@@ -742,11 +753,12 @@ export class LoggingManager {
         ) {
             throw new TypeError('A valid log file name is required.');
         }
-        const file = (await this.listFiles(repository, groupId)).find(
-            (entry) => entry.fileName === fileName,
-        );
-        if (!file) throw new Error('The requested log file no longer exists.');
-        return file;
+        const directory = await this.getLogDirectory(repository, groupId);
+        const metadata = await lstat(path.join(directory, fileName));
+        if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error('A regular log file is required.');
+        return {repository, fileName, groupId:repository === 'external' ? groupId : undefined,
+            size:metadata.size, modifiedAt:metadata.mtime.toISOString(),
+            active:repository === 'application' && fileName === this.logFileName};
     }
 
     /** Returns the resolved root for a log repository. */

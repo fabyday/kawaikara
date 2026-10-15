@@ -103,7 +103,7 @@ async function exitUnifiedPictureInPicture(): Promise<{
     /** The status value. */
     status: 'exited',
   };
-  document.dispatchEvent(new Event('kawaikara:picture-in-picture-transition'));
+  document.dispatchEvent(new CustomEvent('kawaikara:picture-in-picture-transition', { detail: { phase: 'start' } }));
   state.video.controls = state.controls;
   state.video.removeEventListener('play', state.renderPlaybackButton);
   state.video.removeEventListener('pause', state.renderPlaybackButton);
@@ -219,3 +219,11 @@ export const createPauseDocumentVideosScript = (): string =>
 /** Creates the exit unified picture in picture host script. */
 export const createExitUnifiedPictureInPictureHostScript = (): string =>
   serializePageInjection(exitUnifiedPictureInPictureHost);
+
+/** Signals that the native view has reached its destination window and bounds. */
+export const createFinishPictureInPictureTransitionScript = (): string =>
+  serializePageInjection(() => {
+    document.dispatchEvent(new CustomEvent('kawaikara:picture-in-picture-transition', {
+      detail: { phase: 'end' },
+    }));
+  });

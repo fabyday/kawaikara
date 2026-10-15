@@ -52,12 +52,8 @@ fs.writeFileSync(path.join(profile, fileName), contents);
 const reader = Object.assign(
     Object.create(loaded.exports.LoggingManager.prototype),
     {
-        requireLogFile: async () => ({
-            fileName,
-            repository: 'application',
-            size: Buffer.byteLength(contents),
-            active: true,
-        }),
+        logFileName: fileName,
+        listFiles: async () => { throw new Error('Reading one file must not enumerate the repository.'); },
         getLogDirectory: async () => profile,
     },
 );
@@ -150,6 +146,16 @@ app.whenReady()
             reads.push(performance.now() - start);
         }
         assert.equal(doc.entries.length, 5000);
+        const cached = await reader.readFile('application',fileName);
+        assert.equal(cached,doc,'Unchanged file reuses one parsed document');
+        fs.appendFileSync(path.join(profile,fileName),'\n[2026-10-10 12:00:01.000] [info] (Application) appended-fixture');
+        const changed = await reader.readFile('application',fileName);
+        assert.notEqual(changed,doc);
+        assert.equal(changed.entries.at(-1).message,'appended-fixture');
+        fs.symlinkSync(path.join(profile,fileName),path.join(profile,'linked.log'));
+        await assert.rejects(reader.readFile('application','linked.log'),/regular log file/);
+        await assert.rejects(reader.readFile('application','../escape.log'),/valid log file/);
+
         const win = new BrowserWindow({
             show: false,
             width: 1280,

@@ -122,7 +122,6 @@ function enterUnifiedPictureInPicture(
       videoWidth: existing.video.videoWidth,
     };
   }
-  document.dispatchEvent(new Event('kawaikara:picture-in-picture-transition'));
 
   const videos: HTMLVideoElement[] = [];
   /** Performs the visit operation. */
@@ -254,8 +253,12 @@ function enterUnifiedPictureInPicture(
   }
 
   const videoMarker = video.getAttribute('data-kawaikara-unified-pip-video');
-  video.setAttribute('data-kawaikara-unified-pip-video', 'true');
   const elements = capturePath(video);
+  // Capture original styles before Plugins apply temporary transition guards.
+  document.dispatchEvent(new CustomEvent('kawaikara:picture-in-picture-transition', {
+    detail: { phase: 'start' },
+  }));
+  video.setAttribute('data-kawaikara-unified-pip-video', 'true');
   exposeVideoPath(video, elements);
 
   const backdrop = document.createElement('div');

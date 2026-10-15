@@ -1,3 +1,8 @@
+import {
+    DEFAULT_APP_WINDOW,
+    validateAppWindow,
+    validateAppWindowLastPosition,
+} from '../../../Common/AppWindow';
 import { readFileSync } from 'node:fs';
 import {
     BUILD_CHANNEL,
@@ -37,6 +42,8 @@ import { validateDevelopmentInspectorPort } from '../Bundle/DevelopmentValidatio
 
 /** Defines the shared default preferences constant. */
 export const DEFAULT_PREFERENCES: PreferenceState = {
+    /** Startup app window policy. */
+    appWindow: DEFAULT_APP_WINDOW,
     /** The always on top value. */
     alwaysOnTop: false,
     /** Enables two-step category and site numeric navigation. */
@@ -118,6 +125,12 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
     }
     const candidate = value as Partial<Record<keyof PreferenceState, unknown>>;
     return {
+        /** Validate startup size and remembered position independently. */
+        appWindow: validateAppWindow(candidate.appWindow),
+        /** Last normal position recorded independently at shutdown. */
+        appWindowLastPosition: validateAppWindowLastPosition(
+            candidate.appWindowLastPosition,
+        ),
         /** The always on top value. */
         alwaysOnTop:
             typeof candidate.alwaysOnTop === 'boolean'
@@ -142,16 +155,10 @@ export function mergeValidatedPreferences(value: unknown): PreferenceState {
             typeof candidate.openMenuOnStartup === 'boolean'
                 ? candidate.openMenuOnStartup
                 : DEFAULT_PREFERENCES.openMenuOnStartup,
-        /** The close menu on escape value. */
-        closeMenuOnEscape:
-            typeof candidate.closeMenuOnEscape === 'boolean'
-                ? candidate.closeMenuOnEscape
-                : DEFAULT_PREFERENCES.closeMenuOnEscape,
+        /** Menu dismissal is a built-in behavior, including migrated profiles. */
+        closeMenuOnEscape: true,
         /** The close menu on outside click value. */
-        closeMenuOnOutsideClick:
-            typeof candidate.closeMenuOnOutsideClick === 'boolean'
-                ? candidate.closeMenuOnOutsideClick
-                : DEFAULT_PREFERENCES.closeMenuOnOutsideClick,
+        closeMenuOnOutsideClick: true,
         /** The automatic updates value. */
         automaticUpdates:
             typeof candidate.automaticUpdates === 'boolean'

@@ -25,7 +25,7 @@ function loadSource(relative, mocks = {}) {
 }
 
 const { requireExternalDownloaderSourceUrl } = loadSource(
-    'src/Main/Platform/External/ExternalDownloader.ts',
+    'src/Main/Platform/ExternalDownloader.ts',
     { electron: {} },
 );
 

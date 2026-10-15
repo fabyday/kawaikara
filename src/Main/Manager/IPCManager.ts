@@ -1,3 +1,4 @@
+import type { WebExtensionManager } from './WebExtensionManager';
 import {
     app,
     clipboard,
@@ -13,6 +14,7 @@ import {
     type ApplicationLogFileReference,
     type ApplicationLogRepository,
     type IpcChannel,
+    type PreferencePatch,
 } from '../../Common/IPC';
 import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import type { ProviderManager } from './ProviderManager';
@@ -46,7 +48,7 @@ import { getOperatingSystemLabel } from '../Platform/Information';
 import {
     getDefaultVideoAppCapability,
     openDefaultVideoAppSettings,
-} from '../Platform/External/DefaultVideoApp';
+} from '../Platform/DefaultVideoApp';
 
 /** Coordinates IPC behavior. */
 export class IpcManager {
@@ -104,8 +106,53 @@ export class IpcManager {
         private readonly development: BundleDevelopmentManager,
     ) {}
 
+    /** Browser bridge owned by the initialized application. */
+    private webExtension?: WebExtensionManager;
+    /** Supplies the optional runtime after desktop managers are created. */
+    setWebExtensionManager(manager: WebExtensionManager): void {
+        this.webExtension = manager;
+    }
+
     /** Initializes the operation. */
     initialize(): void {
+        ipcMain.handle(
+            IPC_CHANNELS.application.webExtensionConnection,
+            async (event, operation: unknown, requestId: unknown) => {
+                requireDataLocationSender(event);
+                if (!this.webExtension)
+                    throw new Error('Browser bridge is unavailable.');
+                if (operation === 'connect')
+                    await this.webExtension.useExtension();
+                else if (operation === 'connect-development') await this.webExtension.useExtension(undefined, true);
+                else if (operation === 'connect-development-custom') await this.webExtension.chooseBrowser(true);
+                else if (operation === 'connect-development-browser') {
+                    if (typeof requestId !== 'string') throw new Error('Invalid browser ID.');
+                    await this.webExtension.useExtension(requestId, true);
+                }
+                else if (operation === 'connect-custom') await this.webExtension.chooseBrowser();
+                else if (operation === 'browsers')
+                    return {...this.webExtension.status(), browsers: await this.webExtension.browsers()};
+                else if (operation === 'connect-browser') {
+                    if (typeof requestId !== 'string') throw new Error('Invalid browser ID.');
+                    await this.webExtension.useExtension(requestId);
+                } else if (operation === 'revoke-client') {
+                    if (typeof requestId !== 'string' || !this.webExtension.status().connections.some(c => c.id === requestId)) throw new Error('Invalid connection ID.');
+                    await this.webExtension.revoke(requestId);
+                }
+                else if (operation === 'copy')
+                    await this.webExtension.copyConnectionCode();
+                else if (operation === 'revoke')
+                    await this.webExtension.revoke();
+                else if (operation === 'development-on' || operation === 'development-off')
+                    await this.webExtension.setDevelopment(operation === 'development-on');
+                else if (operation === 'approve' || operation === 'deny') {
+                    if (typeof requestId !== 'string') throw new Error('Invalid approval ID.');
+                    this.webExtension.decide(requestId, operation === 'approve');
+                }
+                else if (operation !== 'status') throw new Error('Unknown browser connection operation.');
+                return this.webExtension.status();
+            },
+        );
         ipcMain.handle(
             IPC_CHANNELS.logViewer.command,
             (event, command: unknown) => {
@@ -124,6 +171,7 @@ export class IpcManager {
             this.handleEditingChanged,
         );
         ipcMain.handle(IPC_CHANNELS.application.info, () => ({
+            metadata: this.logging.getMetadata(),
             canConfigureDefaultVideoApp: getDefaultVideoAppCapability(),
             dataLocation: this.data.getLocation(),
             name: app.getName(),
@@ -609,8 +657,10 @@ export class IpcManager {
                     )
                 ) {
                     throw new Error(
-                        getRendererMessages(requestedLocale, app.getLocale())
-                            .app.appDataLocation.busy,
+                        getRendererMessages(
+                            requestedLocale,
+                            app.getLocale(),
+                        ).app.appDataLocation.busy,
                     );
                 }
                 return this.data.changeLocation(
@@ -673,7 +723,12 @@ export class IpcManager {
                     );
                 }
 
-                const preferences = await this.preferences.update(patch);
+                const preferences = await this.preferences.update(
+                    patch && typeof patch === 'object' && 'appWindow' in patch
+                        ? { ...patch, appWindow: this.windows.normalizeAppWindowPreference(
+                            (patch as PreferencePatch).appWindow!,
+                        ) } : patch,
+                );
                 if (graphicsModeChanged) {
                     this.scheduleApplicationRelaunch();
                     return preferences;
@@ -684,6 +739,7 @@ export class IpcManager {
                     app.getLocale(),
                 );
                 this.windows.setAppTheme(preferences.appTheme);
+                await this.windows.applyAppWindowPreference(preferences.appWindow);
                 this.windows.setAlwaysOnTop(preferences.alwaysOnTop);
                 this.windows.setMenuDismissBehavior(
                     preferences.closeMenuOnEscape,
@@ -776,6 +832,7 @@ export class IpcManager {
 
 /** Defines the shared IPC handler channels constant. */
 const IPC_HANDLER_CHANNELS = [
+    IPC_CHANNELS.application.webExtensionConnection,
     IPC_CHANNELS.application.openDefaultVideoAppSettings,
     IPC_CHANNELS.sites.list,
     IPC_CHANNELS.sites.currentAddress,

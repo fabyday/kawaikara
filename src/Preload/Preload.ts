@@ -69,6 +69,8 @@ const api: KawaikaraRendererApi = {
   },
   /** The application value. */
   application: {
+    /** Settings-only connection management; no browser credentials reach Renderer. */
+    webExtensionConnection: (operation, requestId) => ipcRenderer.invoke(IPC_CHANNELS.application.webExtensionConnection, operation, requestId),
     /** Opens the Windows default app picker through Main's fixed channel policy. */
     openDefaultVideoAppSettings: (locale: AppLocale) => ipcRenderer.invoke(IPC_CHANNELS.application.openDefaultVideoAppSettings, locale),
     /** The get info value. */

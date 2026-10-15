@@ -1,75 +1,36 @@
-import path from 'node:path';
-import { stat } from 'node:fs/promises';
-import {
-    readWindowsDataRoot,
-    resolveWindowsDataRootSelection,
-    writeWindowsDataRoot,
-} from './Windows/DataLocation';
+import * as darwin from './Darwin/Storage';
+import * as linux from './Linux/Storage';
+import { selectPlatform } from './Runtime';
+import * as windows from './Windows/Storage';
 
-/** Whether this platform supports choosing a persistent app data root. */
-export function supportsCustomDataLocation(): boolean {
-    return process.platform === 'win32';
-}
+/** Implementation selected at the platform boundary. */
+const implementation = selectPlatform({
+    /** Native Apple desktop integration. */
+    darwin,
+    /** Native Windows desktop integration. */
+    win32: windows,
+    /** Native Linux desktop integration. */
+    linux,
+});
 
-/** Read an installed application's platform-owned data locator. */
-export function readInstalledDataRoot(
-    ...args: Parameters<typeof readWindowsDataRoot>
-): string | undefined {
-    return supportsCustomDataLocation()
-        ? readWindowsDataRoot(...args)
-        : undefined;
-}
+/** Read an installed application data locator. */
+export const readInstalledDataRoot = implementation.readInstalledDataRoot;
 
-/** Validate a next-launch data root using the platform's path and installer rules. */
-export function resolveDataRootSelection(
-    ...args: Parameters<typeof resolveWindowsDataRootSelection>
-): string {
-    if (!supportsCustomDataLocation())
-        throw new Error(
-            'Custom data locations are unsupported on this platform.',
-        );
-    return resolveWindowsDataRootSelection(...args);
-}
+/** Validate a data location using native installer rules. */
+export const resolveDataRootSelection = implementation.resolveDataRootSelection;
 
-/** Persist a next-launch data locator without moving the active profile. */
-export async function writeInstalledDataRoot(
-    ...args: Parameters<typeof writeWindowsDataRoot>
-): Promise<void> {
-    if (!supportsCustomDataLocation())
-        throw new Error(
-            'Custom data locations are unsupported on this platform.',
-        );
-    await writeWindowsDataRoot(...args);
-}
+/** Persist the next-launch data locator. */
+export const writeInstalledDataRoot = implementation.writeInstalledDataRoot;
 
-/** Compare file paths using the platform's existing path-key policy. */
-export function normalizeFilePathKey(value: string): string {
-    const normalized = path.normalize(value);
-    return process.platform === 'win32' ? normalized.toLowerCase() : normalized;
-}
+/** Whether custom persistent data locations are supported. */
+export const supportsCustomDataLocation =
+    implementation.supportsCustomDataLocation;
 
-/** Display a filesystem root without a trailing Windows drive separator. */
-export function getFileSystemRootLabel(root: string): string {
-    return process.platform === 'win32' ? root.replace(/[\\/]$/, '') : root;
-}
+/** Normalize paths for native filesystem comparison. */
+export const normalizeFilePathKey = implementation.normalizeFilePathKey;
 
-/** Enumerate accessible filesystem roots; Linux mount discovery is not implemented. */
-export async function listFileSystemRoots(): Promise<string[]> {
-    if (process.platform !== 'win32') return ['/'];
-    const candidates = Array.from(
-        { length: 26 },
-        (_, index) => `${String.fromCharCode(65 + index)}:\\`,
-    );
-    const available = await Promise.all(
-        candidates.map(async (candidate) => {
-            try {
-                return (await stat(candidate)).isDirectory()
-                    ? candidate
-                    : undefined;
-            } catch {
-                return undefined;
-            }
-        }),
-    );
-    return available.filter((value): value is string => value !== undefined);
-}
+/** Return the display label of a filesystem root. */
+export const getFileSystemRootLabel = implementation.getFileSystemRootLabel;
+
+/** Enumerate accessible filesystem roots. */
+export const listFileSystemRoots = implementation.listFileSystemRoots;

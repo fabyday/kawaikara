@@ -19,13 +19,13 @@ let loadFailed = false;
 
 /** Performs the enable mac OS full screen auxiliary operation. */
 export function enableMacOSFullScreenAuxiliary(window: BrowserWindow): void {
-    if (process.platform !== 'darwin' || window.isDestroyed()) return;
+    if (window.isDestroyed()) return;
     loadAddon()?.setFullScreenAuxiliary(window.getNativeWindowHandle());
 }
 
 /** Performs the disable mac OS full screen auxiliary operation. */
 export function disableMacOSFullScreenAuxiliary(window: BrowserWindow): void {
-    if (process.platform !== 'darwin' || window.isDestroyed()) return;
+    if (window.isDestroyed()) return;
     loadAddon()?.clearFullScreenAuxiliary(window.getNativeWindowHandle());
 }
 

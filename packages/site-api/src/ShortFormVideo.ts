@@ -131,6 +131,3 @@ export function normalizeShortFormVideoPublisher(
     };
 }
 import type { ProviderSettingListItem, ProviderSettings } from './Provider';
-
-/** @deprecated Use ShortFormVideoDescriptor. */
-export type ShortFormVideoContribution = ShortFormVideoDescriptor;

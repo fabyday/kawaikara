@@ -50,8 +50,23 @@
   min-width: 0;
 }
 
+.log-viewer-window-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  min-height: 46px;
+  flex: 0 0 46px;
+  padding: 0;
+  border: 1px solid var(--kawai-color-border);
+  border-radius: 12px;
+  background: var(--kawai-color-surface, #26262b);
+}
 .log-viewer-header-glyph {
-  font-size: 20px;
+  font-size: 26px;
   line-height: 1;
 }
 
@@ -553,65 +568,6 @@
   color: #27210a;
 }
 
-.log-metadata-control {
-  flex: 0 0 auto;
-}
-
-.log-metadata-panel {
-  position: absolute;
-  z-index: 50;
-  top: calc(100% + 6px);
-  right: 0;
-  width: min(500px, calc(100vw - 36px));
-  box-sizing: border-box;
-  border: 1px solid rgb(255 255 255 / 14%);
-  background: #222227;
-  box-shadow: 0 22px 54px rgb(0 0 0 / 60%);
-}
-
-.log-metadata-close {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-}
-
-.log-metadata-close > span {
-  display: block;
-  font-size: 19px;
-  line-height: 1;
-  transform: translateY(-0.5px);
-}
-
-.log-metadata-copy-row {
-  margin-top: 8px;
-}
-
-.log-metadata-table {
-  margin-top: 10px;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 9px;
-}
-
-.log-metadata-row {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 12px;
-  border-bottom: 1px solid rgb(255 255 255 / 7%);
-  padding: 8px 10px;
-}
-
-.log-metadata-row:last-child {
-  border-bottom: 0;
-}
-
-.log-metadata-value {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
 .log-file-context-menu {
   position: fixed;
   z-index: 120;
@@ -776,12 +732,6 @@
   color: #047857;
 }
 
-.kawai-theme-light .log-metadata-panel {
-  border-color: rgb(45 35 65 / 16%);
-  background: #fdfcff;
-  box-shadow: 0 22px 54px rgb(45 35 65 / 24%);
-}
-
 .kawai-theme-light .log-file-context-menu,
 .kawai-theme-light .log-import-dialog,
 .kawai-theme-light .log-delete-dialog,
@@ -793,11 +743,6 @@
 
 .kawai-theme-light .log-import-cancel-backdrop {
   background: rgb(245 242 248 / 84%);
-}
-
-.kawai-theme-light .log-metadata-table,
-.kawai-theme-light .log-metadata-row {
-  border-color: rgb(45 35 65 / 10%);
 }
 
 .kawai-theme-light .log-viewer-truncated {

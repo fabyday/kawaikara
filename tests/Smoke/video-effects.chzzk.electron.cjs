@@ -46,7 +46,7 @@ app.whenReady()
         win.webContents.setAudioMuted(true);
         const manifest = require('../../packages/builtin-sites/src/Providers/Chzzk/manifest.json');
         win.webContents.setUserAgent(
-            manifest.contributes.browserIdentity.userAgent,
+            manifest.descriptors.browserIdentity.userAgent,
         );
         const logs = [];
         win.webContents.on('console-message', (event) => {

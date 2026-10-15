@@ -1,0 +1,29 @@
+{
+  "en-US": {
+    "webExtension.menu.open-page.title": "Open in Kawaikara",
+    "webExtension.menu.open-link.title": "Open link in Kawaikara",
+    "webExtension.menu.copy-link-page.title": "Copy Kawaikara link",
+    "webExtension.menu.copy-link-link.title": "Copy Kawaikara link",
+    "webExtension.action.open.title": "Open in Kawaikara",
+    "webExtension.action.copy-link.title": "Copy share link",
+    "webExtension.setting.browser-menu.title": "Browser context menu"
+  },
+  "ko-KR": {
+    "webExtension.menu.open-page.title": "카와이카라에서 열기",
+    "webExtension.menu.open-link.title": "카와이카라에서 링크 열기",
+    "webExtension.menu.copy-link-page.title": "카와이카라 링크 복사",
+    "webExtension.menu.copy-link-link.title": "카와이카라 링크 복사",
+    "webExtension.action.open.title": "카와이카라에서 열기",
+    "webExtension.action.copy-link.title": "공유 링크 복사",
+    "webExtension.setting.browser-menu.title": "브라우저 우클릭 메뉴"
+  },
+  "ja-JP": {
+    "webExtension.menu.open-page.title": "Kawaikaraで開く",
+    "webExtension.menu.open-link.title": "Kawaikaraでリンクを開く",
+    "webExtension.menu.copy-link-page.title": "Kawaikaraリンクをコピー",
+    "webExtension.menu.copy-link-link.title": "Kawaikaraリンクをコピー",
+    "webExtension.action.open.title": "Kawaikaraで開く",
+    "webExtension.action.copy-link.title": "共有リンクをコピー",
+    "webExtension.setting.browser-menu.title": "ブラウザーのコンテキストメニュー"
+  }
+}

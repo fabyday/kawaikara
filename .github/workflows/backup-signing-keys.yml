@@ -1,0 +1,43 @@
+name: Backup signing keys (encrypted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipient_fingerprint:
+        description: 'Paste SHA-256 from your LOCAL RecoverPubKey.sha256 (64 lowercase hex characters)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    # Never load signing secrets from a manually selected feature branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: signing-key-recovery
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Encrypt signing secrets in memory
+        run: node scripts/signing-key-backup.cjs encrypt "$RUNNER_TEMP/signing-recovery/backup.encrypted.json"
+        env:
+          SIGNING_RECOVERY_PUBLIC_KEY: ${{ vars.SIGNING_RECOVERY_PUBLIC_KEY }}
+          RECOVERY_FINGERPRINT: ${{ inputs.recipient_fingerprint }}
+          SELF_SIGNED_CERT_FOR_MAC: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC }}
+          SELF_SIGNED_CERT_FOR_MAC_PASSWD: ${{ secrets.SELF_SIGNED_CERT_FOR_MAC_PASSWD }}
+          SELF_SIGNED_CERT: ${{ secrets.SELF_SIGNED_CERT }}
+      - name: Upload ciphertext only
+        uses: actions/upload-artifact@v7
+        with:
+          name: signing-keys-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/signing-recovery/backup.encrypted.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

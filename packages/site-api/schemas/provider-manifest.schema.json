@@ -12,7 +12,7 @@
     "apiVersion",
     "main",
     "permissions",
-    "contributes"
+    "descriptors"
   ],
   "properties": {
     "$schema": { "type": "string" },
@@ -30,12 +30,12 @@
     },
     "permissions": { "$ref": "definitions.schema.json#/definitions/permissions" },
     "plugins": { "$ref": "definitions.schema.json#/definitions/safeRelativePaths" },
-    "contributes": {
-      "$ref": "#/definitions/contributes"
+    "descriptors": {
+      "$ref": "#/definitions/descriptors"
     }
   },
   "definitions": {
-    "contributes": {
+    "descriptors": {
       "type": "object",
       "additionalProperties": false,
       "required": ["menu"],

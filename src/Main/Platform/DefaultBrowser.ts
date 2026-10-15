@@ -1,4 +1,17 @@
-import { shell } from 'electron';
+import * as darwin from './Darwin/DefaultBrowser';
+import * as linux from './Linux/DefaultBrowser';
+import { selectPlatform } from './Runtime';
+import * as windows from './Windows/DefaultBrowser';
+
+/** Native browser launcher for this OS. */
+const implementation = selectPlatform({
+    /** Native Apple desktop integration. */
+    darwin,
+    /** Native Windows desktop integration. */
+    win32: windows,
+    /** Native Linux desktop integration. */
+    linux,
+});
 
 /**
  * Open a web URL with the operating system's registered default browser.
@@ -16,8 +29,5 @@ export async function openInDefaultBrowser(value: string): Promise<void> {
             'Only credential-free HTTP(S) URLs can open externally.',
         );
     }
-    await shell.openExternal(target.href, {
-        ...(process.platform === 'darwin' ? { activate: true } : {}),
-        ...(process.platform === 'win32' ? { logUsage: true } : {}),
-    });
+    await implementation.openInDefaultBrowser(target.href);
 }

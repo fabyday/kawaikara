@@ -5,7 +5,7 @@ import {
     restorePictureInPicturePresentation,
     getPictureInPictureReassertionDelays,
     shouldHidePictureInPictureFromTaskbar,
-} from '../Platform/Window/Presentation';
+} from '../Platform/Presentation';
 import {
     app,
     BrowserWindow,
@@ -58,6 +58,7 @@ import {
     createRefreshUnifiedPictureInPictureVideoScript,
 } from '../Inject/UnifiedPictureInPicturePage';
 import {
+    createFinishPictureInPictureTransitionScript,
     createExitUnifiedPictureInPictureScript,
     createExitUnifiedPictureInPictureHostScript,
     createPauseDocumentVideosScript,
@@ -401,6 +402,7 @@ export class UnifiedPictureInPictureManager {
             this.syncSiteViewBounds(state);
             viewerWindow.hide();
             presentPictureInPicture(pipWindow, siteView.webContents);
+            await this.finishPageTransition(state.frame);
             this.startHoverTracking(state);
             this.scheduleFullscreenReassertion(state);
 
@@ -454,6 +456,7 @@ export class UnifiedPictureInPictureManager {
             await this.restoreInjectedVideo(candidate.frame);
             await this.restoreHostFrames(hostFrames);
             await this.restoreSiteView(viewerWindow, siteView, pipWindow);
+            await this.finishPageTransition(candidate.frame);
             await this.restoreApplicationPresentationAfterPictureInPicture(
                 pipWindow,
             );
@@ -520,6 +523,7 @@ export class UnifiedPictureInPictureManager {
             state.siteView,
             state.pipWindow,
         );
+        await this.finishPageTransition(state.frame);
         this.state = undefined;
         if (!state.pipWindow.isDestroyed()) state.pipWindow.hide();
         await this.restoreApplicationPresentationAfterPictureInPicture(
@@ -931,6 +935,15 @@ export class UnifiedPictureInPictureManager {
             }
         } finally {
             state.refreshingVideo = false;
+        }
+    }
+
+    /** Finishes page layout stabilization after native view transfer. */
+    private async finishPageTransition(frame: WebFrameMain): Promise<void> {
+        try {
+            await frame.executeJavaScript(createFinishPictureInPictureTransitionScript(), true);
+        } catch {
+            // Navigation may have destroyed the old document during transfer.
         }
     }
 

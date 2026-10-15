@@ -70,6 +70,19 @@ import appleTvLocalization from './Providers/AppleTv/locale.json';
 import wavveLocalization from './Providers/Wavve/locale.json';
 import videoLocalization from './Providers/Video/locale.json';
 import youTubeLocalization from './Providers/YouTube/locale.json';
+import watchaLocalization from './Providers/Watcha/locale.json';
+import coupangPlayLocalization from './Providers/CoupangPlay/locale.json';
+import ridiBooksLocalization from './Providers/RidiBooks/locale.json';
+import tvingLocalization from './Providers/Tving/locale.json';
+import spotifyLocalization from './Providers/Spotify/locale.json';
+import youTubeMusicLocalization from './Providers/YouTubeMusic/locale.json';
+import netflixLocalization from './Providers/Netflix/locale.json';
+import laftelLocalization from './Providers/Laftel/locale.json';
+import crunchyrollLocalization from './Providers/Crunchyroll/locale.json';
+import primeVideoLocalization from './Providers/PrimeVideo/locale.json';
+import twitchLocalization from './Providers/Twitch/locale.json';
+import appleMusicLocalization from './Providers/AppleMusic/locale.json';
+import disneyPlusLocalization from './Providers/DisneyPlus/locale.json';
 
 /** Performs the provider operation. */
 const provider = (
@@ -117,9 +130,9 @@ export const builtinBundle = defineBundle({
   plugins: [],
   /** The providers value. */
   providers: [
-    provider(netflixManifest as ProviderManifest, NetflixProvider),
-    provider(laftelManifest as ProviderManifest, LaftelProvider),
-    provider(disneyPlusManifest as ProviderManifest, DisneyPlusProvider),
+    provider(netflixManifest as ProviderManifest, NetflixProvider, netflixLocalization),
+    provider(laftelManifest as ProviderManifest, LaftelProvider, laftelLocalization),
+    provider(disneyPlusManifest as ProviderManifest, DisneyPlusProvider, disneyPlusLocalization),
     provider(
       videoManifest as ProviderManifest,
       VideoProvider,
@@ -131,19 +144,19 @@ export const builtinBundle = defineBundle({
       youTubeLocalization,
       [builtinPlugin(YouTubeShortsManifest as PluginManifest, YouTubeShortsPlugin)],
     ),
-    provider(primeVideoManifest as ProviderManifest, PrimeVideoProvider),
+    provider(primeVideoManifest as ProviderManifest, PrimeVideoProvider, primeVideoLocalization),
     provider(wavveManifest as ProviderManifest, WavveProvider, wavveLocalization, [builtinPlugin(WavveResponsiveViewportManifest as PluginManifest, WavveResponsiveViewportPlugin)]),
-    provider(watchaManifest as ProviderManifest, WatchaProvider),
-    provider(coupangPlayManifest as ProviderManifest, CoupangPlayProvider),
-    provider(tvingManifest as ProviderManifest, TvingProvider),
+    provider(watchaManifest as ProviderManifest, WatchaProvider, watchaLocalization),
+    provider(coupangPlayManifest as ProviderManifest, CoupangPlayProvider, coupangPlayLocalization),
+    provider(tvingManifest as ProviderManifest, TvingProvider, tvingLocalization),
     provider(appleTvManifest as ProviderManifest, AppleTvProvider, appleTvLocalization, [builtinPlugin(AppleTvStorefrontManifest as PluginManifest, AppleTvStorefrontPlugin)]),
-    provider(crunchyrollManifest as ProviderManifest, CrunchyrollProvider),
+    provider(crunchyrollManifest as ProviderManifest, CrunchyrollProvider, crunchyrollLocalization),
     provider(chzzkManifest as ProviderManifest, ChzzkProvider, chzzkLocalization, [builtinPlugin(ChzzkAdBlockManifest as PluginManifest, ChzzkAdBlockPlugin), builtinPlugin(ChzzkQualityManifest as PluginManifest, ChzzkQualityPlugin), builtinPlugin(ChzzkClipsManifest as PluginManifest, ChzzkClipsPlugin), builtinPlugin(ChzzkUpscalingManifest as PluginManifest, ChzzkUpscalingPlugin)]),
-    provider(twitchManifest as ProviderManifest, TwitchProvider),
-    provider(appleMusicManifest as ProviderManifest, AppleMusicProvider),
-    provider(spotifyManifest as ProviderManifest, SpotifyProvider),
-    provider(youTubeMusicManifest as ProviderManifest, YouTubeMusicProvider),
-    provider(ridiBooksManifest as ProviderManifest, RidiBooksProvider),
+    provider(twitchManifest as ProviderManifest, TwitchProvider, twitchLocalization),
+    provider(appleMusicManifest as ProviderManifest, AppleMusicProvider, appleMusicLocalization),
+    provider(spotifyManifest as ProviderManifest, SpotifyProvider, spotifyLocalization),
+    provider(youTubeMusicManifest as ProviderManifest, YouTubeMusicProvider, youTubeMusicLocalization),
+    provider(ridiBooksManifest as ProviderManifest, RidiBooksProvider, ridiBooksLocalization),
   ],
 });
 

@@ -1,38 +1,25 @@
-import { app } from 'electron';
+import * as darwin from './Darwin/Graphics';
+import * as linux from './Linux/Graphics';
+import { selectPlatform } from './Runtime';
+import * as windows from './Windows/Graphics';
 
-/** Disable video overlays that bypass capture, preserving Chromium's GPU safety policy. */
-export function configureCaptureCompatibleGraphics(): void {
-    if (process.platform === 'darwin') {
-        const features = new Set(
-            app.commandLine
-                .getSwitchValue('disable-features')
-                .split(',')
-                .map((value) => value.trim())
-                .filter(Boolean),
-        );
-        features.add('avfoundation-overlays');
-        app.commandLine.removeSwitch('disable-features');
-        app.commandLine.appendSwitch(
-            'disable-features',
-            [...features].join(','),
-        );
-    } else if (process.platform === 'win32') {
-        app.commandLine.appendSwitch(
-            'disable_direct_composition_video_overlays',
-            '1',
-        );
-    }
-}
+/** Implementation selected at the platform boundary. */
+const implementation = selectPlatform({
+    /** Native Apple desktop integration. */
+    darwin,
+    /** Native Windows desktop integration. */
+    win32: windows,
+    /** Native Linux desktop integration. */
+    linux,
+});
 
-/** Whether this build target has a shipped native video backend. */
-export function hasNativeVideoBackend(): boolean {
-    return (
-        (process.platform === 'win32' && process.arch === 'x64') ||
-        (process.platform === 'darwin' && process.arch === 'arm64')
-    );
-}
+/** Configure native overlays so video remains capturable. */
+export const configureCaptureCompatibleGraphics =
+    implementation.configureCaptureCompatibleGraphics;
 
-/** Whether the retained video surface needs warming before its first activation. */
-export function shouldPrewarmVideoSurface(): boolean {
-    return process.platform === 'win32';
-}
+/** Whether this target ships a native video backend. */
+export const hasNativeVideoBackend = implementation.hasNativeVideoBackend;
+
+/** Whether the retained video surface needs warming before activation. */
+export const shouldPrewarmVideoSurface =
+    implementation.shouldPrewarmVideoSurface;

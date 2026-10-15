@@ -12,6 +12,11 @@ export async function openExternalRequest(
     request: ExternalOpenRequest,
 ): Promise<boolean> {
     const { sites, windows, videoLibrary } = application;
+    if (request.bridgeWake) {
+        windows.focusViewer();
+        app.focus({ steal: true });
+        return true;
+    }
     if (request.localVideoPath) {
         const result = await videoLibrary.openPath(request.localVideoPath);
         if (result.kind !== 'video') return false;
@@ -58,7 +63,7 @@ export async function postInitializeApplication(
         );
     });
     const startupRequest = lifecycle.takeStartupRequest();
-    const resolvedStartupRequest = startupRequest
+    const resolvedStartupRequest = startupRequest && !startupRequest.bridgeWake
         ? await openExternalRequest(application, startupRequest).catch(
               (error: unknown) => {
                   applicationLog.warn(
@@ -77,6 +82,8 @@ export async function postInitializeApplication(
             sites.has(configuredSite) ? configuredSite : 'kawaikara.youtube',
         );
     }
+
+    if (startupRequest?.bridgeWake) await openExternalRequest(application, startupRequest);
 
     lifecycle.activateExternalOpenHandler(async (request) => {
         if (!(await openExternalRequest(application, request))) {

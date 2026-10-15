@@ -9,9 +9,7 @@ const queryRegistry = promisify(execFile);
 
 /** Source runs and isolated updater fixtures must never claim installed application defaults. */
 export function canConfigureDefaultVideoApp(): boolean {
-    return (
-        process.platform === 'win32' && app.isPackaged && !UPDATE_TEST_PROFILE
-    );
+    return app.isPackaged && !UPDATE_TEST_PROFILE;
 }
 
 /** Opens the OS-owned consent UI for this channel, not whichever channel owns the URL protocol. */
@@ -47,7 +45,5 @@ export async function openDefaultVideoAppSettings(): Promise<void> {
 
 /** Optional UI capability: omitted where default-video-app settings are unavailable. */
 export function getDefaultVideoAppCapability(): boolean | undefined {
-    return process.platform === 'win32'
-        ? canConfigureDefaultVideoApp()
-        : undefined;
+    return canConfigureDefaultVideoApp();
 }

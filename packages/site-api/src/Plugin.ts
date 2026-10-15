@@ -33,7 +33,7 @@ export interface BundleLocaleDescriptor {
     readonly defaultLocale?: string;
 }
 
-/** A persistent browser profile contributed by one Bundle. */
+/** A persistent browser profile declared by one Bundle. */
 export interface BundleBrowserProfileDescriptor {
     /** Profile id scoped to the containing Bundle. */
     readonly id: string;
@@ -213,7 +213,7 @@ export interface ProviderManifest {
     /** Provider capabilities; each entry must also be granted by the Bundle. */
     readonly permissions: readonly SitePermission[];
     /** Static Provider metadata kept out of the executable class. */
-    readonly contributes: ProviderManifestDescriptors;
+    readonly descriptors: ProviderManifestDescriptors;
     /** Plugin directories relative to this Provider directory. */
     readonly plugins?: readonly string[];
 }
@@ -252,7 +252,7 @@ export interface ProviderDefinition {
     readonly manifest: ProviderManifest;
     /** The provider value. */
     readonly provider: ProviderConstructor;
-    /** Validated locale messages loaded from contributes.locale.resource. */
+    /** Validated locale messages loaded from descriptors.locale.resource. */
     readonly localization?: ProviderLocaleResource;
     /** Plugins physically owned by this Provider and scoped to it. */
     readonly plugins: readonly PluginDefinition[];
@@ -354,8 +354,8 @@ export function defineProvider(definition: {
             ...definition.manifest,
             /** The permissions value. */
             permissions: Object.freeze([...definition.manifest.permissions]),
-            /** The contributes value. */
-            contributes: Object.freeze({ ...definition.manifest.contributes }),
+            /** The descriptors value. */
+            descriptors: Object.freeze({ ...definition.manifest.descriptors }),
             /** The plugins value. */
             plugins: Object.freeze([...(definition.manifest.plugins ?? [])]),
         }),
@@ -419,16 +419,3 @@ export function isBundleDefinition(value: unknown): value is BundleDefinition {
         Array.isArray(candidate.plugins)
     );
 }
-
-/** @deprecated Use BundleLocaleDescriptor. */
-export type BundleLocaleContribution = BundleLocaleDescriptor;
-
-/** @deprecated Use BundleBrowserProfileDescriptor. */
-export type BundleBrowserProfileContribution = BundleBrowserProfileDescriptor;
-
-/** @deprecated Use ProviderManifestPictureInPictureDescriptor. */
-export type ProviderManifestPictureInPictureContribution =
-    ProviderManifestPictureInPictureDescriptor;
-
-/** @deprecated Use ProviderManifestDescriptors. */
-export type ProviderManifestContributions = ProviderManifestDescriptors;

@@ -155,7 +155,7 @@ function MenuRailHeader({
   closeOverlay,
 }: Pick<MenuRailProps, 'messages' | 'selectedSite' | 'pipMode' | 'pipFailureKey' | 'pipLoading' | 'togglePictureInPicture' | 'preferences' | 'toggleAlwaysOnTop' | 'setOverlayView' | 'closeOverlay'>) {
   return (
-    <Flex align="center" justify="between" gap="sm">
+    <Flex className="menu-rail-header" align="center" justify="between" gap="sm">
       <div>
         <Head level={1} size="md">
           {messages.title}
@@ -164,7 +164,7 @@ function MenuRailHeader({
           {messages.chooseSite}
         </Text>
       </div>
-      <Flex align="center" gap="xs">
+      <Flex className="menu-rail-actions" align="center" gap="xs">
         {(selectedSite?.pictureInPictureEnabled ?? true) ? (
           <PictureInPictureButton
             active={pipMode !== undefined}

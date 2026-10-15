@@ -79,6 +79,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
 
   /** Describes the shorts state contract. */
   interface ShortsState {
+    /** Removes all page listeners and pending Plugin work. */
+    dispose(): void;
     /** Whether the auto advance option is enabled. */
     autoAdvance: boolean;
     /** Whether the advancing option is enabled. */
@@ -121,6 +123,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
   const pageGlobal = globalThis as typeof globalThis & {
     __kawaikaraYouTubeShorts?: ShortsState;
     __kawaikaraUnifiedPictureInPicture?: {
+      /** Video currently presented by the shared PiP session. */
+      readonly video?: HTMLVideoElement;
       /** Performs the release layout for navigation operation. */
       releaseLayoutForNavigation?(): void;
       /** Restores the layout after navigation. */
@@ -145,6 +149,26 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     void installed.checkBannedPublisher();
     return;
   }
+
+  const lifetime = new AbortController();
+  const timers = new Set<number>();
+  /** Schedules work owned by this Plugin activation. */
+  const later = (callback: () => void, delay: number): number => {
+    const timer = window.setTimeout(() => {
+      timers.delete(timer);
+      if (!lifetime.signal.aborted) callback();
+    }, delay);
+    timers.add(timer);
+    return timer;
+  };
+  /** Registers a listener removed on Plugin deactivation. */
+  const listen = (target: EventTarget, name: string, listener: (event: Event) => void,
+    options: boolean | AddEventListenerOptions = false): void => {
+    target.addEventListener(name, listener, {
+      ...(typeof options === 'boolean' ? { capture: options } : options),
+      signal: lifetime.signal,
+    });
+  };
 
   const progressByVideo = new WeakMap<HTMLVideoElement, ProgressSnapshot>();
   const labels = { ...options.labels
@@ -184,6 +208,82 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     [...document.querySelectorAll('ytd-reel-video-renderer')].find(
       (renderer) => visibleRatio(renderer) >= 0.5,
     );
+
+  // Keep carousel identity across native window reparenting. Pixel offsets are
+  // invalid after a resize, so resolve the same slot's offset on each frame.
+  /** Identity and temporary layout state spanning one native view transfer. */
+  interface TransitionAnchor {
+    /** Original media element, which may survive a carousel resize. */
+    readonly video: HTMLVideoElement;
+    /** Carousel renderer owning the original video. */
+    readonly renderer: Element;
+    /** Site-provided identity used to detect recycled renderers. */
+    readonly videoId: string | null;
+    /** Media source at transition start. */
+    readonly source: string;
+    /** Stable URL for loop comparisons during transient router updates. */
+    readonly url: string;
+    /** Restores only scroll styles applied by this transition. */
+    readonly restoreScroll: () => void;
+    /** Actual completion deferred until the layout settles. */
+    completed: boolean;
+    /** Time the host acknowledged final native bounds. */
+    finishedAt?: number;
+    /** Start time used to bound interrupted transitions. */
+    readonly startedAt: number;
+  }
+  let transition: TransitionAnchor | undefined;
+  let navigationGeneration = 0;
+  let transitionFrame = 0;
+  let lastResizeAt = 0;
+  /** Reads the renderer identity without using its transient active flag. */
+  const rendererVideoId = (renderer: Element): string | null =>
+    renderer.getAttribute('video-id') ??
+    renderer.querySelector<HTMLAnchorElement>('a[href^="/shorts/"]')
+      ?.pathname.split('/')[2] ?? null;
+  /** Rejects removed/recycled video elements and changed media sources. */
+  const anchorIsCurrent = (anchor: TransitionAnchor): boolean =>
+    isShortsPage() && anchor.video.isConnected && anchor.renderer.isConnected &&
+    anchor.renderer.contains(anchor.video) &&
+    rendererVideoId(anchor.renderer) === anchor.videoId &&
+    anchor.video.currentSrc === anchor.source;
+  /** Releases temporary layout and queued completion without navigating. */
+  const cancelTransition = (): void => {
+    transition?.restoreScroll();
+    transition = undefined;
+    cancelAnimationFrame(transitionFrame);
+  };
+  /** Makes delayed work from an older navigation inert. */
+  const invalidateNavigation = (): void => {
+    navigationGeneration += 1;
+    state.advancing = false;
+  };
+  // A deliberate navigation takes precedence over the transition anchor.
+  /** Lets explicit user navigation supersede automatic position preservation. */
+  const userNavigation = (event: Event): void => {
+    if (!event.isTrusted) return;
+    if (event instanceof KeyboardEvent &&
+      !['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return;
+    if (event.type === 'click' && !(event.target instanceof Element &&
+      event.target.closest('#navigation-button-up, #navigation-button-down, a[href^="/shorts/"]'))) return;
+    cancelTransition();
+    invalidateNavigation();
+  };
+  for (const name of ['wheel', 'touchstart', 'keydown', 'click']) {
+    listen(document,name, userNavigation, { capture: true, passive: true });
+  }
+  /** Aligns the original slot using the current viewport geometry. */
+  const alignTransitionAnchor = (anchor: TransitionAnchor): void => {
+    const container = document.querySelector('#shorts-container');
+    const slot = anchor.renderer.parentElement?.parentElement;
+    if (container instanceof HTMLElement && slot instanceof HTMLElement && container.contains(slot)) {
+      container.scrollTop = slot.offsetTop;
+    }
+  };
+  listen(window, 'resize', () => {
+    lastResizeAt = performance.now();
+    if (transition && anchorIsCurrent(transition)) alignTransitionAnchor(transition);
+  });
 
   /** Resolves the image URL. */
   const resolveImageUrl = (
@@ -373,6 +473,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
   const stabilizeDocumentViewport = (
     scrollLeft: number,
     scrollTop: number,
+    generation: number,
   ): void => {
     const scrollingElement = document.scrollingElement;
     if (!scrollingElement) return;
@@ -381,17 +482,26 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     // after automatic advance. Restore only that outer document offset.
     /** Restores the operation. */
     const restore = (): void => {
-      if (!isShortsPage()) return;
+      if (!isShortsPage() || generation !== navigationGeneration) return;
       scrollingElement.scrollLeft = scrollLeft;
       scrollingElement.scrollTop = scrollTop;
     };
     requestAnimationFrame(() => requestAnimationFrame(restore));
-    window.setTimeout(restore, 120);
-    window.setTimeout(restore, 360);
-    window.setTimeout(restore, 720);
+    later(restore, 120);
+    later(restore, 360);
+    later(restore, 720);
   };
 
   const state: ShortsState = {
+    dispose() {
+      lifetime.abort();
+      timers.forEach(timer => window.clearTimeout(timer));
+      timers.clear();
+      cancelTransition();
+      invalidateNavigation();
+      document.querySelector('[data-kawaikara-shorts-status="youtube"]')?.remove();
+      if (pageGlobal.__kawaikaraYouTubeShorts === state) delete pageGlobal.__kawaikaraYouTubeShorts;
+    },
     autoAdvance: options.autoAdvance,
     advancing: false,
     progressGeneration: 0,
@@ -404,10 +514,11 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     resolveActivePublisher,
     /** Performs the check banned publisher operation. */
     async checkBannedPublisher() {
-      if (!isShortsPage() || state.advancing) return;
+      if (lifetime.signal.aborted || !isShortsPage() || state.advancing) return;
       const currentUrl = location.href;
       const publisher = await resolveActivePublisher();
       if (
+        lifetime.signal.aborted ||
         !publisher ||
         location.href !== currentUrl ||
         !state.bannedPublisherIds.has(publisher.id) &&
@@ -416,18 +527,20 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
         return;
       }
       if (state.navigate('next')) {
-        window.setTimeout(() => void state.checkBannedPublisher(), 1_250);
+        later(() => void state.checkBannedPublisher(), 1_250);
       }
     },
     /** Performs the navigate operation. */
     navigate(direction) {
-      if (!isShortsPage()) return false;
+      if (lifetime.signal.aborted || !isShortsPage()) return false;
       if (state.advancing) {
         // A repeated key press during the current transition is intentionally
         // coalesced into that transition instead of being queued for a later
         // Short. This makes "press until it moves" stop on the next item.
         return true;
       }
+      cancelTransition();
+      const generation = ++navigationGeneration;
       const button = findNavigationButton(direction);
 
       const currentUrl = location.href;
@@ -459,24 +572,27 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       // YouTube still performs its own URL/player update, without exposing an
       // intermediate up/down offset in the PiP surface.
       if (scrollTarget) scrollTarget.container.scrollTop = scrollTarget.top;
-      stabilizeDocumentViewport(scrollLeft, scrollTop);
-      window.setTimeout(
+      stabilizeDocumentViewport(scrollLeft, scrollTop, generation);
+      later(
         () => {
+          if (generation !== navigationGeneration || !isShortsPage()) return;
           alignActiveShortsRenderer();
           pageGlobal.__kawaikaraUnifiedPictureInPicture
             ?.restoreLayoutAfterNavigation?.();
         },
         360,
       );
-      window.setTimeout(
+      later(
         () => {
+          if (generation !== navigationGeneration || !isShortsPage()) return;
           alignActiveShortsRenderer();
           pageGlobal.__kawaikaraUnifiedPictureInPicture
             ?.restoreLayoutAfterNavigation?.();
         },
         640,
       );
-      window.setTimeout(() => {
+      later(() => {
+        if (generation !== navigationGeneration) return;
         state.advancing = false;
         if (location.href === currentUrl) state.lastAdvancedUrl = undefined;
         void state.checkBannedPublisher();
@@ -487,6 +603,8 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     setAutoAdvance(enabled, announce) {
       const changed = state.autoAdvance !== enabled;
       state.autoAdvance = enabled;
+      if (changed) state.progressGeneration += 1;
+      if (!enabled && transition) transition.completed = false;
       if (announce && changed) state.showAutoAdvanceStatus();
     },
     /** Performs the show auto advance status operation. */
@@ -528,7 +646,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       document.documentElement.append(host);
       host.dataset.visible = 'true';
       if (statusTimer !== undefined) window.clearTimeout(statusTimer);
-      statusTimer = window.setTimeout(() => {
+      statusTimer = later(() => {
         delete host.dataset.visible;
         statusTimer = undefined;
       }, 1_450);
@@ -537,6 +655,10 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
 
   /** Performs the advance after completion operation. */
   const advanceAfterCompletion = (video: unknown): void => {
+    if (transition && video === transition.video && anchorIsCurrent(transition)) {
+      if (state.autoAdvance) transition.completed = true;
+      return;
+    }
     if (
       state.lastAdvancedUrl &&
       state.lastAdvancedUrl !== location.href
@@ -555,7 +677,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     state.navigate('next');
   };
 
-  document.addEventListener(
+  listen(document,
     'ended',
     (event) => {
       const video = event.target;
@@ -564,19 +686,19 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     },
     true,
   );
-  document.addEventListener(
+  listen(document,
     'playing',
     (event) => {
       if (isActiveShortsVideo(event.target)) void state.checkBannedPublisher();
     },
     true,
   );
-  document.addEventListener(
+  listen(document,
     'yt-navigate-finish',
-    () => window.setTimeout(() => void state.checkBannedPublisher(), 120),
+    () => later(() => void state.checkBannedPublisher(), 120),
     true,
   );
-  document.addEventListener(
+  listen(document,
     'timeupdate',
     (event) => {
       const video = event.target;
@@ -587,14 +709,15 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
       if (
         !state.autoAdvance ||
         !isShortsPage() ||
-        !isActiveShortsVideo(video) ||
+        !(isActiveShortsVideo(video) ||
+          (transition?.video === video && anchorIsCurrent(transition))) ||
         video.paused ||
         video.ended ||
         !Number.isFinite(video.duration) ||
         video.duration <= 0 ||
         !Number.isFinite(video.currentTime)
       ) {
-        progressByVideo.delete(video);
+        if (transition?.video !== video) progressByVideo.delete(video);
         return;
       }
 
@@ -604,7 +727,7 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
         duration: video.duration,
         generation: state.progressGeneration,
         observedAt: now,
-        url: location.href,
+        url: transition?.video === video ? transition.url : location.href,
       };
       const previous = progressByVideo.get(video);
       progressByVideo.set(video, progress);
@@ -631,10 +754,64 @@ function installYouTubeShorts(options: YouTubeShortsInjectionOptions): void {
     },
     true,
   );
-  document.addEventListener(
+  listen(document,
     'kawaikara:picture-in-picture-transition',
-    () => {
-      state.progressGeneration += 1;
+    (event) => {
+      if (event instanceof CustomEvent && event.detail?.phase === 'end') {
+        if (transition) transition.finishedAt = performance.now();
+        return;
+      }
+      cancelTransition();
+      invalidateNavigation();
+      if (!isShortsPage()) return;
+      const pipVideo = pageGlobal.__kawaikaraUnifiedPictureInPicture?.video;
+      const currentId = location.pathname.split('/')[2];
+      const renderer = [...document.querySelectorAll('ytd-reel-video-renderer')]
+        .find(candidate => rendererVideoId(candidate) === currentId) ??
+        pipVideo?.closest('ytd-reel-video-renderer') ?? findActiveRenderer();
+      const video = renderer?.querySelector('video') ??
+        (pipVideo && renderer?.contains(pipVideo) ? pipVideo : undefined);
+      if (!renderer || !(video instanceof HTMLVideoElement)) return;
+      const container = document.querySelector<HTMLElement>('#shorts-container');
+      const scrollStyles = ['scroll-behavior', 'scroll-snap-type'].map(property => ({
+        property, value: container?.style.getPropertyValue(property) ?? '',
+        priority: container?.style.getPropertyPriority(property) ?? '',
+        override: property === 'scroll-behavior' ? 'auto' : 'none',
+      }));
+      // Prevent the browser from snapping to a neighbouring item using the old
+      // viewport's offset while the native window dimensions are changing.
+      scrollStyles.forEach(({ property, override }) => container?.style.setProperty(property, override, 'important'));
+      const anchor: TransitionAnchor = {
+        renderer, video, videoId: rendererVideoId(renderer), source: video.currentSrc,
+        url: location.href, completed: video.ended, startedAt: performance.now(),
+        restoreScroll: () => scrollStyles.forEach(({ property, value, priority, override }) => {
+          if (container?.style.getPropertyValue(property) !== override ||
+            container.style.getPropertyPriority(property) !== 'important') return;
+          if (value) container.style.setProperty(property, value, priority);
+          else container.style.removeProperty(property);
+        }),
+      };
+      transition = anchor;
+      /** Holds the anchor until native transfer and resize events settle. */
+      const settle = (): void => {
+        if (transition !== anchor) return;
+        if (!anchorIsCurrent(anchor)) { cancelTransition(); return; }
+        alignTransitionAnchor(anchor);
+        const now = performance.now();
+        // The manager sends end only after native bounds have been restored.
+        // Keep a bounded fallback for interrupted/older transition callers.
+        if ((anchor.finishedAt !== undefined && now - Math.max(anchor.finishedAt, lastResizeAt) >= 120) ||
+          now - anchor.startedAt >= 2000) {
+          cancelTransition();
+          if (state.autoAdvance && (anchor.completed || anchor.video.ended) &&
+            state.lastAdvancedUrl !== location.href) {
+            state.navigate('next');
+          }
+          return;
+        }
+        transitionFrame = requestAnimationFrame(settle);
+      };
+      transitionFrame = requestAnimationFrame(settle);
     },
     true,
   );
@@ -731,4 +908,16 @@ export function createYouTubeShortsCommandScript(
 /** Creates the you tube shorts publisher script. */
 export function createYouTubeShortsPublisherScript(): string {
   return serializePageInjectionWithOptions(readYouTubeShortsPublisher, {});
+}
+
+/** Removes only the Shorts Plugin runtime from the current document. */
+export function createYouTubeShortsCleanupScript(): string {
+  return serializePageInjectionWithOptions(() => {
+    (globalThis as typeof globalThis & {
+      __kawaikaraYouTubeShorts?: {
+        /** Releases the current page activation. */
+        dispose(): void;
+      };
+    }).__kawaikaraYouTubeShorts?.dispose();
+  }, undefined);
 }

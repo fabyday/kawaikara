@@ -1,9 +1,21 @@
-/** Modifier used for the platform's standard application shortcuts. */
-export function getPrimaryShortcutModifier(): 'meta' | 'control' {
-    return process.platform === 'darwin' ? 'meta' : 'control';
-}
+import * as darwin from './Darwin/Keyboard';
+import * as linux from './Linux/Keyboard';
+import { selectPlatform } from './Runtime';
+import * as windows from './Windows/Keyboard';
 
-/** Whether the standard editing menu supports Control+Y for redo. */
-export function supportsRedoWithY(): boolean {
-    return process.platform !== 'darwin';
-}
+/** Implementation selected at the platform boundary. */
+const implementation = selectPlatform({
+    /** Native Apple desktop integration. */
+    darwin,
+    /** Native Windows desktop integration. */
+    win32: windows,
+    /** Native Linux desktop integration. */
+    linux,
+});
+
+/** Modifier used for standard application shortcuts. */
+export const getPrimaryShortcutModifier =
+    implementation.getPrimaryShortcutModifier;
+
+/** Whether the editing menu supports Control+Y for redo. */
+export const supportsRedoWithY = implementation.supportsRedoWithY;

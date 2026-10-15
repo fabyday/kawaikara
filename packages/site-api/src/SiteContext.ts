@@ -151,6 +151,8 @@ export interface SitePageInjection {
   readonly id: string;
   /** Rebuilt before every pass so settings and action URLs can stay current. */
   readonly source: string | (() => string | Promise<string>);
+  /** Page-world teardown run by the host when the registration is disposed. */
+  readonly cleanup?: string;
   /** Defaults to dom-ready and did-finish-load. */
   readonly phases?: readonly SitePagePhase[];
   /** Defaults to the main document. */

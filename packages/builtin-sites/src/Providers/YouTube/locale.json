@@ -14,7 +14,21 @@
     "shorts.announcement.disabled": "Shorts auto-advance off",
     "shorts.announcement.banned": "Publisher banned",
     "shorts.announcement.next": "Next Short",
-    "shorts.announcement.previous": "Previous Short"
+    "shorts.announcement.previous": "Previous Short",
+    "webExtension.menu.open-page.title": "Open in Kawaikara",
+    "webExtension.menu.open-link.title": "Open link in Kawaikara",
+    "webExtension.menu.copy-link-page.title": "Copy Kawaikara link",
+    "webExtension.menu.copy-link-link.title": "Copy Kawaikara link",
+    "webExtension.menu.download-page.title": "Download with Kawaikara",
+    "webExtension.menu.download-link.title": "Download with Kawaikara",
+    "webExtension.dom.player-context.open.title": "Open in Kawaikara",
+    "webExtension.dom.player-context.copy-link.title": "Copy Kawaikara link",
+    "webExtension.dom.player-context.download.title": "Download with Kawaikara",
+    "webExtension.action.open.title": "Open in Kawaikara",
+    "webExtension.action.copy-link.title": "Copy share link",
+    "webExtension.action.download.title": "Download with Kawaikara",
+    "webExtension.setting.browser-menu.title": "Browser context menu",
+    "webExtension.setting.player-menu.title": "Player context menu"
   },
   "ko-KR": {
     "settings.plugins.title": "사이트 플러그인",
@@ -31,7 +45,21 @@
     "shorts.announcement.disabled": "쇼츠 자동 넘김 꺼짐",
     "shorts.announcement.banned": "이 게시자를 차단했습니다",
     "shorts.announcement.next": "다음 쇼츠",
-    "shorts.announcement.previous": "이전 쇼츠"
+    "shorts.announcement.previous": "이전 쇼츠",
+    "webExtension.menu.open-page.title": "카와이카라에서 열기",
+    "webExtension.menu.open-link.title": "카와이카라에서 링크 열기",
+    "webExtension.menu.copy-link-page.title": "카와이카라 링크 복사",
+    "webExtension.menu.copy-link-link.title": "카와이카라 링크 복사",
+    "webExtension.menu.download-page.title": "카와이카라에서 다운로드",
+    "webExtension.menu.download-link.title": "카와이카라에서 다운로드",
+    "webExtension.dom.player-context.open.title": "카와이카라에서 열기",
+    "webExtension.dom.player-context.copy-link.title": "카와이카라 링크 복사",
+    "webExtension.dom.player-context.download.title": "카와이카라에서 다운로드",
+    "webExtension.action.open.title": "카와이카라에서 열기",
+    "webExtension.action.copy-link.title": "공유 링크 복사",
+    "webExtension.action.download.title": "카와이카라에서 다운로드",
+    "webExtension.setting.browser-menu.title": "브라우저 우클릭 메뉴",
+    "webExtension.setting.player-menu.title": "플레이어 우클릭 메뉴"
   },
   "ja-JP": {
     "settings.plugins.title": "Provider プラグイン",
@@ -48,6 +76,20 @@
     "shorts.announcement.disabled": "Shorts 自動送り オフ",
     "shorts.announcement.banned": "この投稿者をブロックしました",
     "shorts.announcement.next": "次の Shorts",
-    "shorts.announcement.previous": "前の Shorts"
+    "shorts.announcement.previous": "前の Shorts",
+    "webExtension.menu.open-page.title": "Kawaikaraで開く",
+    "webExtension.menu.open-link.title": "Kawaikaraでリンクを開く",
+    "webExtension.menu.copy-link-page.title": "Kawaikaraリンクをコピー",
+    "webExtension.menu.copy-link-link.title": "Kawaikaraリンクをコピー",
+    "webExtension.menu.download-page.title": "Kawaikaraでダウンロード",
+    "webExtension.menu.download-link.title": "Kawaikaraでダウンロード",
+    "webExtension.dom.player-context.open.title": "Kawaikaraで開く",
+    "webExtension.dom.player-context.copy-link.title": "Kawaikaraリンクをコピー",
+    "webExtension.dom.player-context.download.title": "Kawaikaraでダウンロード",
+    "webExtension.action.open.title": "Kawaikaraで開く",
+    "webExtension.action.copy-link.title": "共有リンクをコピー",
+    "webExtension.action.download.title": "Kawaikaraでダウンロード",
+    "webExtension.setting.browser-menu.title": "ブラウザーのコンテキストメニュー",
+    "webExtension.setting.player-menu.title": "プレーヤーのコンテキストメニュー"
   }
 }

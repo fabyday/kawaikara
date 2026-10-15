@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const { buildSync } = require('esbuild');
 const {
     waitForNativeUpdate,
-} = require('../../src/Main/Platform/macOS/UpdateStaging.ts');
+} = require('../../src/Main/Platform/Darwin/UpdateStaging.ts');
 
 const compiled = buildSync({
     entryPoints: [

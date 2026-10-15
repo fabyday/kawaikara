@@ -3,18 +3,39 @@
     "settings.plugins.title": "Provider plugins",
     "settings.plugins.description": "Changes take effect when saved and reload this site if it is open.",
     "settings.plugins.storefront-persistence.title": "Remember storefront region",
-    "settings.plugins.storefront-persistence.description": "Keep the selected regional catalog when navigating Apple TV."
+    "settings.plugins.storefront-persistence.description": "Keep the selected regional catalog when navigating Apple TV.",
+    "webExtension.menu.open-page.title": "Open in Kawaikara",
+    "webExtension.menu.open-link.title": "Open link in Kawaikara",
+    "webExtension.menu.copy-link-page.title": "Copy Kawaikara link",
+    "webExtension.menu.copy-link-link.title": "Copy Kawaikara link",
+    "webExtension.action.open.title": "Open in Kawaikara",
+    "webExtension.action.copy-link.title": "Copy share link",
+    "webExtension.setting.browser-menu.title": "Browser context menu"
   },
   "ko-KR": {
     "settings.plugins.title": "사이트 플러그인",
     "settings.plugins.description": "저장하면 적용되며, 현재 열려 있는 사이트는 새로고침됩니다.",
     "settings.plugins.storefront-persistence.title": "스토어 지역 유지",
-    "settings.plugins.storefront-persistence.description": "Apple TV에서 페이지를 이동할 때 선택한 지역의 카탈로그를 유지합니다."
+    "settings.plugins.storefront-persistence.description": "Apple TV에서 페이지를 이동할 때 선택한 지역의 카탈로그를 유지합니다.",
+    "webExtension.menu.open-page.title": "카와이카라에서 열기",
+    "webExtension.menu.open-link.title": "카와이카라에서 링크 열기",
+    "webExtension.menu.copy-link-page.title": "카와이카라 링크 복사",
+    "webExtension.menu.copy-link-link.title": "카와이카라 링크 복사",
+    "webExtension.action.open.title": "카와이카라에서 열기",
+    "webExtension.action.copy-link.title": "공유 링크 복사",
+    "webExtension.setting.browser-menu.title": "브라우저 우클릭 메뉴"
   },
   "ja-JP": {
     "settings.plugins.title": "Provider プラグイン",
     "settings.plugins.description": "保存時に適用され、現在開いているサイトは再読み込みされます。",
     "settings.plugins.storefront-persistence.title": "ストアの地域を保持",
-    "settings.plugins.storefront-persistence.description": "Apple TV 内の移動時に選択した地域のカタログを保持します。"
+    "settings.plugins.storefront-persistence.description": "Apple TV 内の移動時に選択した地域のカタログを保持します。",
+    "webExtension.menu.open-page.title": "Kawaikaraで開く",
+    "webExtension.menu.open-link.title": "Kawaikaraでリンクを開く",
+    "webExtension.menu.copy-link-page.title": "Kawaikaraリンクをコピー",
+    "webExtension.menu.copy-link-link.title": "Kawaikaraリンクをコピー",
+    "webExtension.action.open.title": "Kawaikaraで開く",
+    "webExtension.action.copy-link.title": "共有リンクをコピー",
+    "webExtension.setting.browser-menu.title": "ブラウザーのコンテキストメニュー"
   }
 }

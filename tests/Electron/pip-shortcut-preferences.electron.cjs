@@ -23,10 +23,11 @@ import {AdvancedTab} from './src/Renderer/View/Preference/Tabs/AdvancedTab';
 import {PictureInPicturePlacementControl} from './src/Renderer/View/Preference/PictureInPicturePlacementControl';
 import {useMenuShortcuts} from './src/Renderer/View/Menu/Hooks/useMenuShortcuts';
 const catalogs=${JSON.stringify(catalogs)};
+window.kawaikara={application:{webExtensionConnection:async()=>({connected:false,connections:[]})}};
 const root=createRoot(document.getElementById('root'));
 function Controls({locale}){
  const m=catalogs[locale];const [preferences,setPreferences]=useState({kawaiShortcutEnabled:true,kawaiShortcutUnlimitedWait:false,kawaiShortcutDelaySeconds:1});
- const [placement,setPlacement]=useState({position:'top-right',monitor:{mode:'current'}});
+ const [placement,setPlacement]=useState({position:'top-right',align:true,monitor:{mode:'current'}});
  return <KawaiProvider><AdvancedTab messages={m} preferences={preferences} saving={false} onUpdate={p=>setPreferences({...preferences,...p})}/>
  <PictureInPicturePlacementControl value={placement} onChange={setPlacement}
  displays={[{id:'1',label:'Display one',width:1920,height:1080,current:true,primary:true}]}
@@ -56,12 +57,16 @@ window.shortcuts=unlimited=>flushSync(()=>root.render(<Shortcuts key={String(unl
     write: false,
     format: 'iife',
     platform: 'browser',
+    // Component styles are injected alongside the shared stylesheet below.
+    loader: { '.css': 'empty' },
     jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
 }).outputFiles[0].text;
 const css = [
     require.resolve('@kawaikara/kawai-ui/styles.css'),
     path.join(root, 'src/Renderer/Styles/Overlay.css'),
+    path.join(root, 'src/Renderer/View/Preference/Tabs/WebExtensionControl.css'),
+    path.join(root, 'src/Renderer/Component/CopyIconButton.css'),
 ]
     .map((file) => readFileSync(file, 'utf8'))
     .join('\n');
@@ -104,9 +109,20 @@ app.whenReady()
      options.push([...list.querySelectorAll('[role="option"]')].map(o=>o.textContent));
      select.click();await new Promise(r=>setTimeout(r,180));
    }
-   return {switches:switches.length,enabled,disabled,grey,restored,options};
+   const monitor=selects[1],alignment=switches[2];
+   monitor.click();await new Promise(r=>setTimeout(r,30));
+   document.getElementById(monitor.getAttribute('aria-controls')).querySelectorAll('[role="option"]')[1].click();
+   await new Promise(r=>setTimeout(r,50));
+   const remembered={disabled:alignment.disabled,checked:alignment.checked};
+   monitor.click();await new Promise(r=>setTimeout(r,30));
+   document.getElementById(monitor.getAttribute('aria-controls')).querySelectorAll('[role="option"]')[3].click();
+   await new Promise(r=>setTimeout(r,50));
+   const primary={disabled:alignment.disabled,checked:alignment.checked};
+   return {switches:switches.length,enabled,disabled,grey,restored,options,remembered,primary};
   })()`);
             assert.equal(result.switches, 3);
+            assert.deepEqual(result.remembered, { disabled: true, checked: false });
+            assert.deepEqual(result.primary, { disabled: false, checked: false });
             assert.equal(result.enabled, true);
             assert.equal(result.disabled, true);
             assert.equal(result.grey, true);

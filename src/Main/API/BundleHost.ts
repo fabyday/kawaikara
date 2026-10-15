@@ -72,38 +72,47 @@ export class BundleHost {
             );
         }
 
-        const { activeSiteId, activeUrl } =
-            await this.providerManager.unregisterBundle(bundle.id);
+        const finishWebExtensionUpdate =
+            this.providerManager.beginWebExtensionUpdate();
         try {
-            this.providerManager.registerBundle(bundle);
-            this.installedBundles.set(bundle.id, bundle);
-            if (activeSiteId && this.providerManager.has(activeSiteId)) {
-                if (activeUrl)
-                    await this.providerManager.openUrl(activeSiteId, activeUrl);
-                else await this.providerManager.load(activeSiteId);
-            }
-        } catch (error) {
-            await this.providerManager
-                .unregisterBundle(bundle.id)
-                .catch(() => undefined);
-            this.providerManager.registerBundle(previous);
-            this.installedBundles.set(bundle.id, previous);
-            if (activeSiteId && this.providerManager.has(activeSiteId)) {
-                try {
+            const { activeSiteId, activeUrl } =
+                await this.providerManager.unregisterBundle(bundle.id);
+            try {
+                this.providerManager.registerBundle(bundle);
+                this.installedBundles.set(bundle.id, bundle);
+                if (activeSiteId && this.providerManager.has(activeSiteId)) {
                     if (activeUrl)
                         await this.providerManager.openUrl(
                             activeSiteId,
                             activeUrl,
                         );
                     else await this.providerManager.load(activeSiteId);
-                } catch (restoreError) {
-                    throw new AggregateError(
-                        [error, restoreError],
-                        `Bundle ${bundle.id} reload and rollback both failed.`,
-                    );
                 }
+            } catch (error) {
+                await this.providerManager
+                    .unregisterBundle(bundle.id)
+                    .catch(() => undefined);
+                this.providerManager.registerBundle(previous);
+                this.installedBundles.set(bundle.id, previous);
+                if (activeSiteId && this.providerManager.has(activeSiteId)) {
+                    try {
+                        if (activeUrl)
+                            await this.providerManager.openUrl(
+                                activeSiteId,
+                                activeUrl,
+                            );
+                        else await this.providerManager.load(activeSiteId);
+                    } catch (restoreError) {
+                        throw new AggregateError(
+                            [error, restoreError],
+                            `Bundle ${bundle.id} reload and rollback both failed.`,
+                        );
+                    }
+                }
+                throw error;
             }
-            throw error;
+        } finally {
+            finishWebExtensionUpdate();
         }
     }
 }

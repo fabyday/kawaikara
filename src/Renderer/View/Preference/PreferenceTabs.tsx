@@ -27,6 +27,8 @@ import { PreferenceViewProps } from './Types';
 /** Inputs for the PreferenceTabs section. */
 type PreferenceTabsProps = Pick<ReturnType<typeof usePreferenceState>,
   | 'messages'
+  | 'logViewerMessages'
+  | 'resolvedLocale'
   | 'setBundleTabActivation'
   | 'dataActionId'
   | 'displays'
@@ -101,6 +103,8 @@ type PreferenceTabsProps = Pick<ReturnType<typeof usePreferenceState>,
 /** Renders the PreferenceTabs section of this View. */
 export function PreferenceTabs({
   messages,
+  logViewerMessages,
+  resolvedLocale,
   setBundleTabActivation,
   dataActionId,
   hasChanges,
@@ -350,6 +354,8 @@ export function PreferenceTabs({
       <TabPanel className="preference-tab-panel" value="app-info">
         <PreferenceTabScroll label={messages.appInfo}>
           <AppInfoTab
+            logViewerMessages={logViewerMessages}
+            locale={resolvedLocale}
             appInfo={appInfo}
             checkingUpdates={checkingUpdates}
             developerYouTubeStatus={developerYouTubeStatus}

@@ -3,26 +3,14 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
-/** Receives a platform event that can change external fullscreen ownership. */
-export type ExternalFullscreenChanged = () => void;
+import type {
+    ExternalFullscreenChanged,
+    ExternalFullscreenMonitor,
+} from '../FullscreenMonitor';
 
-/** Monitors platform fullscreen state without exposing platform details to callers. */
-export interface ExternalFullscreenMonitor {
-    /** Whether this platform requires explicit external fullscreen monitoring. */
-    readonly supported: boolean;
-    /** Starts monitoring and returns the current state. */
-    start(
-        applicationWindow: BrowserWindow,
-        onChanged: ExternalFullscreenChanged,
-    ): boolean;
-    /** Re-evaluates and returns the current state. */
-    refresh(applicationWindow: BrowserWindow): boolean;
-    /** Returns the platform-observed topmost state when it is available. */
-    isAlwaysOnTopApplied(applicationWindow: BrowserWindow): boolean | undefined;
-    /** Returns a yield anchor unless a retained explicit viewer activation still takes precedence. */
-    getYieldTarget(applicationWindow: BrowserWindow): string | undefined;
-    /** Stops monitoring and releases native resources. */
-    stop(): void;
+/** Create the Windows native fullscreen ownership monitor. */
+export function createExternalFullscreenMonitor(): ExternalFullscreenMonitor {
+    return new WindowsExternalFullscreenMonitor();
 }
 
 /** Native Windows implementation of the shared fullscreen monitor API. */
@@ -51,47 +39,6 @@ const LEGACY_ADDON_FILE_NAME = 'kawaikara_windows_foreground.node';
 /** Defines the versioned addon file name pattern constant. */
 const VERSIONED_ADDON_FILE_NAME_PATTERN =
     /^kawaikara_windows_foreground-[a-f0-9]{16}\.node$/;
-
-/** Creates the platform implementation of the shared fullscreen monitor. */
-export function createExternalFullscreenMonitor(): ExternalFullscreenMonitor {
-    return process.platform === 'win32'
-        ? new WindowsExternalFullscreenMonitor()
-        : new UnsupportedExternalFullscreenMonitor();
-}
-
-/** No-op implementation for platforms whose native window policy handles fullscreen. */
-class UnsupportedExternalFullscreenMonitor implements ExternalFullscreenMonitor {
-    /** Whether this platform requires explicit external fullscreen monitoring. */
-    readonly supported = false;
-
-    /** Starts monitoring and returns the current state. */
-    start(
-        _applicationWindow: BrowserWindow,
-        _onChanged: ExternalFullscreenChanged,
-    ): boolean {
-        return false;
-    }
-
-    /** Re-evaluates and returns the current state. */
-    refresh(_applicationWindow: BrowserWindow): boolean {
-        return false;
-    }
-
-    /** Returns no platform state when explicit monitoring is unsupported. */
-    isAlwaysOnTopApplied(
-        _applicationWindow: BrowserWindow,
-    ): boolean | undefined {
-        return undefined;
-    }
-
-    /** Native platform window policy needs no explicit restacking anchor. */
-    getYieldTarget(_applicationWindow: BrowserWindow): string | undefined {
-        return undefined;
-    }
-
-    /** Stops monitoring and releases native resources. */
-    stop(): void {}
-}
 
 /** Windows event-driven implementation of the shared fullscreen monitor. */
 class WindowsExternalFullscreenMonitor implements ExternalFullscreenMonitor {

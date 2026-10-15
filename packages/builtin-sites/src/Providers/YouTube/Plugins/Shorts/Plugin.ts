@@ -3,7 +3,7 @@ import { AbstractPlugin, plugin, defineProviderLocale, normalizeShortFormVideoPu
   SHORT_FORM_PUBLISHER_CAPABILITY, resolveShortFormVideoCommand,
   type ProviderSettingListItem, type ShortFormVideoPublisher } from '@kawaikara/site-api';
 import { builtinPluginMetadata } from '../../../../Functional/PluginMetadata';
-import { createYouTubeShortsCommandScript, createYouTubeShortsInjectionScript,
+import { createYouTubeShortsCleanupScript, createYouTubeShortsCommandScript, createYouTubeShortsInjectionScript,
   createYouTubeShortsPublisherScript, type YouTubeShortsInjectionOptions } from '../../Inject/Shorts';
 import localization from '../../locale.json';
 /** JSON-backed settings and page announcements. */
@@ -39,7 +39,12 @@ export default class YouTubeShortsPlugin extends AbstractPlugin {
       if (command) this.context.actions.register(action, () => this.runShortsCommand(command));
     }
     this.context.capabilities.provide(SHORT_FORM_PUBLISHER_CAPABILITY, { getPublisher: () => this.getShortFormVideoPublisher() });
-    this.requirePage().register({ id: 'youtube.shorts', source: () => createYouTubeShortsInjectionScript(this.shortsOptions(false)) });
+    this.requirePage().register({
+      id: 'youtube.shorts',
+      source: () => createYouTubeShortsInjectionScript(this.shortsOptions(false)),
+      cleanup: createYouTubeShortsCleanupScript(),
+      runImmediately: true,
+    });
   }
   /** Returns the short form video publisher. */
   async getShortFormVideoPublisher(): Promise<

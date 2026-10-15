@@ -70,6 +70,7 @@ const ALLOWED_PERMISSIONS = new Set<SitePermission>([
     'cookies',
     'network-interception',
     'external-browser',
+    'web-extension',
 ]);
 /** Defines the shared site API bridge key constant. */
 const SITE_API_BRIDGE_KEY = '__kawaikaraSiteApiV1';
@@ -230,7 +231,7 @@ export async function inspectBundle(
             providerManifest.main,
             'Provider main',
         );
-        const localeResource = providerManifest.contributes.locale?.resource;
+        const localeResource = providerManifest.descriptors.locale?.resource;
         const localization = localeResource
             ? validateProviderLocaleResource(
                   await readJson(
@@ -590,8 +591,8 @@ export function validateProviderManifest(value: unknown): ProviderManifest {
         main: validateMain(candidate.main, 'Provider main'),
         /** The permissions value. */
         permissions: validatePermissions(candidate.permissions),
-        /** The contributes value. */
-        contributes: validateProviderManifestDescriptors(candidate.contributes),
+        /** The descriptors value. */
+        descriptors: validateProviderManifestDescriptors(candidate.descriptors),
         /** The plugins value. */
         plugins: validatePathArray(candidate.plugins, 'Provider plugins', true),
     });
@@ -601,16 +602,17 @@ export function validateProviderManifest(value: unknown): ProviderManifest {
 export function validateProviderManifestDescriptors(
     value: unknown,
 ): ProviderManifestDescriptors {
-    const candidate = requireObject(value, 'Provider contributes');
+    const candidate = requireObject(value, 'Provider descriptors');
     for (const forbidden of ['id', 'title', 'description', 'permissions']) {
         if (candidate[forbidden] !== undefined) {
             throw new Error(
-                `Provider contributes must not contain ${forbidden}; use the manifest field.`,
+                `Provider descriptors must not contain ${forbidden}; use the manifest field.`,
             );
         }
     }
     const allowed = new Set([
         'fileDrop',
+        'webExtension',
         'address',
         'menu',
         'shortcut',
@@ -623,12 +625,12 @@ export function validateProviderManifestDescriptors(
     for (const key of Object.keys(candidate)) {
         if (!allowed.has(key)) {
             throw new Error(
-                `Provider contributes contains unknown field ${key}.`,
+                `Provider descriptors contains unknown field ${key}.`,
             );
         }
     }
     if (candidate.menu === undefined) {
-        throw new Error('Provider contributes must contain menu metadata.');
+        throw new Error('Provider descriptors must contain menu metadata.');
     }
     if (
         candidate.pictureInPicture !== undefined &&

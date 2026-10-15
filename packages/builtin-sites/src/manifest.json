@@ -12,7 +12,8 @@
     "script-injection",
     "cookies",
     "network-interception",
-    "external-browser"
+    "external-browser",
+    "web-extension"
   ],
   "update": {
     "type": "resolver",
@@ -40,7 +41,11 @@
   ],
   "plugins": [],
   "locale": {
-    "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+    "supportedLocales": [
+      "ko-KR",
+      "en-US",
+      "ja-JP"
+    ],
     "defaultLocale": "inherit"
   },
   "browserProfiles": [

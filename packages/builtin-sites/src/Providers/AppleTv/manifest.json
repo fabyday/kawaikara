@@ -5,23 +5,113 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "main": "Provider.js",
-  "plugins": ["Plugins/Storefront"],
-  "permissions": ["navigation", "network-interception", "script-injection"],
-  "contributes": {
-    "address": { "hosts": ["tv.apple.com"] },
+  "plugins": [
+    "Plugins/Storefront"
+  ],
+  "permissions": [
+    "navigation",
+    "network-interception",
+    "script-injection",
+    "web-extension"
+  ],
+  "descriptors": {
+    "webExtension": {
+      "version": 2,
+      "actions": [
+        "open",
+        "copy-link"
+      ],
+      "toolbarAction": "open",
+      "contextMenus": [
+        {
+          "id": "open-page",
+          "action": "open",
+          "title": "%webExtension.menu.open-page.title%",
+          "contexts": [
+            "page",
+            "video"
+          ],
+          "when": "browser-menu"
+        },
+        {
+          "id": "open-link",
+          "action": "open",
+          "title": "%webExtension.menu.open-link.title%",
+          "contexts": [
+            "link"
+          ],
+          "when": "browser-menu"
+        },
+        {
+          "id": "copy-link-page",
+          "action": "copy-link",
+          "title": "%webExtension.menu.copy-link-page.title%",
+          "contexts": [
+            "page",
+            "video"
+          ],
+          "when": "browser-menu"
+        },
+        {
+          "id": "copy-link-link",
+          "action": "copy-link",
+          "title": "%webExtension.menu.copy-link-link.title%",
+          "contexts": [
+            "link"
+          ],
+          "when": "browser-menu"
+        }
+      ],
+      "actionDefinitions": {
+        "open": {
+          "title": "%webExtension.action.open.title%",
+          "handler": "open"
+        },
+        "copy-link": {
+          "title": "%webExtension.action.copy-link.title%",
+          "handler": "share-link",
+          "clipboard": true
+        }
+      },
+      "settings": [
+        {
+          "id": "browser-menu",
+          "title": "%webExtension.setting.browser-menu.title%",
+          "defaultValue": true
+        }
+      ]
+    },
+    "address": {
+      "hosts": [
+        "tv.apple.com"
+      ]
+    },
     "browserIdentity": {
       "userAgent": "chromium",
       "clientHints": "auto",
-      "requestHosts": ["apple.com"]
+      "requestHosts": [
+        "apple.com"
+      ]
     },
-    "shortcut": { "defaultKey": "Control+Alt+A" },
+    "shortcut": {
+      "defaultKey": "Control+Alt+A"
+    },
     "locale": {
       "resource": "locale.json",
-      "supportedLocales": ["ko-KR", "en-US", "ja-JP"],
+      "supportedLocales": [
+        "ko-KR",
+        "en-US",
+        "ja-JP"
+      ],
       "defaultLocale": "inherit"
     },
-    "isolation": { "drm": true, "defaultBrowserProfile": "apple" },
-    "pictureInPicture": { "enabled": true },
+    "isolation": {
+      "drm": true,
+      "defaultBrowserProfile": "apple"
+    },
+    "pictureInPicture": {
+      "enabled": true
+    },
     "menu": {
       "category": "OTT",
       "order": 90,

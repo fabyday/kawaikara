@@ -359,16 +359,16 @@ export function validatePictureInPicturePlacement(
   )
     ? (candidate.position as PictureInPicturePosition)
     : DEFAULT_PICTURE_IN_PICTURE_PLACEMENT.position;
+  const monitor = position === 'last'
+    ? { mode: 'last-position' as const }
+    : validatePictureInPictureMonitor(candidate.monitor);
   return {
     /** The position value. */
     position: position === 'last' ? 'top-right' : position,
     /** Existing installations keep free positioning until explicitly enabled. */
-    align: candidate.align === true,
+    align: monitor.mode !== 'last-position' && candidate.align === true,
     /** The monitor value. */
-    monitor: position === 'last' ? {
-      /** Migrate legacy position memory to a single monitor policy. */
-      mode: 'last-position',
-    } : validatePictureInPictureMonitor(candidate.monitor),
+    monitor,
     ...validateLastPlacement(candidate.lastPlacement),
   };
 }

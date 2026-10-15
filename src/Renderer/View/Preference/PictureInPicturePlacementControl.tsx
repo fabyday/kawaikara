@@ -97,8 +97,8 @@ export function PictureInPicturePlacementControl({
         }
       />
       <Switch
-        checked={value.align === true}
-        disabled={disabled}
+        checked={value.monitor.mode !== 'last-position' && value.align === true}
+        disabled={disabled || value.monitor.mode === 'last-position'}
         label={messages.align}
         description={messages.alignDescription}
         onCheckedChange={(align) => onChange({ ...value, align })}
@@ -122,6 +122,7 @@ export function PictureInPicturePlacementControl({
           }
           onChange({
             ...value,
+            align: monitor === 'last-position' ? false : value.align,
             monitor: { mode: monitor as PictureInPictureMonitorMode
             },
           });

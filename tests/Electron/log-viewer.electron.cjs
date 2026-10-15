@@ -11,6 +11,7 @@ const {
 const path = require('node:path');
 const { buildSync } = require('esbuild');
 const root = path.resolve(__dirname, '../..');
+const retained = process.argv.includes('--retain');
 const fixture = mkdtempSync(
     path.join(getTestTempRoot(), 'kawaikara-log-viewer-'),
 );
@@ -39,6 +40,7 @@ build('src/Renderer/View/LogViewer/Index.tsx', 'renderer/view.js', 'browser');
 const css = [
     require.resolve('@kawaikara/kawai-ui/styles.css'),
     'src/Renderer/Styles/LogViewer.css',
+    'src/Renderer/Component/ApplicationInfoControl.css',
     'src/Renderer/Styles/LogViewerWindow.css',
 ]
     .map((file) =>
@@ -99,6 +101,7 @@ app.whenReady()
         await underlying.webContents.loadURL('about:blank');
         let restoredFocus = 0;
         const manager = new DetachableWindowSurface({
+            retainOnClose: retained,
             parent: () => parent,
             focusUnderlying: () => {
                 restoredFocus++;
@@ -115,6 +118,7 @@ app.whenReady()
             onStateChanged: (contents, detached) =>
                 contents.send(IPC_CHANNELS.logViewer.stateChanged, {
                     detached,
+                    visible: manager.isVisible(),
                     ...appearance,
                 }),
             onCloseRequested: (contents) =>
@@ -164,11 +168,19 @@ app.whenReady()
                 if (command === 'toggle')
                     await (pendingMove = manager.toggle());
                 if (command === 'close') manager.close();
-                return { detached: manager.isDetached(), ...appearance };
+                return { detached: manager.isDetached(), visible: manager.isVisible(), ...appearance };
             },
         );
         parent.show();
+        if (retained) {
+            await manager.prepare();
+            await pause(100);
+            assert.equal(manager.isEmbedded(),false);
+            assert.equal(readCount,0,'Prewarming must not query logs');
+        }
+        const coldStart = performance.now();
         await manager.open();
+        console.log(retained ? "Log shell prepared open ms" : "Log shell cold open ms", performance.now() - coldStart);
         const view = parent.contentView.children.find((child) =>
             child.webContents?.getURL().endsWith('log-viewer.html'),
         );
@@ -466,8 +478,8 @@ app.whenReady()
         );
         const beforeClose = readCount;
         await clickButton(labels.ko.close);
-        for (let i = 0; i < 50 && !contents.isDestroyed(); i++) await pause(20);
-        assert.ok(contents.isDestroyed());
+        if (retained) { await pause(100); assert.equal(contents.isDestroyed(),false); assert.equal(view.getVisible(),false); assert.equal(await evalView("document.querySelectorAll('.log-viewer-entry').length"),0); }
+        else { for (let i = 0; i < 50 && !contents.isDestroyed(); i++) await pause(20); assert.ok(contents.isDestroyed()); }
         assert.equal(restoredFocus, 1);
         assert.equal(
             underlying.getVisible(),
@@ -483,14 +495,16 @@ app.whenReady()
         assert.equal(readCount, beforeClose);
         // Preferences left open before detaching stay open, but are never reopened.
         underlying.setVisible(true);
+        const reopenStart=performance.now();
         await manager.open();
+        console.log("Log shell reopen ms", performance.now()-reopenStart);
+        if(retained) assert.equal(parent.contentView.children.at(-1).webContents.id,contents.id);
+        await pause(100);
         await manager.toggle();
         await manager.toggle();
         const secondView = parent.contentView.children.at(-1).webContents;
         await clickButton(labels.ko.close, secondView);
-        for (let i = 0; i < 50 && !secondView.isDestroyed(); i++)
-            await pause(20);
-        assert.ok(secondView.isDestroyed());
+        if(retained) {await pause(100);assert.equal(secondView.isDestroyed(),false);} else {for (let i = 0; i < 50 && !secondView.isDestroyed(); i++) await pause(20); assert.ok(secondView.isDestroyed());}
         assert.equal(underlying.getVisible(), true);
         assert.equal(underlying.webContents.isFocused(), true);
         await manager.open();

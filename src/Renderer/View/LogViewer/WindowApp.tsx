@@ -13,6 +13,7 @@ export function LogViewerWindowApp() {
   useEffect(() => {
     let alive = true;
     let sequence = 0;
+    let loadedLocale: string | undefined;
     /** Keeps only the latest locale response when appearance changes overlap. */
     const update = async (state: LogViewerHostState) => {
       const request = ++sequence;
@@ -20,9 +21,11 @@ export function LogViewerWindowApp() {
       // Native reparenting waits for painted frames. Commit drag/hit-test regions
       // synchronously so the first frame in the new host uses its actual layout.
       flushSync(() => setHost(state));
+      if (loadedLocale === state.locale) return;
       try {
         const next = await window.kawaikara.application.getMessages(state.locale);
         if (alive && request === sequence) {
+          loadedLocale = state.locale;
           setMessages(next);
           window.document.title = next.logViewer.title;
           window.document.documentElement.lang = next.locale;
@@ -43,7 +46,7 @@ export function LogViewerWindowApp() {
   return (
     <KawaiProvider>
       <Box className={`log-viewer-window-root kawai-theme kawai-theme-${host?.theme ?? 'dark'}`}>
-        {messages && host ? (
+        {messages && host && host.visible !== false ? (
           <LogViewer messages={messages.logViewer} locale={messages.locale}
             detached={host.detached} onClose={() => command('close')}
             onToggleDetached={() => command('toggle')} />

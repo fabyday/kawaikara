@@ -1,0 +1,203 @@
+/* Equal columns stay inside the settings panel in every connection state. */
+.web-extension-panel { min-width: 0; }
+.web-extension-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+    padding: 2px;
+}
+.web-extension-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    height: auto;
+    padding: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.35;
+}
+.web-extension-actions > button > span { min-width: 0; }
+.web-extension-advanced {
+    padding: 12px 2px 4px;
+}
+.web-extension-advanced > button {
+    align-self: flex-start;
+}
+.web-extension-notice { font-size: 12px; }
+.web-extension-notice-content { padding-top: 10px; }
+.web-extension-dialog {
+    color: var(--kawai-color-foreground);
+    background: var(--kawai-color-surface, #24242b);
+    border: 1px solid var(--kawai-color-border, #444);
+    border-radius: 18px;
+    padding: 24px;
+    width: min(580px, calc(100vw - 48px));
+    max-height: 80vh;
+    overflow: auto;
+    box-shadow: 0 24px 80px #0006;
+}
+.web-extension-dialog::backdrop {
+    background: #090a1366;
+    backdrop-filter: blur(8px);
+}
+.web-extension-dialog[open] {
+    animation: extension-dialog-in 0.18s ease-out;
+}
+.web-extension-dialog h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+}
+.web-extension-request {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.7;
+    max-height: 45vh;
+    overflow: auto;
+    padding: 16px;
+    margin: 16px 0;
+    background: #80808012;
+    border-radius: 10px;
+    user-select: text;
+}
+@keyframes extension-dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .web-extension-dialog[open] {
+        animation: none;
+    }
+}
+
+.web-extension-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.web-extension-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--kawai-color-muted);
+}
+.web-extension-status i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e76f78;
+}
+.web-extension-status.is-connected i {
+    background: #64cf99;
+    box-shadow: 0 0 6px #64cf9955;
+    animation: extension-connected 2.8s ease-in-out infinite;
+}
+.web-extension-advanced-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--kawai-color-border, #ffffff25);
+}
+.web-extension-advanced-toggle svg {
+    display: block;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.web-extension-add {
+    align-self: flex-start;
+}
+.web-extension-client {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.web-extension-client > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+@keyframes extension-connected {
+    50% {
+        box-shadow: 0 0 9px #64cf9980;
+        opacity: 0.65;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .web-extension-status.is-connected i {
+        animation: none;
+    }
+    .web-extension-advanced-toggle svg {
+        transition: none;
+    }
+}
+
+.web-extension-inline-notice {
+    display: grid;
+    min-height: 1.5em;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.web-extension-browser-icon {
+    display: inline-block;
+    flex: none;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.web-extension-inline-notice > div {
+    grid-area: 1 / 1;
+}
+
+.web-extension-client-name { flex: 1; }
+.web-extension-client > button { flex: none; white-space: nowrap; align-self: center; }
+.web-extension-client-metadata dd { margin: 4px 0 16px; overflow-wrap: anywhere; }
+.web-extension-advanced-toggle { justify-content: center; }
+
+
+.web-extension-primary, .web-extension-advanced-toggle { box-sizing: border-box; }
+.web-extension-dialog { user-select: none; }
+.web-extension-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.web-extension-dialog-header h2 { margin: 0; }
+.web-extension-client-icon { width: 28px; height: 28px; object-fit: contain; flex: none; -webkit-user-drag: none; }
+.web-extension-metadata-copy { display: flex; justify-content: flex-end; margin: 12px 0; }
+.web-extension-client-metadata { border: 1px solid var(--kawai-color-border, #ffffff25); border-radius: 10px; overflow: hidden; }
+.web-extension-metadata-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr) 32px; gap: 12px; align-items: center; padding: 10px 12px; font-size: 12px; }
+.web-extension-metadata-row + .web-extension-metadata-row { border-top: 1px solid var(--kawai-color-border, #ffffff20); }
+.web-extension-metadata-row > span:first-child { opacity: .65; }
+.web-extension-metadata-value { user-select: text; overflow-wrap: anywhere; }
+
+.web-extension-icon-button { min-width: 48px; min-height: 44px; padding: 8px 12px; font-size: 26px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
+.web-extension-metadata-row { grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr); }
+
+.web-extension-advanced { border: 1px solid var(--kawai-color-border, #ffffff25); border-radius: 12px; padding: 12px; }
+.web-extension-advanced-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.web-extension-advanced-actions > button { min-width: 0; height: auto; min-height: 40px; white-space: normal; overflow-wrap: anywhere; padding: 8px; }
+.web-extension-client > .web-extension-disconnect { background: #e9576524; border: 1px solid #e957654d; color: #ee7c88; }
+.web-extension-client > .web-extension-disconnect:hover { background: #e9576538; }
+.web-extension-copy-toast { position: absolute; top: 50%; left: 50%; translate: -50% -50%; padding: 14px 22px; border-radius: 12px; background: var(--kawai-color-surface, #24242b); border: 1px solid var(--kawai-color-border, #ffffff30); box-shadow: 0 8px 32px #0005; pointer-events: none; white-space: nowrap; z-index: 2; }
+
+.web-extension-connections {
+    min-width: 0;
+    border: 1px solid var(--kawai-color-border, #ffffff25);
+    border-radius: 12px;
+    background: #80808006;
+}
+.web-extension-client {
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--kawai-color-border, #ffffff20);
+    border-radius: 10px;
+}

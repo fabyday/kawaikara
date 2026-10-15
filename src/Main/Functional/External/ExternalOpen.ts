@@ -14,6 +14,8 @@ const MAX_TARGET_URL_LENGTH = 8_192;
 export interface ExternalOpenRequest {
     /** The target URL value. */
     readonly targetUrl: string;
+    /** Starts or focuses the bridge host without opening content or granting permissions. */
+    readonly bridgeWake?: boolean;
     /** Absolute local video supplied by the operating system, never by a deep link. */
     readonly localVideoPath?: string;
 }
@@ -28,6 +30,7 @@ export function parseExternalOpenUrl(
 
     try {
         const deepLink = new URL(value);
+        if (value === 'kawaikara://bridge/wake') return { targetUrl: value, bridgeWake: true };
         if (
             deepLink.protocol !== `${KAWAIKARA_PROTOCOL}:` ||
             deepLink.hostname !== 'open' ||
@@ -58,7 +61,7 @@ export function parseExternalOpenUrl(
         // Provider availability is intentionally resolved after Bundle discovery.
         // ExternalOpen is used before Electron is ready, when installed and
         // development Bundle manifests have not been loaded yet. ProviderManager later
-        // matches this URL against each live Provider's contributes.address.hosts.
+        // matches this URL against each live Provider's descriptors.address.hosts.
         return {
             /** The target URL value. */
             targetUrl: target.href,

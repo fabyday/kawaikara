@@ -33,6 +33,3 @@ export interface VideoEffectsAPI {
     /** Registration is revocable. Unsupported/failed execution keeps original playback and logs a diagnostic. */
     register(descriptor: VideoEffectDescriptor): Disposable;
 }
-
-/** @deprecated Use VideoEffectDescriptor. */
-export type VideoEffectContribution = VideoEffectDescriptor;

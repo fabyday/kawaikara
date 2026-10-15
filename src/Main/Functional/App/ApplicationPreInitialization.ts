@@ -77,7 +77,7 @@ export function configureGraphics(
 
 /** Registers the protocol client. */
 function registerProtocolClient(): void {
-    if (UPDATE_TEST_PROFILE) return;
+    if (UPDATE_TEST_PROFILE || (!app.isPackaged && process.platform !== 'win32')) return;
     if (process.defaultApp && process.argv[1]) {
         app.setAsDefaultProtocolClient(KAWAIKARA_PROTOCOL, process.execPath, [
             path.resolve(process.argv[1]),

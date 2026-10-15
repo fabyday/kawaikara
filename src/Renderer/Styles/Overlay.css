@@ -115,6 +115,7 @@ img {
 }
 
 .menu-context-area {
+  container-type: inline-size;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -144,9 +145,25 @@ img {
 .menu-address-form {
   position: relative;
   display: grid;
-  grid-template-columns: 58px minmax(180px, 1fr) 42px 42px;
+  grid-template-columns: 58px minmax(0, 1fr) 42px 42px;
   gap: 6px;
   animation: none;
+}
+
+.menu-address-form > .menu-address-help {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 0;
+}
+
+.menu-address-go {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.menu-address-copy {
+  grid-column: 4;
+  grid-row: 1;
 }
 
 .menu-address-navigation {
@@ -1159,8 +1176,9 @@ img {
 .preference-surface {
   position: relative;
   display: flex;
-  width: min(720px, 100%);
-  height: 100%;
+  width: min(900px, 100%);
+  height: min(900px, max(600px, 80%));
+  max-height: 100%;
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
@@ -1188,6 +1206,7 @@ img {
 
 .preference-tabs {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -1221,7 +1240,7 @@ img {
   max-width: 100%;
   box-sizing: border-box;
   padding-right: 16px;
-  padding-bottom: 92px;
+  padding-bottom: 16px;
 }
 
 .preference-loading {
@@ -1732,6 +1751,13 @@ img {
 
 .preference-tab-list {
   align-self: start;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scroll-padding-block: 5px;
   gap: 4px;
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 13px;
@@ -1740,10 +1766,19 @@ img {
 }
 
 .preference-tab-list > [role="tab"] {
+  flex: 0 0 auto;
   width: 100%;
   min-height: 38px;
   border-radius: 9px;
   padding-inline: 12px;
+}
+
+@media (max-height: 600px) {
+  .preference-tab-list { gap: 2px; }
+  .preference-tab-list > [role="tab"] {
+    min-height: 34px;
+    padding-block: 6px;
+  }
 }
 
 .developer-tools-card {
@@ -2675,8 +2710,18 @@ img {
 }
 
 .app-info-title {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
+}
+.app-info-card { container-type: inline-size; }
+.app-info-actions { justify-content: flex-end; flex-wrap: nowrap; }
+.app-info-identity > div { min-width: 0; }
+.app-info-identity h2 { overflow-wrap: normal; word-break: normal; }
+@container (max-width: 540px) {
+  .app-info-actions { flex-direction: column; align-items: flex-end; gap: 6px; }
 }
 
 .app-info-links {
@@ -3045,11 +3090,9 @@ img {
 }
 
 .preference-save-bar {
-  position: absolute;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 8;
-  right: 24px;
-  bottom: 20px;
-  left: 24px;
   display: flex;
   min-height: 66px;
   box-sizing: border-box;
@@ -3110,12 +3153,6 @@ img {
     border-radius: 14px;
   }
 
-  .preference-save-bar {
-    right: 16px;
-    bottom: 14px;
-    left: 16px;
-  }
-
   .preference-tabs {
     grid-template-columns: 132px minmax(0, 1fr);
     gap: 14px;
@@ -3157,19 +3194,6 @@ img {
   .menu-order-setting {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .app-info-title {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .app-info-auto-update {
-    width: 100%;
-    max-width: none;
-    box-sizing: border-box;
-    flex-basis: auto;
-    justify-content: flex-start;
   }
 
   .developer-link-grid {
@@ -3271,4 +3295,69 @@ img {
   border-color: transparent;
   background: transparent;
   color: var(--kawai-color-text-muted);
+}
+
+/* App dimensions form a compact, right-aligned group at every preference width. */
+.app-window-custom-size-grid {
+    display: grid;
+    gap: 8px;
+    width: min(100%, 290px);
+    margin-left: auto;
+}
+.app-window-custom-size-grid .pip-dimension-field.number-preference-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+.app-window-custom-size-grid .number-preference-copy {
+    text-align: right;
+}
+.app-window-custom-size-grid .number-preference-field {
+    justify-content: flex-end;
+}
+.app-window-settings .pip-custom-size-fields > p {
+    text-align: right;
+    margin-top: 8px;
+}
+
+/* Keep the spacious layout until the window needs room for its content. */
+@media (max-width: 900px) {
+  .menu-layout {
+    grid-template-columns: 286px minmax(0, 1fr);
+  }
+
+  .menu-rail-header > div:first-child {
+    min-width: 0;
+  }
+
+  .menu-rail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 46px);
+    flex-shrink: 0;
+  }
+
+  .menu-rail-actions > .overlay-close-button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .site-shortcut-keycaps:not(.is-kawai-target),
+  .category-shortcut-badge {
+    display: none;
+  }
+
+  .menu-address-form input {
+    grid-column: 2 / -1;
+    grid-row: 1;
+  }
+
+  .menu-address-form > .menu-address-help {
+    grid-column: 2 / -1;
+  }
+
+  .menu-address-form > button {
+    grid-row: 3;
+  }
 }

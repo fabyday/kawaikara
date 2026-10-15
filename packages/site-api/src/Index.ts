@@ -153,37 +153,4 @@ export {
 } from './SiteUtilities';
 export * from './VideoEffects';
 
-/** Deprecated type aliases for existing Bundle sources. */
-export type { ProviderFileDropContribution } from './DragDrop';
-
-/** Deprecated type aliases for existing Bundle sources. */
-export type {
-    BundleLocaleContribution,
-    BundleBrowserProfileContribution,
-    ProviderManifestPictureInPictureContribution,
-    ProviderManifestContributions,
-} from './Plugin';
-
-/** Deprecated type aliases for existing Bundle sources. */
-export type {
-    SiteMenuContribution,
-    PluginViewPanelContribution,
-    SiteShortcutContribution,
-    SiteActionShortcutContribution,
-    ProviderBooleanSettingContribution,
-    ProviderItemListSettingContribution,
-    ProviderSelectSettingContribution,
-    ProviderSettingContribution,
-    ProviderSettingCategoryContribution,
-    ProviderSettingsContribution,
-    SiteLocaleContribution,
-    SiteIsolationContribution,
-    SitePictureInPictureContribution,
-    SiteAddressContribution,
-} from './Provider';
-
-/** Deprecated type aliases for existing Bundle sources. */
-export type { ShortFormVideoContribution } from './ShortFormVideo';
-
-/** Deprecated type aliases for existing Bundle sources. */
-export type { VideoEffectContribution } from './VideoEffects';
+export * from './WebExtension';

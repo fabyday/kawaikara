@@ -24,6 +24,7 @@ loaded._compile(
         format: 'cjs',
         external: Object.keys(mocks),
         define: {
+            'process.platform': '"win32"',
             __KAWAIKARA_BUILD_CHANNEL__: '"nightly"',
             __KAWAIKARA_DISTRIBUTION_BUILD__: 'false',
             __KAWAIKARA_DISCORD_APP_ID__: '""',
