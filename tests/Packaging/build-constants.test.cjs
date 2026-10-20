@@ -26,6 +26,18 @@ test('build definitions validate channels and test ports without embedding unrel
     }).__KAWAIKARA_DISCORD_APP_ID__, '""');
 });
 
+test('public social links use defaults and reject invalid build overrides', () => {
+    const values = createBuildDefinitions(root, {});
+    const links = JSON.parse(values.__KAWAIKARA_SOCIAL_LINKS__);
+    assert.deepEqual(Object.keys(links).sort(), ['developerYouTube', 'discord', 'github', 'website']);
+    for (const value of Object.values(links)) assert.equal(new URL(value).protocol, 'https:');
+    for (const key of ['KAWAIKARA_WEBSITE_URL', 'KAWAIKARA_GITHUB_URL', 'KAWAIKARA_DISCORD_INVITE_URL', 'KAWAIKARA_DEVELOPER_YOUTUBE_URL']) {
+        for (const value of ['', 'not-a-url', 'javascript:alert(1)', 'file:///tmp/test', 'http://example.com', 'https://user:pass@example.com']) {
+            assert.throws(() => createBuildDefinitions(root, { [key]: value }), error => error.message.includes(key));
+        }
+    }
+});
+
 test('production bundles remove other build branches and their dependencies on every target', async (t) => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'kawaikara-build-constants-'));
     t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -40,6 +52,7 @@ test('production bundles remove other build branches and their dependencies on e
         import { createRequire } from 'node:module';
         globalThis.__buildProbeAddon = createRequire(globalThis.__buildProbeModule)(globalThis.__buildProbeModule);
         globalThis.__buildProbeResults = [];
+        globalThis.__buildProbeWebsite = __KAWAIKARA_SOCIAL_LINKS__.website;
         if (__KAWAIKARA_BUILD_CHANNEL__ === 'stable') require('./stable');
         if (__KAWAIKARA_BUILD_CHANNEL__ === 'staging') require('./staging');
         if (__KAWAIKARA_BUILD_CHANNEL__ === 'nightly') require('./nightly');
@@ -62,6 +75,7 @@ test('production bundles remove other build branches and their dependencies on e
             KAWAIKARA_DISTRIBUTION_BUILD: build.distribution ? '1' : '0',
             KAWAIKARA_UPDATE_TEST_BUILD: build.updateTest ? '1' : '0',
             KAWAIKARA_UPDATE_TEST_PORT: '18081',
+            KAWAIKARA_WEBSITE_URL: 'https://example.com/build-fixture',
         };
         const previous = Object.fromEntries(Object.keys(environment).map(key => [key, process.env[key]]));
         let configs;
@@ -103,6 +117,7 @@ test('production bundles remove other build branches and their dependencies on e
                 const context = { __buildProbeInput: input, __buildProbeModule: runtimeFile, require };
                 vm.runInNewContext(code, context);
                 assert.equal(context.__buildProbeAddon, 'runtime-addon-loaded', label);
+                assert.equal(context.__buildProbeWebsite, 'https://example.com/build-fixture', label);
                 assert.deepEqual(Array.from(context.__buildProbeResults), [
                     ...expected.map(name => `BUILD_PROBE_${name}`), ...(input ? ['RUNTIME_INPUT'] : []),
                 ], label);

@@ -30,7 +30,7 @@ function load(relative, imports = {}, bundle = true) {
     );
     return loaded.exports;
 }
-const validation = load('src/Main/Functional/App/IPCValidation.ts', {
+const validation = load('src/Main/Functional/IPC/Validation.ts', {
     electron: {},
 });
 

@@ -115,7 +115,7 @@ export function usePreferenceInitialization({
     let active = true;
     /** Performs the refresh operation. */
     const refresh = () => {
-      void window.kawaikara.application
+      void window.kawaikara.social
         .getDeveloperYouTubeStatus()
         .then((status) => {
           if (active) setDeveloperYouTubeStatus(status);

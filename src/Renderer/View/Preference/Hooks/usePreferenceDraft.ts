@@ -152,7 +152,7 @@ export function usePreferenceDraft({
   const openApplicationLink = async (id: ApplicationLinkId) => {
     await runPreferenceAction(
       PREFERENCE_ACTION_POLICIES.applicationLink,
-      () => window.kawaikara.application.openLink(id),
+      () => window.kawaikara.social.openLink(id),
     );
   };
 

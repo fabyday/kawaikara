@@ -559,6 +559,13 @@ export function installKawaikaraMock(
             onStateChanged: () => () => undefined,
             onRequestClose: () => () => undefined,
         },
+        social: {
+            openLink: async () => undefined,
+            getDeveloperYouTubeStatus: async () => ({
+                isLive: true,
+                checkedAt: new Date().toISOString(),
+            }),
+        },
         application: {
             /** Browser pairing does not access the OS clipboard in Storybook. */
             webExtensionConnection: async () => ({connected: false, useDevelopment: true, client: ''}),
@@ -596,7 +603,6 @@ export function installKawaikaraMock(
                     current: false,
                 },
             ],
-            openLink: async () => undefined,
             openDevTools: async () => undefined,
             openLogDirectory: async () => undefined,
             openLogRepositoryDirectory: async () => undefined,
@@ -765,10 +771,6 @@ export function installKawaikaraMock(
                 rejected: [],
             }),
             cancelLogImport: async () => undefined,
-            getDeveloperYouTubeStatus: async () => ({
-                isLive: true,
-                checkedAt: new Date().toISOString(),
-            }),
             checkForUpdates: async () => {
                 updateState = {
                     phase: options.updateAvailable ? 'available' : 'up-to-date',

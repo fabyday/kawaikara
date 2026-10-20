@@ -1,17 +1,10 @@
-import { ipcMain } from 'electron';
 import type {
     ApplicationLinkId,
     AppLocale,
     AppTheme,
     DevToolsMode,
-    IpcChannel,
 } from '../../../Common/IPC';
 import { isExternalDownloaderSourceUrl } from '../../../Common/Download';
-
-/** Removes the IPC handlers. */
-export function removeIpcHandlers(channels: readonly IpcChannel[]): void {
-    for (const channel of channels) ipcMain.removeHandler(channel);
-}
 
 /** Determines whether the application link ID condition applies. */
 export function isApplicationLinkId(

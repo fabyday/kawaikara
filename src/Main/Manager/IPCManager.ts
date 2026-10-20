@@ -1,83 +1,38 @@
-import type { WebExtensionManager } from './WebExtensionManager';
-import {
-    app,
-    clipboard,
-    ipcMain,
-    type IpcMainEvent,
-    type IpcMainInvokeEvent,
-} from 'electron';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
-import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
-import {
-    IPC_CHANNELS,
-    type ApplicationLogFileReference,
-    type ApplicationLogRepository,
-    type IpcChannel,
-    type PreferencePatch,
-} from '../../Common/IPC';
-import type { ProviderManager } from './ProviderManager';
-import type { WindowManager } from './WindowManager';
-import type { PreferenceManager } from './PreferenceManager';
-import type { ExternalDownloaderManager } from './ExternalDownloaderManager';
-import type { DeveloperLinkManager } from './DeveloperLinkManager';
-import type { UpdateManager } from './UpdateManager';
-import type { ShortcutManager } from './ShortcutManager';
-import type { VideoLibraryManager } from './VideoLibraryManager';
-import type { BundleManager } from './BundleManager';
 import type { LoggingManager } from './LoggingManager';
 import type { ApplicationDataManager } from './ApplicationDataManager';
+import type { PreferenceManager } from './PreferenceManager';
+import type { WindowManager } from './WindowManager';
+import type { UpdateManager } from './UpdateManager';
+import type { ProviderManager } from './ProviderManager';
+import type { SocialManager } from './SocialManager';
+import type { BundleManager } from './BundleManager';
 import type { BundleDevelopmentManager } from './BundleDevelopmentManager';
-import { requireDevelopmentProjectId } from '../Functional/Bundle/DevelopmentValidation';
-import {
-    isApplicationLinkId,
-    isDevToolsMode,
-    isExternalDownloaderUrl,
-    isGraphicsRestartConfirmed,
-    readRequestedGraphicsMode,
-    removeIpcHandlers,
-    requireAppLocale,
-    requireAppTheme,
-    requireIdentifier,
-    requirePathString,
-    requireSearchQuery,
-} from '../Functional/App/IPCValidation';
-import { getRendererMessages } from '../Functional/Localization/RendererMessages';
-import { getOperatingSystemLabel } from '../Platform/Information';
-import {
-    getDefaultVideoAppCapability,
-    openDefaultVideoAppSettings,
-} from '../Platform/DefaultVideoApp';
+import type { VideoLibraryManager } from './VideoLibraryManager';
+import type { ExternalDownloaderManager } from './ExternalDownloaderManager';
+import type { ShortcutManager } from './ShortcutManager';
+import type { WebExtensionManager } from './WebExtensionManager';
+import { connectApplicationIpc } from '../Functional/IPC/ApplicationIpc';
+import { connectWindowIpc } from '../Functional/IPC/WindowIpc';
+import { connectProviderIpc } from '../Functional/IPC/ProviderIpc';
+import { connectSocialIpc } from '../Functional/IPC/SocialIpc';
+import { connectUpdatesIpc } from '../Functional/IPC/UpdatesIpc';
+import { connectLogsIpc } from '../Functional/IPC/LogsIpc';
+import { connectBundlesIpc } from '../Functional/IPC/BundlesIpc';
+import { connectVideoIpc } from '../Functional/IPC/VideoIpc';
+import { connectDownloadsIpc } from '../Functional/IPC/DownloadsIpc';
+import { connectDataIpc } from '../Functional/IPC/DataIpc';
+import { connectPreferencesIpc } from '../Functional/IPC/PreferencesIpc';
+import { connectWebExtensionIpc } from '../Functional/IPC/WebExtensionIpc';
+import { disposeIpcBindings, type DisposeIpc } from '../Functional/IPC/IpcBindings';
 
-/** Coordinates IPC behavior. */
+/** Explicit composition and lifetime owner for feature-specific IPC connections. */
 export class IpcManager {
-    /** The relaunch scheduled value. */
-    private relaunchScheduled = false;
-    /** Callback used to handle dispose development subscription. */
-    private disposeDevelopmentSubscription?: () => void;
-    /** The handle editing changed value. */
-    private readonly handleEditingChanged = (
-        event: IpcMainEvent,
-        editing: unknown,
-    ): void => {
-        if (typeof editing !== 'boolean') return;
-        this.windows.setEditingState(event.sender.id, editing);
-    };
-    /** The handle video presentation changed value. */
-    private readonly handleVideoPresentationChanged = (
-        event: IpcMainEvent,
-        state: unknown,
-    ): void => {
-        this.windows.setInternalVideoPresentation(event.sender.id, state);
-    };
-    /** The handle video playback renderer ready value. */
-    private readonly handleVideoPlaybackRendererReady = (
-        event: IpcMainEvent,
-    ): void => {
-        this.windows.notifyVideoPlaybackRendererReady(event.sender.id);
-    };
+    /** Successfully connected features, disposed in reverse order. */
+    private readonly connections: DisposeIpc[] = [];
+    /** Optional bridge resolved lazily by the WebExtension connection. */
+    private webExtension?: WebExtensionManager;
 
-    /** Creates an instance of IpcManager. */
+    /** Receives app-scoped services without owning their lifetimes. */
     constructor(
         /** The bundles value. */
         private readonly bundles: BundleManager,
@@ -89,8 +44,8 @@ export class IpcManager {
         private readonly preferences: PreferenceManager,
         /** The downloads value. */
         private readonly downloads: ExternalDownloaderManager,
-        /** The developer links value. */
-        private readonly developerLinks: DeveloperLinkManager,
+        /** Shared social actions. */
+        private readonly social: SocialManager,
         /** The updates value. */
         private readonly updates: UpdateManager,
         /** The shortcuts value. */
@@ -105,878 +60,84 @@ export class IpcManager {
         private readonly development: BundleDevelopmentManager,
     ) {}
 
-    /** Browser bridge owned by the initialized application. */
-    private webExtension?: WebExtensionManager;
-    /** Supplies the optional runtime after desktop managers are created. */
+    /** Supplies the browser bridge before or after IPC registration. */
     setWebExtensionManager(manager: WebExtensionManager): void {
         this.webExtension = manager;
     }
 
-    /** Initializes the operation. */
+    /** Connects each feature once; a partial failure rolls back earlier groups. */
     initialize(): void {
-        ipcMain.handle(
-            IPC_CHANNELS.application.webExtensionConnection,
-            async (event, operation: unknown, requestId: unknown) => {
-                requireDataLocationSender(event);
-                if (!this.webExtension)
-                    throw new Error('Browser bridge is unavailable.');
-                if (operation === 'connect')
-                    await this.webExtension.useExtension();
-                else if (operation === 'connect-development') await this.webExtension.useExtension(undefined, true);
-                else if (operation === 'connect-development-custom') await this.webExtension.chooseBrowser(true);
-                else if (operation === 'connect-development-browser') {
-                    if (typeof requestId !== 'string') throw new Error('Invalid browser ID.');
-                    await this.webExtension.useExtension(requestId, true);
-                }
-                else if (operation === 'connect-custom') await this.webExtension.chooseBrowser();
-                else if (operation === 'browsers')
-                    return {...this.webExtension.status(), browsers: await this.webExtension.browsers()};
-                else if (operation === 'connect-browser') {
-                    if (typeof requestId !== 'string') throw new Error('Invalid browser ID.');
-                    await this.webExtension.useExtension(requestId);
-                } else if (operation === 'revoke-client') {
-                    if (typeof requestId !== 'string' || !this.webExtension.status().connections.some(c => c.id === requestId)) throw new Error('Invalid connection ID.');
-                    await this.webExtension.revoke(requestId);
-                }
-                else if (operation === 'copy')
-                    await this.webExtension.copyConnectionCode();
-                else if (operation === 'revoke')
-                    await this.webExtension.revoke();
-                else if (operation === 'development-on' || operation === 'development-off')
-                    await this.webExtension.setDevelopment(operation === 'development-on');
-                else if (operation === 'approve' || operation === 'deny') {
-                    if (typeof requestId !== 'string') throw new Error('Invalid approval ID.');
-                    this.webExtension.decide(requestId, operation === 'approve');
-                }
-                else if (operation !== 'status') throw new Error('Unknown browser connection operation.');
-                return this.webExtension.status();
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.logViewer.command,
-            (event, command: unknown) => {
-                if (event.senderFrame !== event.sender.mainFrame)
-                    throw new Error(
-                        'Log viewer commands require the main frame.',
-                    );
-                return this.windows.commandLogViewer(event.sender.id, command);
-            },
-        );
-        this.disposeDevelopmentSubscription = this.development.subscribe(
-            (state) => this.windows.notifyDevelopmentStateChanged(state),
-        );
-        ipcMain.on(
-            IPC_CHANNELS.overlay.editingChanged,
-            this.handleEditingChanged,
-        );
-        ipcMain.handle(IPC_CHANNELS.application.info, () => ({
-            metadata: this.logging.getMetadata(),
-            canConfigureDefaultVideoApp: getDefaultVideoAppCapability(),
-            dataLocation: this.data.getLocation(),
-            name: app.getName(),
-            version: app.getVersion(),
-            siteApiVersion: KAWAIKARA_SITE_API_VERSION,
-            electronVersion: process.versions.electron,
-            chromeVersion: process.versions.chrome,
-            platform: getOperatingSystemLabel(),
-            arch: process.arch,
-            buildChannel: __KAWAIKARA_BUILD_CHANNEL__,
-            updateChannelLocked: true,
-        }));
-        ipcMain.handle(
-            IPC_CHANNELS.application.messages,
-            (_event, locale: unknown) => {
-                const requestedLocale =
-                    locale === undefined
-                        ? this.preferences.get().appLocale
-                        : requireAppLocale(locale);
-                return getRendererMessages(requestedLocale, app.getLocale());
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.application.listDisplays, () =>
-            this.windows.listDisplays(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.openDefaultVideoAppSettings,
-            async (event, locale: unknown) => {
-                requireDataLocationSender(event);
-                const copy = getRendererMessages(
-                    requireAppLocale(locale),
-                    app.getLocale(),
-                ).app.defaultVideoApp;
-                try {
-                    await openDefaultVideoAppSettings();
-                } catch (reason) {
-                    this.logging
-                        .getLogger('ipcManager', 'defaultVideoApp')
-                        .warn('Could not open default app settings.', reason);
-                    throw new Error(copy.failed);
-                }
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.openLink,
-            async (_event, id: unknown) => {
-                if (!isApplicationLinkId(id)) {
-                    throw new TypeError('Unknown application link.');
-                }
-                await this.developerLinks.open(id);
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.openDevTools,
-            (_event, mode: unknown) => {
-                if (!isDevToolsMode(mode)) {
-                    throw new TypeError('Unknown DevTools placement.');
-                }
-                this.windows.openDevTools(mode);
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.application.openLogDirectory, () =>
-            this.logging.openDirectory(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.openLogRepositoryDirectory,
-            (_event, repository: unknown, groupId: unknown) =>
-                this.logging.openRepositoryDirectory(
-                    requireLogRepository(repository),
-                    requireOptionalLogGroupId(groupId),
-                ),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.listLogGroups, () =>
-            this.logging.listGroups(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.listLogFiles,
-            (_event, repository: unknown, groupId: unknown) =>
-                this.logging.listFiles(
-                    requireLogRepository(repository),
-                    requireOptionalLogGroupId(groupId),
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.readLogFile,
-            (
-                _event,
-                repository: unknown,
-                fileName: unknown,
-                groupId: unknown,
-            ) => {
-                if (typeof fileName !== 'string') {
-                    throw new TypeError('A log file name is required.');
-                }
-                return this.logging.readFile(
-                    requireLogRepository(repository),
-                    fileName,
-                    requireOptionalLogGroupId(groupId),
-                );
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.exportLogFiles,
-            (_event, references: unknown) =>
-                this.logging.exportFiles(
-                    requireLogFileReferences(references),
-                    this.preferences.get().appLocale,
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.deleteLogFiles,
-            (_event, references: unknown) =>
-                this.logging.deleteFiles(requireLogFileReferences(references)),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.selectLogImportFiles, () =>
-            this.logging.selectImportFiles(this.preferences.get().appLocale),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.importLogFiles,
-            (_event, token: unknown, alias: unknown) => {
-                if (typeof token !== 'string' || typeof alias !== 'string') {
-                    throw new TypeError(
-                        'A pending import token and alias are required.',
-                    );
-                }
-                return this.logging.importFiles(token, alias);
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.cancelLogImport,
-            (_event, token: unknown) => {
-                if (typeof token !== 'string') {
-                    throw new TypeError('A pending import token is required.');
-                }
-                this.logging.cancelImport(token);
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.application.developerYouTubeStatus, () =>
-            this.developerLinks.getDeveloperYouTubeStatus(),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.checkForUpdates, () =>
-            this.updates.checkForUpdates(),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.getUpdateState, () =>
-            this.updates.getState(),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.downloadUpdate, () =>
-            this.updates.downloadUpdate(),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.installUpdate, () =>
-            this.updates.installUpdate(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.application.copyText,
-            (_event, value: unknown) => {
-                if (typeof value !== 'string' || value.length > 16_384) {
-                    throw new TypeError(
-                        'Clipboard text must be a valid string.',
-                    );
-                }
-                clipboard.writeText(value);
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.bundles.runtime, () =>
-            this.sites.listBundles(),
-        );
-        ipcMain.handle(IPC_CHANNELS.bundles.list, () => this.bundles.list());
-        ipcMain.handle(
-            IPC_CHANNELS.bundles.install,
-            (_event, locale: unknown) =>
-                this.bundles.installFromDialog(requireAppLocale(locale)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.bundles.update,
-            (_event, id: unknown, locale: unknown) => {
-                if (typeof id !== 'string')
-                    throw new TypeError('Bundle id must be a string.');
-                return this.bundles.update(id, requireAppLocale(locale));
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.bundles.remove,
-            (_event, id: unknown, locale: unknown) => {
-                if (typeof id !== 'string')
-                    throw new TypeError('Bundle id must be a string.');
-                return this.bundles.remove(id, requireAppLocale(locale));
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.development.state, () =>
-            this.development.getState(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.development.attach,
-            (_event, locale: unknown) =>
-                this.development.attachFromDialog(requireAppLocale(locale)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.development.rebuild,
-            (_event, projectId: unknown) =>
-                this.development.rebuild(
-                    requireDevelopmentProjectId(projectId),
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.development.setHotReload,
-            (_event, projectId: unknown, enabled: unknown) => {
-                if (typeof enabled !== 'boolean') {
-                    throw new TypeError('Hot reload state must be a boolean.');
-                }
-                return this.development.setHotReload(
-                    requireDevelopmentProjectId(projectId),
-                    enabled,
-                );
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.development.detach,
-            (_event, projectId: unknown) =>
-                this.development.detach(requireDevelopmentProjectId(projectId)),
-        );
-        ipcMain.handle(IPC_CHANNELS.development.vscodeConfiguration, () =>
-            this.development.createVsCodeConfiguration(),
-        );
-        ipcMain.handle(IPC_CHANNELS.media.togglePictureInPicture, () =>
-            this.windows.togglePictureInPicture(),
-        );
-        ipcMain.handle(IPC_CHANNELS.media.toggleGamePictureInPicture, () =>
-            this.windows.toggleGamePictureInPicture(),
-        );
-        ipcMain.handle(IPC_CHANNELS.sites.list, () =>
-            this.sites.listMenuItems(),
-        );
-        ipcMain.handle(IPC_CHANNELS.sites.currentAddress, () =>
-            this.windows.getCurrentSiteAddress(),
-        );
-        ipcMain.handle(IPC_CHANNELS.sites.navigationState, () =>
-            this.windows.getNavigationState(),
-        );
-        ipcMain.handle(IPC_CHANNELS.sites.goBack, () => this.windows.goBack());
-        ipcMain.handle(IPC_CHANNELS.sites.goForward, () =>
-            this.windows.goForward(),
-        );
-        ipcMain.handle(IPC_CHANNELS.sites.open, async (_event, id: unknown) => {
-            if (typeof id !== 'string') {
-                throw new TypeError('Site id must be a string.');
-            }
-            this.windows.hideOverlay();
+        if (this.connections.length) return;
+        try {
+            this.connections.push(connectApplicationIpc({
+                logging: this.logging,
+                data: this.data,
+                preferences: this.preferences,
+            }));
+            this.connections.push(connectWindowIpc({
+                windows: this.windows,
+                updates: this.updates,
+            }));
+            this.connections.push(connectProviderIpc({
+                sites: this.sites,
+                windows: this.windows,
+            }));
+            this.connections.push(connectSocialIpc({
+                social: this.social,
+            }));
+            this.connections.push(connectUpdatesIpc({
+                updates: this.updates,
+            }));
+            this.connections.push(connectLogsIpc({
+                logging: this.logging,
+                windows: this.windows,
+                preferences: this.preferences,
+            }));
+            this.connections.push(connectBundlesIpc({
+                bundles: this.bundles,
+                sites: this.sites,
+                development: this.development,
+                windows: this.windows,
+            }));
+            this.connections.push(connectVideoIpc({
+                windows: this.windows,
+                sites: this.sites,
+                videoLibrary: this.videoLibrary,
+                preferences: this.preferences,
+            }));
+            this.connections.push(connectDownloadsIpc({
+                downloads: this.downloads,
+                windows: this.windows,
+                sites: this.sites,
+            }));
+            this.connections.push(connectDataIpc({
+                data: this.data,
+                updates: this.updates,
+            }));
+            this.connections.push(connectPreferencesIpc({
+                preferences: this.preferences,
+                windows: this.windows,
+                logging: this.logging,
+                shortcuts: this.shortcuts,
+                sites: this.sites,
+                updates: this.updates,
+                development: this.development,
+            }));
+            this.connections.push(connectWebExtensionIpc({
+                getWebExtension: () => this.webExtension,
+            }));
+        } catch (error) {
             try {
-                await this.sites.load(id);
-            } catch (error) {
-                // Keep the existing menu error/retry flow reachable after a failed switch.
-                this.windows.showOverlay();
-                throw error;
+                this.dispose();
+            } catch (cleanupError) {
+                throw new AggregateError([error, cleanupError], 'IPC initialization and rollback failed.');
             }
-        });
-        ipcMain.handle(IPC_CHANNELS.overlay.close, () => {
-            this.windows.hideOverlay();
-        });
-        ipcMain.handle(
-            IPC_CHANNELS.overlay.setView,
-            (_event, view: unknown) => {
-                if (view === 'menu') {
-                    this.windows.showOverlay();
-                    return;
-                }
-                if (view === 'preference') {
-                    this.windows.showPreferencesOverlay();
-                    return;
-                }
-                if (view === 'update') {
-                    const state = this.updates.getState();
-                    if (!state)
-                        throw new Error('No update panel state is available.');
-                    this.windows.showUpdateOverlay(state);
-                    return;
-                }
-                throw new TypeError(
-                    'Overlay view must be menu, preference, or update.',
-                );
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.dragDrop.openFiles,
-            (_event, paths: unknown) =>
-                this.sites.dragDrop.openFiles(
-                    paths,
-                    () => this.sites.getActiveProviderId(),
-                    async (registration, files) => {
-                        // Only the app-owned Video action is implemented in this phase.
-                        if (
-                            registration.descriptor.action !==
-                            'open-local-video'
-                        )
-                            return false;
-                        if (!(await this.windows.queueDroppedVideoFiles(files)))
-                            return false;
-                        await this.presentQueuedVideo(registration.providerId);
-                        const request =
-                            this.windows.getCurrentVideoOpenRequest();
-                        if (request?.kind === 'local') {
-                            await this.videoLibrary.recordVideo(request);
-                        }
-                        return true;
-                    },
-                ),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.isFullScreen, () =>
-            this.windows.isAppFullScreen(),
-        );
-        ipcMain.handle(IPC_CHANNELS.application.exitFullScreen, () =>
-            this.windows.exitAppFullScreen(),
-        );
-        ipcMain.handle(IPC_CHANNELS.video.selectLocalFile, async () => {
-            const request = await this.windows.selectLocalVideo();
-            if (request?.kind === 'local')
-                await this.videoLibrary.recordVideo(request);
-            return request;
-        });
-        ipcMain.handle(
-            IPC_CHANNELS.sites.openAddress,
-            async (_event, value: unknown) => {
-                if (typeof value !== 'string') {
-                    throw new TypeError('Site address must be a string.');
-                }
-                const resolved = this.sites.resolveAddress(value);
-                if (!resolved) return { status: 'unsupported' as const };
-                this.windows.hideOverlay();
-                await this.sites.openUrl(resolved.siteId, resolved.url);
-                return { status: 'opened' as const, siteId: resolved.siteId };
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.video.getPlaybackCapabilities, () =>
-            this.windows.getVideoPlaybackCapabilities(),
-        );
-        ipcMain.handle(IPC_CHANNELS.video.getOpenRequest, () =>
-            this.windows.getCurrentVideoOpenRequest(),
-        );
-        ipcMain.handle(IPC_CHANNELS.video.recoverPlaybackRenderer, (event) =>
-            this.windows.recoverVideoPlaybackRenderer(event.sender.id),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.activateLocalFile,
-            async (event, value: unknown) => {
-                const result = await this.videoLibrary.openPath(
-                    requirePathString(value),
-                );
-                if (result.kind !== 'video') {
-                    throw new TypeError('A local video file is required.');
-                }
-                if (
-                    !this.windows.activateVideoOpenRequest(
-                        event.sender.id,
-                        result.request,
-                    )
-                ) {
-                    throw new Error('The Video view is no longer active.');
-                }
-                return result.request;
-            },
-        );
-        ipcMain.on(
-            IPC_CHANNELS.video.presentationChanged,
-            this.handleVideoPresentationChanged,
-        );
-        ipcMain.on(
-            IPC_CHANNELS.video.playbackRendererReady,
-            this.handleVideoPlaybackRendererReady,
-        );
-        ipcMain.handle(IPC_CHANNELS.video.librarySnapshot, () =>
-            this.videoLibrary.getSnapshot(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.listDirectory,
-            (_event, value: unknown) =>
-                this.videoLibrary.listDirectory(requirePathString(value)),
-        );
-        ipcMain.handle(IPC_CHANNELS.video.openPath, (_event, value: unknown) =>
-            this.videoLibrary.openPath(requirePathString(value)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.searchDirectory,
-            (_event, directory: unknown, query: unknown) =>
-                this.videoLibrary.searchDirectory(
-                    requirePathString(directory),
-                    requireSearchQuery(query),
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.pinFolder,
-            (_event, value: unknown, pinned: unknown) => {
-                if (typeof pinned !== 'boolean') {
-                    throw new TypeError('Pinned state must be a boolean.');
-                }
-                return this.videoLibrary.setFolderPinned(
-                    requirePathString(value),
-                    pinned,
-                );
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.removeFolder,
-            (_event, value: unknown) =>
-                this.videoLibrary.removeFolder(requirePathString(value)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.openLibraryItem,
-            async (_event, value: unknown) => {
-                const result = await this.videoLibrary.openPath(
-                    requirePathString(value),
-                );
-                this.windows.queueVideoOpenRequest(
-                    result.kind === 'directory'
-                        ? this.videoLibrary.createFolderRequest(
-                              result.listing.directory,
-                          )
-                        : result.request,
-                );
-                await this.presentQueuedVideo();
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.video.thumbnail, (_event, value: unknown) =>
-            this.videoLibrary.getThumbnail(requirePathString(value)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.video.setVolumePreference,
-            async (_event, value: unknown) => {
-                if (typeof value !== 'number' || !Number.isFinite(value)) {
-                    throw new TypeError(
-                        'Video volume must be a finite number.',
-                    );
-                }
-                const next = await this.preferences.update({
-                    videoVolume: value,
-                });
-                return next.videoVolume;
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.downloads.openYouTube,
-            async (_event, url: unknown) => {
-                if (typeof url !== 'string' || !isExternalDownloaderUrl(url)) {
-                    throw new TypeError('A safe HTTPS source URL is required.');
-                }
-                const result = await this.downloads.open(url);
-                if (!result.opened) {
-                    this.windows.queueYouTubeDownloader(url);
-                    this.windows.hideOverlay();
-                    await this.sites.load('kawaikara.video');
-                }
-                return result;
-            },
-        );
-        ipcMain.handle(IPC_CHANNELS.downloads.status, () =>
-            this.downloads.getStatus(),
-        );
-        ipcMain.handle(IPC_CHANNELS.downloads.install, (_event, url: unknown) =>
-            this.downloads.install(url),
-        );
-        ipcMain.handle(IPC_CHANNELS.downloads.open, (_event, url: unknown) =>
-            this.downloads.open(url),
-        );
-        ipcMain.handle(IPC_CHANNELS.downloads.openReleasePage, () =>
-            this.downloads.openReleasePage(),
-        );
-        ipcMain.handle(IPC_CHANNELS.preferences.get, () =>
-            this.preferences.get(),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.selectLocation,
-            (event, locale: unknown) => {
-                requireDataLocationSender(event);
-                return this.data.selectLocation(requireAppLocale(locale));
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.changeLocation,
-            (event, directory: unknown, locale: unknown) => {
-                requireDataLocationSender(event);
-                const requestedLocale = requireAppLocale(locale);
-                if (
-                    ['downloading', 'preparing', 'installing'].includes(
-                        this.updates.getState()?.phase ?? '',
-                    )
-                ) {
-                    throw new Error(
-                        getRendererMessages(
-                            requestedLocale,
-                            app.getLocale(),
-                        ).app.appDataLocation.busy,
-                    );
-                }
-                return this.data.changeLocation(
-                    requirePathString(directory),
-                    requestedLocale,
-                );
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.clearBrowserProfile,
-            (_event, profileId: unknown, locale: unknown) =>
-                this.data.clearBrowserProfile(
-                    requireIdentifier(profileId, 'Browser profile'),
-                    requireAppLocale(locale),
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.clearIsolatedSite,
-            (_event, siteId: unknown, locale: unknown) =>
-                this.data.clearIsolatedSite(
-                    requireIdentifier(siteId, 'Site'),
-                    requireAppLocale(locale),
-                ),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.clearApplicationCache,
-            (_event, locale: unknown) =>
-                this.data.clearApplicationCache(requireAppLocale(locale)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.clearAllBrowserProfiles,
-            (_event, locale: unknown) =>
-                this.data.clearAllBrowserProfiles(requireAppLocale(locale)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.data.resetApplication,
-            (_event, locale: unknown) =>
-                this.data.resetApplication(requireAppLocale(locale)),
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.preferences.previewTheme,
-            (_event, theme: unknown) => {
-                this.windows.setAppTheme(requireAppTheme(theme));
-            },
-        );
-        ipcMain.handle(
-            IPC_CHANNELS.preferences.update,
-            async (_event, patch: unknown, options: unknown) => {
-                const currentGraphicsMode = this.preferences.get().graphicsMode;
-                const requestedGraphicsMode = readRequestedGraphicsMode(patch);
-                const graphicsModeChanged =
-                    requestedGraphicsMode !== undefined &&
-                    requestedGraphicsMode !== currentGraphicsMode;
-                if (
-                    graphicsModeChanged &&
-                    !isGraphicsRestartConfirmed(options)
-                ) {
-                    throw new Error(
-                        'Changing the Electron graphics mode requires an application restart confirmation.',
-                    );
-                }
-
-                const preferences = await this.preferences.update(
-                    patch && typeof patch === 'object' && 'appWindow' in patch
-                        ? { ...patch, appWindow: this.windows.normalizeAppWindowPreference(
-                            (patch as PreferencePatch).appWindow!,
-                        ) } : patch,
-                );
-                if (graphicsModeChanged) {
-                    this.scheduleApplicationRelaunch();
-                    return preferences;
-                }
-
-                this.windows.setAppLocale(
-                    preferences.appLocale,
-                    app.getLocale(),
-                );
-                this.windows.setAppTheme(preferences.appTheme);
-                await this.windows.applyAppWindowPreference(preferences.appWindow);
-                this.windows.setAlwaysOnTop(preferences.alwaysOnTop);
-                this.windows.setMenuDismissBehavior(
-                    preferences.closeMenuOnEscape,
-                    preferences.closeMenuOnOutsideClick,
-                );
-                // The startup checkbox is persisted for the next app launch. Saving it
-                // must not unexpectedly open DevTools in the current session.
-                this.windows.setDevToolsMode(preferences.devToolsMode);
-                this.windows.setPictureInPicturePlacement(
-                    preferences.pictureInPicturePlacement,
-                );
-                this.windows.setPictureInPictureSize(
-                    preferences.pictureInPictureSize,
-                );
-                this.windows.setPictureInPicturePortraitSize(
-                    preferences.pictureInPicturePortraitSize,
-                );
-                await this.windows.setPictureInPictureSubtitleScale(
-                    preferences.pictureInPictureSubtitleScale,
-                );
-                this.logging.configure(
-                    preferences.logLevel,
-                    preferences.logSources,
-                );
-                this.shortcuts.refreshGlobalShortcut();
-                await this.sites
-                    .applyCurrentProviderSettings()
-                    .catch((error: unknown) => {
-                        // The preference is already durable. A simultaneous site navigation
-                        // may destroy the old document before its live update is delivered;
-                        // the Provider receives the stored value before its next load.
-                        this.logging
-                            .getLogger('ipcManager', 'updatePreferences')
-                            .debug(
-                                'Live Provider settings refresh was skipped.',
-                                error,
-                            );
-                    });
-                this.updates.configure(preferences);
-                await this.development.configure(preferences);
-                await this.sites.refreshCurrentBrowserProfile();
-                return preferences;
-            },
-        );
+            throw error;
+        }
     }
 
-    /** Schedules the application relaunch. */
-    private scheduleApplicationRelaunch(): void {
-        if (this.relaunchScheduled) return;
-        this.relaunchScheduled = true;
-        // Let ipcRenderer receive the persisted PreferenceState before shutdown.
-        setTimeout(() => {
-            app.relaunch();
-            app.quit();
-        }, 200);
-    }
-
-    /** Opens dropped/recent files through the same persistent Video surface. */
-    private async presentQueuedVideo(
-        providerId = 'kawaikara.video',
-    ): Promise<void> {
-        this.windows.hideOverlay();
-        if (
-            this.sites.isCurrentSite(providerId) &&
-            this.windows.presentQueuedVideoOpenRequest()
-        )
-            return;
-        await this.sites.load(providerId);
-    }
-
-    /** Releases the operation. */
+    /** Releases feature handlers, listeners, subscriptions, and pending timers. */
     dispose(): void {
-        this.disposeDevelopmentSubscription?.();
-        this.disposeDevelopmentSubscription = undefined;
-        ipcMain.off(
-            IPC_CHANNELS.overlay.editingChanged,
-            this.handleEditingChanged,
-        );
-        ipcMain.off(
-            IPC_CHANNELS.video.presentationChanged,
-            this.handleVideoPresentationChanged,
-        );
-        ipcMain.off(
-            IPC_CHANNELS.video.playbackRendererReady,
-            this.handleVideoPlaybackRendererReady,
-        );
-        removeIpcHandlers(IPC_HANDLER_CHANNELS);
+        disposeIpcBindings(this.connections);
     }
-}
-
-/** Defines the shared IPC handler channels constant. */
-const IPC_HANDLER_CHANNELS = [
-    IPC_CHANNELS.application.webExtensionConnection,
-    IPC_CHANNELS.application.openDefaultVideoAppSettings,
-    IPC_CHANNELS.sites.list,
-    IPC_CHANNELS.sites.currentAddress,
-    IPC_CHANNELS.sites.navigationState,
-    IPC_CHANNELS.sites.goBack,
-    IPC_CHANNELS.sites.goForward,
-    IPC_CHANNELS.sites.openAddress,
-    IPC_CHANNELS.application.info,
-    IPC_CHANNELS.application.messages,
-    IPC_CHANNELS.application.listDisplays,
-    IPC_CHANNELS.application.openLink,
-    IPC_CHANNELS.application.openDevTools,
-    IPC_CHANNELS.application.openLogDirectory,
-    IPC_CHANNELS.logViewer.command,
-    IPC_CHANNELS.application.openLogRepositoryDirectory,
-    IPC_CHANNELS.application.listLogGroups,
-    IPC_CHANNELS.application.listLogFiles,
-    IPC_CHANNELS.application.readLogFile,
-    IPC_CHANNELS.application.exportLogFiles,
-    IPC_CHANNELS.application.deleteLogFiles,
-    IPC_CHANNELS.application.selectLogImportFiles,
-    IPC_CHANNELS.application.importLogFiles,
-    IPC_CHANNELS.application.cancelLogImport,
-    IPC_CHANNELS.application.developerYouTubeStatus,
-    IPC_CHANNELS.application.checkForUpdates,
-    IPC_CHANNELS.application.getUpdateState,
-    IPC_CHANNELS.application.downloadUpdate,
-    IPC_CHANNELS.application.installUpdate,
-    IPC_CHANNELS.application.isFullScreen,
-    IPC_CHANNELS.application.exitFullScreen,
-    IPC_CHANNELS.bundles.runtime,
-    IPC_CHANNELS.bundles.list,
-    IPC_CHANNELS.bundles.install,
-    IPC_CHANNELS.bundles.update,
-    IPC_CHANNELS.bundles.remove,
-    IPC_CHANNELS.development.state,
-    IPC_CHANNELS.development.attach,
-    IPC_CHANNELS.development.rebuild,
-    IPC_CHANNELS.development.setHotReload,
-    IPC_CHANNELS.development.detach,
-    IPC_CHANNELS.development.vscodeConfiguration,
-    IPC_CHANNELS.media.togglePictureInPicture,
-    IPC_CHANNELS.media.toggleGamePictureInPicture,
-    IPC_CHANNELS.sites.open,
-    IPC_CHANNELS.overlay.close,
-    IPC_CHANNELS.overlay.setView,
-    IPC_CHANNELS.dragDrop.openFiles,
-    IPC_CHANNELS.video.selectLocalFile,
-    IPC_CHANNELS.video.getPlaybackCapabilities,
-    IPC_CHANNELS.video.getOpenRequest,
-    IPC_CHANNELS.video.recoverPlaybackRenderer,
-    IPC_CHANNELS.video.activateLocalFile,
-    IPC_CHANNELS.video.librarySnapshot,
-    IPC_CHANNELS.video.listDirectory,
-    IPC_CHANNELS.video.openPath,
-    IPC_CHANNELS.video.searchDirectory,
-    IPC_CHANNELS.video.pinFolder,
-    IPC_CHANNELS.video.removeFolder,
-    IPC_CHANNELS.video.openLibraryItem,
-    IPC_CHANNELS.video.thumbnail,
-    IPC_CHANNELS.video.setVolumePreference,
-    IPC_CHANNELS.downloads.openYouTube,
-    IPC_CHANNELS.downloads.status,
-    IPC_CHANNELS.downloads.install,
-    IPC_CHANNELS.downloads.open,
-    IPC_CHANNELS.downloads.openReleasePage,
-    IPC_CHANNELS.preferences.get,
-    IPC_CHANNELS.data.selectLocation,
-    IPC_CHANNELS.data.changeLocation,
-    IPC_CHANNELS.data.clearBrowserProfile,
-    IPC_CHANNELS.data.clearIsolatedSite,
-    IPC_CHANNELS.data.clearAllBrowserProfiles,
-    IPC_CHANNELS.data.clearApplicationCache,
-    IPC_CHANNELS.data.resetApplication,
-    IPC_CHANNELS.preferences.previewTheme,
-    IPC_CHANNELS.preferences.update,
-] as const satisfies readonly IpcChannel[];
-
-/** A remote Provider or subframe must never redirect the application's data root. */
-function requireDataLocationSender(event: IpcMainInvokeEvent): void {
-    const frame = event.senderFrame;
-    const expected = path.resolve(__dirname, '../renderer/index.html');
-    if (
-        !frame ||
-        frame !== event.sender.mainFrame ||
-        !frame.url.startsWith('file:') ||
-        path.resolve(fileURLToPath(frame.url)) !== expected
-    )
-        throw new Error(
-            'Only the application settings UI may change data location.',
-        );
-}
-
-/** Requires a supported application log repository. */
-function requireLogRepository(value: unknown): ApplicationLogRepository {
-    if (value === 'application' || value === 'external') return value;
-    throw new TypeError('Unknown application log repository.');
-}
-
-/** Requires an optional bounded external log group ID. */
-function requireOptionalLogGroupId(value: unknown): string | undefined {
-    if (value === undefined) return undefined;
-    if (
-        typeof value === 'string' &&
-        (value === 'ungrouped' ||
-            /^LOGSET-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(value))
-    ) {
-        return value;
-    }
-    throw new TypeError('Invalid external log group ID.');
-}
-
-/** Requires a bounded list of application log file references. */
-function requireLogFileReferences(
-    value: unknown,
-): readonly ApplicationLogFileReference[] {
-    if (!Array.isArray(value) || value.length === 0 || value.length > 128) {
-        throw new TypeError('A bounded log file selection is required.');
-    }
-    return value.map((entry) => {
-        if (
-            typeof entry !== 'object' ||
-            entry === null ||
-            !('repository' in entry) ||
-            !('fileName' in entry)
-        ) {
-            throw new TypeError('Invalid log file reference.');
-        }
-        const repository = requireLogRepository(entry.repository);
-        if (
-            typeof entry.fileName !== 'string' ||
-            entry.fileName !== path.basename(entry.fileName) ||
-            !entry.fileName.toLowerCase().endsWith('.log')
-        ) {
-            throw new TypeError('Invalid log file name.');
-        }
-        return {
-            /** The repository value. */
-            repository,
-            /** The file name value. */
-            fileName: entry.fileName,
-            /** The owning external group ID value. */
-            groupId: requireOptionalLogGroupId(
-                'groupId' in entry ? entry.groupId : undefined,
-            ),
-        };
-    });
 }

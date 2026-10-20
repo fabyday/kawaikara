@@ -8,7 +8,7 @@ import {
     MANAGER_TOKENS,
 } from '../../DependencyInjection/ApplicationManagers';
 import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
-import type { DiscordPresenceManager } from '../../Manager/DiscordPresenceManager';
+import type { SocialManager } from '../../Manager/SocialManager';
 import type { IpcManager } from '../../Manager/IPCManager';
 import type { PreferenceManager } from '../../Manager/PreferenceManager';
 import type { ShortcutManager } from '../../Manager/ShortcutManager';
@@ -27,8 +27,8 @@ import {
 export interface InitializedApplication extends PreInitializedApplication {
     /** The development value. */
     readonly development: BundleDevelopmentManager;
-    /** The discord presence value. */
-    readonly discordPresence: DiscordPresenceManager;
+    /** Shared social integrations and View-facing actions. */
+    readonly social: SocialManager;
     /** The IPC value. */
     readonly ipc: IpcManager;
     /** The preferences value. */
@@ -107,7 +107,7 @@ export async function initializeApplication(
 
     const updates = managers.resolve(MANAGER_TOKENS.updates);
     updates.configure(preferences.get());
-    const discordPresence = managers.resolve(MANAGER_TOKENS.discordPresence);
+    const social = managers.resolve(MANAGER_TOKENS.social);
     updates.setInstallLifecycle({
         /** Releases native surfaces only after Squirrel has accepted the download. */
         prepare: async () => {
@@ -137,8 +137,8 @@ export async function initializeApplication(
         ...preInitialized,
         /** The development value. */
         development,
-        /** The discord presence value. */
-        discordPresence,
+        /** Shared social integrations and View-facing actions. */
+        social,
         /** The IPC value. */
         ipc,
         /** The preferences value. */
@@ -159,7 +159,7 @@ export async function initializeApplication(
             await webExtension.dispose();
             await development.dispose();
             await sites.dispose();
-            await Promise.all([discordPresence.dispose(), windows.dispose()]);
+            await Promise.all([social.dispose(), windows.dispose()]);
             // Renderers are gone now, so their final effects cannot race handler
             // removal during shutdown.
             ipc.dispose();

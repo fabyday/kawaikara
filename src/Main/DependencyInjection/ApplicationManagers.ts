@@ -1,7 +1,6 @@
-import { DeveloperLinkManager } from '../Manager/DeveloperLinkManager';
 import { BundleDevelopmentManager } from '../Manager/BundleDevelopmentManager';
 import { BundleManager } from '../Manager/BundleManager';
-import { DiscordPresenceManager } from '../Manager/DiscordPresenceManager';
+import { SocialManager } from '../Manager/SocialManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
 import { ExternalDownloaderManager } from '../Manager/ExternalDownloaderManager';
 import { IpcManager } from '../Manager/IPCManager';
@@ -24,17 +23,13 @@ export const MANAGER_TOKENS = {
     bundles: createManagerToken<BundleManager>('BundleManager'),
     /** The data value. */
     data: createManagerToken<ApplicationDataManager>('ApplicationDataManager'),
-    /** The developer links value. */
-    developerLinks: createManagerToken<DeveloperLinkManager>(
-        'DeveloperLinkManager',
-    ),
     /** The development value. */
     development: createManagerToken<BundleDevelopmentManager>(
         'BundleDevelopmentManager',
     ),
-    /** The discord presence value. */
-    discordPresence: createManagerToken<DiscordPresenceManager>(
-        'DiscordPresenceManager',
+    /** Shared social integrations and View-facing actions. */
+    social: createManagerToken<SocialManager>(
+        'SocialManager',
     ),
     /** The downloads value. */
     downloads: createManagerToken<ExternalDownloaderManager>(
@@ -179,10 +174,6 @@ export function createApplicationManagerContainer(
                 ),
         )
         .registerSingleton(
-            MANAGER_TOKENS.developerLinks,
-            () => new DeveloperLinkManager(),
-        )
-        .registerSingleton(
             MANAGER_TOKENS.updates,
             (resolver) =>
                 new UpdateManager(
@@ -191,9 +182,9 @@ export function createApplicationManagerContainer(
                 ),
         )
         .registerSingleton(
-            MANAGER_TOKENS.discordPresence,
+            MANAGER_TOKENS.social,
             (resolver) =>
-                new DiscordPresenceManager(
+                new SocialManager(
                     () =>
                         resolver.resolve(MANAGER_TOKENS.preferences).get()
                             .appLocale,
@@ -208,7 +199,7 @@ export function createApplicationManagerContainer(
                     resolver.resolve(MANAGER_TOKENS.windows),
                     resolver.resolve(MANAGER_TOKENS.preferences),
                     resolver.resolve(MANAGER_TOKENS.downloads),
-                    resolver.resolve(MANAGER_TOKENS.developerLinks),
+                    resolver.resolve(MANAGER_TOKENS.social),
                     resolver.resolve(MANAGER_TOKENS.updates),
                     resolver.resolve(MANAGER_TOKENS.shortcuts),
                     resolver.resolve(MANAGER_TOKENS.videoLibrary),

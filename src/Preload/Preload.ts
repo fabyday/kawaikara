@@ -67,6 +67,15 @@ const api: KawaikaraRendererApi = {
       return () => { ipcRenderer.removeListener(IPC_CHANNELS.logViewer.requestClose, listener); };
     },
   },
+  /** Routes social actions to the shared Main manager. */
+  social: {
+    /** Opens only registered project/community links. */
+    openLink: (id: ApplicationLinkId) => ipcRenderer.invoke(IPC_CHANNELS.social.openLink, id),
+    /** Returns cached developer live status. */
+    getDeveloperYouTubeStatus: () => ipcRenderer.invoke(
+      IPC_CHANNELS.social.developerYouTubeStatus,
+    ) as Promise<DeveloperYouTubeStatus>,
+  },
   /** The application value. */
   application: {
     /** Settings-only connection management; no browser credentials reach Renderer. */
@@ -87,9 +96,6 @@ const api: KawaikaraRendererApi = {
       ipcRenderer.invoke(
         IPC_CHANNELS.application.listDisplays,
       ) as Promise<DisplayInfo[]>,
-    /** The open link value. */
-    openLink: (id: ApplicationLinkId) =>
-      ipcRenderer.invoke(IPC_CHANNELS.application.openLink, id),
     /** The open dev tools value. */
     openDevTools: (mode: DevToolsMode) =>
       ipcRenderer.invoke(IPC_CHANNELS.application.openDevTools, mode),
@@ -156,11 +162,6 @@ const api: KawaikaraRendererApi = {
       IPC_CHANNELS.application.cancelLogImport,
       token,
     ),
-    /** The get developer you tube status value. */
-    getDeveloperYouTubeStatus: () =>
-      ipcRenderer.invoke(
-        IPC_CHANNELS.application.developerYouTubeStatus,
-      ) as Promise<DeveloperYouTubeStatus>,
     /** The check for updates value. */
     checkForUpdates: () =>
       ipcRenderer.invoke(

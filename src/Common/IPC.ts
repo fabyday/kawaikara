@@ -71,7 +71,14 @@ export const IPC_CHANNELS = defineIpcChannels({
         /** The open address value. */
         openAddress: 'kawaikara:sites:open-address',
     },
-    /** The application value. */
+    /** Social actions exposed to app-owned Views. */
+    social: {
+        /** Opens a known project/community link. */
+        openLink: 'kawaikara:social:open-link',
+        /** Returns the developer channel live state. */
+        developerYouTubeStatus: 'kawaikara:social:developer-youtube-status',
+    },
+    /** Application settings and system operations. */
     application: {
         /** Manages the explicitly paired browser connection from trusted settings. */
         webExtensionConnection: 'kawaikara:application:web-extension-connection',
@@ -82,8 +89,6 @@ export const IPC_CHANNELS = defineIpcChannels({
         info: 'kawaikara:application:info',
         /** The list displays value. */
         listDisplays: 'kawaikara:application:list-displays',
-        /** The open link value. */
-        openLink: 'kawaikara:application:open-link',
         /** The open dev tools value. */
         openDevTools: 'kawaikara:application:open-dev-tools',
         /** The open log directory value. */
@@ -107,9 +112,6 @@ export const IPC_CHANNELS = defineIpcChannels({
         importLogFiles: 'kawaikara:application:import-log-files',
         /** The cancel log import value. */
         cancelLogImport: 'kawaikara:application:cancel-log-import',
-        /** The developer you tube status value. */
-        developerYouTubeStatus:
-            'kawaikara:application:developer-youtube-status',
         /** The check for updates value. */
         checkForUpdates: 'kawaikara:application:check-for-updates',
         /** The get update state value. */
@@ -1309,6 +1311,13 @@ export interface KawaikaraRendererApi {
         /** Observes native close requests. */
         onRequestClose(handler: () => void): () => void;
     };
+    /** View-facing social actions routed through Main's SocialManager. */
+    social: {
+        /** Opens a fixed project/community destination. */
+        openLink(id: ApplicationLinkId): Promise<void>;
+        /** Shares the app-wide cached developer channel status. */
+        getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus>;
+    };
     /** The application value. */
     application: {
         /** Copies an expiring setup code or revokes the current browser connection. */
@@ -1321,8 +1330,6 @@ export interface KawaikaraRendererApi {
         getMessages(locale?: AppLocale): Promise<RendererMessages>;
         /** Lists the displays. */
         listDisplays(): Promise<DisplayInfo[]>;
-        /** Opens the link. */
-        openLink(id: ApplicationLinkId): Promise<void>;
         /** Opens the dev tools. */
         openDevTools(mode: DevToolsMode): Promise<void>;
         /** Opens the log directory. */
@@ -1362,8 +1369,6 @@ export interface KawaikaraRendererApi {
         ): Promise<ApplicationLogImportResult>;
         /** Cancels and forgets a staged external log import. */
         cancelLogImport(token: string): Promise<void>;
-        /** Returns the developer you tube status. */
-        getDeveloperYouTubeStatus(): Promise<DeveloperYouTubeStatus>;
         /** Performs the check for updates operation. */
         checkForUpdates(): Promise<ApplicationUpdateCheckResult>;
         /** Returns the update state. */

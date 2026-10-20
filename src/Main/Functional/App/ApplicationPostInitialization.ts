@@ -45,7 +45,7 @@ export async function postInitializeApplication(
 ): Promise<void> {
     const {
         applicationLog,
-        discordPresence,
+        social,
         preferences,
         sites,
         updates,
@@ -112,7 +112,7 @@ export async function postInitializeApplication(
             }),
         );
     }
-    void discordPresence.start();
+    void social.start();
     void updates.checkAtStartup();
     applicationLog.info('Application startup completed.', {
         defaultSiteId: preferences.get().defaultSiteId,

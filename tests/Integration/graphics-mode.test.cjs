@@ -35,7 +35,7 @@ const { PreferenceManager } = load('src/Main/Manager/PreferenceManager.ts');
 const { readStartupGraphicsMode } = load(
     'src/Main/Functional/App/Preferences.ts',
 );
-const validation = load('src/Main/Functional/App/IPCValidation.ts', {
+const validation = load('src/Main/Functional/IPC/Validation.ts', {
     electron: {},
 });
 test('each persisted mode is the mode read before the next Electron startup', async () => {
@@ -74,48 +74,25 @@ test('IPC rejects unconfirmed changes and persists a valid mode before schedulin
     const handlers = new Map(),
         calls = [];
     const { IPC_CHANNELS } = load('src/Common/IPC.ts');
-    const compiled = buildSync({
-        entryPoints: [path.join(root, 'src/Main/Manager/IPCManager.ts')],
-        bundle: false,
-        platform: 'node',
-        format: 'cjs',
-        write: false,
-    }).outputFiles[0].text;
-    const loaded = new Module(__filename, module);
-    loaded.require = (id) =>
-        id === 'electron'
-            ? {
-                  ipcMain: {
-                      handle: (key, fn) => handlers.set(key, fn),
-                      on() {},
-                  },
-              }
-            : id === '../../Common/IPC'
-              ? { IPC_CHANNELS }
-              : id === '../Functional/App/IPCValidation'
-                ? validation
-                : id.startsWith('node:')
-                  ? require(id)
-                  : {};
-    loaded._compile(compiled, __filename);
-    const manager = Object.assign(
-        Object.create(loaded.exports.IpcManager.prototype),
-        {
-            development: { subscribe: () => () => {} },
-            preferences: {
-                get: () => ({ graphicsMode: 'capture' }),
-                update: async (patch) => {
-                    await new Promise((resolve) => setImmediate(resolve));
-                    calls.push('persisted');
-                    return patch;
-                },
-            },
-            scheduleApplicationRelaunch() {
-                calls.push('restart');
+    const { connectPreferencesIpc } = load('src/Main/Functional/IPC/PreferencesIpc.ts', {
+        electron: {
+            app: { relaunch: () => calls.push('restart'), quit() {} },
+            ipcMain: {
+                handle: (key, fn) => handlers.set(key, fn),
+                removeHandler: key => handlers.delete(key),
             },
         },
-    );
-    manager.initialize();
+    });
+    const dispose = connectPreferencesIpc({
+        preferences: {
+            get: () => ({ graphicsMode: 'capture' }),
+            update: async (patch) => {
+                await new Promise((resolve) => setImmediate(resolve));
+                calls.push('persisted');
+                return patch;
+            },
+        },
+    });
     const update = handlers.get(IPC_CHANNELS.preferences.update);
     for (const mode of ['native', 'software']) {
         await assert.rejects(
@@ -142,5 +119,8 @@ test('IPC rejects unconfirmed changes and persists a valid mode before schedulin
         ).graphicsMode,
         'software',
     );
+    assert.deepEqual(calls, ['persisted']);
+    await new Promise(resolve => setTimeout(resolve, 250));
     assert.deepEqual(calls, ['persisted', 'restart']);
+    dispose();
 });
