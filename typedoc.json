@@ -7,7 +7,9 @@
     "packages/builtin-sites/src"
   ],
   "entryPointStrategy": "expand",
-  "plugin": ["typedoc-plugin-missing-exports"],
+  "plugin": [
+    "typedoc-plugin-missing-exports"
+  ],
   "tsconfig": "tsconfig.docs.json",
   "out": "docs/Reference",
   "readme": "none",
@@ -19,5 +21,16 @@
   "categorizeByGroup": true,
   "cleanOutputDir": true,
   "validation": true,
-  "treatValidationWarningsAsErrors": true
+  "treatValidationWarningsAsErrors": true,
+  "externalPattern": [
+    "**/node_modules/**",
+    "**/locales/*.json"
+  ],
+  "intentionallyNotExported": [
+    "__object.downloader",
+    "__object.update"
+  ],
+  "exclude": [
+    "**/Upscaling/Browser/**/*.mts"
+  ]
 }

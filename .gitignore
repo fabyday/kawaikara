@@ -159,3 +159,6 @@ packages/builtin-sites/src/Providers/Chzzk/Plugins/Upscaling/Generated/
 
 # Project-local test fixtures, generated installers, and native test output
 /tests/tmp/
+
+# Generated TypeDoc HTML (pnpm docs:source)
+/docs/Reference/

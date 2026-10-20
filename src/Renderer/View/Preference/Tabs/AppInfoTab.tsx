@@ -42,6 +42,7 @@ export function AppInfoTab({
   readonly appInfo?: ApplicationInfo;
   /** Shared information labels and resolved UI locale. */
   readonly logViewerMessages?: LogViewerMessages;
+  /** The locale value. */
   readonly locale?: string;
   /** Whether the checking updates option is enabled. */
   readonly checkingUpdates: boolean;

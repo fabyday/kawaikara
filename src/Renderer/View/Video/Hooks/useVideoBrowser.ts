@@ -295,8 +295,11 @@ export function useVideoBrowser({
   const favorites = snapshot?.locations.filter((item) => item.kind === 'system') ?? [];
 
   const kawaikaraFavorites = snapshot?.favoriteFolders.map((folder) => ({
+    /** User-pinned folder category in the sidebar. */
     kind: 'pinned' as const,
+    /** User-visible favorite label. */
     name: folder.name,
+    /** Local folder opened when the favorite is selected. */
     path: folder.path,
   })) ?? [];
 

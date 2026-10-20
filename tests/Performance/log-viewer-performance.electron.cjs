@@ -52,9 +52,7 @@ fs.writeFileSync(path.join(profile, fileName), contents);
 const reader = Object.assign(
     Object.create(loaded.exports.LoggingManager.prototype),
     {
-        logFileName: fileName,
-        listFiles: async () => { throw new Error('Reading one file must not enumerate the repository.'); },
-        getLogDirectory: async () => profile,
+        repository: { directory: profile, logFileName: fileName },
     },
 );
 const tablePath = path.join(root, 'src/Renderer/View/LogViewer/LogTable.tsx');

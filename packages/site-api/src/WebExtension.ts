@@ -313,7 +313,11 @@ export function webExtensionPermissionKey(provider: WebExtensionProvider): strin
 }
 
 /** Browser responses have no general command or code execution channel. */
-export function validateWebExtensionBrowserResult(value: unknown, clipboardAllowed: boolean): asserts value is { ok: true; clipboard?: string } {
+export function validateWebExtensionBrowserResult(value: unknown, clipboardAllowed: boolean): asserts value is {
+  /** The ok value. */
+  ok: true;
+  /** The clipboard value. */
+  clipboard?: string } {
     fields(value, ['ok', 'clipboard']);
     if (value.ok !== true || (value.clipboard !== undefined && (!clipboardAllowed || typeof value.clipboard !== 'string' || value.clipboard.length > 16384)))
         throw new Error('Invalid browser action result.');

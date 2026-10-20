@@ -28,6 +28,7 @@ export class ExternalAppManager implements ExternalApps {
     constructor(
         adapters: readonly ExternalAppAdapter[],
         readonly permissions: ExternalAppPermissions,
+        /** The development connection value. */
         readonly developmentConnection?: DevelopmentConnection,
     ) {
         for (const adapter of adapters) this.offer(adapter);

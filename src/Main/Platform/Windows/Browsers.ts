@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { BrowserId } from '../Browsers';
+/** Stores the exec value. */
 const exec = promisify(execFile);
 /** Finds installer registrations before checking per-user and system install paths. */
 export async function findBrowser(id: BrowserId): Promise<string | undefined> {

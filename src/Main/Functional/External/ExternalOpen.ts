@@ -30,7 +30,11 @@ export function parseExternalOpenUrl(
 
     try {
         const deepLink = new URL(value);
-        if (value === 'kawaikara://bridge/wake') return { targetUrl: value, bridgeWake: true };
+        if (value === 'kawaikara://bridge/wake') return {
+          /** The target URL value. */
+          targetUrl: value,
+          /** The bridge wake value. */
+          bridgeWake: true };
         if (
             deepLink.protocol !== `${KAWAIKARA_PROTOCOL}:` ||
             deepLink.hostname !== 'open' ||

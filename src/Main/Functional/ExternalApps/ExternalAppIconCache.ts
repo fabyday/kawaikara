@@ -4,9 +4,12 @@ import path from 'node:path';
 
 /** PNG-only wire payload, at most 32 KiB; never accept remote URLs or executable SVG. */
 export interface ExternalAppIcon {
+    /** Whether the hash option is enabled. */
     hash: string;
+    /** The png value. */
     png: string;
 }
+/** Defines the shared limit constant. */
 const LIMIT = 32768;
 /** Bounds decoded image dimensions before passing bytes to the native decoder. */
 function pngBytes(base64: unknown): Buffer {
@@ -37,8 +40,11 @@ function pngBytes(base64: unknown): Buffer {
  * replacing an icon never grants or resets permissions. Only authenticated peers may update it.
  */
 export class ExternalAppIconCache {
+    /** The records value. */
     private records: Record<string, ExternalAppIcon> = Object.create(null);
+    /** The writes value. */
     private writes: Promise<void> = Promise.resolve();
+    /** Whether the ready option is enabled. */
     private ready?: Promise<void>;
     /**
      * @param file Private cache JSON path scoped to this host and connection mode.

@@ -51,8 +51,18 @@ export interface ExternalAppSettingsState {
     readonly icons?: Readonly<Record<string, string>>;
     /** Development-only liveness; absent in installed production applications. */
     readonly connectionAutomatic?: boolean;
-    readonly connectionCandidates?: readonly { readonly appId: string; readonly clientId: string }[];
-    readonly development?: readonly { readonly appId: string; readonly online: boolean }[];
+    /** The connection candidates value. */
+    readonly connectionCandidates?: readonly {
+      /** The app ID value. */
+      readonly appId: string;
+      /** The client ID value. */
+      readonly clientId: string }[];
+    /** The development value. */
+    readonly development?: readonly {
+      /** The app ID value. */
+      readonly appId: string;
+      /** Whether the online option is enabled. */
+      readonly online: boolean }[];
     /** At most one prompt is shown; concurrent requests are serialized. */
     readonly approval?: ExternalAppApproval;
     /** Finalized registrations only. */

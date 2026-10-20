@@ -1,6 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { BrowserId } from '../Browsers';
+/** Stores the exec value. */
 const exec = promisify(execFile);
 /** Resolves supported executable names through the user's application search path. */
 export async function findBrowser(id: BrowserId): Promise<string | undefined> {

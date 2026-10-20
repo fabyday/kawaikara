@@ -1,3 +1,4 @@
+import { readJsonFile } from '../Files/JsonFile';
 import { getLocaleMessages } from '../Localization/Locale';
 import { app, net } from 'electron';
 import {
@@ -28,7 +29,6 @@ import extractZip from 'extract-zip';
 import {
     lstat,
     mkdir,
-    readFile,
     readdir,
     realpath,
     rm,
@@ -871,19 +871,16 @@ export async function readJson(
     filePath: string,
     label: string,
 ): Promise<unknown> {
-    let contents: string;
     try {
-        contents = await readFile(filePath, 'utf8');
+        return await readJsonFile(filePath);
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
             throw new Error(`${label} ${MANIFEST_NAME} is missing.`);
         }
+        if (error instanceof SyntaxError) {
+            throw new Error(`${label} ${MANIFEST_NAME} is not valid JSON.`);
+        }
         throw error;
-    }
-    try {
-        return JSON.parse(contents) as unknown;
-    } catch {
-        throw new Error(`${label} ${MANIFEST_NAME} is not valid JSON.`);
     }
 }
 

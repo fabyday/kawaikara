@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Panel, Stack, Text } from '@kawaikara/kawai-ui';
 import type { AppMessages } from '../../../../Common/IPC';
 
+/** Defines the connection type. */
 type Connection = Awaited<
     ReturnType<typeof window.kawaikara.application.webExtensionConnection>
 >;
@@ -13,6 +14,7 @@ type Connection = Awaited<
 export function WebExtensionControl({
     messages,
 }: {
+    /** The messages value. */
     readonly messages: AppMessages['webExtension'];
 }) {
     const [busy, setBusy] = useState(false);
@@ -41,6 +43,7 @@ export function WebExtensionControl({
     const reducedMotion = useReducedMotion();
     useEffect(() => {
         let active = true;
+        /** Performs the refresh operation. */
         const refresh = () =>
             void window.kawaikara.application
                 .webExtensionConnection('status')
@@ -60,6 +63,7 @@ export function WebExtensionControl({
             clearInterval(timer);
         };
     }, []);
+    /** Runs the operation. */
     const run = async (
         operation: Parameters<
             typeof window.kawaikara.application.webExtensionConnection
@@ -92,6 +96,7 @@ export function WebExtensionControl({
             setBusy(false);
         }
     };
+    /** Performs the add connection operation. */
     const addConnection = (development = false) => {
         setDevelopmentRequest(development);
         setBusy(true);

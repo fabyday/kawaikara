@@ -1,5 +1,7 @@
 /** Compact browser marks shared by connection actions and browser selection. */
-export function BrowserIcon({ browser }: { readonly browser?: string }) {
+export function BrowserIcon({ browser }: {
+  /** The browser value. */
+  readonly browser?: string }) {
     const firefox = browser?.toLowerCase() === 'firefox';
     return (
         <svg

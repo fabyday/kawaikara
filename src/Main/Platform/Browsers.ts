@@ -6,14 +6,34 @@ import * as linux from './Linux/Browsers';
 import { selectPlatform } from './Runtime';
 /** Browsers supported by the external adapter. */
 export type BrowserId = 'chrome' | 'firefox';
-const native = selectPlatform({ darwin, win32: windows, linux });
+/** Stores the native value. */
+const native = selectPlatform({
+    /** The darwin value. */
+    darwin,
+    /** The win32 value. */
+    win32: windows,
+    /** The linux value. */
+    linux,
+});
+/** Public browser choice without native executable or profile paths. */
+export interface SupportedBrowser {
+    /** Stable supported browser identifier. */
+    readonly id: BrowserId;
+    /** User-visible browser name. */
+    readonly name: string;
+}
+
 /** Discovers installed supported browsers without exposing executable paths. */
-export async function listSupportedBrowsers() {
+export async function listSupportedBrowsers(): Promise<SupportedBrowser[]> {
     const ids: BrowserId[] = ['chrome', 'firefox'];
     const found = await Promise.all(
         ids.map(async (id) =>
             (await native.findBrowser(id))
-                ? { id, name: id === 'chrome' ? 'Chrome' : 'Firefox' }
+                ? {
+                      /** Supported browser identifier. */ id,
+                      /** Display name for browser selection. */ name:
+                          id === 'chrome' ? 'Chrome' : 'Firefox',
+                  }
                 : undefined,
         ),
     );

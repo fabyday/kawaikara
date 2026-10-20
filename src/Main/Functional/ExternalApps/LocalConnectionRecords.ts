@@ -59,6 +59,7 @@ function revocationFile(
         .digest('hex');
     return path.join(directory, 'revocations', `${digest}.json`);
 }
+/** Performs the revoke binding operation. */
 export async function revokeBinding(
     directory: string,
     hostId: string,
@@ -69,6 +70,7 @@ export async function revokeBinding(
         revoked: true,
     });
 }
+/** Determines whether the revoked condition applies. */
 export async function isRevoked(
     directory: string,
     hostId: string,
@@ -80,10 +82,15 @@ export async function isRevoked(
             ?.revoked === true
     );
 }
+/** Describes the client presence contract. */
 export interface ClientPresence {
+    /** The client ID value. */
     clientId: string;
+    /** The app ID value. */
     appId: string;
+    /** The token value. */
     token: string;
+    /** The pid value. */
     pid: number;
 }
 /** Returns only live same-user client advertisements; callers still filter trusted adapter identities. */

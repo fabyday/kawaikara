@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { BrowserId } from '../Browsers';
+/** Stores the exec value. */
 const exec = promisify(execFile);
 /** Locates the signed application bundle, including nonstandard Spotlight locations. */
 export async function findBrowser(id: BrowserId): Promise<string | undefined> {

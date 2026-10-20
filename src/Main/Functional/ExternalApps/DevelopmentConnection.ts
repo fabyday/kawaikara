@@ -20,13 +20,18 @@ export const DEVELOPMENT_DISCOVERY_DIRECTORY = path.join(
 
 /** Durable binding to one approved development environment, never sent to Renderer. */
 interface Binding {
+    /** The client ID value. */
     clientId: string;
+    /** The key value. */
     key: string;
 }
 /** Authenticated development transport callbacks supplied by application composition. */
 export interface DevelopmentConnectionAuthority {
+    /** Registers the operation. */
     register(appId: string): Promise<boolean>;
+    /** Performs the registered operation. */
     registered(appId: string): Promise<boolean>;
+    /** Performs the revoke operation. */
     revoke(appId: string): Promise<void>;
 }
 /** Writes credentials with private permissions and atomic replacement. */
@@ -79,32 +84,53 @@ async function body(
  * Registration, resource permissions and executable action implementations remain with the host.
  */
 export class DevelopmentConnection {
+    /** The server value. */
     private server?: Server;
+    /** The authority value. */
     private authority?: DevelopmentConnectionAuthority;
+    /** The state value. */
     private state: {
+        /** The host ID value. */
         hostId: string;
+        /** The bindings value. */
         bindings: Record<string, Binding>;
+        /** Whether the automatic option is enabled. */
         automatic?: boolean;
     } = {
+        /** The host ID value. */
         hostId: randomUUID(),
+        /** The bindings value. */
         bindings: {},
     };
+    /** The bootstrap value. */
     private readonly bootstrap = randomBytes(32).toString('hex');
+    /** The live value. */
     private readonly live = new Map<string, number>();
+    /** The pending value. */
     private readonly pending = new Map<
         string,
         {
+            /** The app ID value. */
             appId: string;
+            /** The deep link value. */
             deepLink: string;
+            /** Whether the active option is enabled. */
             active: () => boolean;
+            /** Callback used to handle resolve. */
             resolve: (accepted: boolean) => void;
         }
     >();
+    /** The connecting value. */
     private connecting = false;
+    /** The generations value. */
     private readonly generations = new Map<string, number>();
+    /** The writes value. */
     private writes: Promise<void> = Promise.resolve();
+    /** The closed value. */
     private closed = false;
+    /** The timer value. */
     private timer?: NodeJS.Timeout;
+    /** The reconciling value. */
     private reconciling?: Promise<void>;
 
     /**
@@ -116,6 +142,7 @@ export class DevelopmentConnection {
         private readonly stateFile: string,
         private readonly appIds: readonly string[],
         private readonly directory = DEVELOPMENT_DISCOVERY_DIRECTORY,
+        /** The icon cache value. */
         readonly iconCache?: ExternalAppIconCache,
     ) {}
 
@@ -225,7 +252,11 @@ export class DevelopmentConnection {
     }
 
     /** Lists running supported apps without exposing rendezvous credentials to Renderer. */
-    async candidates(): Promise<{ appId: string; clientId: string }[]> {
+    async candidates(): Promise<{
+      /** The app ID value. */
+      appId: string;
+      /** The client ID value. */
+      clientId: string }[]> {
         return (await clients(this.directory))
             .filter(
                 (item) =>
@@ -272,6 +303,7 @@ export class DevelopmentConnection {
                 },
             );
     }
+    /** Returns the automatic. */
     get automatic(): boolean {
         return this.state.automatic !== false;
     }
@@ -373,7 +405,9 @@ export class DevelopmentConnection {
             throw new Error('Invalid identity.');
         await this.reconcile();
         if (await isRevoked(this.directory, this.state.hostId, clientId, key))
-            return { connected: false };
+            return {
+              /** The connected value. */
+              connected: false };
         const existing = this.state.bindings[appId];
         const authenticated =
             existing?.clientId === clientId && matches(key, existing.key);
@@ -386,19 +420,27 @@ export class DevelopmentConnection {
                 // Missing credentials must not reuse an orphaned permission record.
                 if (!existing) await this.authority!.revoke(appId);
                 if (!(await this.authority!.register(appId)))
-                    return { connected: false };
+                    return {
+                      /** The connected value. */
+                      connected: false };
                 if (
                     (this.generations.get(appId) ?? 0) !== generation ||
                     (this.closed && !existing)
                 ) {
                     // A delayed consent result must not leave orphaned grants after disconnect.
                     await this.authority!.revoke(appId);
-                    return { connected: false };
+                    return {
+                      /** The connected value. */
+                      connected: false };
                 }
-                if (this.closed) return { connected: false };
+                if (this.closed) return {
+                  /** The connected value. */
+                  connected: false };
                 // Never revive a binding removed while the consent request was in flight.
                 if (existing && this.state.bindings[appId] !== existing)
-                    return { connected: false };
+                    return {
+                      /** The connected value. */
+                      connected: false };
                 const binding = { clientId, key };
                 this.state.bindings[appId] = binding;
                 try {
@@ -409,10 +451,14 @@ export class DevelopmentConnection {
                     throw error;
                 }
                 if (this.closed || this.state.bindings[appId] !== binding)
-                    return { connected: false };
+                    return {
+                      /** The connected value. */
+                      connected: false };
                 this.live.set(appId, Date.now());
                 return {
+                    /** The connected value. */
                     connected: true,
+                    /** The icon needed value. */
                     iconNeeded: await this.iconCache
                         ?.needs(appId, value.iconHash)
                         .catch(() => false),
@@ -421,17 +467,23 @@ export class DevelopmentConnection {
                 this.connecting = false;
             }
         }
-        if (!authenticated) return { connected: false };
+        if (!authenticated) return {
+          /** The connected value. */
+          connected: false };
         if (route === '/disconnect') {
             await this.forget(appId);
             await this.authority!.revoke(appId);
-            return { connected: false };
+            return {
+              /** The connected value. */
+              connected: false };
         }
         if (
             !(await this.authority!.registered(appId)) ||
             this.state.bindings[appId] !== existing
         )
-            return { connected: false };
+            return {
+              /** The connected value. */
+              connected: false };
         this.live.set(appId, Date.now());
         if (route === '/icon' && this.iconCache) {
             if (
@@ -446,9 +498,13 @@ export class DevelopmentConnection {
             });
             if (this.state.bindings[appId] !== existing) {
                 await this.iconCache.remove(appId);
-                return { connected: false };
+                return {
+                  /** The connected value. */
+                  connected: false };
             }
-            return { connected: true };
+            return {
+              /** The connected value. */
+              connected: true };
         }
         if (route === '/poll') {
             for (const [id, item] of this.pending)
@@ -457,10 +513,13 @@ export class DevelopmentConnection {
                     item.resolve(false);
                 }
             return {
+                /** The connected value. */
                 connected: true,
+                /** The icon needed value. */
                 iconNeeded: await this.iconCache
                     ?.needs(appId, value.iconHash)
                     .catch(() => false),
+                /** The requests value. */
                 requests: [...this.pending]
                     .filter(([, item]) => item.appId === appId)
                     .map(([id, item]) => ({ id, deepLink: item.deepLink })),
@@ -472,7 +531,9 @@ export class DevelopmentConnection {
                 this.pending.delete(value.id);
                 item.resolve(value.accepted === true);
             }
-            return { connected: true };
+            return {
+              /** The connected value. */
+              connected: true };
         }
         throw new Error('Unknown operation.');
     }

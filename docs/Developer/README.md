@@ -63,3 +63,14 @@ through autocomplete.
 | Implemented | Executable in the current `dev` branch codebase |
 | Limited | Implemented with an intentionally restricted scope |
 | Planned | Designed or documented, but no production runtime exists yet |
+
+### Source-reference validation
+
+`docs:source` runs the declaration-comment check before TypeDoc. Both checks must
+pass; missing documentation is not suppressed globally. JSON locale catalogs are
+external data rather than declarations: `typedoc.json` marks them external and
+explicitly permits the two JSON-backed message aliases (`__object.downloader`
+and `__object.update`) that the missing-exports plugin references. Runtime `.mts`
+upscaling browser modules belong to `tsconfig.video-effects.json` and are checked
+by `pnpm typecheck:video-effects`; they are excluded from the main-program source
+reference. Generated `docs/Reference/` HTML is ignored by Git.

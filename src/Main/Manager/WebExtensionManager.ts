@@ -18,10 +18,15 @@ import type { ProviderManager } from './ProviderManager';
 export class WebExtensionManager {
     /** Transport with current catalog and desktop-owned permission decisions. */
     private readonly bridge: WebExtensionBridge;
+    /** The pending value. */
     private pending?: {
+        /** The ID value. */
         id: string;
+        /** The detail value. */
         detail: string;
+        /** Callback used to handle resolve. */
         resolve: (approved: boolean) => void;
+        /** The timer value. */
         timer: ReturnType<typeof setTimeout>;
     };
     /** Releases catalog observation at shutdown. */
@@ -159,8 +164,13 @@ export class WebExtensionManager {
     status() {
         return {
             ...this.bridge.connectionStatus(),
+            /** The approval value. */
             approval: this.pending
-                ? { id: this.pending.id, detail: this.pending.detail }
+                ? {
+                  /** The ID value. */
+                  id: this.pending.id,
+                  /** The detail value. */
+                  detail: this.pending.detail }
                 : undefined,
         };
     }
@@ -170,6 +180,7 @@ export class WebExtensionManager {
             throw new Error('Approval request expired.');
         this.finishApproval(approved);
     }
+    /** Performs the finish approval operation. */
     private finishApproval(approved: boolean): void {
         const pending = this.pending;
         this.pending = undefined;

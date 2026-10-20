@@ -22,8 +22,11 @@ export function ExternalAppRegistrations({
     messages,
     onState,
 }: {
+    /** The state value. */
     readonly state: ExternalAppSettingsState;
+    /** The messages value. */
     readonly messages: AppMessages['externalApps'];
+    /** Callback used to handle on state. */
     readonly onState: (state: ExternalAppSettingsState) => void;
 }) {
     const [busy, setBusy] = useState(false);
@@ -78,6 +81,7 @@ export function ExternalAppRegistrations({
             setBusy(false);
         }
     };
+    /** Performs the icon operation. */
     const icon = (id: string, name: string) => (
         <span className="external-app-icon" aria-hidden="true">
             {state.icons?.[id] ? (
@@ -87,6 +91,7 @@ export function ExternalAppRegistrations({
             )}
         </span>
     );
+    /** Performs the status operation. */
     const status = (id: string) =>
         state.development
             ? state.development.find((item) => item.appId === id)?.online
@@ -102,7 +107,7 @@ export function ExternalAppRegistrations({
                         <Text size="sm" tone="muted">
                             {messages.connectionHelp}
                         </Text>
-                        <Flex align="center" gap="sm" wrap="wrap">
+                        <Flex align="center" gap="sm" wrap>
                             <Switch
                                 label={messages.automaticConnection}
                                 checked={state.connectionAutomatic !== false}

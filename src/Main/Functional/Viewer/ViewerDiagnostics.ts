@@ -75,6 +75,7 @@ export class ViewerDiagnostics {
         return {
             /** Whether the retained view currently belongs to a separate window. */
             detached,
+            /** Whether the visible option is enabled. */
             visible: this.logViewer.isVisible(),
             /** Current application theme, including preference previews. */
             theme: this.host.appTheme,

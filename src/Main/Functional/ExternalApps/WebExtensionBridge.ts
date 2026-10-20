@@ -43,17 +43,48 @@ interface Grant {
 
 /** Independent authorization for one browser installation/profile. */
 interface BrowserClient {
+    /** The ID value. */
     id: string;
+    /** The client value. */
     client: string;
+    /** The instance value. */
     instance?: string;
+    /** The token value. */
     token: string;
+    /** The grants value. */
     grants: Grant[];
+    /** Whether the revoked option is enabled. */
     revoked?: boolean;
-    extension?: { version: string; development: boolean; browser: string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string; };
+    /** The extension value. */
+    extension?: {
+      /** The version value. */
+      version: string;
+      /** Whether the development option is enabled. */
+      development: boolean;
+      /** The browser value. */
+      browser: string;
+      /** The connection mode value. */
+      connectionMode?: "development" | "production";
+      /** The name value. */
+      name?: string;
+      /** The icon value. */
+      icon?: string;
+      /** The browser version value. */
+      browserVersion?: string;
+      /** The OS value. */
+      os?: string;
+      /** The OS version value. */
+      osVersion?: string;
+      /** The cpu value. */
+      cpu?: string; };
 }
+/** Describes the bridge state contract. */
 interface BridgeState {
+    /** The port value. */
     port: number;
+    /** Whether the use development option is enabled. */
     useDevelopment?: boolean;
+    /** The clients value. */
     clients: BrowserClient[];
 }
 
@@ -61,18 +92,27 @@ interface BridgeState {
 export interface WebExtensionBridgeOptions {
     /** Credential file inside the current desktop profile. */
     statePath: string;
+    /** Whether the development option is enabled. */
     development?: boolean;
+    /** Performs the page labels operation. */
     pageLabels?(): ConnectionPageLabels;
+    /** Performs the page image operation. */
     pageImage?(): Promise<Buffer>;
     /** Null when this runtime cannot be launched by the OS (unpackaged macOS/Linux). */
     launchUrl?: string | null;
     /** Authenticated instance details; never exposed by public discovery. */
     desktop?: {
+        /** The name value. */
         name: string;
+        /** The version value. */
         version: string;
+        /** The channel value. */
         channel: string;
+        /** The runtime value. */
         runtime: string;
+        /** The app path value. */
         appPath: string;
+        /** The profile ID value. */
         profileId: string;
     };
     /** Focuses the authenticated running app without an OS protocol round trip. */
@@ -93,7 +133,11 @@ export interface WebExtensionBridgeOptions {
 /** Authenticated loopback adapter; no Electron or OS-specific APIs are needed. */
 export class WebExtensionBridge {
     /** Current persistent authorization. */
-    private state: BridgeState = { port: 0, clients: [] };
+    private state: BridgeState = {
+      /** The port value. */
+      port: 0,
+      /** The clients value. */
+      clients: [] };
     /** Active listener. */
     private server?: Server;
     /** Stable discovery listener for code-free connection to running desktop profiles. */
@@ -101,7 +145,13 @@ export class WebExtensionBridge {
     /** Limits unauthenticated native consent prompts. */
     private nextConnectAt = 0;
     /** One-use app-initiated authorization, never published by discovery. */
-    private handoff?: { token: string; expires: number; development: boolean };
+    private handoff?: {
+      /** The token value. */
+      token: string;
+      /** The expires value. */
+      expires: number;
+      /** Whether the development option is enabled. */
+      development: boolean };
     /** Short-lived, single-use setup credential. */
     private setup?: {
         /** The token value. */
@@ -232,16 +282,24 @@ export class WebExtensionBridge {
         const connections = this.state.clients
             .filter((c) => !c.revoked)
             .map((c) => ({
+                /** Stable connection identity; never the authentication token. */
                 id: c.id,
+                /** Display name supplied during browser handshake. */
                 client: c.client,
+                /** Validated browser and extension version metadata. */
                 extension: c.extension,
             }));
         return {
+            /** The connected value. */
             connected: connections.length > 0,
+            /** The use development value. */
             useDevelopment:
                 this.state.useDevelopment ?? this.options.development ?? false,
+            /** The client value. */
             client: connections[0]?.client ?? '',
+            /** The extension value. */
             extension: connections[0]?.extension,
+            /** The connections value. */
             connections,
         };
     }
@@ -306,10 +364,15 @@ export class WebExtensionBridge {
                 ),
         );
         const payload = {
+            /** Bridge snapshot protocol version. */
             version: 2,
+            /** Current validated Provider descriptors. */
             providers,
+            /** Session grants still valid against this catalog. */
             grants,
+            /** Public desktop identity for the extension UI. */
             desktop: this.options.desktop,
+            /** Optional desktop wake URL; excluded from credential handling. */
             launchUrl:
                 this.options.launchUrl === undefined
                     ? 'kawaikara://bridge/wake'

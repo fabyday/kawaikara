@@ -1327,7 +1327,75 @@ export interface KawaikaraRendererApi {
         /** Reviews and revokes external app registrations; never returns resource values. */
         externalApps(operation: 'status' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant): Promise<ExternalAppSettingsState>;
         /** Trusted browser pairing, consent and connection management. */
-        webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{ browsers?: {id: 'chrome' | 'firefox'; name: string}[]; connections?: {id:string; client:string; extension?: {version:string; development:boolean; browser:string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string;}}[]; approval?: {id: string; detail: string}; connected: boolean; useDevelopment: boolean; client: string; extension?: { version: string; development: boolean; browser: string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string; } }>;
+        webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{
+          /** The browsers value. */
+          browsers?: {
+          /** The ID value. */
+          id: 'chrome' | 'firefox';
+          /** The name value. */
+          name: string}[];
+          /** The connections value. */
+          connections?: {
+          /** The ID value. */
+          id:string;
+          /** The client value. */
+          client:string;
+          /** The extension value. */
+          extension?: {
+          /** The version value. */
+          version:string;
+          /** Whether the development option is enabled. */
+          development:boolean;
+          /** The browser value. */
+          browser:string;
+          /** The connection mode value. */
+          connectionMode?: "development" | "production";
+          /** The name value. */
+          name?: string;
+          /** The icon value. */
+          icon?: string;
+          /** The browser version value. */
+          browserVersion?: string;
+          /** The OS value. */
+          os?: string;
+          /** The OS version value. */
+          osVersion?: string;
+          /** The cpu value. */
+          cpu?: string;}}[];
+          /** The approval value. */
+          approval?: {
+          /** The ID value. */
+          id: string;
+          /** The detail value. */
+          detail: string};
+          /** Whether the connected option is enabled. */
+          connected: boolean;
+          /** Whether the use development option is enabled. */
+          useDevelopment: boolean;
+          /** The client value. */
+          client: string;
+          /** The extension value. */
+          extension?: {
+          /** The version value. */
+          version: string;
+          /** Whether the development option is enabled. */
+          development: boolean;
+          /** The browser value. */
+          browser: string;
+          /** The connection mode value. */
+          connectionMode?: "development" | "production";
+          /** The name value. */
+          name?: string;
+          /** The icon value. */
+          icon?: string;
+          /** The browser version value. */
+          browserVersion?: string;
+          /** The OS value. */
+          os?: string;
+          /** The OS version value. */
+          osVersion?: string;
+          /** The cpu value. */
+          cpu?: string; } }>;
         /** Main chooses a fixed OS settings URI for the installed channel. */
         openDefaultVideoAppSettings(locale: AppLocale): Promise<void>;
         /** Returns the info. */

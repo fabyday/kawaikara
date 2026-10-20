@@ -41,6 +41,7 @@ export class YouTubeDownloader {
         /** Reads the current app locale without caching a stale preference. */
         private readonly getLocale: () => AppLocale = () => 'system',
         logging?: LoggingManager,
+        /** The development value. */
         private readonly development?: DevelopmentConnection,
     ) {
         this.logger = logging?.getLogger('externalDownloader') ?? console;
@@ -193,7 +194,15 @@ export class YouTubeDownloader {
         }
 
         if (this.development) {
-            return { canceled: false, installerStarted: false, opened: false, status: current };
+            return {
+              /** Whether the canceled option is enabled. */
+              canceled: false,
+              /** The installer started value. */
+              installerStarted: false,
+              /** The opened value. */
+              opened: false,
+              /** The status value. */
+              status: current };
         }
 
         if (!current.automaticInstallSupported) {

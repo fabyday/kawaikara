@@ -7,6 +7,7 @@ import './Tabs/WebExtensionControl.css';
 export function WebExtensionApproval({
     messages,
 }: {
+    /** The messages value. */
     readonly messages: AppMessages['webExtension'];
 }) {
     const [pending, setPending] = useState<{ id: string; detail: string }>();
@@ -15,6 +16,7 @@ export function WebExtensionApproval({
     const current = useRef<string | undefined>(undefined);
     useEffect(() => {
         let active = true;
+        /** Performs the refresh operation. */
         const refresh = () =>
             void window.kawaikara.application
                 .webExtensionConnection('status')
@@ -43,6 +45,7 @@ export function WebExtensionApproval({
         if (pending) dialog.current?.showModal();
         else dialog.current?.close();
     }, [pending?.id]);
+    /** Performs the answer operation. */
     const answer = async (approved: boolean) => {
         if (!pending || busy) return;
         setBusy(true);

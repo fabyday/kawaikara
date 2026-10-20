@@ -42,6 +42,7 @@ export function ApplicationInfoControl({
         if (!open || !panelRef.current || !rootRef.current) return;
         const panel = panelRef.current;
         panel.showPopover();
+        /** Performs the place operation. */
         const place = () => {
             const anchor = rootRef.current!.getBoundingClientRect();
             const bounds = panel.getBoundingClientRect();
@@ -80,6 +81,7 @@ export function ApplicationInfoControl({
             event.stopImmediatePropagation();
             setOpen(false);
         };
+        /** Handles the key. */
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 event.stopPropagation();

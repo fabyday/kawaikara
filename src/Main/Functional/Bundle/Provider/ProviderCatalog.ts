@@ -342,6 +342,11 @@ export function listProviderWebExtensions(
 /** Lists only current manifest-declared app consumers, without activating Providers. */
 export function listProviderExternalApps(providers: Iterable<RegisteredProvider>) {
     return [...providers].filter(({ metadata }) => metadata.externalApps?.length).map(({ metadata }) => ({
-        id: metadata.id, name: metadata.title, appIds: [...metadata.externalApps!],
+        /** Stable Provider identity used to scope grants. */
+        id: metadata.id,
+        /** Localized Provider title for the connection panel. */
+        name: metadata.title,
+        /** External app identities explicitly declared by this Provider. */
+        appIds: [...metadata.externalApps!],
     }));
 }
