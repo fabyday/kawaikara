@@ -1,3 +1,4 @@
+const { asViewerRuntime } = require('../Helpers/ViewerRuntime.cjs');
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const path = require('node:path');
@@ -6,18 +7,22 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const { buildSync } = require('esbuild');
 
-function load(file, mocks = {}, platform = process.platform, updateProfile = null) {
+function load(
+    file,
+    mocks = {},
+    platform = process.platform,
+    updateProfile = null,
+) {
     const source = buildSync({
         entryPoints: [path.resolve(__dirname, '../..', file)],
         bundle: true,
         write: false,
-        define: { __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateProfile) },
+        define: {
+            __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateProfile),
+        },
         platform: 'node',
         format: 'cjs',
-        external: [
-            'electron',
-            './UserDataPaths',
-        ],
+        external: ['electron', './UserDataPaths'],
     }).outputFiles[0].text;
     const module = { exports: {} };
     vm.runInNewContext(source, {
@@ -54,7 +59,7 @@ test('local handoff validates before queueing and reuses the retained video surf
                 isCurrentSite: () => current,
                 load: async (id) => calls.push(['load', id]),
             },
-            windows: {
+            viewerRuntime: asViewerRuntime({
                 queueVideoOpenRequest: (value) => calls.push(['queue', value]),
                 hideOverlay: () => calls.push('hide'),
                 presentQueuedVideoOpenRequest: () => {
@@ -62,7 +67,7 @@ test('local handoff validates before queueing and reuses the retained video surf
                     return true;
                 },
                 focusViewer: () => calls.push('focus'),
-            },
+            }),
         };
         assert.equal(
             await openExternalRequest(application, {

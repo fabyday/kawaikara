@@ -1,32 +1,30 @@
-import type { ApplicationLifecycleManager } from '../../Manager/ApplicationLifecycleManager';
-import type { InitializedApplication } from './ApplicationInitialization';
 import { app } from 'electron';
 import { writeFile } from 'node:fs/promises';
-import { getKawaiDataPath } from './UserDataPaths';
+import type { ApplicationLifecycleManager } from '../../Manager/ApplicationLifecycleManager';
 import type { ExternalOpenRequest } from '../External/ExternalOpen';
+import type { InitializedApplication } from './ApplicationInitialization';
+import { getKawaiDataPath } from './UserDataPaths';
 
 /** Routes OS requests through the same retained video surface used by the library. */
 export async function openExternalRequest(
     application: InitializedApplication,
     request: ExternalOpenRequest,
 ): Promise<boolean> {
-    const { sites, windows, videoLibrary } = application;
+    const { sites, viewerRuntime, videoLibrary } = application;
     if (request.bridgeWake) {
-        windows.focusViewer();
+        viewerRuntime.viewer.focusViewer();
         app.focus({ steal: true });
         return true;
     }
     if (request.localVideoPath) {
         const result = await videoLibrary.openPath(request.localVideoPath);
         if (result.kind !== 'video') return false;
-        windows.queueVideoOpenRequest(result.request);
-        windows.hideOverlay();
-        if (
-            !(
-                sites.isCurrentSite('kawaikara.video') &&
-                windows.presentQueuedVideoOpenRequest()
-            )
-        ) {
+        viewerRuntime.video.queueVideoOpenRequest(result.request);
+        viewerRuntime.viewer.hideOverlay();
+        if (!(
+            sites.isCurrentSite('kawaikara.video') &&
+            viewerRuntime.video.presentQueuedVideoOpenRequest()
+        )) {
             await sites.load('kawaikara.video');
         }
     } else {
@@ -34,7 +32,7 @@ export async function openExternalRequest(
         if (!resolved) return false;
         await sites.openUrl(resolved.siteId, resolved.url);
     }
-    windows.focusViewer();
+    viewerRuntime.viewer.focusViewer();
     return true;
 }
 
@@ -49,30 +47,33 @@ export async function postInitializeApplication(
         preferences,
         sites,
         updates,
-        windows,
+        viewerRuntime,
     } = application;
 
-    await windows.loadOverlay();
+    await viewerRuntime.viewer.loadOverlay();
     // On Windows, prepare the retained Video WebContentsView while the first
     // Provider loads. It stays in the Viewer across site changes.
-    void windows.prepareInternalVideoView().catch((error: unknown) => {
-        applicationLog.warn(
-            'The Video view could not be prepared in advance.',
-            error,
-        );
-    });
+    void viewerRuntime.video
+        .prepareInternalVideoView()
+        .catch((error: unknown) => {
+            applicationLog.warn(
+                'The Video view could not be prepared in advance.',
+                error,
+            );
+        });
     const startupRequest = lifecycle.takeStartupRequest();
-    const resolvedStartupRequest = startupRequest && !startupRequest.bridgeWake
-        ? await openExternalRequest(application, startupRequest).catch(
-              (error: unknown) => {
-                  applicationLog.warn(
-                      'The startup file or URL could not be opened.',
-                      error,
-                  );
-                  return false;
-              },
-          )
-        : false;
+    const resolvedStartupRequest =
+        startupRequest && !startupRequest.bridgeWake
+            ? await openExternalRequest(application, startupRequest).catch(
+                  (error: unknown) => {
+                      applicationLog.warn(
+                          'The startup file or URL could not be opened.',
+                          error,
+                      );
+                      return false;
+                  },
+              )
+            : false;
     if (!resolvedStartupRequest) {
         const configuredSite = __KAWAIKARA_UPDATE_TEST_PROFILE__
             ? 'kawaikara.video'
@@ -82,7 +83,8 @@ export async function postInitializeApplication(
         );
     }
 
-    if (startupRequest?.bridgeWake) await openExternalRequest(application, startupRequest);
+    if (startupRequest?.bridgeWake)
+        await openExternalRequest(application, startupRequest);
 
     lifecycle.activateExternalOpenHandler(async (request) => {
         if (!(await openExternalRequest(application, request))) {
@@ -94,7 +96,7 @@ export async function postInitializeApplication(
     });
 
     if (!resolvedStartupRequest && preferences.get().openMenuOnStartup) {
-        windows.showOverlay();
+        viewerRuntime.viewer.showOverlay();
     }
 
     if (__KAWAIKARA_UPDATE_TEST_PROFILE__) {

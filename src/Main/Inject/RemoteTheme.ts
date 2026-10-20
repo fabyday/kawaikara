@@ -9,7 +9,7 @@ import { serializePageInjection } from './Serialize';
  * result in the `dark` attribute on `<html>`, so this bridge keeps that cached
  * presentation state synchronized with Electron's media-query change event.
  * Keeping the bridge in Main means Providers do not own application theming.
- * WindowManager.installRemoteThemeBridge() is the sole caller; it executes the
+ * ProviderSiteHost.installRemoteThemeBridge() is the sole caller; it executes the
  * serialized factory for site views and their Session-sharing popup windows.
  */
 function installRemoteThemeBridge(): void {

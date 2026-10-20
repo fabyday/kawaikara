@@ -67,7 +67,7 @@ function loadSource(relative, mocks = {}) {
     );
     return loaded.exports;
 }
-const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
+const { WindowManager } = loadSource('tests/Fixtures/ViewerOwners.ts', {
     'electron-mpv-video': {},
 });
 const { ProviderManager } = loadSource('src/Main/Manager/ProviderManager.ts');
@@ -123,6 +123,7 @@ async function main() {
         viewerWindow: viewer,
         logger,
         logging: { attachRenderer() {} },
+        logViewer: { focusEmbedded: () => false, layout() {} },
         appTheme: 'dark',
         appLocale: 'ko',
         systemLocale: 'en',

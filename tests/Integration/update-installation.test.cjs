@@ -1,3 +1,4 @@
+const { asViewerRuntime } = require('../Helpers/ViewerRuntime.cjs');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
@@ -55,10 +56,10 @@ function fixture(platform, origin = 'manual') {
         },
     });
     const manager = new module.exports.UpdateManager(
-        {
+        asViewerRuntime({
             showUpdateOverlay: (state) => calls.push(['show', state.phase]),
             updateUpdateOverlay: (state) => calls.push(['state', state.phase]),
-        },
+        }),
         { getLogger: () => ({ info() {}, error() {} }), updaterLogger: {} },
     );
     manager.currentState = manager.downloadedState = {

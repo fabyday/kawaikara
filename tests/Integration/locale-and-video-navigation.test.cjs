@@ -221,7 +221,7 @@ test('failed folder lookup does not mutate the history cursor', () => {
 });
 
 test('native Video commands are guarded against other sites, overlays, PiP, and destroyed hosts', () => {
-    const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
+    const { WindowManager } = loadSource('tests/Fixtures/ViewerOwners.ts', {
         electron: {},
         'electron-mpv-video': {},
     });
@@ -234,24 +234,23 @@ test('native Video commands are guarded against other sites, overlays, PiP, and 
         },
     };
     manager.internalVideoVisible = true;
-    manager.routeVideoDirectoryNavigation('browser-backward');
-    manager.routeVideoDirectoryNavigation('browser-forward');
+    manager.navigateVideoDirectory('back');
+    manager.navigateVideoDirectory('forward');
     assert.deepEqual(
         sent.map((args) => args[1]),
         ['back', 'forward'],
     );
-    manager.routeVideoDirectoryNavigation('media-play-pause');
     manager.internalVideoVisible = false;
-    manager.routeVideoDirectoryNavigation('browser-backward');
+    manager.navigateVideoDirectory('back');
     manager.internalVideoVisible = true;
     manager.overlayVisible = true;
-    manager.routeVideoDirectoryNavigation('browser-backward');
+    manager.navigateVideoDirectory('back');
     manager.overlayVisible = false;
     manager.internalVideoPictureInPicture = {};
-    manager.routeVideoDirectoryNavigation('browser-backward');
+    manager.navigateVideoDirectory('back');
     manager.internalVideoPictureInPicture = undefined;
     manager.videoView.webContents.isDestroyed = () => true;
-    manager.routeVideoDirectoryNavigation('browser-backward');
+    manager.navigateVideoDirectory('back');
     assert.equal(sent.length, 2);
 });
 
@@ -276,7 +275,7 @@ test('Video renderer uses a view inside the existing native window', async () =>
             this.bounds = value;
         }
     }
-    const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
+    const { WindowManager } = loadSource('tests/Fixtures/ViewerOwners.ts', {
         electron: { WebContentsView: FakeView },
         'electron-mpv-video': {},
     });
@@ -288,14 +287,27 @@ test('Video renderer uses a view inside the existing native window', async () =>
         contentView: { addChildView: (view) => children.push(view) },
     };
     manager.logging = { attachRenderer() {} };
-    manager.mpv = {
-        attachWindow: (host) => {
-            attached = host;
+    const { VideoPlaybackRuntime } = loadSource(
+        'src/Main/Functional/Video/VideoPlaybackRuntime.ts',
+        {
+            electron: { app: { isPackaged: false } },
+            'electron-mpv-video': {
+                createMpvMain: () => ({
+                    attachWindow: (host) => {
+                        attached = host;
+                    },
+                }),
+            },
         },
-    };
-    manager.mpvVideoHosts = new WeakMap();
+    );
+    manager.videoPlayback = new VideoPlaybackRuntime(
+        { getView: () => manager.videoView },
+        {},
+    );
+    manager.videoPlayback.getCapabilities = () => ({
+        nativeBackendAvailable: false,
+    });
     manager.editingWebContentsIds = new Set();
-    manager.startVideoRendererInitializationWatchdog = () => {};
     const video = await manager.ensureVideoView();
     assert.equal(
         children.length,

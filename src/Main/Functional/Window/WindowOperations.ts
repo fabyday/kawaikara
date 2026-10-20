@@ -1,23 +1,20 @@
+import type { SiteCookieStore } from '@kawaikara/site-api';
 import {
-    getPrimaryShortcutModifier,
-    supportsRedoWithY,
-} from '../../Platform/Keyboard';
-import path from 'node:path';
-import {
-    app,
-    screen,
     type BrowserWindow,
     type Input,
     type Rectangle,
     type Session,
     type WebContents,
 } from 'electron';
-import type { SiteCookieStore } from '@kawaikara/site-api';
 import type {
     PictureInPictureLastPlacement,
     PictureInPicturePlacementPreference,
 } from '../../../Common/PictureInPicture';
 import { PAUSE_DOCUMENT_MEDIA_SCRIPT } from '../../Inject/MediaCleanup';
+import {
+    getPrimaryShortcutModifier,
+    supportsRedoWithY,
+} from '../../Platform/Keyboard';
 import {
     capturePictureInPicturePlacement,
     fitPictureInPictureSize,
@@ -29,17 +26,6 @@ import {
 const NAVIGATION_HANDOFF_SETTLE_MS = 180;
 /** Outgoing renderer cleanup must not hold a new Provider hostage. */
 const NAVIGATION_MEDIA_CLEANUP_TIMEOUT_MS = 200;
-
-/** Resolves the MPV addon path. */
-export function resolveMpvAddonPath(): string {
-    if (app.isPackaged) {
-        return path.join(process.resourcesPath, 'mpv', 'mpv_addon.node');
-    }
-    return path.resolve(
-        __dirname,
-        '../../node_modules/electron-mpv-video/native/mpv-addon/build/Release/mpv_addon.node',
-    );
-}
 
 /** Determines whether the expected spa navigation handoff condition applies. */
 function isExpectedSpaNavigationHandoff(

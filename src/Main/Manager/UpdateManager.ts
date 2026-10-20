@@ -2,7 +2,10 @@ import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { UPDATE_REPOSITORIES, toUpdaterChannel } from '../../Common/BuildConfig';
+import {
+    toUpdaterChannel,
+    UPDATE_REPOSITORIES,
+} from '../../Common/BuildConfig';
 import type {
     ApplicationUpdateCheckResult,
     ApplicationUpdatePanelState,
@@ -16,13 +19,13 @@ import {
 } from '../Functional/Update/ApplicationUpdates';
 import { resolveLocalUpdateFeed } from '../Functional/Update/LocalUpdateFeed';
 import { type UpdateInstallLifecycle } from '../Functional/Update/UpdateInstallation';
+import { type ViewerRuntime } from '../Functional/Viewer/ViewerRuntime';
 import {
     configureUpdateInstaller,
-    shouldInstallUpdateSilently,
     prepareNativeUpdate,
+    shouldInstallUpdateSilently,
 } from '../Platform/Updates';
 import type { LoggingManager } from './LoggingManager';
-import type { WindowManager } from './WindowManager';
 
 /** Defines the shared check timeout ms constant. */
 const CHECK_TIMEOUT_MS = 60_000;
@@ -55,7 +58,7 @@ export class UpdateManager {
     /** Creates an instance of UpdateManager. */
     constructor(
         /** The Windows value. */
-        private readonly windows: WindowManager,
+        private readonly viewerRuntime: Pick<ViewerRuntime, 'viewer'>,
         logging: LoggingManager,
     ) {
         this.updateLog = logging.getLogger('updates');
@@ -273,7 +276,7 @@ export class UpdateManager {
         }
         if (this.checkRequest) {
             if (this.currentState?.origin === 'manual') {
-                this.windows.showUpdateOverlay(this.currentState);
+                this.viewerRuntime.viewer.showUpdateOverlay(this.currentState);
             }
             return this.checkRequest;
         }
@@ -546,14 +549,14 @@ export class UpdateManager {
     private presentState(state: ApplicationUpdatePanelState): void {
         this.currentState = state;
         this.recordTestState(state);
-        this.windows.showUpdateOverlay(state);
+        this.viewerRuntime.viewer.showUpdateOverlay(state);
     }
 
     /** Updates the state. */
     private updateState(state: ApplicationUpdatePanelState): void {
         this.currentState = state;
         this.recordTestState(state);
-        this.windows.updateUpdateOverlay(state);
+        this.viewerRuntime.viewer.updateUpdateOverlay(state);
     }
 
     /** Exposes test-only phase diagnostics without adding a production IPC/debug endpoint. */

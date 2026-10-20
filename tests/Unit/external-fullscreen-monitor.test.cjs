@@ -78,7 +78,7 @@ function fixture(t) {
             },
         },
         handleDisplayConfigurationChanged() {},
-        isAnyPictureInPictureActive: () => false,
+        presentationSuppressed: false,
         applyAlwaysOnTop(viewer, enabled) {
             assert.equal(viewer, manager.viewerWindow);
             applied.push(enabled);
@@ -341,9 +341,9 @@ test('manual AOT off, PiP, hidden and minimized viewers are never restacked', (t
     manager.appAlwaysOnTop = false;
     manager.yieldToExternalFullscreen(manager.viewerWindow);
     manager.appAlwaysOnTop = true;
-    manager.isAnyPictureInPictureActive = () => true;
+    manager.presentationSuppressed = true;
     manager.yieldToExternalFullscreen(manager.viewerWindow);
-    manager.isAnyPictureInPictureActive = () => false;
+    manager.presentationSuppressed = false;
     state.visible = false;
     manager.yieldToExternalFullscreen(manager.viewerWindow);
     state.visible = true;

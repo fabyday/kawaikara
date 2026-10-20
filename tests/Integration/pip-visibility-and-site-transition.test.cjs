@@ -41,7 +41,7 @@ const { prepareCurrentDocumentForNavigation } = loadSource(
 );
 const logger = { debug() {}, warn() {}, error() {} };
 let cursor = { x: 0, y: 0 };
-const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
+const { WindowManager } = loadSource('tests/Fixtures/ViewerOwners.ts', {
     electron: { screen: { getCursorScreenPoint: () => cursor } },
     'electron-mpv-video': {},
 });

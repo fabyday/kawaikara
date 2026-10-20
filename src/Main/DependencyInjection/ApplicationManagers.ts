@@ -1,20 +1,23 @@
+import type { StandardVideoLocation } from '../Functional/Video/VideoLibrary';
+import {
+    createViewerRuntime,
+    type ViewerRuntime,
+} from '../Functional/Viewer/ViewerRuntime';
+import type { PictureInPictureManagerFactory } from '../Functional/Window/WindowRuntime';
+import { ApplicationDataManager } from '../Manager/ApplicationDataManager';
 import { BundleDevelopmentManager } from '../Manager/BundleDevelopmentManager';
 import { BundleManager } from '../Manager/BundleManager';
-import { SocialManager } from '../Manager/SocialManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
 import { ExternalDownloaderManager } from '../Manager/ExternalDownloaderManager';
 import { IpcManager } from '../Manager/IPCManager';
 import { LoggingManager } from '../Manager/LoggingManager';
-import { ApplicationDataManager } from '../Manager/ApplicationDataManager';
 import { PreferenceManager } from '../Manager/PreferenceManager';
-import { ShortcutManager } from '../Manager/ShortcutManager';
 import { ProviderManager } from '../Manager/ProviderManager';
+import { ShortcutManager } from '../Manager/ShortcutManager';
+import { SocialManager } from '../Manager/SocialManager';
 import { UnifiedPictureInPictureManager } from '../Manager/UnifiedPictureInPictureManager';
-import { WindowManager } from '../Manager/WindowManager';
-import type { PictureInPictureManagerFactory } from '../Functional/Window/WindowRuntime';
 import { UpdateManager } from '../Manager/UpdateManager';
 import { VideoLibraryManager } from '../Manager/VideoLibraryManager';
-import type { StandardVideoLocation } from '../Functional/Video/VideoLibrary';
 import { createManagerToken, ManagerContainer } from './ManagerContainer';
 
 /** Defines the shared manager tokens constant. */
@@ -28,9 +31,7 @@ export const MANAGER_TOKENS = {
         'BundleDevelopmentManager',
     ),
     /** Shared social integrations and View-facing actions. */
-    social: createManagerToken<SocialManager>(
-        'SocialManager',
-    ),
+    social: createManagerToken<SocialManager>('SocialManager'),
     /** The downloads value. */
     downloads: createManagerToken<ExternalDownloaderManager>(
         'ExternalDownloaderManager',
@@ -60,7 +61,7 @@ export const MANAGER_TOKENS = {
         'VideoLibraryManager',
     ),
     /** The Windows value. */
-    windows: createManagerToken<WindowManager>('WindowManager'),
+    viewerRuntime: createManagerToken<ViewerRuntime>('ViewerRuntime'),
 } as const;
 
 /** Describes the application manager options contract. */
@@ -110,24 +111,24 @@ export function createApplicationManagerContainer(
             MANAGER_TOKENS.pictureInPictureFactory,
             (...args) => new UnifiedPictureInPictureManager(...args),
         )
-        .registerSingleton(
-            MANAGER_TOKENS.windows,
-            (resolver) =>
-                new WindowManager(
-                    resolver.resolve(MANAGER_TOKENS.externalBrowser),
-                    resolver.resolve(MANAGER_TOKENS.pictureInPictureFactory),
-                    resolver.resolve(MANAGER_TOKENS.logging),
-                ),
+        .registerSingleton(MANAGER_TOKENS.viewerRuntime, (resolver) =>
+            createViewerRuntime(
+                resolver.resolve(MANAGER_TOKENS.externalBrowser),
+                resolver.resolve(MANAGER_TOKENS.pictureInPictureFactory),
+                resolver.resolve(MANAGER_TOKENS.logging),
+            ),
         )
         .registerSingleton(MANAGER_TOKENS.sites, (resolver) => {
-            const windows = resolver.resolve(MANAGER_TOKENS.windows);
+            const viewerRuntime = resolver.resolve(
+                MANAGER_TOKENS.viewerRuntime,
+            );
             const preferences = resolver.resolve(MANAGER_TOKENS.preferences);
             return new ProviderManager(
                 (runtime, permissions) =>
-                    windows.createSiteContext(runtime, permissions),
+                    viewerRuntime.site.createSiteContext(runtime, permissions),
                 () => preferences.get(),
-                () => windows.getCurrentSiteAddress(),
-                (state) => windows.notifySiteTransition(state),
+                () => viewerRuntime.site.getCurrentSiteAddress(),
+                (state) => viewerRuntime.viewer.notifySiteTransition(state),
             );
         })
         .registerSingleton(
@@ -159,7 +160,7 @@ export function createApplicationManagerContainer(
             (resolver) =>
                 new ShortcutManager(
                     resolver.resolve(MANAGER_TOKENS.sites),
-                    resolver.resolve(MANAGER_TOKENS.windows),
+                    resolver.resolve(MANAGER_TOKENS.viewerRuntime),
                     resolver.resolve(MANAGER_TOKENS.preferences),
                 ),
         )
@@ -177,7 +178,7 @@ export function createApplicationManagerContainer(
             MANAGER_TOKENS.updates,
             (resolver) =>
                 new UpdateManager(
-                    resolver.resolve(MANAGER_TOKENS.windows),
+                    resolver.resolve(MANAGER_TOKENS.viewerRuntime),
                     resolver.resolve(MANAGER_TOKENS.logging),
                 ),
         )
@@ -196,7 +197,7 @@ export function createApplicationManagerContainer(
                 new IpcManager(
                     resolver.resolve(MANAGER_TOKENS.bundles),
                     resolver.resolve(MANAGER_TOKENS.sites),
-                    resolver.resolve(MANAGER_TOKENS.windows),
+                    resolver.resolve(MANAGER_TOKENS.viewerRuntime),
                     resolver.resolve(MANAGER_TOKENS.preferences),
                     resolver.resolve(MANAGER_TOKENS.downloads),
                     resolver.resolve(MANAGER_TOKENS.social),

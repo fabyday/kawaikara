@@ -1,9 +1,9 @@
-import { globalShortcut, type Input } from 'electron';
 import {
     SHORT_FORM_VIDEO_ACTIONS,
     type ProviderSettingListItem,
     type ShortFormVideoDescriptor,
 } from '@kawaikara/site-api';
+import { globalShortcut, type Input } from 'electron';
 import { APP_SHORTCUTS } from '../../Common/AppShortcuts';
 import { SHORT_FORM_VIDEO_SHORTCUTS } from '../../Common/ShortFormVideo';
 import {
@@ -13,9 +13,9 @@ import {
     supportsShortFormShortcut,
     type ShortcutBinding,
 } from '../Functional/App/Shortcut';
+import { type ViewerRuntime } from '../Functional/Viewer/ViewerRuntime';
 import type { PreferenceManager } from './PreferenceManager';
 import type { ProviderManager } from './ProviderManager';
-import type { WindowManager } from './WindowManager';
 
 /** Defines the shared picture in picture shortcut ID constant. */
 const PICTURE_IN_PICTURE_SHORTCUT_ID = 'app.toggle-picture-in-picture';
@@ -47,7 +47,10 @@ export class ShortcutManager {
         /** The sites value. */
         private readonly sites: ProviderManager,
         /** The Windows value. */
-        private readonly windows: WindowManager,
+        private readonly viewerRuntime: Pick<
+            ViewerRuntime,
+            'pip' | 'site' | 'viewer' | 'windows'
+        >,
         /** The preferences value. */
         private readonly preferences: PreferenceManager,
     ) {}
@@ -59,7 +62,7 @@ export class ShortcutManager {
         }
 
         if (
-            this.windows.isPictureInPictureActive() &&
+            this.viewerRuntime.pip.isPictureInPictureActive() &&
             input.key.toLowerCase() === 'tab'
         ) {
             return true;
@@ -163,21 +166,23 @@ export class ShortcutManager {
     /** Returns the bindings. */
     private getBindings(): ShortcutBinding[] {
         const appActions: Record<string, () => void | Promise<void>> = {
-            'app.toggle-menu': () => this.windows.toggleOverlay(),
-            'app.toggle-fullscreen': () => this.windows.toggleAppFullScreen(),
-            'app.open-preferences': () => this.windows.showPreferencesOverlay(),
+            'app.toggle-menu': () => this.viewerRuntime.viewer.toggleOverlay(),
+            'app.toggle-fullscreen': () =>
+                this.viewerRuntime.windows.toggleAppFullScreen(),
+            'app.open-preferences': () =>
+                this.viewerRuntime.viewer.showPreferencesOverlay(),
             'app.toggle-always-on-top': async () => {
                 await this.toggleAlwaysOnTop();
             },
             'app.toggle-picture-in-picture': async () => {
                 await this.togglePictureInPicture();
             },
-            'app.reload-site': () => this.windows.reloadViewer(),
+            'app.reload-site': () => this.viewerRuntime.viewer.reloadViewer(),
             'app.go-back': () => {
-                this.windows.goBack();
+                this.viewerRuntime.site.goBack();
             },
             'app.go-forward': () => {
-                this.windows.goForward();
+                this.viewerRuntime.site.goForward();
             },
         };
         const appBindings = APP_SHORTCUTS.map((definition) => ({
@@ -194,7 +199,7 @@ export class ShortcutManager {
             id: `site:${site.id}`,
             defaultKey: site.defaultShortcut,
             run: async () => {
-                this.windows.hideOverlay();
+                this.viewerRuntime.viewer.hideOverlay();
                 await this.sites.load(site.id);
             },
         }));
@@ -297,7 +302,7 @@ export class ShortcutManager {
         const next = await this.preferences.update({
             alwaysOnTop: !current.alwaysOnTop,
         });
-        this.windows.setAlwaysOnTop(next.alwaysOnTop);
+        this.viewerRuntime.windows.setAlwaysOnTop(next.alwaysOnTop);
     }
 
     /** Runs the short form action. */
@@ -464,7 +469,7 @@ export class ShortcutManager {
         }
         this.lastPictureInPictureToggleAt = now;
 
-        const operation = this.windows
+        const operation = this.viewerRuntime.pip
             .togglePictureInPicture()
             .then(() => undefined);
         this.pictureInPictureTogglePromise = operation;

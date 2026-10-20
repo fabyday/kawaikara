@@ -14,8 +14,15 @@ windowsModule.require = (id) =>
           : {};
 windowsModule._compile(
     buildSync({
-        entryPoints: [path.join(root, 'src/Main/Manager/WindowManager.ts')],
-        bundle: false,
+        entryPoints: [path.join(root, 'tests/Fixtures/ViewerOwners.ts')],
+        bundle: true,
+        external: ['electron', 'electron-mpv-video'],
+        define: {
+            __KAWAIKARA_BUILD_CHANNEL__: '"nightly"',
+            __KAWAIKARA_DISTRIBUTION_BUILD__: 'false',
+            __KAWAIKARA_DISCORD_APP_ID__: '""',
+            __KAWAIKARA_UPDATE_TEST_PROFILE__: 'null',
+        },
         platform: 'node',
         format: 'cjs',
         write: false,

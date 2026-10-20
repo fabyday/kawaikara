@@ -5,8 +5,8 @@ import {
     type ApplicationLogRepository,
 } from '../../../Common/IPC';
 import type { LoggingManager } from '../../Manager/LoggingManager';
-import type { WindowManager } from '../../Manager/WindowManager';
 import type { PreferenceManager } from '../../Manager/PreferenceManager';
+import { type ViewerRuntime } from '../Viewer/ViewerRuntime';
 import { registerIpcBindings, type DisposeIpc } from './IpcBindings';
 
 /** Bounds one log export/delete request. */
@@ -16,8 +16,8 @@ const MAX_LOG_FILE_SELECTION = 128;
 interface LogsIpcDependencies {
     /** Application-scoped logging dependency. */
     readonly logging: LoggingManager;
-    /** Application-scoped windows dependency. */
-    readonly windows: WindowManager;
+    /** Application-scoped viewerRuntime dependency. */
+    readonly viewerRuntime: Pick<ViewerRuntime, 'diagnostics'>;
     /** Application-scoped preferences dependency. */
     readonly preferences: PreferenceManager;
 }
@@ -25,7 +25,7 @@ interface LogsIpcDependencies {
 /** Connects logs requests and events to their application services. */
 export function connectLogsIpc({
     logging,
-    windows,
+    viewerRuntime,
     preferences,
 }: LogsIpcDependencies): DisposeIpc {
     return registerIpcBindings((ipc) => {
@@ -36,7 +36,10 @@ export function connectLogsIpc({
                     throw new Error(
                         'Log viewer commands require the main frame.',
                     );
-                return windows.commandLogViewer(event.sender.id, command);
+                return viewerRuntime.diagnostics.commandLogViewer(
+                    event.sender.id,
+                    command,
+                );
             },
         );
         ipc.handle(IPC_CHANNELS.application.openLogDirectory, () =>
@@ -141,7 +144,11 @@ function requireOptionalLogGroupId(value: unknown): string | undefined {
 function requireLogFileReferences(
     value: unknown,
 ): readonly ApplicationLogFileReference[] {
-    if (!Array.isArray(value) || value.length === 0 || value.length > MAX_LOG_FILE_SELECTION) {
+    if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        value.length > MAX_LOG_FILE_SELECTION
+    ) {
         throw new TypeError('A bounded log file selection is required.');
     }
     return value.map((entry) => {

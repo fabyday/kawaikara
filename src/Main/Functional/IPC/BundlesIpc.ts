@@ -1,11 +1,11 @@
 import { IPC_CHANNELS } from '../../../Common/IPC';
-import { requireDevelopmentProjectId } from '../Bundle/DevelopmentValidation';
-import { requireAppLocale } from './Validation';
+import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
 import type { BundleManager } from '../../Manager/BundleManager';
 import type { ProviderManager } from '../../Manager/ProviderManager';
-import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
-import type { WindowManager } from '../../Manager/WindowManager';
+import { requireDevelopmentProjectId } from '../Bundle/DevelopmentValidation';
+import { type ViewerRuntime } from '../Viewer/ViewerRuntime';
 import { registerIpcBindings, type DisposeIpc } from './IpcBindings';
+import { requireAppLocale } from './Validation';
 
 /** Dependencies used by bundles IPC only. */
 interface BundlesIpcDependencies {
@@ -15,8 +15,8 @@ interface BundlesIpcDependencies {
     readonly sites: ProviderManager;
     /** Application-scoped development dependency. */
     readonly development: BundleDevelopmentManager;
-    /** Application-scoped windows dependency. */
-    readonly windows: WindowManager;
+    /** Application-scoped viewerRuntime dependency. */
+    readonly viewerRuntime: Pick<ViewerRuntime, 'viewer'>;
 }
 
 /** Connects bundles requests and events to their application services. */
@@ -24,20 +24,18 @@ export function connectBundlesIpc({
     bundles,
     sites,
     development,
-    windows,
+    viewerRuntime,
 }: BundlesIpcDependencies): DisposeIpc {
     return registerIpcBindings((ipc) => {
-        ipc.addCleanup(development.subscribe(
-            (state) => windows.notifyDevelopmentStateChanged(state),
-        ));
-        ipc.handle(IPC_CHANNELS.bundles.runtime, () =>
-            sites.listBundles(),
+        ipc.addCleanup(
+            development.subscribe((state) =>
+                viewerRuntime.viewer.notifyDevelopmentStateChanged(state),
+            ),
         );
+        ipc.handle(IPC_CHANNELS.bundles.runtime, () => sites.listBundles());
         ipc.handle(IPC_CHANNELS.bundles.list, () => bundles.list());
-        ipc.handle(
-            IPC_CHANNELS.bundles.install,
-            (_event, locale: unknown) =>
-                bundles.installFromDialog(requireAppLocale(locale)),
+        ipc.handle(IPC_CHANNELS.bundles.install, (_event, locale: unknown) =>
+            bundles.installFromDialog(requireAppLocale(locale)),
         );
         ipc.handle(
             IPC_CHANNELS.bundles.update,
@@ -58,17 +56,13 @@ export function connectBundlesIpc({
         ipc.handle(IPC_CHANNELS.development.state, () =>
             development.getState(),
         );
-        ipc.handle(
-            IPC_CHANNELS.development.attach,
-            (_event, locale: unknown) =>
-                development.attachFromDialog(requireAppLocale(locale)),
+        ipc.handle(IPC_CHANNELS.development.attach, (_event, locale: unknown) =>
+            development.attachFromDialog(requireAppLocale(locale)),
         );
         ipc.handle(
             IPC_CHANNELS.development.rebuild,
             (_event, projectId: unknown) =>
-                development.rebuild(
-                    requireDevelopmentProjectId(projectId),
-                ),
+                development.rebuild(requireDevelopmentProjectId(projectId)),
         );
         ipc.handle(
             IPC_CHANNELS.development.setHotReload,

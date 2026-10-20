@@ -1,18 +1,18 @@
 import { app } from 'electron';
 import { IPC_CHANNELS, type PreferencePatch } from '../../../Common/IPC';
+import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
+import type { LoggingManager } from '../../Manager/LoggingManager';
+import type { PreferenceManager } from '../../Manager/PreferenceManager';
+import type { ProviderManager } from '../../Manager/ProviderManager';
+import type { ShortcutManager } from '../../Manager/ShortcutManager';
+import type { UpdateManager } from '../../Manager/UpdateManager';
+import { type ViewerRuntime } from '../Viewer/ViewerRuntime';
+import { registerIpcBindings, type DisposeIpc } from './IpcBindings';
 import {
     isGraphicsRestartConfirmed,
     readRequestedGraphicsMode,
     requireAppTheme,
 } from './Validation';
-import type { PreferenceManager } from '../../Manager/PreferenceManager';
-import type { WindowManager } from '../../Manager/WindowManager';
-import type { LoggingManager } from '../../Manager/LoggingManager';
-import type { ShortcutManager } from '../../Manager/ShortcutManager';
-import type { ProviderManager } from '../../Manager/ProviderManager';
-import type { UpdateManager } from '../../Manager/UpdateManager';
-import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
-import { registerIpcBindings, type DisposeIpc } from './IpcBindings';
 
 /** Allows the persisted preference response to reach Renderer before relaunch. */
 const APPLICATION_RELAUNCH_DELAY_MS = 200;
@@ -21,8 +21,11 @@ const APPLICATION_RELAUNCH_DELAY_MS = 200;
 interface PreferencesIpcDependencies {
     /** Application-scoped preferences dependency. */
     readonly preferences: PreferenceManager;
-    /** Application-scoped windows dependency. */
-    readonly windows: WindowManager;
+    /** Application-scoped viewerRuntime dependency. */
+    readonly viewerRuntime: Pick<
+        ViewerRuntime,
+        'diagnostics' | 'pip' | 'viewer' | 'windows'
+    >;
     /** Application-scoped logging dependency. */
     readonly logging: LoggingManager;
     /** Application-scoped shortcuts dependency. */
@@ -38,7 +41,7 @@ interface PreferencesIpcDependencies {
 /** Connects preferences requests and events to their application services. */
 export function connectPreferencesIpc({
     preferences: preferenceManager,
-    windows,
+    viewerRuntime,
     logging,
     shortcuts,
     sites,
@@ -58,19 +61,18 @@ export function connectPreferencesIpc({
                 app.quit();
             }, APPLICATION_RELAUNCH_DELAY_MS);
         };
-        ipc.handle(IPC_CHANNELS.preferences.get, () =>
-            preferenceManager.get(),
-        );
+        ipc.handle(IPC_CHANNELS.preferences.get, () => preferenceManager.get());
         ipc.handle(
             IPC_CHANNELS.preferences.previewTheme,
             (_event, theme: unknown) => {
-                windows.setAppTheme(requireAppTheme(theme));
+                viewerRuntime.viewer.setAppTheme(requireAppTheme(theme));
             },
         );
         ipc.handle(
             IPC_CHANNELS.preferences.update,
             async (_event, patch: unknown, options: unknown) => {
-                const currentGraphicsMode = preferenceManager.get().graphicsMode;
+                const currentGraphicsMode =
+                    preferenceManager.get().graphicsMode;
                 const requestedGraphicsMode = readRequestedGraphicsMode(patch);
                 const graphicsModeChanged =
                     requestedGraphicsMode !== undefined &&
@@ -86,45 +88,51 @@ export function connectPreferencesIpc({
 
                 const preferences = await preferenceManager.update(
                     patch && typeof patch === 'object' && 'appWindow' in patch
-                        ? { ...patch, appWindow: windows.normalizeAppWindowPreference(
-                            (patch as PreferencePatch).appWindow!,
-                        ) } : patch,
+                        ? {
+                              ...patch,
+                              appWindow:
+                                  viewerRuntime.windows.normalizeAppWindowPreference(
+                                      (patch as PreferencePatch).appWindow!,
+                                  ),
+                          }
+                        : patch,
                 );
                 if (graphicsModeChanged) {
                     scheduleApplicationRelaunch();
                     return preferences;
                 }
 
-                windows.setAppLocale(
+                viewerRuntime.viewer.setAppLocale(
                     preferences.appLocale,
                     app.getLocale(),
                 );
-                windows.setAppTheme(preferences.appTheme);
-                await windows.applyAppWindowPreference(preferences.appWindow);
-                windows.setAlwaysOnTop(preferences.alwaysOnTop);
-                windows.setMenuDismissBehavior(
+                viewerRuntime.viewer.setAppTheme(preferences.appTheme);
+                await viewerRuntime.windows.applyAppWindowPreference(
+                    preferences.appWindow,
+                );
+                viewerRuntime.windows.setAlwaysOnTop(preferences.alwaysOnTop);
+                viewerRuntime.viewer.setMenuDismissBehavior(
                     preferences.closeMenuOnEscape,
                     preferences.closeMenuOnOutsideClick,
                 );
                 // The startup checkbox is persisted for the next app launch. Saving it
                 // must not unexpectedly open DevTools in the current session.
-                windows.setDevToolsMode(preferences.devToolsMode);
-                windows.setPictureInPicturePlacement(
+                viewerRuntime.diagnostics.setDevToolsMode(
+                    preferences.devToolsMode,
+                );
+                viewerRuntime.pip.setPictureInPicturePlacement(
                     preferences.pictureInPicturePlacement,
                 );
-                windows.setPictureInPictureSize(
+                viewerRuntime.pip.setPictureInPictureSize(
                     preferences.pictureInPictureSize,
                 );
-                windows.setPictureInPicturePortraitSize(
+                viewerRuntime.pip.setPictureInPicturePortraitSize(
                     preferences.pictureInPicturePortraitSize,
                 );
-                await windows.setPictureInPictureSubtitleScale(
+                await viewerRuntime.pip.setPictureInPictureSubtitleScale(
                     preferences.pictureInPictureSubtitleScale,
                 );
-                logging.configure(
-                    preferences.logLevel,
-                    preferences.logSources,
-                );
+                logging.configure(preferences.logLevel, preferences.logSources);
                 shortcuts.refreshGlobalShortcut();
                 await sites
                     .applyCurrentProviderSettings()

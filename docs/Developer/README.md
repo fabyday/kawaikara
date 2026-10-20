@@ -9,6 +9,7 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 - [Architecture overview](./Architecture/1.Overview.md): repository ownership, dependency direction, composition, and IPC contracts
 - [Logging and diagnostics](./Architecture/2.Logging.md): file rotation, scopes, crash capture, renderer logging, and redaction
 - [Runtime and lifecycle](./Architecture/3.Runtime.md): windows, sessions, site loading, shortcuts, navigation, and cleanup
+- [Window ownership and application coordination](./Architecture/10.WindowOwnership.md): implemented ownership of native windows, presentation, feature lifecycles, and event connections
 - [Security boundaries](./Architecture/4.Security.md): renderer isolation, remote pages, cookies, plugins, and permissions
 - [Bundle, Provider, and Plugin](./Architecture/5.Bundle.md): extension units, lifecycle, validation, compatibility, and current limits
 - [Platform and native integration](./Architecture/7.Platform.md): parallel Electron/Platform dependencies, native implementation boundaries, and call-flow diagrams

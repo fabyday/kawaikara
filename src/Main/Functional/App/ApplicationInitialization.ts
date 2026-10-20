@@ -1,21 +1,22 @@
-import { WebExtensionManager } from '../../Manager/WebExtensionManager';
-import { restoreApplicationPresentation } from '../../Platform/Presentation';
-import { app, components } from 'electron';
+import { completeCleanup } from './Cleanup';
 import { builtinBundle } from '@kawaikara/builtin-sites';
+import { app, components } from 'electron';
 import { rm } from 'node:fs/promises';
 import {
     createApplicationManagerContainer,
     MANAGER_TOKENS,
 } from '../../DependencyInjection/ApplicationManagers';
 import type { BundleDevelopmentManager } from '../../Manager/BundleDevelopmentManager';
-import type { SocialManager } from '../../Manager/SocialManager';
 import type { IpcManager } from '../../Manager/IPCManager';
 import type { PreferenceManager } from '../../Manager/PreferenceManager';
-import type { ShortcutManager } from '../../Manager/ShortcutManager';
 import type { ProviderManager } from '../../Manager/ProviderManager';
+import type { ShortcutManager } from '../../Manager/ShortcutManager';
+import type { SocialManager } from '../../Manager/SocialManager';
 import type { UpdateManager } from '../../Manager/UpdateManager';
-import type { WindowManager } from '../../Manager/WindowManager';
 import type { VideoLibraryManager } from '../../Manager/VideoLibraryManager';
+import { WebExtensionManager } from '../../Manager/WebExtensionManager';
+import { restoreApplicationPresentation } from '../../Platform/Presentation';
+import { type ViewerRuntime } from '../Viewer/ViewerRuntime';
 import type { PreInitializedApplication } from './ApplicationPreInitialization';
 import {
     getKawaiDataPath,
@@ -40,7 +41,7 @@ export interface InitializedApplication extends PreInitializedApplication {
     /** The updates value. */
     readonly updates: UpdateManager;
     /** The Windows value. */
-    readonly windows: WindowManager;
+    readonly viewerRuntime: ViewerRuntime;
     /** Local video validation and library persistence. */
     readonly videoLibrary: VideoLibraryManager;
     /** Releases the operation. */
@@ -86,10 +87,10 @@ export async function initializeApplication(
     await Promise.all([preferences.load(), videoLibrary.load()]);
     logging.configure(preferences.get().logLevel, preferences.get().logSources);
 
-    const windows = managers.resolve(MANAGER_TOKENS.windows);
-    configureWindows(windows, preferences);
+    const viewerRuntime = managers.resolve(MANAGER_TOKENS.viewerRuntime);
+    configureWindows(viewerRuntime, preferences);
     const sites = managers.resolve(MANAGER_TOKENS.sites);
-    connectSites(windows, sites);
+    connectSites(viewerRuntime, sites);
 
     const bundles = managers.resolve(MANAGER_TOKENS.bundles);
     bundles.installBundled(builtinBundle);
@@ -98,10 +99,10 @@ export async function initializeApplication(
     const development = managers.resolve(MANAGER_TOKENS.development);
     await development.initialize(preferences.get());
     const shortcuts = managers.resolve(MANAGER_TOKENS.shortcuts);
-    windows.setShortcutHandler((input, editing) =>
+    viewerRuntime.input.setShortcutHandler((input, editing) =>
         shortcuts.handleInput(input, editing),
     );
-    windows.setPictureInPictureStateHandler((active) =>
+    viewerRuntime.pip.setPictureInPictureStateHandler((active) =>
         shortcuts.setPictureInPictureActive(active),
     );
 
@@ -111,26 +112,27 @@ export async function initializeApplication(
     updates.setInstallLifecycle({
         /** Releases native surfaces only after Squirrel has accepted the download. */
         prepare: async () => {
-            await windows.prepareForUpdateInstallation();
+            await viewerRuntime.lifecycle.prepareForUpdateInstallation();
             await preferences.flush();
             shortcuts.dispose();
         },
-        /** Keeps IPC, sites, and windows alive and restores shortcuts on a failed handoff. */
+        /** Keeps IPC, sites, and viewerRuntime alive and restores shortcuts on a failed handoff. */
         recover: async () => {
             shortcuts.refreshGlobalShortcut();
-            await windows.recoverAfterFailedUpdate();
+            await viewerRuntime.lifecycle.recoverAfterFailedUpdate();
         },
     });
     const webExtension = new WebExtensionManager(
         getKawaiDataPath('web-extension.json'),
         sites,
-        windows,
+        viewerRuntime,
         managers.resolve(MANAGER_TOKENS.downloads),
         () => preferences.get().appLocale,
     );
     if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) await webExtension.start();
     const ipc = managers.resolve(MANAGER_TOKENS.ipc);
-    if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) ipc.setWebExtensionManager(webExtension);
+    if (!__KAWAIKARA_UPDATE_TEST_PROFILE__)
+        ipc.setWebExtensionManager(webExtension);
     ipc.initialize();
 
     return {
@@ -150,68 +152,80 @@ export async function initializeApplication(
         /** The updates value. */
         updates,
         /** The Windows value. */
-        windows,
+        viewerRuntime,
         /** Local video validation and library persistence. */
         videoLibrary,
         /** The dispose value. */
         dispose: async () => {
-            shortcuts.dispose();
-            await webExtension.dispose();
-            await development.dispose();
-            await sites.dispose();
-            await Promise.all([social.dispose(), windows.dispose()]);
-            // Renderers are gone now, so their final effects cannot race handler
-            // removal during shutdown.
-            ipc.dispose();
+            viewerRuntime.lifecycle.beginViewerShutdown();
+            await completeCleanup([
+                () => shortcuts.dispose(),
+                () => webExtension.dispose(),
+                () => development.dispose(),
+                () => sites.dispose(),
+                () => social.dispose(),
+                () => viewerRuntime.lifecycle.dispose(),
+                // Renderer teardown precedes removal of its IPC handlers.
+                () => ipc.dispose(),
+            ]);
         },
     };
 }
 
 /** Performs the configure Windows operation. */
 function configureWindows(
-    windows: WindowManager,
+    viewerRuntime: ViewerRuntime,
     preferences: PreferenceManager,
 ): void {
     const current = preferences.get();
-    windows.setAppLocale(current.appLocale, app.getLocale());
-    windows.setAppTheme(current.appTheme);
-    windows.configureStartupWindow(
+    viewerRuntime.viewer.setAppLocale(current.appLocale, app.getLocale());
+    viewerRuntime.viewer.setAppTheme(current.appTheme);
+    viewerRuntime.windows.configureStartupWindow(
         current.appWindow,
         current.appWindowLastPosition,
         async (appWindowLastPosition) => {
             await preferences.update({ appWindowLastPosition });
         },
     );
-    windows.createWindows();
-    windows.setAlwaysOnTop(current.alwaysOnTop);
-    windows.setMenuDismissBehavior(
+    viewerRuntime.viewer.createWindows();
+    viewerRuntime.windows.setAlwaysOnTop(current.alwaysOnTop);
+    viewerRuntime.viewer.setMenuDismissBehavior(
         current.closeMenuOnEscape,
         current.closeMenuOnOutsideClick,
     );
-    windows.configureStartupDevTools(
+    viewerRuntime.diagnostics.configureStartupDevTools(
         current.openDevToolsAutomatically,
         current.devToolsMode,
     );
-    windows.setPictureInPicturePlacement(current.pictureInPicturePlacement);
-    windows.setPictureInPictureSize(current.pictureInPictureSize);
-    windows.setPictureInPicturePortraitSize(
+    viewerRuntime.pip.setPictureInPicturePlacement(
+        current.pictureInPicturePlacement,
+    );
+    viewerRuntime.pip.setPictureInPictureSize(current.pictureInPictureSize);
+    viewerRuntime.pip.setPictureInPicturePortraitSize(
         current.pictureInPicturePortraitSize,
     );
-    void windows.setPictureInPictureSubtitleScale(
+    void viewerRuntime.pip.setPictureInPictureSubtitleScale(
         current.pictureInPictureSubtitleScale,
     );
-    windows.setPictureInPicturePlacementRecorder(async (lastPlacement) => {
-        const placement = preferences.get().pictureInPicturePlacement;
-        const next = await preferences.update({
-            pictureInPicturePlacement: { ...placement, lastPlacement },
-        });
-        windows.setPictureInPicturePlacement(next.pictureInPicturePlacement);
-    });
+    viewerRuntime.pip.setPictureInPicturePlacementRecorder(
+        async (lastPlacement) => {
+            const placement = preferences.get().pictureInPicturePlacement;
+            const next = await preferences.update({
+                pictureInPicturePlacement: { ...placement, lastPlacement },
+            });
+            viewerRuntime.pip.setPictureInPicturePlacement(
+                next.pictureInPicturePlacement,
+            );
+        },
+    );
 }
 
 /** Performs the connect sites operation. */
-function connectSites(windows: WindowManager, sites: ProviderManager): void {
-    windows.setSiteHandlers({
+function connectSites(
+    viewerRuntime: ViewerRuntime,
+    sites: ProviderManager,
+): void {
+    viewerRuntime.site.setSiteHandlers({
         resolveNewWindowPolicy: (url) => sites.resolveNewWindowPolicy(url),
         handleAction: (action) => sites.handleAction(action),
         allowNavigation: (url) => sites.allowNavigation(url),

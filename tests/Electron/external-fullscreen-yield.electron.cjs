@@ -112,7 +112,7 @@ app.whenReady()
                 appAlwaysOnTop: true,
                 externalFullscreenBlocksAlwaysOnTop: true,
                 externalFullscreenMonitoring: true,
-                isAnyPictureInPictureActive: () => false,
+                presentationSuppressed: false,
                 logger: { info: (...args) => console.log(...args) },
                 externalFullscreenMonitor: {
                     refresh: (window) =>

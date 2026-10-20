@@ -2,8 +2,8 @@ import { serializePageInjection } from './Serialize';
 
 /**
  * Remote-document media cleanup used by
- * WindowManager.prepareCurrentDocumentForNavigation() in
- * Main/Manager/WindowManager.ts before a Provider view is replaced. The
+ * prepareCurrentDocumentForNavigation() in
+ * Main/Functional/Window/WindowOperations.ts before a Provider view is replaced. The
  * exported serialized constant is executed by that method; no Provider calls
  * this entry point directly.
  */

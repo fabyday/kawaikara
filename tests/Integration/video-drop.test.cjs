@@ -1,3 +1,4 @@
+const { asViewerRuntime } = require('../Helpers/ViewerRuntime.cjs');
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const path = require('node:path');
@@ -69,7 +70,7 @@ function managerFixture({
                 events.push(`load:${id}`);
             },
         },
-        {
+        asViewerRuntime({
             queueDroppedVideoFiles: queue,
             hideOverlay() {
                 events.push('hide');
@@ -82,7 +83,7 @@ function managerFixture({
                 kind: 'local',
                 path: 'clip.mp4',
             }),
-        },
+        }),
         {},
         {},
         {},

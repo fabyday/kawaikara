@@ -1,14 +1,18 @@
-import { listSupportedBrowsers, openBrowser, openSelectedBrowser } from '../Platform/Browsers';
+import { app, clipboard, dialog, shell } from 'electron';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID, createHash } from 'node:crypto';
-import { getLocaleMessages } from '../Functional/Localization/Locale';
 import type { AppLocale } from '../../Common/IPC';
-import { app, clipboard, shell, dialog } from 'electron';
 import { WebExtensionBridge } from '../Functional/ExternalApps/WebExtensionBridge';
-import type { ProviderManager } from './ProviderManager';
-import type { WindowManager } from './WindowManager';
+import { getLocaleMessages } from '../Functional/Localization/Locale';
+import { type ViewerRuntime } from '../Functional/Viewer/ViewerRuntime';
+import {
+    listSupportedBrowsers,
+    openBrowser,
+    openSelectedBrowser,
+} from '../Platform/Browsers';
 import type { ExternalDownloaderManager } from './ExternalDownloaderManager';
+import type { ProviderManager } from './ProviderManager';
 
 /** Connects Provider declarations to browser clients without wrapping Electron in Platform. */
 export class WebExtensionManager {
@@ -26,7 +30,7 @@ export class WebExtensionManager {
     constructor(
         statePath: string,
         sites: ProviderManager,
-        windows: WindowManager,
+        viewerRuntime: Pick<ViewerRuntime, 'video' | 'viewer'>,
         downloads: ExternalDownloaderManager,
         getLocale: () => AppLocale = () => 'system',
     ) {
@@ -71,7 +75,7 @@ export class WebExtensionManager {
                     ? 'kawaikara://bridge/wake'
                     : null,
             focus: () => {
-                windows.focusViewer();
+                viewerRuntime.viewer.focusViewer();
                 app.focus({ steal: true });
             },
             providers: () => sites.listWebExtensionProviders(),
@@ -84,7 +88,7 @@ export class WebExtensionManager {
                         110_000,
                     );
                     this.pending = { id, detail, resolve, timer };
-                    windows.showPreferencesOverlay();
+                    viewerRuntime.viewer.showPreferencesOverlay();
                     app.focus({ steal: true });
                 }),
             execute: async (providerId, action, url, settings) => {
@@ -96,14 +100,14 @@ export class WebExtensionManager {
                     throw new Error('Provider browser action is unavailable.');
                 if (definition.handler === 'open') {
                     await sites.openUrl(providerId, url);
-                    windows.focusViewer();
+                    viewerRuntime.viewer.focusViewer();
                 } else if (definition.handler === 'download') {
                     const result = await downloads.open(url);
                     if (!result.opened) {
-                        windows.queueYouTubeDownloader(url);
-                        windows.hideOverlay();
+                        viewerRuntime.video.queueYouTubeDownloader(url);
+                        viewerRuntime.viewer.hideOverlay();
                         await sites.load('kawaikara.video');
-                        windows.focusViewer();
+                        viewerRuntime.viewer.focusViewer();
                     }
                 } else if (definition.handler === 'share-link') {
                     const link = new URL('https://kawaikara.github.io/open/');
@@ -133,11 +137,24 @@ export class WebExtensionManager {
         else await shell.openExternal(url);
     }
     /** Lists browsers available for an additional independent connection. */
-    browsers() { return listSupportedBrowsers(); }
+    browsers() {
+        return listSupportedBrowsers();
+    }
     /** Lets the user choose a portable or third-party browser without exposing its path to Renderer. */
     async chooseBrowser(development = false): Promise<void> {
-        const selection = await dialog.showOpenDialog({properties:['openFile'], ...(process.platform === 'darwin' ? {filters:[{name:'Application',extensions:['app']}]} : process.platform === 'win32' ? {filters:[{name:'Application',extensions:['exe']}]} : {})});
-        if (!selection.canceled && selection.filePaths[0]) await openSelectedBrowser(selection.filePaths[0],this.bridge.createConnectionUrl(development));
+        const selection = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            ...(process.platform === 'darwin'
+                ? { filters: [{ name: 'Application', extensions: ['app'] }] }
+                : process.platform === 'win32'
+                  ? { filters: [{ name: 'Application', extensions: ['exe'] }] }
+                  : {}),
+        });
+        if (!selection.canceled && selection.filePaths[0])
+            await openSelectedBrowser(
+                selection.filePaths[0],
+                this.bridge.createConnectionUrl(development),
+            );
     }
     /** Reads safe paired-client metadata. */
     status() {

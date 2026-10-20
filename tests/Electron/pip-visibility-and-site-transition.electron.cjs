@@ -63,7 +63,7 @@ function loadSource(relative, mocks = {}) {
     );
     return loaded.exports;
 }
-const { WindowManager } = loadSource('src/Main/Manager/WindowManager.ts', {
+const { WindowManager } = loadSource('tests/Fixtures/ViewerOwners.ts', {
     'electron-mpv-video': {},
 });
 const {
