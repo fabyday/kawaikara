@@ -8,9 +8,11 @@
 - 기본 사이트 연동을 Built-in Bundle로 분리했습니다.
 - Frameless 기반 통합 PiP 모드를 추가했습니다.
 - electron-mpv-video 기반 로컬 영상 및 HLS 재생을 추가했습니다.
+- Kawaikara Web Extension(Chrome, FireFox) 추가했습니다.
+- 외부 앱 연결 Protocol 추가 (kawai-downloader 호환)
 
 ## 세부 변경 사항
-
+- 공통적으로 사용하는 KawaiUI 라이브러리 연동하였습니다.
 - 사이트 격리 프로필과 사용자 및 Plugin 제공 브라우저 프로필을 추가했습니다.
 - `.kawai` Bundle 설치, 명시적 권한 승인, 런타임 검증을 추가했습니다.
 - Provider별 Injection, 탐색 정책, PiP 정책, 요청 가로채기를 추가했습니다.
