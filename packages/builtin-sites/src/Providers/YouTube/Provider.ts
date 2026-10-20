@@ -1,3 +1,5 @@
+import type { ProviderDownloadContext, ProviderDownloadResult } from '@kawaikara/site-api';
+import { requestYouTubeDownloader } from '../../Functional/YouTubeDownloader';
 import { AbstractUrlProvider, provider, matchesSiteUrlHost,
   type NewWindowPolicy, type PictureInPictureSubtitleController,
   type ProviderPictureInPictureSession } from '@kawaikara/site-api';
@@ -6,6 +8,16 @@ import { repairIncompleteGoogleSession } from '../Google/SessionRepair';
 /** Site navigation, authentication and PiP policy; Shorts is an attached Plugin. */
 @provider()
 export class YouTubeProvider extends AbstractUrlProvider {
+  /**
+   * Selects the companion for this Provider's download requests.
+   * @param url - Validated YouTube source address.
+   * @param context - Desktop-owned external-app registry facade.
+   * @returns Availability and handoff result; the caller owns missing-app presentation.
+   */
+  static onDownload(url: string, context: ProviderDownloadContext): Promise<ProviderDownloadResult> {
+    return requestYouTubeDownloader(context, 'day.faby.kawai-downloader');
+  }
+
   /** The URL value. */
   protected readonly url = 'https://www.youtube.com/';
 

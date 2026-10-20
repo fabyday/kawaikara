@@ -1,70 +1,15 @@
 import { getPrimaryShortcutModifier } from '../../Platform/Keyboard';
 import type { Input } from 'electron';
-import type { ShortFormVideoDescriptor } from '@kawaikara/site-api';
-import { VIDEO_SHORTCUTS } from '../../../Common/VideoControls';
 
-/** Describes the shortcut binding contract. */
-export interface ShortcutBinding {
-    /** The ID value. */
-    readonly id: string;
-    /** The default key value. */
-    readonly defaultKey: string;
-    /** Runs the operation. */
-    run(): void | Promise<void>;
-}
-
-/** Determines whether the repeatable short form navigation shortcut condition applies. */
-export function isRepeatableShortFormNavigationShortcut(
-    shortcutId: string,
-): boolean {
-    return (
-        shortcutId === 'short-form-video.previous' ||
-        shortcutId === 'short-form-video.next'
-    );
-}
-
-/** Performs the supports short form shortcut operation. */
-export function supportsShortFormShortcut(
-    shortcutId: string,
-    descriptor: ShortFormVideoDescriptor,
-): boolean {
-    if (shortcutId === 'short-form-video.previous')
-        return descriptor.previous === true;
-    if (shortcutId === 'short-form-video.next') return descriptor.next === true;
-    if (shortcutId === 'short-form-video.toggle-auto-advance') {
-        return Boolean(descriptor.autoAdvance);
-    }
-    if (shortcutId === 'short-form-video.ban-current-publisher') {
-        return Boolean(descriptor.publisherBan);
-    }
-    return false;
-}
-
-/** Performs the matches video shortcut input operation. */
-export function matchesVideoShortcutInput(
-    input: Input,
-    overrides: Readonly<Record<string, string>>,
-): boolean {
-    return VIDEO_SHORTCUTS.some(({ id, defaultKey }) => {
-        const accelerator = overrides[id] ?? defaultKey;
-        if (!accelerator.trim()) return false;
-        if (matchesAccelerator(input, accelerator)) return true;
-
-        // Control and Alt can be layered on top of a configured Video shortcut
-        // to request a smaller seek distance.
-        const variants: Input[] = [];
-        if (input.control) variants.push({ ...input, control: false });
-        if (input.alt) variants.push({ ...input, alt: false });
-        if (input.control && input.alt) {
-            variants.push({ ...input, control: false, alt: false });
-        }
-        return variants.some((variant) =>
-            matchesAccelerator(variant, accelerator),
-        );
-    });
-}
-
-/** Performs the matches accelerator operation. */
+/**
+ * Compares a native keyboard event with an Electron accelerator.
+ * @param input - Event key/code and modifier state; physical letter/digit codes take precedence.
+ * @param accelerator - Plus-delimited key with supported modifier aliases.
+ * @returns True only when the key and every modifier match exactly.
+ * @remarks CommandOrControl resolves through Platform keyboard policy. This function
+ * does not filter event type, composing input, repetition or editor focus; the dispatcher
+ * applies those policies before or after matching. Unknown modifiers do not match.
+ */
 export function matchesAccelerator(input: Input, accelerator: string): boolean {
     const parts = accelerator
         .split('+')

@@ -1,3 +1,4 @@
+import { clamp } from '../../../Math/Scalar';
 import {
     screen,
     type BrowserWindow,
@@ -40,6 +41,8 @@ export interface PictureInPictureVideoCandidate {
 
 /** Describes the unified picture in picture state contract. */
 export interface UnifiedPictureInPictureState {
+    /** Releases native window and native-host input subscriptions. */
+    disposeWindowEvents?: () => void;
     /** Shared drag-release alignment controller. */
     alignment?: import('./PictureInPictureAlignment').PictureInPictureAlignment;
     /** Deferred snap while an aspect ratio transition owns the window bounds. */
@@ -154,28 +157,22 @@ export function resolvePictureInPictureBounds(
         return {
             /** The x value. */
             x: Math.round(
-                Math.max(
+                clamp(
+                    preference.lastPlacement.x ??
+                        workArea.x +
+                            availableWidth * preference.lastPlacement.xRatio,
                     workArea.x,
-                    Math.min(
-                        workArea.x + availableWidth,
-                        preference.lastPlacement.x ??
-                            workArea.x +
-                                availableWidth *
-                                    preference.lastPlacement.xRatio,
-                    ),
+                    workArea.x + availableWidth,
                 ),
             ),
             /** The y value. */
             y: Math.round(
-                Math.max(
+                clamp(
+                    preference.lastPlacement.y ??
+                        workArea.y +
+                            availableHeight * preference.lastPlacement.yRatio,
                     workArea.y,
-                    Math.min(
-                        workArea.y + availableHeight,
-                        preference.lastPlacement.y ??
-                            workArea.y +
-                                availableHeight *
-                                    preference.lastPlacement.yRatio,
-                    ),
+                    workArea.y + availableHeight,
                 ),
             ),
             /** The width value. */
@@ -223,12 +220,12 @@ export function capturePictureInPicturePlacement(
         /** The x ratio value. */
         xRatio:
             availableWidth > 0
-                ? clampRatio((bounds.x - display.workArea.x) / availableWidth)
+                ? clamp((bounds.x - display.workArea.x) / availableWidth, 0, 1)
                 : 0,
         /** The y ratio value. */
         yRatio:
             availableHeight > 0
-                ? clampRatio((bounds.y - display.workArea.y) / availableHeight)
+                ? clamp((bounds.y - display.workArea.y) / availableHeight, 0, 1)
                 : 0,
     };
 }
@@ -387,9 +384,4 @@ function readAspectRatio(value: object): {
               aspectRatio: width / height,
           }
         : {};
-}
-
-/** Performs the clamp ratio operation. */
-function clampRatio(value: number): number {
-    return Math.min(1, Math.max(0, value));
 }

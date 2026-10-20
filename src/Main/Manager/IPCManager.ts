@@ -1,3 +1,5 @@
+import type { ExternalAppManager } from './ExternalAppManager';
+import { connectExternalAppsIpc } from '../Functional/IPC/ExternalAppsIpc';
 import { connectApplicationIpc } from '../Functional/IPC/ApplicationIpc';
 import { connectBundlesIpc } from '../Functional/IPC/BundlesIpc';
 import { connectDataIpc } from '../Functional/IPC/DataIpc';
@@ -18,7 +20,7 @@ import { type ViewerRuntime } from '../Functional/Viewer/ViewerRuntime';
 import type { ApplicationDataManager } from './ApplicationDataManager';
 import type { BundleDevelopmentManager } from './BundleDevelopmentManager';
 import type { BundleManager } from './BundleManager';
-import type { ExternalDownloaderManager } from './ExternalDownloaderManager';
+import type { YouTubeDownloader } from '../Functional/ExternalApps/YouTubeDownloader';
 import type { LoggingManager } from './LoggingManager';
 import type { PreferenceManager } from './PreferenceManager';
 import type { ProviderManager } from './ProviderManager';
@@ -46,7 +48,7 @@ export class IpcManager {
         /** The preferences value. */
         private readonly preferences: PreferenceManager,
         /** The downloads value. */
-        private readonly downloads: ExternalDownloaderManager,
+        private readonly downloads: YouTubeDownloader,
         /** Shared social actions. */
         private readonly social: SocialManager,
         /** The updates value. */
@@ -61,6 +63,8 @@ export class IpcManager {
         private readonly data: ApplicationDataManager,
         /** The development value. */
         private readonly development: BundleDevelopmentManager,
+        /** External adapter registration authority, never exposed to site frames. */
+        private readonly externalApps?: ExternalAppManager,
     ) {}
 
     /** Supplies the browser bridge before or after IPC registration. */
@@ -124,8 +128,10 @@ export class IpcManager {
                     preferences: this.preferences,
                 }),
             );
+            if (this.externalApps) this.connections.push(connectExternalAppsIpc(this.externalApps, this.sites));
             this.connections.push(
                 connectDownloadsIpc({
+                    externalApps: this.externalApps,
                     downloads: this.downloads,
                     viewerRuntime: this.viewerRuntime,
                     sites: this.sites,

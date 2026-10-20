@@ -25,7 +25,7 @@ export async function findInstalledExternalDownloaderApp(): Promise<InstalledExt
         const output = await runExternalDownloaderCommand('xdg-mime', [
             'query',
             'default',
-            'x-scheme-handler/yt-downloader',
+            'x-scheme-handler/kawai-downloader',
         ]);
         return output.trim() ? {} : null;
     } catch {

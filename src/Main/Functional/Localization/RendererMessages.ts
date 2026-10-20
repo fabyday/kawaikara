@@ -8,6 +8,8 @@ export interface AppMessages {
     readonly appInfoDetails: string;
     /** Provider browser integration setup and consent. */
     readonly webExtension: typeof en.app.webExtension;
+    /** External adapter registration and per-resource consent labels. */
+    readonly externalApps: typeof en.app.externalApps;
     /** Startup app window controls. */
     readonly appWindow: typeof en.app.appWindow;
     /** OS-owned default video app configuration control. */

@@ -567,6 +567,8 @@ export function installKawaikaraMock(
             }),
         },
         application: {
+            /** Stories do not register native applications or grant resource access. */
+            externalApps: async () => ({ /** No real external registrations in Storybook. */ registrations: [] }),
             /** Browser pairing does not access the OS clipboard in Storybook. */
             webExtensionConnection: async () => ({connected: false, useDevelopment: true, client: ''}),
             openDefaultVideoAppSettings: async () => undefined,

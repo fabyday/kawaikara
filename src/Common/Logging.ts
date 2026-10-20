@@ -26,7 +26,7 @@ export const APPLICATION_LOG_SOURCES = {
   externalDownloader: defineLogSource(
     'external-downloader',
     'external-downloader',
-    'ExternalDownloaderManager',
+    'YouTubeDownloader',
   ),
   /** The update manager source. */
   updates: defineLogSource('updates', 'updates', 'UpdateManager'),

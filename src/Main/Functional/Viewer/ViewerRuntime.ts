@@ -28,7 +28,18 @@ export interface ViewerRuntime {
     /** ViewerController owner. */
     readonly viewer: ViewerController;
 }
-/** Connects narrow capabilities; no feature imports the composition root. */
+/**
+ * Constructs feature owners and connects their narrow capabilities for one application runtime.
+ *
+ * @param externalBrowser - Application-owned external-login/browser service shared by site hosting.
+ * @param createPictureInPicture - Factory for the existing Provider PiP implementation.
+ * @param logging - Application logging service used by native and renderer owners.
+ * @returns Named window, presentation, site, video, PiP, input, diagnostics and lifecycle owners.
+ * @remarks Does not open the main viewer window; startup calls viewer.createWindows()
+ * after applying preferences. Call lifecycle.beginViewerShutdown() before asynchronous
+ * application teardown and await lifecycle.dispose() to release viewer resources.
+ * The caller retains ownership of the supplied application services.
+ */
 export function createViewerRuntime(
     externalBrowser: ExternalBrowserManager,
     createPictureInPicture: PictureInPictureManagerFactory,

@@ -1,0 +1,76 @@
+.external-app-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--kawai-color-border, #454452);
+    border-radius: 12px;
+    padding: 12px;
+    min-width: 0;
+}
+.external-app-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #a98be326;
+    color: var(--kawai-color-foreground);
+    font-weight: 700;
+    overflow: hidden;
+}
+.external-app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.external-app-identity {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    overflow-wrap: anywhere;
+}
+.external-app-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.external-app-actions button {
+    min-height: 40px;
+    white-space: nowrap;
+}
+.external-app-revoke {
+    background: #d3516320 !important;
+    border: 1px solid #d3516355 !important;
+    color: #ee8595 !important;
+}
+.external-app-provider {
+    border: 1px solid var(--kawai-color-border, #454452);
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 0;
+}
+.external-app-permissions {
+    user-select: none;
+}
+.external-app-permissions .web-extension-dialog-header {
+    align-items: center;
+}
+.external-app-permissions h2 {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+    .external-app-row {
+        flex-wrap: wrap;
+    }
+    .external-app-actions {
+        margin-left: auto;
+    }
+}
+
+/* Keep permission choices legible over the controls behind the custom listbox. */
+.external-app-permission-options {
+    background: linear-gradient(var(--kawai-color-surface), var(--kawai-color-surface)), var(--kawai-color-background) !important;
+}

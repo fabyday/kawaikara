@@ -1,3 +1,4 @@
+import { openProviderDownload } from '../Functional/ExternalApps/ProviderDownloads';
 import { app, clipboard, dialog, shell } from 'electron';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
@@ -11,7 +12,6 @@ import {
     openBrowser,
     openSelectedBrowser,
 } from '../Platform/Browsers';
-import type { ExternalDownloaderManager } from './ExternalDownloaderManager';
 import type { ProviderManager } from './ProviderManager';
 
 /** Connects Provider declarations to browser clients without wrapping Electron in Platform. */
@@ -31,7 +31,6 @@ export class WebExtensionManager {
         statePath: string,
         sites: ProviderManager,
         viewerRuntime: Pick<ViewerRuntime, 'video' | 'viewer'>,
-        downloads: ExternalDownloaderManager,
         getLocale: () => AppLocale = () => 'system',
     ) {
         this.bridge = new WebExtensionBridge({
@@ -102,13 +101,13 @@ export class WebExtensionManager {
                     await sites.openUrl(providerId, url);
                     viewerRuntime.viewer.focusViewer();
                 } else if (definition.handler === 'download') {
-                    const result = await downloads.open(url);
-                    if (!result.opened) {
-                        viewerRuntime.video.queueYouTubeDownloader(url);
-                        viewerRuntime.viewer.hideOverlay();
-                        await sites.load('kawaikara.video');
-                        viewerRuntime.viewer.focusViewer();
-                    }
+                    await openProviderDownload(
+                        sites,
+                        viewerRuntime,
+                        providerId,
+                        url,
+                        true,
+                    );
                 } else if (definition.handler === 'share-link') {
                     const link = new URL('https://kawaikara.github.io/open/');
                     link.searchParams.set('url', url);

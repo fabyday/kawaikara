@@ -1,3 +1,13 @@
+import { DevelopmentConnection } from '../Functional/ExternalApps/DevelopmentConnection';
+import { KAWAI_DOWNLOADER_APP_ID } from '../../Common/Download';
+import { readExternalAppCookies } from '../Functional/ExternalApps/ExternalAppCookies';
+import path from 'node:path';
+import { app, nativeImage } from 'electron';
+import { ExternalAppIconCache } from '../Functional/ExternalApps/ExternalAppIconCache';
+import { ExternalAppPermissions } from '../Functional/ExternalApps/ExternalAppPermissions';
+import { ExternalAppManager } from '../Manager/ExternalAppManager';
+import { createYouTubeDownloaderAdapter } from '../Functional/ExternalApps/YouTubeDownloaderAdapter';
+import { createApplicationShortcuts } from '../Functional/Shortcut/ApplicationShortcuts';
 import type { StandardVideoLocation } from '../Functional/Video/VideoLibrary';
 import {
     createViewerRuntime,
@@ -8,12 +18,12 @@ import { ApplicationDataManager } from '../Manager/ApplicationDataManager';
 import { BundleDevelopmentManager } from '../Manager/BundleDevelopmentManager';
 import { BundleManager } from '../Manager/BundleManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
-import { ExternalDownloaderManager } from '../Manager/ExternalDownloaderManager';
+import { YouTubeDownloader } from '../Functional/ExternalApps/YouTubeDownloader';
 import { IpcManager } from '../Manager/IPCManager';
 import { LoggingManager } from '../Manager/LoggingManager';
 import { PreferenceManager } from '../Manager/PreferenceManager';
 import { ProviderManager } from '../Manager/ProviderManager';
-import { ShortcutManager } from '../Manager/ShortcutManager';
+import type { ShortcutManager } from '../Manager/ShortcutManager';
 import { SocialManager } from '../Manager/SocialManager';
 import { UnifiedPictureInPictureManager } from '../Manager/UnifiedPictureInPictureManager';
 import { UpdateManager } from '../Manager/UpdateManager';
@@ -32,10 +42,13 @@ export const MANAGER_TOKENS = {
     ),
     /** Shared social integrations and View-facing actions. */
     social: createManagerToken<SocialManager>('SocialManager'),
-    /** The downloads value. */
-    downloads: createManagerToken<ExternalDownloaderManager>(
-        'ExternalDownloaderManager',
-    ),
+    /** Generic registry; app-specific adapters are wired here, never inside the manager. */
+    externalApps: createManagerToken<ExternalAppManager>('ExternalAppManager'),
+    /** Running development peers; production never starts this transport. */
+    developmentConnection: createManagerToken<DevelopmentConnection>('DevelopmentConnection'),
+    /** Shared installation UI and transport service for the companion adapter. */
+    youtubeDownloader:
+        createManagerToken<YouTubeDownloader>('YouTubeDownloader'),
     /** The external browser value. */
     externalBrowser: createManagerToken<ExternalBrowserManager>(
         'ExternalBrowserManager',
@@ -129,6 +142,8 @@ export function createApplicationManagerContainer(
                 () => preferences.get(),
                 () => viewerRuntime.site.getCurrentSiteAddress(),
                 (state) => viewerRuntime.viewer.notifySiteTransition(state),
+                resolver.resolve(MANAGER_TOKENS.externalApps),
+                readExternalAppCookies,
             );
         })
         .registerSingleton(
@@ -155,23 +170,58 @@ export function createApplicationManagerContainer(
                     resolver.resolve(MANAGER_TOKENS.sites),
                 ),
         )
-        .registerSingleton(
-            MANAGER_TOKENS.shortcuts,
-            (resolver) =>
-                new ShortcutManager(
-                    resolver.resolve(MANAGER_TOKENS.sites),
-                    resolver.resolve(MANAGER_TOKENS.viewerRuntime),
-                    resolver.resolve(MANAGER_TOKENS.preferences),
-                ),
+        .registerSingleton(MANAGER_TOKENS.shortcuts, (resolver) =>
+            createApplicationShortcuts(
+                resolver.resolve(MANAGER_TOKENS.sites),
+                resolver.resolve(MANAGER_TOKENS.viewerRuntime),
+                resolver.resolve(MANAGER_TOKENS.preferences),
+            ),
+        )
+        .registerSingleton(MANAGER_TOKENS.developmentConnection, () =>
+            new DevelopmentConnection(
+                path.join(path.dirname(options.preferenceFilePath), 'external-app-development-connections.json'),
+                [KAWAI_DOWNLOADER_APP_ID],
+                undefined,
+                new ExternalAppIconCache(path.join(path.dirname(options.preferenceFilePath), 'external-app-icons-development.json'), bytes => {
+                    const image = nativeImage.createFromBuffer(bytes);
+                    if (image.isEmpty()) throw new Error('Invalid app icon pixels.');
+                    return image.resize({ width: 64, height: 64 }).toPNG();
+                }),
+            ),
         )
         .registerSingleton(
-            MANAGER_TOKENS.downloads,
+            MANAGER_TOKENS.youtubeDownloader,
             (resolver) =>
-                new ExternalDownloaderManager(
+                new YouTubeDownloader(
                     () =>
                         resolver.resolve(MANAGER_TOKENS.preferences).get()
                             .appLocale,
                     resolver.resolve(MANAGER_TOKENS.logging),
+                    app.isPackaged ? undefined : resolver.resolve(MANAGER_TOKENS.developmentConnection),
+                ),
+        )
+        .registerSingleton(
+            MANAGER_TOKENS.externalApps,
+            (resolver) =>
+                new ExternalAppManager(
+                    [
+                        createYouTubeDownloaderAdapter(
+                            resolver.resolve(MANAGER_TOKENS.youtubeDownloader),
+                        ),
+                    ],
+                    new ExternalAppPermissions(
+                        path.join(
+                            path.dirname(options.preferenceFilePath),
+                            app.isPackaged ? 'external-apps.json' : 'external-apps-development.json',
+                        ),
+                        () => {
+                            resolver
+                                .resolve(MANAGER_TOKENS.viewerRuntime)
+                                .viewer.showPreferencesOverlay();
+                            app.focus({ steal: true });
+                        },
+                    ),
+                    app.isPackaged ? undefined : resolver.resolve(MANAGER_TOKENS.developmentConnection),
                 ),
         )
         .registerSingleton(
@@ -199,7 +249,7 @@ export function createApplicationManagerContainer(
                     resolver.resolve(MANAGER_TOKENS.sites),
                     resolver.resolve(MANAGER_TOKENS.viewerRuntime),
                     resolver.resolve(MANAGER_TOKENS.preferences),
-                    resolver.resolve(MANAGER_TOKENS.downloads),
+                    resolver.resolve(MANAGER_TOKENS.youtubeDownloader),
                     resolver.resolve(MANAGER_TOKENS.social),
                     resolver.resolve(MANAGER_TOKENS.updates),
                     resolver.resolve(MANAGER_TOKENS.shortcuts),
@@ -207,6 +257,7 @@ export function createApplicationManagerContainer(
                     resolver.resolve(MANAGER_TOKENS.logging),
                     resolver.resolve(MANAGER_TOKENS.data),
                     resolver.resolve(MANAGER_TOKENS.development),
+                    resolver.resolve(MANAGER_TOKENS.externalApps),
                 ),
         );
 

@@ -21,30 +21,33 @@ export const platform: ExternalDownloaderPlatform = 'win32';
 export const artifactKinds: readonly string[] = ['exe'];
 /** Native installation mechanism exposed without OS-name checks. */
 export function getExternalDownloaderInstallMethod():
-    | 'copy-application'
-    | 'installer'
-    | 'unsupported' {
+    'copy-application' | 'installer' | 'unsupported' {
     return 'installer';
 }
 /** Discover the companion through native application registration. */
 export async function findInstalledExternalDownloaderApp(): Promise<InstalledExternalDownloaderApp | null> {
     const candidates = [
         process.env.YT_DOWNLOADER_APP_PATH?.trim(),
-        process.env.LOCALAPPDATA
-            ? path.join(
-                  process.env.LOCALAPPDATA,
-                  'Programs',
-                  'yt-section-downloader',
-                  `${EXTERNAL_DOWNLOADER_APP_NAME}.exe`,
-              )
-            : undefined,
-        process.env.PROGRAMFILES
-            ? path.join(
-                  process.env.PROGRAMFILES,
-                  EXTERNAL_DOWNLOADER_APP_NAME,
-                  `${EXTERNAL_DOWNLOADER_APP_NAME}.exe`,
-              )
-            : undefined,
+        ...[
+            'kawai-downloader',
+            'yt-section-downloader',
+            'YT Section Downloader',
+        ].flatMap((folder) =>
+            [
+                process.env.LOCALAPPDATA
+                    ? path.join(process.env.LOCALAPPDATA, 'Programs', folder)
+                    : undefined,
+                process.env.PROGRAMFILES
+                    ? path.join(process.env.PROGRAMFILES, folder)
+                    : undefined,
+            ]
+                .filter((root): root is string => !!root)
+                .flatMap((root) =>
+                    [EXTERNAL_DOWNLOADER_APP_NAME, 'YT Section Downloader'].map(
+                        (name) => path.join(root, `${name}.exe`),
+                    ),
+                ),
+        ),
     ];
     for (const candidate of candidates) {
         if (candidate && (await isFile(candidate)))
@@ -56,7 +59,7 @@ export async function findInstalledExternalDownloaderApp(): Promise<InstalledExt
     try {
         await runExternalDownloaderCommand('reg.exe', [
             'query',
-            'HKCU\\Software\\Classes\\yt-downloader\\shell\\open\\command',
+            'HKCU\\Software\\Classes\\kawai-downloader\\shell\\open\\command',
             '/ve',
         ]);
         return {};
@@ -77,7 +80,7 @@ async function downloadExternalDownloaderWindowsInstaller(
     }
     const filePath = path.join(
         app.getPath('downloads'),
-        `YT-Section-Downloader-${manifest.version}-${artifact.arch}.exe`,
+        `${EXTERNAL_DOWNLOADER_APP_NAME}-${manifest.version}-${artifact.arch}.exe`,
     );
     await downloadVerifiedArtifact(artifact, filePath);
     return filePath;

@@ -1,3 +1,4 @@
+import { clamp } from '../../Math/Scalar';
 import type { ApplicationUpdateProgress } from '../../../Common/IPC';
 
 /** Describes the application update signal contract. */
@@ -33,7 +34,7 @@ export function normalizeUpdateProgress(
 ): ApplicationUpdateProgress {
     return {
         /** The percent value. */
-        percent: Math.max(0, Math.min(100, progress.percent)),
+        percent: clamp(progress.percent, 0, 100),
         /** The bytes per second value. */
         bytesPerSecond: Math.max(0, progress.bytesPerSecond),
         /** The transferred value. */

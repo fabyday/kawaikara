@@ -1,3 +1,4 @@
+import type { ExternalApps, ExternalAppResult } from './ExternalApps';
 import type { WebExtensionDescriptor, WebExtensionInvocation, WebExtensionResult } from './WebExtension';
 import { DisposableStore } from './Disposable';
 import type { ProviderFileDropDescriptor } from './DragDrop';
@@ -235,6 +236,8 @@ export interface SiteAddressDescriptor {
 
 /** Describes the provider metadata contract. */
 export interface ProviderMetadata {
+    /** External app identities this Provider may discover and invoke. */
+    readonly externalApps?: readonly string[];
     /** Manifest-owned browser descriptors, separate from in-app script injection. */
     readonly webExtension?: WebExtensionDescriptor;
     /** Manifest-owned OS file-drop registration, available before activation. */
@@ -284,6 +287,7 @@ export type ProviderDecoratorMetadata = Partial<
         | 'settings'
         | 'fileDrop'
         | 'webExtension'
+        | 'externalApps'
     >
 > & {
     /** The menu value. */
@@ -507,6 +511,27 @@ function isNavigationAborted(error: unknown): boolean {
 export type ProviderConstructor = {
     /** Creates the viewer instance only when Kawaikara opens the Provider. */
     new (context: SiteContext): AbstractProvider;
+    /**
+     * Handles a declared download action without constructing a viewer instance.
+     * @param url - HTTPS source validated against this Provider's declared hosts.
+     * @param context - External-app discovery and dispatch only; no native launch authority.
+     * @returns The app selected by this Provider and its handoff outcome.
+     */
+    onDownload?(url: string, context: ProviderDownloadContext): Promise<ProviderDownloadResult>;
     /** Optional desktop handler for browser actions, callable without loading a viewer. */
     onWebExtensionAction?(request: WebExtensionInvocation): Promise<WebExtensionResult | void>;
 };
+
+/** Services supplied to static download handlers without activating a viewer. */
+export interface ProviderDownloadContext {
+    /** Application discovery and action dispatch only. */
+    readonly externalApps: ExternalApps;
+}
+
+/** Provider-selected application and the outcome used by the desktop's setup UI. */
+export interface ProviderDownloadResult {
+    /** Selected application, including when not installed. */
+    readonly appId: string;
+    /** Handoff or action dispatch outcome. */
+    readonly result: ExternalAppResult;
+}

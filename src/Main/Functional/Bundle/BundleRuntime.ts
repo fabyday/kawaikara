@@ -610,6 +610,7 @@ export function validateProviderManifestDescriptors(
         }
     }
     const allowed = new Set([
+        'externalApps',
         'fileDrop',
         'webExtension',
         'address',

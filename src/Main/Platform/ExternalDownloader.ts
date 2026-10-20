@@ -29,7 +29,7 @@ export type {
     InstalledExternalDownloaderApp,
 } from './ExternalDownloaderSupport';
 /** Companion protocol understood by every supported native launcher. */
-const PROTOCOL = 'yt-downloader';
+const PROTOCOL = 'kawai-downloader';
 /** Default companion release manifest location. */
 const DEFAULT_MANIFEST_URL = `${EXTERNAL_DOWNLOADER_RELEASES_PAGE}/latest/download/release-manifest.json`;
 /** Manifest formats accepted before native artifact selection. */

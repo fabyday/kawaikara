@@ -1,3 +1,4 @@
+import { ExternalAppApproval } from '../ExternalAppApproval';
 import { WebExtensionControl } from './WebExtensionControl';
 import {
   Panel,
@@ -42,6 +43,7 @@ export function AdvancedTab({
 }) {
   return (
     <Stack gap="lg">
+      <ExternalAppApproval messages={messages.externalApps} showRegistrations />
       <WebExtensionControl messages={messages.webExtension} />
       {dataLocation && onSavePreferences ? <AppDataLocationControl location={dataLocation} messages={messages.appDataLocation}
         locale={preferences.appLocale} saving={saving} onSavePreferences={onSavePreferences} /> : null}

@@ -1,7 +1,10 @@
 import { app, shell } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { ExternalDownloaderPlatform } from '../../../Common/Download';
+import {
+    KAWAI_DOWNLOADER_APP_ID,
+    type ExternalDownloaderPlatform,
+} from '../../../Common/Download';
 import type {
     ExternalDownloaderInstallation,
     ExternalDownloaderReleaseArtifact,
@@ -21,9 +24,7 @@ export const platform: ExternalDownloaderPlatform = 'darwin';
 export const artifactKinds: readonly string[] = ['dmg', 'zip'];
 /** Native installation mechanism exposed without OS-name checks. */
 export function getExternalDownloaderInstallMethod():
-    | 'copy-application'
-    | 'installer'
-    | 'unsupported' {
+    'copy-application' | 'installer' | 'unsupported' {
     return 'copy-application';
 }
 /** Discover the companion through native application registration. */
@@ -32,6 +33,12 @@ export async function findInstalledExternalDownloaderApp(): Promise<InstalledExt
         process.env.YT_DOWNLOADER_APP_PATH?.trim(),
         path.join(app.getPath('home'), 'Applications', APP_BUNDLE_NAME),
         path.join('/Applications', APP_BUNDLE_NAME),
+        path.join(
+            app.getPath('home'),
+            'Applications',
+            'YT Section Downloader.app',
+        ),
+        path.join('/Applications', 'YT Section Downloader.app'),
     ];
     for (const candidate of candidates) {
         if (!candidate) continue;
@@ -56,7 +63,7 @@ export async function findInstalledExternalDownloaderApp(): Promise<InstalledExt
 /** Expected companion application bundle. */
 const APP_BUNDLE_NAME = `${EXTERNAL_DOWNLOADER_APP_NAME}.app`;
 /** Identity required before replacing a companion app. */
-const APP_BUNDLE_ID = 'com.ytdownloader.app';
+const APP_BUNDLE_ID = KAWAI_DOWNLOADER_APP_ID;
 
 /** Installs the external downloader mac artifact. */
 async function installExternalDownloaderMacArtifact(

@@ -1199,3 +1199,147 @@ test('page registration teardown runs after Plugin abort and only once, includin
     pipeline.dispose();
     assert.deepEqual(scripts, ['install', 'cleanup', 'install-again', 'cleanup-again']);
 });
+
+test('failed staged Bundle registration preserves catalogs, drop registrations and notifications', () => {
+    const {
+        defineBundle,
+        defineProvider,
+        provider,
+        AbstractProvider,
+    } = require('@kawaikara/site-api');
+    const create = (id, shortcutId) =>
+        defineBundle({
+            id,
+            name: id,
+            version: '1.0.0',
+            apiVersion: 1,
+            permissions: [],
+            plugins: [],
+            providers: [
+                defineProvider({
+                    manifest: {
+                        schemaVersion: 1,
+                        id: `${id}.provider`,
+                        name: id,
+                        version: '1.0.0',
+                        apiVersion: 1,
+                        main: 'Provider.js',
+                        permissions: [],
+                        descriptors: {
+                            menu: { category: 'fixture' },
+                            shortcut: {
+                                actions: [
+                                    {
+                                        id: shortcutId,
+                                        title: 'Run',
+                                        defaultKey: 'Alt+R',
+                                        action: 'fixture:run',
+                                    },
+                                ],
+                            },
+                            settings: {
+                                categories: [
+                                    {
+                                        id: 'general',
+                                        title: 'General',
+                                        settings: [
+                                            {
+                                                type: 'boolean',
+                                                key: 'enabled',
+                                                title: 'Enabled',
+                                                defaultValue: true,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    provider: provider()(
+                        class extends AbstractProvider {
+                            constructor() {
+                                throw new Error(
+                                    'Catalog reads must not instantiate Providers.',
+                                );
+                            }
+                            async load() {}
+                        },
+                    ),
+                }),
+            ],
+        });
+    const manager = new ProviderManager(
+        () => {
+            throw new Error('Unexpected activation');
+        },
+        () => ({ providerSettings: {} }),
+        () => '',
+    );
+    let notifications = 0;
+    let dropRegistrations = 0;
+    const registerDrop = manager.dragDrop.registerProvider.bind(
+        manager.dragDrop,
+    );
+    manager.dragDrop.registerProvider = (metadata) => {
+        dropRegistrations++;
+        registerDrop(metadata);
+    };
+    manager.subscribeWebExtensions(() => notifications++);
+    manager.registerBundle(create('first', 'fixture.shared'));
+    const before = manager.listBundles();
+    const beforeMenu = manager.listMenuItems();
+    const registrations = [...manager.sites.entries()];
+    assert.throws(
+        () => manager.registerBundle(create('second', 'fixture.shared')),
+        /shortcut id .*already registered/,
+    );
+    assert.deepEqual([...manager.sites.entries()], registrations);
+    assert.deepEqual(manager.listBundles(), before);
+    assert.deepEqual(manager.listMenuItems(), beforeMenu);
+    assert.equal(manager.has('second.provider'), false);
+    assert.equal(notifications, 1);
+    assert.equal(dropRegistrations, 1);
+    before[0].providers[0].settings[0].settings[0].title =
+        'Changed by consumer';
+    assert.equal(
+        manager.listBundles()[0].providers[0].settings[0].settings[0].title,
+        'Enabled',
+    );
+    manager.registerBundle(create('second', 'fixture.unique'));
+    assert.equal(manager.listBundles().length, 2);
+    assert.equal(notifications, 2);
+});
+
+test('extracted address resolver keeps most-specific host matching and rejects ambiguous wake URLs', () => {
+    const { resolveProviderAddress } = loadSource(
+        'src/Main/Functional/Bundle/Provider/ProviderAddress.ts',
+    );
+    const registrations = [
+        { metadata: { id: 'base', address: { hosts: ['example.com'] } } },
+        {
+            metadata: {
+                id: 'specific',
+                address: { hosts: ['video.example.com'] },
+            },
+        },
+    ];
+    const resolve = (value) =>
+        resolveProviderAddress(value, registrations.values());
+    assert.deepEqual(resolve('https://video.example.com/watch?v=1'), {
+        siteId: 'specific',
+        url: 'https://video.example.com/watch?v=1',
+    });
+    assert.deepEqual(
+        resolve('kawaikara://open?url=https%3A%2F%2Fexample.com%2Fwatch'),
+        { siteId: 'base', url: 'https://example.com/watch' },
+    );
+    for (const value of [
+        'https://notexample.com',
+        'https://example.com.evil.test',
+        'https://name:pass@example.com',
+        'https://example.com:8443',
+        'kawaikara://open?url=https://example.com&url=https://video.example.com',
+        'kawaikara://open/wrong?url=https://example.com',
+    ])
+        assert.equal(resolve(value), undefined, value);
+});

@@ -1,3 +1,8 @@
+/** Stable companion identity shared with kawai-downloader's package and discovery manifest. */
+export const KAWAI_DOWNLOADER_APP_ID = 'day.faby.kawai-downloader';
+/** Product display name; independent from the repository directory. */
+export const KAWAI_DOWNLOADER_APP_NAME = 'kawai-downloader';
+
 /** Operating systems supported by the external downloader integration. */
 export type ExternalDownloaderPlatform = 'darwin' | 'win32' | 'linux';
 

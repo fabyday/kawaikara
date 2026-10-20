@@ -292,7 +292,7 @@ for (const platform of ['darwin', 'win32', 'linux']) {
             0,
             'incompatible artifacts never start a native command',
         );
-        const deepLink = 'yt-downloader://open?url=https%3A%2F%2Fexample.com';
+        const deepLink = 'kawai-downloader://open?url=https%3A%2F%2Fexample.com';
         await api.launchExternalDownloader(deepLink, '/fixture/companion');
         if (platform === 'darwin') {
             assert.deepEqual(commands[0].slice(0, 2), [

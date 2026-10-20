@@ -1,3 +1,5 @@
+import type { ProviderDownloadContext, ProviderDownloadResult } from '@kawaikara/site-api';
+import { requestYouTubeDownloader } from '../../Functional/YouTubeDownloader';
 import { AbstractUrlProvider, provider, webAuthenticationPolicy, matchesSiteUrlHost,
   VIDEO_CONTENT, type SiteContext,
   type NewWindowPolicy, type PictureInPictureSubtitleController,
@@ -18,6 +20,16 @@ import { resolveChzzkVideoContent } from './Inject/VideoContent';
   },
 })
 export class ChzzkProvider extends AbstractUrlProvider {
+  /**
+   * Selects the companion for this Provider's download requests.
+   * @param url - Validated Chzzk source address.
+   * @param context - Desktop-owned external-app registry facade.
+   * @returns Availability and handoff result; the caller owns missing-app presentation.
+   */
+  static onDownload(url: string, context: ProviderDownloadContext): Promise<ProviderDownloadResult> {
+    return requestYouTubeDownloader(context, 'day.faby.kawai-downloader');
+  }
+
   /** Publish before attached Plugins activate; App never interprets CHZZK routes. */
   constructor(context: SiteContext) {
     super(context);

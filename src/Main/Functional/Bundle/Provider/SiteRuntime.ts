@@ -91,6 +91,11 @@ const DESCRIPTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 /** Validates the provider descriptors. */
 export function validateProviderDescriptors(metadata: ProviderMetadata): void {
     validateFileDropDescriptor(metadata);
+    if (metadata.externalApps !== undefined && (
+        !Array.isArray(metadata.externalApps) || metadata.externalApps.length > 64 ||
+        metadata.externalApps.some(id => typeof id !== 'string' || !DESCRIPTOR_ID_PATTERN.test(id)) ||
+        new Set(metadata.externalApps).size !== metadata.externalApps.length
+    )) throw new Error('Invalid Provider external app declarations.');
     if (metadata.webExtension) {
         if (!metadata.permissions?.includes('web-extension'))
             throw new Error(

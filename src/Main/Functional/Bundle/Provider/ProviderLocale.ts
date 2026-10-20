@@ -1,8 +1,10 @@
 import type {
+    BundleDefinition,
     ProviderDecoratorMetadata,
-    ProviderLocalizedText,
     ProviderLocaleResource,
+    ProviderLocalizedText,
     ProviderMetadata,
+    SiteLocaleContext,
     WebExtensionDescriptor,
     WebExtensionLabel,
 } from '@kawaikara/site-api';
@@ -15,7 +17,17 @@ type UnresolvedProviderMetadata = Omit<
     Required<Pick<ProviderDecoratorMetadata, 'menu'>> &
     Pick<ProviderDecoratorMetadata, 'shortcut' | 'settings'>;
 
-/** Resolves the global locale. */
+/**
+ * Chooses an effective language from an application's locale and a declaration.
+ *
+ * @param appLocale - Application locale or the system sentinel.
+ * @param supportedLocales - Declared locales; absent/empty lists inherit the app locale.
+ * @param defaultLocale - Fallback when no exact or language-prefix match exists; inherit
+ * or an absent value falls back to the app locale.
+ * @returns The declared exact match, language-prefix match or fallback locale.
+ * @remarks Matching is case-insensitive. The system sentinel passes through unchanged;
+ * this function does not query the operating system.
+ */
 export function resolveGlobalLocale(
     appLocale: string,
     supportedLocales: readonly string[] | undefined,
@@ -41,7 +53,17 @@ export function resolveGlobalLocale(
         : appLocale;
 }
 
-/** Resolves the provider locale descriptors. */
+/**
+ * Resolves Provider UI text from explicit declarations and Locale resource keys.
+ *
+ * @param metadata - Merged decorator/manifest metadata before locale references are resolved.
+ * @param localization - Loaded Provider locale resources; may be absent when labels are explicit.
+ * @param providerId - Stable Provider identifier used in validation diagnostics.
+ * @returns Effective Provider metadata with menu, shortcut, settings and browser labels resolved.
+ * @throws When required text or a required locale reference cannot be resolved.
+ * @remarks Explicit localized text remains supported for third-party Providers. This
+ * function reads the supplied resource object only; loading Locale files belongs to the loader.
+ */
 export function resolveProviderLocaleDescriptors(
     metadata: UnresolvedProviderMetadata,
     localization: ProviderLocaleResource | undefined,
@@ -76,7 +98,11 @@ export function resolveProviderLocaleDescriptors(
         ...metadata,
         /** Browser labels are resolved before catalog validation and publication. */
         webExtension: metadata.webExtension
-            ? resolveWebExtensionLocale(metadata.webExtension, localization, providerId)
+            ? resolveWebExtensionLocale(
+                  metadata.webExtension,
+                  localization,
+                  providerId,
+              )
             : undefined,
         /** The menu value. */
         menu: {
@@ -178,12 +204,17 @@ function resolveWebExtensionLocale(
         if (!match) return item;
         const text = readProviderLocaleText(localization, match[1]);
         if (!text || typeof text === 'string') {
-            throw new Error(`Provider ${providerId} is missing locale message ${match[1]}.`);
+            throw new Error(
+                `Provider ${providerId} is missing locale message ${match[1]}.`,
+            );
         }
         const entries = Object.entries(text);
-        const fallback = entries.find(([locale]) => locale.toLowerCase() === 'en-us')
-            ?? entries.find(([locale]) => locale.toLowerCase().split('-')[0] === 'en')
-            ?? entries[0];
+        const fallback =
+            entries.find(([locale]) => locale.toLowerCase() === 'en-us') ??
+            entries.find(
+                ([locale]) => locale.toLowerCase().split('-')[0] === 'en',
+            ) ??
+            entries[0];
         return {
             ...item,
             /** Plain text replaces the manifest reference in the browser catalog. */
@@ -195,8 +226,12 @@ function resolveWebExtensionLocale(
     return {
         ...descriptor,
         /** Localized action summaries for permission and feature lists. */
-        actionDefinitions: Object.fromEntries(Object.entries(descriptor.actionDefinitions)
-            .map(([id, action]) => [id, resolveLabel(action)])),
+        actionDefinitions: Object.fromEntries(
+            Object.entries(descriptor.actionDefinitions).map(([id, action]) => [
+                id,
+                resolveLabel(action),
+            ]),
+        ),
         /** Localized Provider browser settings. */
         settings: descriptor.settings?.map(resolveLabel),
         /** Localized native browser context menus. */
@@ -207,5 +242,37 @@ function resolveWebExtensionLocale(
             /** Each DOM entry keeps its own stable locale reference. */
             items: menu.items.map(resolveLabel),
         })),
+    };
+}
+
+/**
+ * Resolves application, Bundle and Provider language choices for an activation.
+ *
+ * @param appLocale - Current application locale or system sentinel.
+ * @param provider - Effective Provider metadata containing its locale declaration.
+ * @param bundle - Owning Bundle definition; omit to inherit the application locale at Bundle scope.
+ * @returns The locale context passed to the Provider and its Plugins.
+ * @remarks Resolves declarations only and does not read or persist preferences.
+ */
+export function resolveProviderLocales(
+    appLocale: string,
+    provider: ProviderMetadata,
+    bundle?: BundleDefinition,
+): SiteLocaleContext {
+    return {
+        /** Current application language. */
+        app: appLocale,
+        /** Bundle-level fallback choice. */
+        plugin: resolveGlobalLocale(
+            appLocale,
+            bundle?.locale?.supportedLocales,
+            bundle?.locale?.defaultLocale,
+        ),
+        /** Provider-level fallback choice. */
+        site: resolveGlobalLocale(
+            appLocale,
+            provider.locale?.supportedLocales,
+            provider.locale?.defaultLocale,
+        ),
     };
 }

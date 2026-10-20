@@ -6,10 +6,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { type ExternalDownloaderPlatform } from '../../Common/Download';
+import {
+    KAWAI_DOWNLOADER_APP_NAME,
+    type ExternalDownloaderPlatform,
+} from '../../Common/Download';
 
 /** Defines the shared external downloader app name constant. */
-export const EXTERNAL_DOWNLOADER_APP_NAME = 'YT Section Downloader';
+export const EXTERNAL_DOWNLOADER_APP_NAME = KAWAI_DOWNLOADER_APP_NAME;
 /** Defines the shared external downloader releases page constant. */
 export const EXTERNAL_DOWNLOADER_RELEASES_PAGE =
     'https://github.com/fabyday/yt-downloader/releases';

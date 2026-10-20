@@ -1,3 +1,4 @@
+import { ExternalAppApproval } from './ExternalAppApproval';
 import { WebExtensionApproval } from './WebExtensionApproval';
 import {
   Button,
@@ -160,6 +161,7 @@ export function PreferenceView({
       }}
     >
       <WebExtensionApproval messages={messages.webExtension} />
+      <ExternalAppApproval messages={messages.externalApps} />
       <div className="preference-surface" inert={logViewerOpen ? true : undefined}>
         <Flex className="preference-header" align="center" justify="between" gap="md">
           <div>

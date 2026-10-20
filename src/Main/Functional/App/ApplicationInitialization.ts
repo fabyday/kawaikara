@@ -102,8 +102,8 @@ export async function initializeApplication(
     viewerRuntime.input.setShortcutHandler((input, editing) =>
         shortcuts.handleInput(input, editing),
     );
-    viewerRuntime.pip.setPictureInPictureStateHandler((active) =>
-        shortcuts.setPictureInPictureActive(active),
+    viewerRuntime.pip.setPictureInPictureStateHandler(() =>
+        shortcuts.refreshGlobalShortcut(),
     );
 
     const updates = managers.resolve(MANAGER_TOKENS.updates);
@@ -126,7 +126,6 @@ export async function initializeApplication(
         getKawaiDataPath('web-extension.json'),
         sites,
         viewerRuntime,
-        managers.resolve(MANAGER_TOKENS.downloads),
         () => preferences.get().appLocale,
     );
     if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) await webExtension.start();
@@ -134,6 +133,20 @@ export async function initializeApplication(
     if (!__KAWAIKARA_UPDATE_TEST_PROFILE__)
         ipc.setWebExtensionManager(webExtension);
     ipc.initialize();
+    const externalApps = managers.resolve(MANAGER_TOKENS.externalApps);
+    if (!app.isPackaged && !__KAWAIKARA_UPDATE_TEST_PROFILE__) {
+        await externalApps.developmentConnection!.start({
+            register: async (id) => {
+                const descriptor = externalApps.descriptors().find(item => item.id === id);
+                return !!descriptor && !!await externalApps.permissions.register(descriptor);
+            },
+            registered: async (id) => {
+                const descriptor = externalApps.descriptors().find(item => item.id === id);
+                return !!descriptor && !!await externalApps.permissions.get(descriptor);
+            },
+            revoke: (id) => externalApps.permissions.revoke(id),
+        });
+    }
 
     return {
         ...preInitialized,
@@ -161,6 +174,7 @@ export async function initializeApplication(
             await completeCleanup([
                 () => shortcuts.dispose(),
                 () => webExtension.dispose(),
+                () => externalApps.developmentConnection?.dispose(),
                 () => development.dispose(),
                 () => sites.dispose(),
                 () => social.dispose(),

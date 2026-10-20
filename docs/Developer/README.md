@@ -44,6 +44,7 @@ tree. Classes, interfaces, types, functions, methods, and declared values use
 TSDoc beside their source declarations so editors can show the same reference
 through autocomplete.
 
+- Follow [source comment contracts](./Documentation/2.SourceComments.md) for parameter, return, failure and lifecycle documentation.
 - Run `pnpm docs:source:check` to reject undocumented declarations.
 - Run `pnpm docs:source` to generate the application and package HTML reference in
   `docs/Reference`.

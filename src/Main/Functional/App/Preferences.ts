@@ -1,3 +1,4 @@
+import { clamp } from '../../Math/Scalar';
 import {
     DEFAULT_APP_WINDOW,
     validateAppWindow,
@@ -290,7 +291,7 @@ function validateVideoOverlayHideSeconds(value: unknown): number {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
         return DEFAULT_PREFERENCES.videoOverlayHideSeconds;
     }
-    return Math.min(30, Math.max(0.5, Math.round(value * 10) / 10));
+    return clamp(Math.round(value * 10) / 10, 0.5, 30);
 }
 
 /** Validates the video volume. */
@@ -298,7 +299,7 @@ function validateVideoVolume(value: unknown): number {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
         return DEFAULT_PREFERENCES.videoVolume;
     }
-    return Math.min(100, Math.max(0, Math.round(value)));
+    return clamp(Math.round(value), 0, 100);
 }
 
 /** Determines whether the log level condition applies. */

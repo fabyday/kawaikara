@@ -1,3 +1,5 @@
+import type { ExternalAppHost } from '../ExternalApps/ExternalAppAdapter';
+import { clamp } from '../../Math/Scalar';
 import type { ExternalDownloaderCallbackDescriptor } from '../../../Common/Download';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
@@ -38,6 +40,8 @@ interface CallbackLogger {
 
 /** Authentication and acknowledgment state for one launched request. */
 interface PendingCallbackRequest {
+    /** Invocation-scoped host resources; omitted for legacy manual launches. */
+    host?: ExternalAppHost;
     /** Whether at least one valid event has arrived. */
     acknowledged: boolean;
     /** Timer used to report a missing initial response. */
@@ -84,7 +88,9 @@ export class ExternalDownloaderCallbackServer {
     ) {}
 
     /** Creates an authenticated request descriptor after the server is listening. */
-    async createRequest(): Promise<ExternalDownloaderCallbackDescriptor> {
+    async createRequest(
+        host?: ExternalAppHost,
+    ): Promise<ExternalDownloaderCallbackDescriptor> {
         const port = await this.ensureStarted();
         const requestId = randomUUID();
         const token = randomBytes(32).toString('base64url');
@@ -105,6 +111,7 @@ export class ExternalDownloaderCallbackServer {
         );
         retentionTimer.unref();
         this.pending.set(requestId, {
+            host,
             acknowledged: false,
             acknowledgmentTimer,
             retentionTimer,
@@ -181,7 +188,9 @@ export class ExternalDownloaderCallbackServer {
             const requestId = new URL(
                 request.url ?? '/',
                 'http://127.0.0.1',
-            ).pathname.match(/^\/v1\/events\/([A-Za-z0-9-]{8,100})$/)?.[1];
+            ).pathname.match(
+                /^\/v1\/events\/([A-Za-z0-9-]{8,100})(?:\/host)?$/,
+            )?.[1];
             const pending = requestId ? this.pending.get(requestId) : undefined;
             if (
                 !requestId ||
@@ -189,6 +198,43 @@ export class ExternalDownloaderCallbackServer {
                 !hasValidAuthorization(request, pending.token)
             ) {
                 respond(response, 401);
+                return;
+            }
+            if (
+                new URL(
+                    request.url ?? '/',
+                    'http://127.0.0.1',
+                ).pathname.endsWith('/host')
+            ) {
+                if (!pending.host) {
+                    respond(response, 403);
+                    return;
+                }
+                const call = JSON.parse(await readBody(request));
+                if (!call || typeof call.permission !== 'string') {
+                    respond(response, 400);
+                    return;
+                }
+                try {
+                    const result =
+                        call.method === 'resource.url'
+                            ? pending.host.getUrl(call.permission)
+                            : call.method === 'cookies.read'
+                              ? await pending.host.getCookies(call.permission)
+                              : undefined;
+                    if (result === undefined) {
+                        respond(response, 400);
+                        return;
+                    }
+                    // Resource values travel only over this authenticated loopback response.
+                    response.writeHead(200, {
+                        'content-type': 'application/json',
+                        'cache-control': 'no-store',
+                    });
+                    response.end(JSON.stringify(result));
+                } catch {
+                    respond(response, 403);
+                }
                 return;
             }
             const event = parseCompanionEvent(
@@ -335,7 +381,7 @@ function parseCompanionEvent(value: string, requestId: string): CompanionEvent {
             : {}),
         ...(typeof candidate.progress === 'number' &&
         Number.isFinite(candidate.progress)
-            ? { progress: Math.max(0, Math.min(1, candidate.progress)) }
+            ? { progress: clamp(candidate.progress, 0, 1) }
             : {}),
         ...(typeof candidate.queueItemId === 'string'
             ? { queueItemId: candidate.queueItemId.slice(0, 160) }

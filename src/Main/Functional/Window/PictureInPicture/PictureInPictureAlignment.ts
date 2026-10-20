@@ -1,3 +1,4 @@
+import { lerp } from '../../../Math/Scalar';
 import {
     screen,
     type BrowserWindow,
@@ -100,8 +101,8 @@ export class PictureInPictureAlignment {
                 (1 - (1 + 7 * progress) * Math.exp(-7 * progress)) /
                 (1 - 8 * Math.exp(-7));
             this.window.setPosition(
-                Math.round(initial.x + (target.x - initial.x) * eased),
-                Math.round(initial.y + (target.y - initial.y) * eased),
+                Math.round(lerp(initial.x, target.x, eased)),
+                Math.round(lerp(initial.y, target.y, eased)),
                 false,
             );
             if (progress < 1) this.timer = setTimeout(advance, 16);

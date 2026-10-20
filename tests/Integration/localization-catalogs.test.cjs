@@ -228,13 +228,13 @@ test('bundle confirmation and project picker copy is selected in Main', () => {
 
 test('downloader rereads the current language without installing or opening an external app', async () => {
     let locale = 'ko-KR';
-    const { ExternalDownloaderManager } = loadSource(
-        'src/Main/Manager/ExternalDownloaderManager.ts',
+    const { YouTubeDownloader } = loadSource(
+        'src/Main/Functional/ExternalApps/YouTubeDownloader.ts',
         {
             electron: { app: { getLocale: () => 'en-US' } },
         },
     );
-    const manager = new ExternalDownloaderManager(() => locale);
+    const manager = new YouTubeDownloader(() => locale);
     manager.getStatus = async (message) => ({
         installed: false,
         automaticInstallSupported: false,

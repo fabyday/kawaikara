@@ -1,3 +1,4 @@
+import type { ExternalAppSettingsState } from './ExternalApps';
 import type { AppWindowPreference, AppWindowLastPosition, AppWindowDisplay } from './AppWindow';
 import type {
     ExternalDownloaderInstallResult,
@@ -82,6 +83,8 @@ export const IPC_CHANNELS = defineIpcChannels({
     application: {
         /** Manages the explicitly paired browser connection from trusted settings. */
         webExtensionConnection: 'kawaikara:application:web-extension-connection',
+        /** Trusted settings-only adapter registration operations. */
+        externalApps: 'kawaikara:application:external-apps',
         /** Opens Windows' user-controlled default video application settings. */
         openDefaultVideoAppSettings:
             'kawaikara:application:default-video-app-settings',
@@ -1321,6 +1324,9 @@ export interface KawaikaraRendererApi {
     /** The application value. */
     application: {
         /** Copies an expiring setup code or revokes the current browser connection. */
+        /** Reviews and revokes external app registrations; never returns resource values. */
+        externalApps(operation: 'status' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant): Promise<ExternalAppSettingsState>;
+        /** Trusted browser pairing, consent and connection management. */
         webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{ browsers?: {id: 'chrome' | 'firefox'; name: string}[]; connections?: {id:string; client:string; extension?: {version:string; development:boolean; browser:string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string;}}[]; approval?: {id: string; detail: string}; connected: boolean; useDevelopment: boolean; client: string; extension?: { version: string; development: boolean; browser: string; connectionMode?: "development" | "production"; name?: string; icon?: string; browserVersion?: string; os?: string; osVersion?: string; cpu?: string; } }>;
         /** Main chooses a fixed OS settings URI for the installed channel. */
         openDefaultVideoAppSettings(locale: AppLocale): Promise<void>;

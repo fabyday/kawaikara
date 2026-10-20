@@ -1,21 +1,44 @@
+import { bindPictureInPictureWindowEvents } from '../Functional/Window/PictureInPicture/PictureInPictureEvents';
+import { createPictureInPictureWindow } from '../Functional/Window/PictureInPicture/PictureInPictureWindow';
 import {
-    preparePictureInPicturePresentation,
-    configurePictureInPictureWindow,
+    handlePictureInPicturePointerInput,
+    createPictureInPictureInputListener,
+} from '../Functional/Window/PictureInPicture/PictureInPictureInput';
+import {
+    parseVideoSizeMessage,
+    readPageResultStatus,
+    readVideoAspectRatio,
+} from '../Functional/Window/PictureInPicture/PictureInPicturePageResults';
+import {
+    resolveAnchoredResizeBounds,
+    interpolateBounds,
+    rectanglesMatch,
+} from '../Functional/Window/PictureInPicture/PictureInPictureGeometry';
+import {
+    PIP_VIDEO_DISCOVERY_RETRY_MS,
+    PIP_VIDEO_DISCOVERY_ATTEMPTS,
+    PIP_RESTORE_MESSAGE,
+    PIP_PLAYBACK_MESSAGE,
+    PIP_CONTROL_ACTION_DEBOUNCE_MS,
+    PIP_PLAYBACK_BUTTON_SIZE,
+    PIP_VIDEO_SIZE_MESSAGE,
+    PIP_ASPECT_RATIO_CHANGE_THRESHOLD,
+    PIP_RESIZE_ANIMATION_DURATION_MS,
+    PIP_RESIZE_ANIMATION_FRAME_MS,
+} from '../Functional/Window/PictureInPicture/PictureInPictureConstants';
+import {
     presentPictureInPicture,
     restorePictureInPicturePresentation,
     getPictureInPictureReassertionDelays,
-    shouldHidePictureInPictureFromTaskbar,
 } from '../Platform/Presentation';
 import {
     app,
     BrowserWindow,
     screen,
-    type Input,
     type Rectangle,
     type WebContentsView,
     type WebFrameMain,
 } from 'electron';
-import { randomUUID } from 'node:crypto';
 import { PictureInPictureAlignment } from '../Functional/Window/PictureInPicture/PictureInPictureAlignment';
 import { getLocaleMessages } from '../Functional/Localization/Locale';
 import type { AppLocale, PictureInPictureResult } from '../../Common/IPC';
@@ -23,7 +46,6 @@ import {
     DEFAULT_PICTURE_IN_PICTURE_PLACEMENT,
     DEFAULT_PICTURE_IN_PICTURE_PORTRAIT_SIZE,
     DEFAULT_PICTURE_IN_PICTURE_SIZE,
-    PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM,
     resolvePictureInPictureSize,
     type PictureInPictureLastPlacement,
     type PictureInPicturePlacementPreference,
@@ -41,10 +63,8 @@ import {
     delay,
     fitPictureInPictureSize,
     isInspectableFrameUrl,
-    isPointInside,
     parsePictureInPictureEnterResult,
     parseVideoCandidate,
-    resolveGlobalMousePoint,
     resolvePictureInPictureBounds,
     resolvePictureInPictureDisplay,
     withPictureInPictureWindowMode,
@@ -65,38 +85,6 @@ import {
     createSetPictureInPictureControlsVisibleScript,
     createTogglePictureInPicturePlaybackScript,
 } from '../Inject/PictureInPictureControls';
-
-/** Defines the shared PiP video discovery retry ms constant. */
-const PIP_VIDEO_DISCOVERY_RETRY_MS = 100;
-/** Defines the shared PiP video discovery attempts constant. */
-const PIP_VIDEO_DISCOVERY_ATTEMPTS = 2;
-/** Defines the shared PiP return button bounds constant. */
-const PIP_RETURN_BUTTON_BOUNDS = {
-    /** The x value. */
-    x: 12,
-    /** The y value. */
-    y: 12,
-    /** The width value. */
-    width: 40,
-    /** The height value. */
-    height: 40,
-};
-/** Defines the shared PiP restore message constant. */
-const PIP_RESTORE_MESSAGE = `__kawaikara_pip_restore_${randomUUID()}`;
-/** Defines the shared PiP playback message constant. */
-const PIP_PLAYBACK_MESSAGE = `__kawaikara_pip_playback_${randomUUID()}`;
-/** Defines the shared PiP control action debounce ms constant. */
-const PIP_CONTROL_ACTION_DEBOUNCE_MS = 300;
-/** Defines the shared PiP playback button size constant. */
-const PIP_PLAYBACK_BUTTON_SIZE = 54;
-/** Defines the unified PiP video-size console message prefix. */
-const PIP_VIDEO_SIZE_MESSAGE = `__kawaikara_pip_video_size_${randomUUID()}`;
-/** Defines the minimum relative aspect-ratio change worth resizing for. */
-const PIP_ASPECT_RATIO_CHANGE_THRESHOLD = 0.015;
-/** Defines the smooth PiP resize duration. */
-const PIP_RESIZE_ANIMATION_DURATION_MS = 260;
-/** Defines the smooth PiP resize frame interval. */
-const PIP_RESIZE_ANIMATION_FRAME_MS = 16;
 
 /** Coordinates unified picture in picture behavior. */
 export class UnifiedPictureInPictureManager {
@@ -218,6 +206,7 @@ export class UnifiedPictureInPictureManager {
         this.clearFullscreenReassertions(state);
         this.clearVideoRefreshes(state);
         this.clearResizeAnimation(state);
+        state.disposeWindowEvents?.();
         state.siteView.webContents.off(
             'console-message',
             state.consoleListener,
@@ -290,32 +279,9 @@ export class UnifiedPictureInPictureManager {
             );
             pipWindow = this.createPipWindow(bounds, initialAspectRatio);
 
-            /** Performs the input listener operation. */
-            const inputListener = (
-                event: Electron.Event,
-                input: Input,
-            ): void => {
-                if (
-                    input.type === 'keyDown' &&
-                    input.key.toLowerCase() === 'tab'
-                ) {
-                    event.preventDefault();
-                    return;
-                }
-                if (
-                    input.type === 'keyDown' &&
-                    !input.isAutoRepeat &&
-                    !input.isComposing &&
-                    !input.control &&
-                    !input.meta &&
-                    !input.alt &&
-                    !input.shift &&
-                    input.key.toLowerCase() === 'escape'
-                ) {
-                    event.preventDefault();
-                    void this.exit();
-                }
-            };
+            const inputListener = createPictureInPictureInputListener(() => {
+                void this.exit();
+            });
             /** Performs the console listener operation. */
             const consoleListener = (
                 details: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
@@ -422,6 +388,7 @@ export class UnifiedPictureInPictureManager {
             const state = this.state;
             this.state = undefined;
             if (state) {
+                state.disposeWindowEvents?.();
                 state.closing = true;
                 this.stopHoverTracking(state);
                 this.clearFullscreenReassertions(state);
@@ -488,6 +455,7 @@ export class UnifiedPictureInPictureManager {
         this.clearFullscreenReassertions(state);
         this.clearVideoRefreshes(state);
         this.clearResizeAnimation(state);
+        state.disposeWindowEvents?.();
         state.siteView.webContents.off(
             'console-message',
             state.consoleListener,
@@ -538,79 +506,42 @@ export class UnifiedPictureInPictureManager {
         return exited;
     }
 
-    /** Creates the PiP window. */
+    /** Creates the native host using the current locale and diagnostics. */
     private createPipWindow(
         bounds: Rectangle,
         aspectRatio?: number,
     ): BrowserWindow {
-        preparePictureInPicturePresentation();
-        const pipWindow = new BrowserWindow({
-            ...bounds,
-            show: false,
-            frame: false,
-            title: getLocaleMessages(this.getLocale(), app.getLocale())
-                .nativeDialogs.pipWindowTitle,
-            backgroundColor: '#000000',
-            alwaysOnTop: true,
-            resizable: true,
-            movable: true,
-            minimizable: false,
-            maximizable: false,
-            fullscreenable: false,
-            skipTaskbar: shouldHidePictureInPictureFromTaskbar(),
-            webPreferences: {
-                contextIsolation: true,
-                nodeIntegration: false,
-                sandbox: true,
-            },
-        });
-        this.logging.attachRenderer(
-            pipWindow.webContents,
-            'rendererPictureInPicture',
+        return createPictureInPictureWindow(
+            bounds,
+            aspectRatio,
+            this.getLocale(),
+            this.logging,
         );
-        pipWindow.setMenu(null);
-        pipWindow.setMenuBarVisibility(false);
-        pipWindow.setMinimumSize(
-            PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM.width,
-            PICTURE_IN_PICTURE_AUTOMATIC_MINIMUM.height,
-        );
-        if (aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0) {
-            pipWindow.setAspectRatio(aspectRatio);
-        }
-        configurePictureInPictureWindow(pipWindow);
-        return pipWindow;
     }
 
-    /** Attaches the window events. */
+    /** Binds native events to the current session's semantic operations. */
     private attachWindowEvents(state: UnifiedPictureInPictureState): void {
-        state.pipWindow.on('will-resize', () =>
-            this.clearResizeAnimation(state),
-        );
-        state.pipWindow.on('resize', () => this.syncSiteViewBounds(state));
-        state.pipWindow.on('blur', () => {
-            this.scheduleFullscreenReassertion(state);
+        state.disposeWindowEvents = bindPictureInPictureWindowEvents(state, {
+            /** Retired and closing sessions cannot trigger transitions. */
+            isCurrent: () => !state.closing && this.state === state,
+            /** User resize takes ownership from automatic animation. */
+            resizeStarted: () => this.clearResizeAnimation(state),
+            /** Keeps the retained surface fitted to the native host. */
+            resized: () => this.syncSiteViewBounds(state),
+            /** Restores platform-specific presentation after focus loss. */
+            blurred: () => this.scheduleFullscreenReassertion(state),
+            /** Logs an untrusted page close without ending the session. */
+            closeBlocked: () =>
+                this.logging
+                    .getLogger('pictureInPicture', 'attachWindowEvents')
+                    .debug(
+                        'Ignored a page-originated close request for unified PiP.',
+                    ),
+            /** Unexpected native destruction restores the application. */
+            closed: () => {
+                void this.exit();
+            },
         });
-        state.pipWindow.on('close', (event) => {
-            if (state.closing || this.state !== state) return;
-            // The unified PiP window is frameless; users exit through Kawaikara's
-            // restore control. A remote document can still call window.close()
-            // during rapid player/frame replacement. Treat that as untrusted page
-            // behavior and keep the application-owned PiP lifecycle alive.
-            event.preventDefault();
-            this.logging
-                .getLogger('pictureInPicture', 'attachWindowEvents')
-                .debug(
-                    'Ignored a page-originated close request for unified PiP.',
-                );
-        });
-        state.pipWindow.on('closed', () => {
-            if (state.closing || this.state !== state) return;
-            void this.exit();
-        });
-        state.pipWindow.webContents.on(
-            'before-input-event',
-            state.inputListener,
-        );
     }
 
     /** Performs the sync site view bounds operation. */
@@ -625,96 +556,19 @@ export class UnifiedPictureInPictureManager {
         });
     }
 
-    /** Handles the pointer input. */
+    /** Connects pointer gestures to the current PiP lifecycle. */
     private handlePointerInput(
         state: UnifiedPictureInPictureState,
         input: Electron.InputEvent,
     ): void {
-        if (state.closing || state.pipWindow.isDestroyed()) return;
-        if (
-            input.type !== 'mouseDown' &&
-            input.type !== 'mouseMove' &&
-            input.type !== 'mouseUp' &&
-            input.type !== 'mouseLeave'
-        ) {
-            return;
-        }
-
-        const mouseInput = input as Electron.MouseInputEvent;
-        // Hover and drag must use the same WebContents-wide input surface. A
-        // CSS app-region inside a frequently replaced CHZZK iframe can remain
-        // visually present while no longer participating in native hit testing.
-        state.controlsVisibility?.sync();
-        if (input.type === 'mouseDown') {
-            if (mouseInput.button && mouseInput.button !== 'left') return;
-            if (
-                state.controlsVisible &&
-                isPointInside(mouseInput, PIP_RETURN_BUTTON_BOUNDS)
-            ) {
-                this.activateControl(state, 'restore');
-                return;
-            }
-            const [contentWidth, contentHeight] =
-                state.pipWindow.getContentSize();
-            if (
-                state.controlsVisible &&
-                isPointInside(mouseInput, {
-                    x: (contentWidth - PIP_PLAYBACK_BUTTON_SIZE) / 2,
-                    y: (contentHeight - PIP_PLAYBACK_BUTTON_SIZE) / 2,
-                    width: PIP_PLAYBACK_BUTTON_SIZE,
-                    height: PIP_PLAYBACK_BUTTON_SIZE,
-                })
-            ) {
-                this.activateControl(state, 'playback');
-                return;
-            }
-            const interruptedAspectRatio =
-                state.resizeAnimation?.targetAspectRatio;
-            this.clearResizeAnimation(state);
-            if (interruptedAspectRatio !== undefined) {
-                state.pendingAspectRatio = interruptedAspectRatio;
-            }
-            const cursor = resolveGlobalMousePoint(mouseInput);
-            const [windowX, windowY] = state.pipWindow.getPosition();
-            state.dragState = {
-                cursorX: cursor.x,
-                cursorY: cursor.y,
-                windowX,
-                windowY,
-            };
-            return;
-        }
-
-        if (input.type === 'mouseUp' || input.type === 'mouseLeave') {
-            const drag = state.dragState;
-            const released = state.pipWindow.getBounds();
-            const moved =
-                drag &&
-                Math.hypot(
-                    released.x - drag.windowX,
-                    released.y - drag.windowY,
-                ) >= 3;
-            state.dragState = undefined;
-            const pendingAspectRatio = state.pendingAspectRatio;
-            state.pendingAspectRatio = undefined;
-            if (pendingAspectRatio !== undefined) {
-                this.updateAspectRatio(state, pendingAspectRatio);
-            }
-            if (input.type === 'mouseUp' && moved) {
-                if (state.resizeAnimation) state.alignAfterResize = true;
-                else state.alignment?.snap();
-            }
-            return;
-        }
-
-        const drag = state.dragState;
-        if (!drag) return;
-        const cursor = resolveGlobalMousePoint(mouseInput);
-        state.pipWindow.setPosition(
-            Math.round(drag.windowX + cursor.x - drag.cursorX),
-            Math.round(drag.windowY + cursor.y - drag.cursorY),
-            false,
-        );
+        handlePictureInPicturePointerInput(state, input, {
+            /** Keeps duplicate-control suppression in the manager. */
+            activate: (action) => this.activateControl(state, action),
+            /** Interrupts the current resize transaction. */
+            interruptResize: () => this.clearResizeAnimation(state),
+            /** Restores the deferred video shape. */
+            updateAspectRatio: (ratio) => this.updateAspectRatio(state, ratio),
+        });
     }
 
     /** Performs the activate control operation. */
@@ -941,7 +795,10 @@ export class UnifiedPictureInPictureManager {
     /** Finishes page layout stabilization after native view transfer. */
     private async finishPageTransition(frame: WebFrameMain): Promise<void> {
         try {
-            await frame.executeJavaScript(createFinishPictureInPictureTransitionScript(), true);
+            await frame.executeJavaScript(
+                createFinishPictureInPictureTransitionScript(),
+                true,
+            );
         } catch {
             // Navigation may have destroyed the old document during transfer.
         }
@@ -1314,124 +1171,4 @@ export class UnifiedPictureInPictureManager {
                 ),
         );
     }
-}
-
-/** Parses a trusted in-page video-size notification into an aspect ratio. */
-function parseVideoSizeMessage(message: string): number | undefined {
-    const prefix = `${PIP_VIDEO_SIZE_MESSAGE}:`;
-    if (!message.startsWith(prefix)) return undefined;
-    const [widthValue, heightValue, extra] = message
-        .slice(prefix.length)
-        .split(':');
-    if (extra !== undefined) return undefined;
-    return createVideoAspectRatio(Number(widthValue), Number(heightValue));
-}
-
-/** Read page lifecycle status without trusting untyped remote values. */
-function readPageResultStatus(value: unknown): string | undefined {
-    if (!value || typeof value !== 'object' || !('status' in value))
-        return undefined;
-    return typeof value.status === 'string' ? value.status : undefined;
-}
-
-/** Reads an aspect ratio from a page-script result. */
-function readVideoAspectRatio(value: unknown): number | undefined {
-    if (!value || typeof value !== 'object') return undefined;
-    const candidate = value as { videoHeight?: unknown; videoWidth?: unknown };
-    return createVideoAspectRatio(
-        Number(candidate.videoWidth),
-        Number(candidate.videoHeight),
-    );
-}
-
-/** Creates a bounded video aspect ratio from intrinsic dimensions. */
-function createVideoAspectRatio(
-    width: number,
-    height: number,
-): number | undefined {
-    if (
-        !Number.isFinite(width) ||
-        !Number.isFinite(height) ||
-        width <= 0 ||
-        height <= 0
-    ) {
-        return undefined;
-    }
-    const aspectRatio = width / height;
-    return aspectRatio >= 0.1 && aspectRatio <= 10 ? aspectRatio : undefined;
-}
-
-/** Resolves resized PiP bounds while retaining the nearest screen edges. */
-function resolveAnchoredResizeBounds(
-    current: Rectangle,
-    workArea: Rectangle,
-    width: number,
-    height: number,
-): Rectangle {
-    const workRight = workArea.x + workArea.width;
-    const workBottom = workArea.y + workArea.height;
-    const currentRight = current.x + current.width;
-    const currentBottom = current.y + current.height;
-    const anchorRight =
-        Math.abs(workRight - currentRight) < Math.abs(current.x - workArea.x);
-    const anchorBottom =
-        Math.abs(workBottom - currentBottom) < Math.abs(current.y - workArea.y);
-    const maximumX = workRight - width;
-    const maximumY = workBottom - height;
-    return {
-        /** The x value. */
-        x: clampNumber(
-            anchorRight ? currentRight - width : current.x,
-            workArea.x,
-            maximumX,
-        ),
-        /** The y value. */
-        y: clampNumber(
-            anchorBottom ? currentBottom - height : current.y,
-            workArea.y,
-            maximumY,
-        ),
-        /** The width value. */
-        width,
-        /** The height value. */
-        height,
-    };
-}
-
-/** Interpolates integer native window bounds for one animation frame. */
-function interpolateBounds(
-    from: Rectangle,
-    to: Rectangle,
-    progress: number,
-): Rectangle {
-    /** Interpolates one rectangle field. */
-    const interpolate = (start: number, end: number): number =>
-        Math.round(start + (end - start) * progress);
-    return {
-        /** The x value. */
-        x: interpolate(from.x, to.x),
-        /** The y value. */
-        y: interpolate(from.y, to.y),
-        /** The width value. */
-        width: interpolate(from.width, to.width),
-        /** The height value. */
-        height: interpolate(from.height, to.height),
-    };
-}
-
-/** Determines whether two native window rectangles match. */
-function rectanglesMatch(left: Rectangle, right: Rectangle): boolean {
-    return (
-        left.x === right.x &&
-        left.y === right.y &&
-        left.width === right.width &&
-        left.height === right.height
-    );
-}
-
-/** Clamps and rounds a native window coordinate. */
-function clampNumber(value: number, minimum: number, maximum: number): number {
-    return Math.round(
-        Math.min(Math.max(minimum, maximum), Math.max(minimum, value)),
-    );
 }

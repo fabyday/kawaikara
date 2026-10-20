@@ -27,15 +27,7 @@ export {
     type SiteExternalLoginFlow,
     type SiteExternalLoginFlowOptions,
 } from './ExternalLoginFlow';
-export {
-    MEDIA_DOWNLOAD_CAPABILITY_ID,
-    MEDIA_DOWNLOAD_CAPABILITY_VERSION,
-    type MediaDownloadFailureCode,
-    type MediaDownloadFeature,
-    type MediaDownloadRequest,
-    type MediaDownloadResource,
-    type MediaDownloadResult,
-} from './MediaDownloads';
+
 export {
     getPluginMetadata,
     getProviderMetadata,
@@ -154,3 +146,7 @@ export {
 export * from './VideoEffects';
 
 export * from './WebExtension';
+
+export type { ExternalAppDescriptor, ExternalAppPermission, ExternalAppPermissionKind, ExternalAppAction, ExternalAppInfo, ExternalAppRequest, ExternalAppResult, ExternalApps } from './ExternalApps';
+
+export type { ProviderDownloadContext, ProviderDownloadResult } from './Provider';

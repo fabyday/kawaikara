@@ -69,6 +69,20 @@ function createAdapter(open) {
         ],
         subscribeWebExtensions: () => () => {},
         load: async (id) => calls.push(['load', id]),
+        requestDownload: async (providerId, url) => {
+            calls.push(['download', providerId, url]);
+            const result = await open();
+            return {
+                appId: 'day.faby.kawai-downloader',
+                result: result.opened
+                    ? { accepted: true }
+                    : {
+                          accepted: false,
+                          code: 'unavailable',
+                          recoverable: true,
+                      },
+            };
+        },
     };
     const windows = {
         showPreferencesOverlay: () => calls.push(['preferences']),
@@ -80,12 +94,6 @@ function createAdapter(open) {
         'unused',
         sites,
         asViewerRuntime(windows),
-        {
-            open: async (url) => {
-                calls.push(['open', url]);
-                return open();
-            },
-        },
     );
     return {
         calls,
@@ -106,14 +114,16 @@ const source = 'https://www.youtube.com/watch?v=fixture';
 test('Provider browser download hands the URL to the companion without stealing focus', async () => {
     const adapter = createAdapter(async () => ({ opened: true }));
     await adapter.invoke(source);
-    assert.deepEqual(adapter.calls, [['open', source]]);
+    assert.deepEqual(adapter.calls, [
+        ['download', 'third-party.provider', source],
+    ]);
 });
 
 test('missing companion opens and focuses the desktop downloader setup', async () => {
     const adapter = createAdapter(async () => ({ opened: false }));
     await adapter.invoke(source);
     assert.deepEqual(adapter.calls, [
-        ['open', source],
+        ['download', 'third-party.provider', source],
         ['queue', source],
         ['hideOverlay'],
         ['load', 'kawaikara.video'],
@@ -126,7 +136,9 @@ test('companion launch errors propagate to the browser without switching windows
         throw new Error('launch failed');
     });
     await assert.rejects(adapter.invoke(source), /launch failed/);
-    assert.deepEqual(adapter.calls, [['open', source]]);
+    assert.deepEqual(adapter.calls, [
+        ['download', 'third-party.provider', source],
+    ]);
 });
 
 test('approval uses trusted app popup, validates request ID, and disposal rejects pending requests', async (t) => {

@@ -1,3 +1,4 @@
+import { clamp } from '../Math/Scalar';
 import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -596,14 +597,11 @@ export class ExternalBrowserManager {
         browserContext: BrowserContext,
         stabilityMs: number,
     ): Promise<Cookie[]> {
-        const requiredStabilityMs = Math.max(0, Math.min(stabilityMs, 10_000));
+        const requiredStabilityMs = clamp(stabilityMs, 0, 10_000);
         if (requiredStabilityMs === 0) return await browserContext.cookies();
 
         const startedAt = Date.now();
-        const maximumWaitMs = Math.min(
-            10_000,
-            Math.max(2_000, requiredStabilityMs * 4),
-        );
+        const maximumWaitMs = clamp(requiredStabilityMs * 4, 2_000, 10_000);
         let stableSince = startedAt;
         let previousFingerprint: string | undefined;
         let latestCookies: Cookie[] = [];

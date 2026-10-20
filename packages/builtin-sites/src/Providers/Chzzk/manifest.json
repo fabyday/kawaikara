@@ -18,6 +18,7 @@
     "web-extension"
   ],
   "descriptors": {
+    "externalApps": ["day.faby.kawai-downloader"],
     "webExtension": {
       "version": 2,
       "actions": [

@@ -1,11 +1,14 @@
+import type { DevelopmentConnection } from './DevelopmentConnection';
+import { KAWAI_DOWNLOADER_APP_ID } from '../../../Common/Download';
+import type { ExternalAppHost } from './ExternalAppAdapter';
 import { app, dialog, shell } from 'electron';
-import type { AppLocale } from '../../Common/IPC';
-import { getLocaleMessages } from '../Functional/Localization/Locale';
+import type { AppLocale } from '../../../Common/IPC';
+import { getLocaleMessages } from '../Localization/Locale';
 import type {
     ExternalDownloaderInstallResult,
     ExternalDownloaderOpenResult,
     ExternalDownloaderStatus,
-} from '../../Common/Download';
+} from '../../../Common/Download';
 import {
     createExternalDownloaderDeepLink,
     installExternalDownloaderArtifact,
@@ -18,21 +21,27 @@ import {
     getExternalDownloaderPlatform,
     requireExternalDownloaderSourceUrl,
     selectExternalDownloaderArtifact,
-} from '../Platform/ExternalDownloader';
-import { ExternalDownloaderCallbackServer } from '../Functional/External/ExternalDownloaderCallback';
-import type { LoggingManager } from './LoggingManager';
+} from '../../Platform/ExternalDownloader';
+import { ExternalDownloaderCallbackServer } from '../External/ExternalDownloaderCallback';
+import type { LoggingManager } from '../../Manager/LoggingManager';
 
-/** Coordinates external downloader behavior. */
-export class ExternalDownloaderManager {
+/** Companion-specific discovery, installation and authenticated launch adapter. */
+export class YouTubeDownloader {
     /** Scoped logger for installation, launch, and callback lifecycle events. */
     private readonly logger;
     /** Loopback callback endpoint used for bidirectional companion events. */
     private readonly callbacks;
-    /** Reads the current application preference at the start of each operation. */
+    /**
+     * Creates the companion service without starting a listener or launching a process.
+     * @param getLocale - Reads the latest locale before each installation confirmation.
+     * @param logging - Optional application logger; console is used when omitted.
+     * @remarks Application composition shares one instance between the registry adapter and setup UI.
+     */
     constructor(
         /** Reads the current app locale without caching a stale preference. */
         private readonly getLocale: () => AppLocale = () => 'system',
         logging?: LoggingManager,
+        private readonly development?: DevelopmentConnection,
     ) {
         this.logger = logging?.getLogger('externalDownloader') ?? console;
         this.callbacks = new ExternalDownloaderCallbackServer(this.logger);
@@ -40,16 +49,23 @@ export class ExternalDownloaderManager {
     /** The install promise value. */
     private installPromise?: Promise<ExternalDownloaderInstallResult>;
 
-    /** Returns the status. */
+    /**
+     * Requeries the native installation and available installer mechanism.
+     * @param message - Optional presentation detail attached to this snapshot.
+     * @returns Main/UI status including the native launch path; not exposed to Providers.
+     * @throws Propagates unexpected native discovery errors.
+     */
     async getStatus(message?: string): Promise<ExternalDownloaderStatus> {
         const platform = getExternalDownloaderPlatform();
-        const installed = await findInstalledExternalDownloaderApp();
+        const installed: { version?: string; path?: string } | null = this.development
+            ? (this.development.online(KAWAI_DOWNLOADER_APP_ID) ? {} : null)
+            : await findInstalledExternalDownloaderApp();
         return {
             /** The installed value. */
             installed: Boolean(installed),
             /** The automatic install supported value. */
             automaticInstallSupported:
-                getExternalDownloaderInstallMethod() !== 'unsupported',
+                !this.development && getExternalDownloaderInstallMethod() !== 'unsupported',
             /** The platform value. */
             platform,
             /** The version value. */
@@ -57,12 +73,20 @@ export class ExternalDownloaderManager {
             /** The app path value. */
             appPath: installed?.path,
             /** The message value. */
-            message,
+            message: message ?? (this.development && !installed
+                ? getLocaleMessages(this.getLocale(), app.getLocale()).app.externalApps.developmentWaiting
+                : undefined),
         };
     }
 
-    /** Opens the operation. */
-    async open(value: unknown): Promise<ExternalDownloaderOpenResult> {
+    /**
+     * Hands a safe HTTPS source to the companion with request-scoped callback credentials.
+     * @param value - Untrusted source URL; credentials, ports and non-HTTPS URLs are rejected.
+     * @param host - Optional permission-checked invocation resources exposed only over authenticated callbacks.
+     * @returns Opened=false when absent, otherwise a handoff ID, not download completion.
+     * @throws Invalid source, callback startup or launch failures. Failed launches cancel the callback.
+     */
+    async open(value: unknown, host?: ExternalAppHost): Promise<ExternalDownloaderOpenResult> {
         const sourceUrl = requireExternalDownloaderSourceUrl(value);
         const status = await this.getStatus();
         if (!status.installed) {
@@ -77,14 +101,17 @@ export class ExternalDownloaderManager {
             };
         }
 
-        const callback = await this.callbacks.createRequest();
+        const callback = await this.callbacks.createRequest(host);
         const deepLink = createExternalDownloaderDeepLink(sourceUrl, callback);
         this.logger.info('Launching external downloader request.', {
             platform: status.platform,
             requestId: callback.requestId,
         });
         try {
-            await launchExternalDownloader(deepLink, status.appPath);
+            if (this.development) await this.development.launch(
+                KAWAI_DOWNLOADER_APP_ID, deepLink, () => !host || host.hasPermission('source'),
+            );
+            else await launchExternalDownloader(deepLink, status.appPath);
         } catch (error) {
             this.callbacks.cancel(callback.requestId);
             this.logger.error('Failed to launch external downloader.', {
@@ -106,7 +133,13 @@ export class ExternalDownloaderManager {
         };
     }
 
-    /** Installs the operation. */
+    /**
+     * Runs at most one installation confirmation/download operation at a time.
+     * @param value - Optional HTTPS source opened after a successful installation.
+     * @returns Shared in-flight result, including cancellation and native installer launch state.
+     * @throws Validation, download and installation failures; the lock is released on rejection.
+     * @remarks Concurrent callers share the first request, including its source URL.
+     */
     install(value?: unknown): Promise<ExternalDownloaderInstallResult> {
         if (!this.installPromise) {
             this.installPromise = this.installOnce(value).finally(() => {
@@ -116,12 +149,21 @@ export class ExternalDownloaderManager {
         return this.installPromise;
     }
 
-    /** Opens the release page. */
+    /**
+     * Opens the companion release page in the system browser.
+     * @returns Completion of the OS handoff, not page loading.
+     * @throws Propagates OS/browser handoff errors.
+     */
     async openReleasePage(): Promise<void> {
         await shell.openExternal(EXTERNAL_DOWNLOADER_RELEASES_PAGE);
     }
 
-    /** Installs the once. */
+    /**
+     * Performs one user-approved installation and optional source handoff.
+     * @param value - Optional source validated before showing any installation UI.
+     * @returns Cancellation, unsupported-platform or installation/handoff outcome.
+     * @throws Unexpected discovery, release validation, installation and launch errors.
+     */
     private async installOnce(
         value?: unknown,
     ): Promise<ExternalDownloaderInstallResult> {
@@ -148,6 +190,10 @@ export class ExternalDownloaderManager {
                 /** The status value. */
                 status: openResult.status,
             };
+        }
+
+        if (this.development) {
+            return { canceled: false, installerStarted: false, opened: false, status: current };
         }
 
         if (!current.automaticInstallSupported) {

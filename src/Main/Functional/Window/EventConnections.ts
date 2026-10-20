@@ -1,6 +1,17 @@
 import type { EventEmitter } from 'node:events';
 
-/** Captures synchronous event registrations and releases only this connection's listeners. */
+/**
+ * Captures synchronous registrations on one emitter and owns only those listeners.
+ *
+ * @param emitter - Native window or renderer emitter whose registrations are scoped.
+ * @param ended - Lifetime-ending event that automatically releases this scope.
+ * @param connect - Synchronous registration callback; do not defer subscriptions to a promise or timer.
+ * @returns An idempotent disposer that preserves listeners present before connect ran.
+ * @throws The original setup error after registrations made by connect are removed.
+ * @remarks Ownership is determined by comparing listener snapshots, including once wrappers.
+ * This does not own handlers registered through other APIs or on other emitters;
+ * those need their own scopes. Call dispose explicitly when retiring a still-live host.
+ */
 export function ownEventConnections(
     emitter: EventEmitter,
     ended: 'closed' | 'destroyed',
