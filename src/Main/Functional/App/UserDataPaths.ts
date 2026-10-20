@@ -20,33 +20,28 @@ import {
     writeInstalledDataRoot,
 } from '../../Platform/Storage';
 import type { ApplicationDataLocation } from '../../../Common/IPC';
-import {
-    BUILD_CHANNEL,
-    IS_DISTRIBUTION_BUILD,
-    UPDATE_TEST_PROFILE,
-} from '../../../Common/BuildConfig';
 
 /** Stores Electron's unmodified user data path for compatibility migration. */
 const legacyUserDataPath = app.getPath('userData');
 /** Whether this is a local or packaged development application. */
 const isDevelopmentApplication =
-    !IS_DISTRIBUTION_BUILD && UPDATE_TEST_PROFILE === null;
+    !__KAWAIKARA_DISTRIBUTION_BUILD__ && __KAWAIKARA_UPDATE_TEST_PROFILE__ === null;
 /** Stores the active application's display and storage identity. */
 const applicationIdentity = isDevelopmentApplication
     ? applicationIdentities.dev
-    : applicationIdentities[BUILD_CHANNEL];
+    : applicationIdentities[__KAWAIKARA_BUILD_CHANNEL__];
 
-if (!UPDATE_TEST_PROFILE) app.setName(applicationIdentity.productName);
+if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) app.setName(applicationIdentity.productName);
 
 /** Stores the user root path value. */
 const defaultUserRootPath =
-    UPDATE_TEST_PROFILE?.stateRoot ??
+    __KAWAIKARA_UPDATE_TEST_PROFILE__?.stateRoot ??
     (isDevelopmentApplication && !app.isPackaged
         ? path.join(app.getAppPath(), 'tmp', 'kawaikara Dev')
         : path.join(app.getPath('appData'), applicationIdentity.productName));
 /** Only packaged Windows apps consume installer preferences; local dev and tests stay isolated. */
 const customUserRootPath =
-    supportsCustomDataLocation() && app.isPackaged && !UPDATE_TEST_PROFILE
+    supportsCustomDataLocation() && app.isPackaged && !__KAWAIKARA_UPDATE_TEST_PROFILE__
         ? readInstalledDataRoot(
               app.getPath('appData'),
               applicationIdentity.appId,
@@ -59,11 +54,11 @@ const userRootPath = customUserRootPath ?? defaultUserRootPath;
 /** Stores the pre-identity-split channel path when one could exist. */
 const legacyChannelUserRootPath =
     !isDevelopmentApplication &&
-    !UPDATE_TEST_PROFILE &&
-    BUILD_CHANNEL !== 'stable'
+    !__KAWAIKARA_UPDATE_TEST_PROFILE__ &&
+    __KAWAIKARA_BUILD_CHANNEL__ !== 'stable'
         ? path.join(
               path.dirname(legacyUserDataPath),
-              `${path.basename(legacyUserDataPath)} ${capitalize(BUILD_CHANNEL)}`,
+              `${path.basename(legacyUserDataPath)} ${capitalize(__KAWAIKARA_BUILD_CHANNEL__)}`,
           )
         : null;
 /** Stores the Electron data path value. */
@@ -86,7 +81,7 @@ export function getApplicationDataLocation():
         /** Standard storage location for this channel. */
         defaultPath: defaultUserRootPath,
         /** Local source and update fixtures must remain isolated. */
-        canChange: app.isPackaged && !UPDATE_TEST_PROFILE,
+        canChange: app.isPackaged && !__KAWAIKARA_UPDATE_TEST_PROFILE__,
     };
 }
 
@@ -210,8 +205,8 @@ export async function initializeUserDataLayout(): Promise<void> {
         mkdir(kawaiDataPath, { recursive: true }),
     ]);
     if (
-        BUILD_CHANNEL === 'stable' &&
-        !UPDATE_TEST_PROFILE &&
+        __KAWAIKARA_BUILD_CHANNEL__ === 'stable' &&
+        !__KAWAIKARA_UPDATE_TEST_PROFILE__ &&
         (!customUserRootPath || customUserRootPath === defaultUserRootPath)
     ) {
         await Promise.all(

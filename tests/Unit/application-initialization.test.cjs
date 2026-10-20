@@ -15,7 +15,6 @@ function fixture(whenReady, updateProfile) {
         },
         '@kawaikara/builtin-sites': {},
         'node:fs/promises': { rm: async () => {} },
-        '../../../Common/BuildConfig': { UPDATE_TEST_PROFILE: updateProfile },
         '../../Platform/Presentation': {
             restoreApplicationPresentation: async () =>
                 calls.push('presentation'),
@@ -42,6 +41,7 @@ function fixture(whenReady, updateProfile) {
         platform: 'node',
         format: 'cjs',
         write: false,
+        define: { __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateProfile ?? null) },
         external: Object.keys(mocks),
     }).outputFiles[0].text;
     const module = { exports: {} };

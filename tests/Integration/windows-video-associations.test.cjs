@@ -6,17 +6,17 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const { buildSync } = require('esbuild');
 
-function load(file, mocks = {}, platform = process.platform) {
+function load(file, mocks = {}, platform = process.platform, updateProfile = null) {
     const source = buildSync({
         entryPoints: [path.resolve(__dirname, '../..', file)],
         bundle: true,
         write: false,
+        define: { __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateProfile) },
         platform: 'node',
         format: 'cjs',
         external: [
             'electron',
             './UserDataPaths',
-            '../../../Common/BuildConfig',
         ],
     }).outputFiles[0].text;
     const module = { exports: {} };
@@ -37,7 +37,6 @@ test('local handoff validates before queueing and reuses the retained video surf
         'src/Main/Functional/App/ApplicationPostInitialization.ts',
         {
             electron: {},
-            '../../../Common/BuildConfig': {},
             './UserDataPaths': {},
         },
     );
@@ -104,9 +103,6 @@ test('default app settings target this installed channel in the registered scope
                     },
                     shell: { openExternal: async (url) => opened.push(url) },
                 },
-                '../../../Common/BuildConfig': {
-                    UPDATE_TEST_PROFILE: undefined,
-                },
                 'node:child_process': {
                     execFile: (exe, args, options, callback) => {
                         queries.push(args);
@@ -152,9 +148,9 @@ test('default app settings target this installed channel in the registered scope
                             assert.fail('must not launch settings'),
                     },
                 },
-                '../../../Common/BuildConfig': { UPDATE_TEST_PROFILE: profile },
             },
             platform,
+            profile ?? null,
         );
         assert.equal(settings.canConfigureDefaultVideoApp(), false);
         await assert.rejects(

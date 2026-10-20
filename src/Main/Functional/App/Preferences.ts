@@ -4,10 +4,7 @@ import {
     validateAppWindowLastPosition,
 } from '../../../Common/AppWindow';
 import { readFileSync } from 'node:fs';
-import {
-    BUILD_CHANNEL,
-    type ReleaseChannel,
-} from '../../../Common/BuildConfig';
+import type { ReleaseChannel } from '../../../Common/BuildConfig';
 import type {
     AppLocale,
     AppTheme,
@@ -63,7 +60,7 @@ export const DEFAULT_PREFERENCES: PreferenceState = {
     /** The automatic updates value. */
     automaticUpdates: false,
     /** The update channel value. */
-    updateChannel: BUILD_CHANNEL,
+    updateChannel: __KAWAIKARA_BUILD_CHANNEL__,
     /** The default site ID value. */
     defaultSiteId: 'kawaikara.youtube',
     /** The dev tools mode value. */
@@ -486,7 +483,7 @@ function validateProviderSettings(
 
 /** Resolves the update channel. */
 function resolveUpdateChannel(_value: unknown): ReleaseChannel {
-    return BUILD_CHANNEL;
+    return __KAWAIKARA_BUILD_CHANNEL__;
 }
 
 /** Determines whether the app locale condition applies. */

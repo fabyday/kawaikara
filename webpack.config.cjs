@@ -2,19 +2,10 @@ const path = require('node:path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 const { loadLocalEnvironment } = require('./scripts/lib/env.cjs');
+const { createBuildDefinitions } = require('./scripts/lib/build-definitions.cjs');
 
 const root = __dirname;
 loadLocalEnvironment(root);
-const RELEASE_CHANNELS = ['stable', 'staging', 'nightly'];
-
-function resolveBuildChannel() {
-  const channel = process.env.KAWAIKARA_BUILD_CHANNEL || 'nightly';
-  if (!RELEASE_CHANNELS.includes(channel)) {
-    throw new Error(`Unknown KAWAIKARA_BUILD_CHANNEL: ${channel}`);
-  }
-  return channel;
-}
-
 const typescriptRule = {
   test: /\.tsx?$/,
   exclude: /node_modules/,
@@ -23,6 +14,8 @@ const typescriptRule = {
     options: {
       configFile: path.join(root, 'tsconfig.json'),
       transpileOnly: true,
+      // Preserve import/export so Webpack can tree-shake across source modules.
+      compilerOptions: { module: 'ESNext' },
     },
   },
 };
@@ -35,6 +28,8 @@ function createCommon(mode) {
     extensions: ['.tsx', '.ts', '.jsx', '.js'],
   },
   module: {
+    // Providers and native addons are loaded from user/runtime paths by Node.
+    parser: { javascript: { createRequire: false } },
     rules: [typescriptRule],
   },
   };
@@ -43,25 +38,7 @@ function createCommon(mode) {
 module.exports = (_environment, arguments_) => {
   const mode = arguments_.mode || process.env.NODE_ENV || 'production';
   const common = createCommon(mode);
-  const buildChannel = resolveBuildChannel();
-  const updateTest = process.env.KAWAIKARA_UPDATE_TEST_BUILD === '1';
-  const testPort = Number(process.env.KAWAIKARA_UPDATE_TEST_PORT || 18080);
-  if (updateTest && (!Number.isInteger(testPort) || testPort < 1 || testPort > 65535)) {
-    throw new Error('Invalid KAWAIKARA_UPDATE_TEST_PORT.');
-  }
-  const buildDefinitions = new webpack.DefinePlugin({
-    __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify(buildChannel),
-    __KAWAIKARA_DISTRIBUTION_BUILD__: JSON.stringify(
-      process.env.KAWAIKARA_DISTRIBUTION_BUILD === '1',
-    ),
-    __KAWAIKARA_DISCORD_APP_ID__: JSON.stringify(
-      updateTest ? '' : process.env.DISCORD_APP_ID || '',
-    ),
-    __KAWAIKARA_UPDATE_TEST_PROFILE__: JSON.stringify(updateTest ? {
-      stateRoot: path.join(root, 'tests/Release/state/nightly'),
-      feedUrl: `http://127.0.0.1:${testPort}/`,
-    } : null),
-  });
+  const buildDefinitions = new webpack.DefinePlugin(createBuildDefinitions(root));
 
   return [
   {
@@ -88,6 +65,7 @@ module.exports = (_environment, arguments_) => {
   {
     ...common,
     name: 'preload',
+    plugins: [buildDefinitions],
     target: 'electron-preload',
     entry: {
       preload: path.join(root, 'src/Preload/Preload.ts'),
@@ -129,6 +107,7 @@ module.exports = (_environment, arguments_) => {
       clean: true,
     },
     module: {
+      ...common.module,
       rules: [
         typescriptRule,
         {
@@ -145,6 +124,7 @@ module.exports = (_environment, arguments_) => {
       ],
     },
     plugins: [
+      buildDefinitions,
       new HtmlWebpackPlugin({
         template: path.join(root, 'src/Renderer/View/LogViewer/Index.html'),
         filename: 'log-viewer.html',

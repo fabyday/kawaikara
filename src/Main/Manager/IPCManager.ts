@@ -16,7 +16,6 @@ import {
     type IpcChannel,
     type PreferencePatch,
 } from '../../Common/IPC';
-import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import type { ProviderManager } from './ProviderManager';
 import type { WindowManager } from './WindowManager';
 import type { PreferenceManager } from './PreferenceManager';
@@ -181,7 +180,7 @@ export class IpcManager {
             chromeVersion: process.versions.chrome,
             platform: getOperatingSystemLabel(),
             arch: process.arch,
-            buildChannel: BUILD_CHANNEL,
+            buildChannel: __KAWAIKARA_BUILD_CHANNEL__,
             updateChannelLocked: true,
         }));
         ipcMain.handle(

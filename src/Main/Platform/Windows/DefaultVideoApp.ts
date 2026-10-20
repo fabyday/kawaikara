@@ -2,14 +2,13 @@ import { app, shell } from 'electron';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { UPDATE_TEST_PROFILE } from '../../../Common/BuildConfig';
 
 /** Reads registration scope without changing any Windows association. */
 const queryRegistry = promisify(execFile);
 
 /** Source runs and isolated updater fixtures must never claim installed application defaults. */
 export function canConfigureDefaultVideoApp(): boolean {
-    return app.isPackaged && !UPDATE_TEST_PROFILE;
+    return app.isPackaged && !__KAWAIKARA_UPDATE_TEST_PROFILE__;
 }
 
 /** Opens the OS-owned consent UI for this channel, not whichever channel owns the URL protocol. */

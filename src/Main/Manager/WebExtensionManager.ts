@@ -2,7 +2,6 @@ import { listSupportedBrowsers, openBrowser, openSelectedBrowser } from '../Plat
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import { BUILD_CHANNEL, IS_DISTRIBUTION_BUILD } from '../../Common/BuildConfig';
 import { getLocaleMessages } from '../Functional/Localization/Locale';
 import type { AppLocale } from '../../Common/IPC';
 import { app, clipboard, shell, dialog } from 'electron';
@@ -33,7 +32,7 @@ export class WebExtensionManager {
     ) {
         this.bridge = new WebExtensionBridge({
             statePath,
-            development: !IS_DISTRIBUTION_BUILD,
+            development: !__KAWAIKARA_DISTRIBUTION_BUILD__,
             pageLabels: () =>
                 getLocaleMessages(getLocale(), app.getLocale()).app
                     .webExtension,
@@ -59,7 +58,7 @@ export class WebExtensionManager {
             desktop: {
                 name: app.getName(),
                 version: app.getVersion(),
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 runtime: app.isPackaged ? 'packaged' : 'development',
                 appPath: app.getAppPath(),
                 profileId: createHash('sha256')

@@ -2,13 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import {
-    BUILD_CHANNEL,
-    IS_DISTRIBUTION_BUILD,
-    UPDATE_TEST_PROFILE,
-    UPDATE_REPOSITORIES,
-    toUpdaterChannel,
-} from '../../Common/BuildConfig';
+import { UPDATE_REPOSITORIES, toUpdaterChannel } from '../../Common/BuildConfig';
 import type {
     ApplicationUpdateCheckResult,
     ApplicationUpdatePanelState,
@@ -93,30 +87,30 @@ export class UpdateManager {
     /** Applies the build channel. */
     private applyBuildChannel(): void {
         const localFeed = resolveLocalUpdateFeed(
-            UPDATE_TEST_PROFILE?.feedUrl ??
+            __KAWAIKARA_UPDATE_TEST_PROFILE__?.feedUrl ??
                 process.env.KAWAIKARA_LOCAL_UPDATE_URL,
         );
         if (localFeed) {
             autoUpdater.setFeedURL({
                 provider: 'generic',
                 url: localFeed,
-                channel: toUpdaterChannel(BUILD_CHANNEL),
+                channel: toUpdaterChannel(__KAWAIKARA_BUILD_CHANNEL__),
                 useMultipleRangeRequest: false,
             });
             this.updateLog.info(
-                `Using local ${BUILD_CHANNEL} update feed: ${localFeed}`,
+                `Using local ${__KAWAIKARA_BUILD_CHANNEL__} update feed: ${localFeed}`,
             );
         } else {
-            const repository = UPDATE_REPOSITORIES[BUILD_CHANNEL];
+            const repository = UPDATE_REPOSITORIES[__KAWAIKARA_BUILD_CHANNEL__];
             autoUpdater.setFeedURL({
                 provider: 'github',
                 owner: repository.owner,
                 repo: repository.repo,
-                channel: toUpdaterChannel(BUILD_CHANNEL),
+                channel: toUpdaterChannel(__KAWAIKARA_BUILD_CHANNEL__),
             });
         }
-        autoUpdater.channel = toUpdaterChannel(BUILD_CHANNEL);
-        autoUpdater.allowPrerelease = BUILD_CHANNEL !== 'stable';
+        autoUpdater.channel = toUpdaterChannel(__KAWAIKARA_BUILD_CHANNEL__);
+        autoUpdater.allowPrerelease = __KAWAIKARA_BUILD_CHANNEL__ !== 'stable';
         // A package can only advance inside the repository/channel it was built
         // for. Cross-channel upgrades and downgrades are intentionally disabled.
         autoUpdater.allowDowngrade = false;
@@ -301,7 +295,7 @@ export class UpdateManager {
         const checkingState: ApplicationUpdatePanelState = {
             phase: 'checking',
             origin,
-            channel: BUILD_CHANNEL,
+            channel: __KAWAIKARA_BUILD_CHANNEL__,
             currentVersion,
         };
         if (origin === 'manual') {
@@ -312,11 +306,11 @@ export class UpdateManager {
             this.currentState = checkingState;
         }
 
-        if (!app.isPackaged || !IS_DISTRIBUTION_BUILD) {
+        if (!app.isPackaged || !__KAWAIKARA_DISTRIBUTION_BUILD__) {
             const unsupported: ApplicationUpdatePanelState = {
                 phase: 'unsupported',
                 origin,
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 currentVersion,
             };
             this.finishCheckState(unsupported);
@@ -324,7 +318,7 @@ export class UpdateManager {
                 /** The status value. */
                 status: 'unsupported',
                 /** The channel value. */
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 /** The current version value. */
                 currentVersion,
             };
@@ -337,7 +331,7 @@ export class UpdateManager {
             const checkedState: ApplicationUpdatePanelState = {
                 phase: signal.available ? 'available' : 'up-to-date',
                 origin,
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 currentVersion,
                 latestVersion: signal.version,
                 releaseNotes: signal.releaseNotes,
@@ -358,7 +352,7 @@ export class UpdateManager {
                 /** The status value. */
                 status: signal.available ? 'update-available' : 'up-to-date',
                 /** The channel value. */
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 /** The current version value. */
                 currentVersion,
                 /** The latest version value. */
@@ -371,7 +365,7 @@ export class UpdateManager {
             const failedState: ApplicationUpdatePanelState = {
                 phase: 'error',
                 origin,
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 currentVersion,
                 error,
                 errorStage: 'check',
@@ -382,7 +376,7 @@ export class UpdateManager {
                 /** The status value. */
                 status: 'error',
                 /** The channel value. */
-                channel: BUILD_CHANNEL,
+                channel: __KAWAIKARA_BUILD_CHANNEL__,
                 /** The current version value. */
                 currentVersion,
                 /** The error value. */
@@ -564,11 +558,11 @@ export class UpdateManager {
 
     /** Exposes test-only phase diagnostics without adding a production IPC/debug endpoint. */
     private recordTestState(state: ApplicationUpdatePanelState): void {
-        if (!UPDATE_TEST_PROFILE) return;
+        if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) return;
         try {
             writeFileSync(
                 path.join(
-                    UPDATE_TEST_PROFILE.stateRoot,
+                    __KAWAIKARA_UPDATE_TEST_PROFILE__.stateRoot,
                     'KawaiData/update-test-status.json',
                 ),
                 JSON.stringify({

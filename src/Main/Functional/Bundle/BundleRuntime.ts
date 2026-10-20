@@ -37,7 +37,6 @@ import {
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { AppLocale, BundleInfo } from '../../../Common/IPC';
-import { BUILD_CHANNEL } from '../../../Common/BuildConfig';
 import {
     optionalBoundedString,
     requireBoundedString,
@@ -441,7 +440,7 @@ export async function resolveBundleUpdateUrl(
             ? definition.url
             : await definition.resolve({
                   currentVersion,
-                  channel: BUILD_CHANNEL,
+                  channel: __KAWAIKARA_BUILD_CHANNEL__,
                   platform: process.platform,
                   arch: process.arch,
               });

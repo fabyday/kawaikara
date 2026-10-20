@@ -2,7 +2,6 @@ import { app } from 'electron';
 import type { AppLocale } from '../../Common/IPC';
 import { getLocaleMessages } from '../Functional/Localization/Locale';
 import * as DiscordRpc from 'discord-rpc';
-import { DISCORD_APP_ID } from '../../Common/BuildConfig';
 
 /** Publishes Kawaikara's current viewing state through Discord Rich Presence. */
 export class DiscordPresenceManager {
@@ -19,8 +18,8 @@ export class DiscordPresenceManager {
 
     /** Connects to Discord and publishes the Kawaikara viewing activity. */
     async start(): Promise<void> {
-        if (!DISCORD_APP_ID || this.client) {
-            if (!DISCORD_APP_ID) {
+        if (!__KAWAIKARA_DISCORD_APP_ID__ || this.client) {
+            if (!__KAWAIKARA_DISCORD_APP_ID__) {
                 console.info(
                     'Discord Rich Presence is disabled: DISCORD_APP_ID is not set.',
                 );
@@ -61,7 +60,7 @@ export class DiscordPresenceManager {
         });
 
         try {
-            await client.login({ clientId: DISCORD_APP_ID });
+            await client.login({ clientId: __KAWAIKARA_DISCORD_APP_ID__ });
         } catch (error) {
             console.info('Discord Rich Presence is unavailable.', error);
             await this.dispose();

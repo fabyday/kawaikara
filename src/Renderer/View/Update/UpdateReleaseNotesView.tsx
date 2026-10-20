@@ -1,6 +1,5 @@
 import {
   Badge,
-  Button,
   Flex,
   Head,
   Panel,
@@ -12,6 +11,7 @@ import type {
 } from '../../../Common/IPC';
 import { UpdatePanelLabels } from './Types';
 import { formatChannel, versionSummary } from './UpdatePresentation';
+import { BackIconButton } from '../../Component/BackIconButton';
 
 /** Updates the release notes view. */
 export function UpdateReleaseNotesView({
@@ -39,9 +39,7 @@ export function UpdateReleaseNotesView({
       >
         <div className="update-release-notes-layout">
           <Flex className="update-release-notes-header" align="center" gap="md">
-            <Button aria-label={labels.back} variant="ghost" onClick={onBack}>
-              <span aria-hidden="true">←</span>
-            </Button>
+            <BackIconButton label={labels.back} onClick={onBack} />
             <Stack gap="xs">
               <Head level={1} size="lg">{labels.releaseNotes}</Head>
               <Text size="sm" tone="muted">

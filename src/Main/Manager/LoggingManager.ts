@@ -16,7 +16,6 @@ import { randomUUID } from 'node:crypto';
 import { app, dialog, shell, type WebContents } from 'electron';
 import log from 'electron-log/main';
 import { KAWAIKARA_SITE_API_VERSION } from '@kawaikara/site-api';
-import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import type {
     ApplicationLogDocument,
     ApplicationLogDeleteResult,
@@ -1187,7 +1186,7 @@ function createLogMetadata(
         /** The application version value. */
         version: app.getVersion(),
         /** The release channel value. */
-        channel: BUILD_CHANNEL,
+        channel: __KAWAIKARA_BUILD_CHANNEL__,
         /** The operating system label value. */
         platform: getOperatingSystemLabel(),
         /** The processor architecture value. */

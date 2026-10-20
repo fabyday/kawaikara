@@ -9,7 +9,6 @@ function createAdapter(open) {
     const calls = [];
     const mocks = {
         electron: {app:{getName:()=> 'Test', getVersion:()=> '0.1.0', getAppPath:()=> '/test',isPackaged:false,focus:()=>{} }},
-        '../../Common/BuildConfig': {BUILD_CHANNEL:'nightly', IS_DISTRIBUTION_BUILD:false},
         '../Functional/Localization/Locale': {},
         '../Functional/ExternalApps/WebExtensionBridge': {
             WebExtensionBridge: class {
@@ -26,6 +25,10 @@ function createAdapter(open) {
     loaded._compile(buildSync({
         entryPoints: [filename], bundle: true, write: false,
         platform: 'node', format: 'cjs', external: Object.keys(mocks),
+        define: {
+            __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify('nightly'),
+            __KAWAIKARA_DISTRIBUTION_BUILD__: 'false',
+        },
     }).outputFiles[0].text, filename);
     const sites = {
         listWebExtensionProviders: () => [{

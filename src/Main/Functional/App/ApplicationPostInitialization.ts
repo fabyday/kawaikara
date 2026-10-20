@@ -2,7 +2,6 @@ import type { ApplicationLifecycleManager } from '../../Manager/ApplicationLifec
 import type { InitializedApplication } from './ApplicationInitialization';
 import { app } from 'electron';
 import { writeFile } from 'node:fs/promises';
-import { UPDATE_TEST_PROFILE } from '../../../Common/BuildConfig';
 import { getKawaiDataPath } from './UserDataPaths';
 import type { ExternalOpenRequest } from '../External/ExternalOpen';
 
@@ -75,7 +74,7 @@ export async function postInitializeApplication(
           )
         : false;
     if (!resolvedStartupRequest) {
-        const configuredSite = UPDATE_TEST_PROFILE
+        const configuredSite = __KAWAIKARA_UPDATE_TEST_PROFILE__
             ? 'kawaikara.video'
             : preferences.get().defaultSiteId;
         await sites.load(
@@ -98,7 +97,7 @@ export async function postInitializeApplication(
         windows.showOverlay();
     }
 
-    if (UPDATE_TEST_PROFILE) {
+    if (__KAWAIKARA_UPDATE_TEST_PROFILE__) {
         // The smoke runner checks this after a real ShipIt/NSIS relaunch, not just
         // the installed bundle's version or a successful download event.
         await writeFile(
@@ -107,8 +106,8 @@ export async function postInitializeApplication(
                 pid: process.pid,
                 version: app.getVersion(),
                 execPath: process.execPath,
-                stateRoot: UPDATE_TEST_PROFILE.stateRoot,
-                feedUrl: UPDATE_TEST_PROFILE.feedUrl,
+                stateRoot: __KAWAIKARA_UPDATE_TEST_PROFILE__.stateRoot,
+                feedUrl: __KAWAIKARA_UPDATE_TEST_PROFILE__.feedUrl,
                 startedAt: new Date().toISOString(),
             }),
         );

@@ -8,6 +8,7 @@ import type {
     PreferenceState,
 } from '../../../../Common/IPC';
 import { ProviderItemListSetting } from '../Bundles/ProviderItemListSetting';
+import { BackIconButton } from '../../../Component/BackIconButton';
 import {
     getProviderBooleanSetting,
     onUpdateProviderSetting,
@@ -78,13 +79,10 @@ export function BundlesTab({
         return (
             <Stack className="bundle-detail" gap="lg">
                 <Flex align="center" gap="sm">
-                    <Button
-                        aria-label={messages.backToBundles}
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setSelectedBundleId(undefined)}>
-                        <span aria-hidden="true">←</span>
-                    </Button>
+                    <BackIconButton
+                        label={messages.backToBundles}
+                        onClick={() => setSelectedBundleId(undefined)}
+                    />
                     <div className="bundle-heading-copy">
                         <Text
                             className="preference-section-title"

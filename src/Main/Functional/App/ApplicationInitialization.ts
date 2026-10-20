@@ -1,7 +1,6 @@
 import { WebExtensionManager } from '../../Manager/WebExtensionManager';
 import { restoreApplicationPresentation } from '../../Platform/Presentation';
 import { app, components } from 'electron';
-import { UPDATE_TEST_PROFILE } from '../../../Common/BuildConfig';
 import { builtinBundle } from '@kawaikara/builtin-sites';
 import { rm } from 'node:fs/promises';
 import {
@@ -62,7 +61,7 @@ export async function initializeApplication(
 
     // Castlabs ECS installs or updates Widevine on first launch. Viewer creation
     // must wait so DRM providers never start without the component.
-    if (!UPDATE_TEST_PROFILE)
+    if (!__KAWAIKARA_UPDATE_TEST_PROFILE__)
         await components.whenReady([components.WIDEVINE_CDM_ID]);
 
     const managers = createApplicationManagerContainer({
@@ -129,9 +128,9 @@ export async function initializeApplication(
         managers.resolve(MANAGER_TOKENS.downloads),
         () => preferences.get().appLocale,
     );
-    if (!UPDATE_TEST_PROFILE) await webExtension.start();
+    if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) await webExtension.start();
     const ipc = managers.resolve(MANAGER_TOKENS.ipc);
-    if (!UPDATE_TEST_PROFILE) ipc.setWebExtensionManager(webExtension);
+    if (!__KAWAIKARA_UPDATE_TEST_PROFILE__) ipc.setWebExtensionManager(webExtension);
     ipc.initialize();
 
     return {

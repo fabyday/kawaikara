@@ -46,7 +46,6 @@ import type {
     BundleRemoveResult,
     BundleUpdateResult,
 } from '../../Common/IPC';
-import { BUILD_CHANNEL } from '../../Common/BuildConfig';
 import {
     optionalBoundedString,
     requireBoundedString,
