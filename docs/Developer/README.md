@@ -24,6 +24,10 @@ The documentation distinguishes shipped behavior from incomplete design work. A 
 - [Bundle development host](./Plugins/3.Development.md): in-app builds, hot reload, local projects, and VS Code attach debugging
 - [Bundle packaging and distribution](./Plugins/4.Packaging.md): `.kawai` installation, validation, and the trust boundary
 
+## External app development
+
+- [External app developer guide](./ExternalApps/README.md) ([한국어](./i18n/ko/ExternalApps/README.md)): distribution manifests, OS-specific installation, adapters, permissions, local testing and release checks
+
 ## Implemented features
 
 - [Built-in integrations](./Features/1.BuiltInSites.md): bundled sites and the site-specific compatibility behavior currently implemented

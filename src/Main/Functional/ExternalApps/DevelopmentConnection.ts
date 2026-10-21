@@ -8,15 +8,11 @@ import type { ExternalAppIconCache } from './ExternalAppIconCache';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { externalAppConnectionDirectory } from './ConnectionDirectories';
 import path from 'node:path';
 
 /** Private per-user discovery directory. Production apps never publish here. */
-export const DEVELOPMENT_DISCOVERY_DIRECTORY = path.join(
-    homedir(),
-    '.kawaikara',
-    'development-connections',
-);
+export const DEVELOPMENT_DISCOVERY_DIRECTORY = externalAppConnectionDirectory(true);
 
 /** Durable binding to one approved development environment, never sent to Renderer. */
 interface Binding {

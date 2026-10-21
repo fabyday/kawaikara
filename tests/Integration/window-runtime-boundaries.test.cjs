@@ -440,3 +440,9 @@ test('site bindings read current Provider policy and intercept only application 
         'PiP policy is evaluated only for committed main-frame routes',
     );
 });
+
+test('external app modal owns Escape and ordinary keys without triggering site shortcuts', () => {
+    assert.equal(resolveWindowInput(key('Escape'), state({ overlay: 'external-app', editing: true })), 'back');
+    assert.equal(resolveWindowInput(key('Tab'), state({ overlay: 'external-app' })), 'renderer');
+    assert.equal(resolveWindowInput(key('p'), state({ overlay: 'external-app' })), 'renderer');
+});

@@ -48,6 +48,13 @@ installEditableFocusReporter();
 
 /** Stores the API value. */
 const api: KawaikaraRendererApi = {
+  /** Public app lookup and actions from the trusted application frame. */
+  appDistribution: {
+    /** Previews a manifest without installing or registering its app. */
+    preview: (url, expectedId) => ipcRenderer.invoke(IPC_CHANNELS.application.appDistribution, 'preview', url, expectedId),
+    /** Performs an explicit action against a Main-owned preview. */
+    act: (token, action) => ipcRenderer.invoke(IPC_CHANNELS.application.appDistribution, action, token),
+  },
   /** Fixed presentation API; no arbitrary window options cross the bridge. */
   logViewer: {
     /** Passes a fixed command to the owning Main manager. */
@@ -345,7 +352,18 @@ const api: KawaikaraRendererApi = {
         targetPath,
       ) as Promise<string | undefined>,
   },
-  /** The overlay value. */
+  /** Companion actions through the trusted application preload. */
+  downloads: {
+    /** Queries local companion availability. */
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.downloads.status),
+    /** Requests the built-in installer and its explicit confirmation. */
+    install: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.install, url),
+    /** Opens a source through the existing Main permission flow. */
+    open: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.open, url),
+    /** Opens the built-in adapter release page. */
+    openReleasePage: () => ipcRenderer.invoke(IPC_CHANNELS.downloads.openReleasePage),
+  },
+  /** Presentation events from Main and overlay dismissal. */
   overlay: {
     /** The close value. */
     close: () => ipcRenderer.invoke(IPC_CHANNELS.overlay.close),
@@ -376,6 +394,13 @@ const api: KawaikaraRendererApi = {
       ) => handler(state as ApplicationUpdatePanelState);
       ipcRenderer.on(IPC_CHANNELS.overlay.showUpdate, listener);
       return () => ipcRenderer.off(IPC_CHANNELS.overlay.showUpdate, listener);
+    },
+    /** Delivers only Main-authored external-app setup requests. */
+    onShowExternalApp: (handler) => {
+      /** Forwards a Main setup event; removed on unsubscribe. */
+      const listener = (_event: Electron.IpcRendererEvent, request: import('../Common/Download').ExternalAppSetupRequest) => handler(request);
+      ipcRenderer.on(IPC_CHANNELS.overlay.showExternalApp, listener);
+      return () => ipcRenderer.off(IPC_CHANNELS.overlay.showExternalApp, listener);
     },
     /** The on request close value. */
     onRequestClose: (handler) => {

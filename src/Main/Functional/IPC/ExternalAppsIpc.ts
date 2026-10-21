@@ -1,3 +1,4 @@
+import { launchManualConnection } from '../ExternalApps/ManualConnection';
 import type { ExternalAppProviderGrant } from '../../../Common/ExternalApps';
 import type { ProviderManager } from '../../Manager/ProviderManager';
 import { IPC_CHANNELS } from '../../../Common/IPC';
@@ -57,6 +58,8 @@ export function connectExternalAppsIpc(
                         descriptor,
                         grant,
                     );
+                } else if (operation === 'launch') {
+                    await launchManualConnection();
                 } else if (operation === 'connect') {
                     if (
                         typeof id !== 'string' ||

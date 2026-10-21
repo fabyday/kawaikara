@@ -611,6 +611,7 @@ export function validateProviderManifestDescriptors(
     }
     const allowed = new Set([
         'externalApps',
+        'externalAppManifests',
         'fileDrop',
         'webExtension',
         'address',

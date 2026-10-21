@@ -1,3 +1,4 @@
+import type { ExternalAppSetupRequest } from '../../../../Common/Download';
 import { useReducedMotion } from 'motion/react';
 import {
   useRef,
@@ -71,6 +72,8 @@ export function useMenuState() {
   const [addressCopied, setAddressCopied] = useState(false);
 
   const [previewTheme, setPreviewTheme] = useState<AppTheme>();
+
+  const [externalAppRequest, setExternalAppRequest] = useState<ExternalAppSetupRequest>();
 
   const [updateState, setUpdateState] = useState<ApplicationUpdatePanelState>();
 
@@ -209,6 +212,10 @@ export function useMenuState() {
     previewTheme,
     /** The setPreviewTheme value. */
     setPreviewTheme,
+    /** The Main-authored companion setup request. */
+    externalAppRequest,
+    /** Updates the current setup request. */
+    setExternalAppRequest,
     /** The updateState value. */
     updateState,
     /** The setUpdateState value. */

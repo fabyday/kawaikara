@@ -1,9 +1,8 @@
-import { DevelopmentConnection } from '../Functional/ExternalApps/DevelopmentConnection';
-import { KAWAI_DOWNLOADER_APP_ID } from '../../Common/Download';
+import { useDevelopmentExternalApps } from '../Functional/ExternalApps/ConnectionMode';
+import type { DevelopmentConnection } from '../Functional/ExternalApps/DevelopmentConnection';
 import { readExternalAppCookies } from '../Functional/ExternalApps/ExternalAppCookies';
 import path from 'node:path';
-import { app, nativeImage } from 'electron';
-import { ExternalAppIconCache } from '../Functional/ExternalApps/ExternalAppIconCache';
+import { app } from 'electron';
 import { ExternalAppPermissions } from '../Functional/ExternalApps/ExternalAppPermissions';
 import { ExternalAppManager } from '../Manager/ExternalAppManager';
 import { createYouTubeDownloaderAdapter } from '../Functional/ExternalApps/YouTubeDownloaderAdapter';
@@ -97,6 +96,7 @@ export interface ApplicationManagerOptions {
 export function createApplicationManagerContainer(
     options: ApplicationManagerOptions,
 ): ManagerContainer {
+    const developmentExternalApps = __KAWAIKARA_EXTERNAL_APP_TESTING__ && useDevelopmentExternalApps(app.isPackaged, process.env.KAWAIKARA_EXTERNAL_APP_MODE);
     const managers = new ManagerContainer();
 
     managers
@@ -177,18 +177,13 @@ export function createApplicationManagerContainer(
                 resolver.resolve(MANAGER_TOKENS.preferences),
             ),
         )
-        .registerSingleton(MANAGER_TOKENS.developmentConnection, () =>
-            new DevelopmentConnection(
-                path.join(path.dirname(options.preferenceFilePath), 'external-app-development-connections.json'),
-                [KAWAI_DOWNLOADER_APP_ID],
-                undefined,
-                new ExternalAppIconCache(path.join(path.dirname(options.preferenceFilePath), 'external-app-icons-development.json'), bytes => {
-                    const image = nativeImage.createFromBuffer(bytes);
-                    if (image.isEmpty()) throw new Error('Invalid app icon pixels.');
-                    return image.resize({ width: 64, height: 64 }).toPNG();
-                }),
-            ),
-        )
+        .registerSingleton(MANAGER_TOKENS.developmentConnection, () => {
+            if (__KAWAIKARA_EXTERNAL_APP_TESTING__) {
+                const { createDevelopmentConnection } = require('../Functional/ExternalApps/DevelopmentConnectionFactory') as typeof import('../Functional/ExternalApps/DevelopmentConnectionFactory');
+                return createDevelopmentConnection(path.dirname(options.preferenceFilePath));
+            }
+            throw new Error('External app test transport is not available in this build.');
+        })
         .registerSingleton(
             MANAGER_TOKENS.youtubeDownloader,
             (resolver) =>
@@ -197,7 +192,7 @@ export function createApplicationManagerContainer(
                         resolver.resolve(MANAGER_TOKENS.preferences).get()
                             .appLocale,
                     resolver.resolve(MANAGER_TOKENS.logging),
-                    app.isPackaged ? undefined : resolver.resolve(MANAGER_TOKENS.developmentConnection),
+                    developmentExternalApps ? resolver.resolve(MANAGER_TOKENS.developmentConnection) : undefined,
                 ),
         )
         .registerSingleton(
@@ -212,7 +207,7 @@ export function createApplicationManagerContainer(
                     new ExternalAppPermissions(
                         path.join(
                             path.dirname(options.preferenceFilePath),
-                            app.isPackaged ? 'external-apps.json' : 'external-apps-development.json',
+                            __KAWAIKARA_EXTERNAL_APP_TESTING__ && developmentExternalApps ? 'external-apps-development.json' : 'external-apps.json',
                         ),
                         () => {
                             resolver
@@ -221,7 +216,7 @@ export function createApplicationManagerContainer(
                             app.focus({ steal: true });
                         },
                     ),
-                    app.isPackaged ? undefined : resolver.resolve(MANAGER_TOKENS.developmentConnection),
+                    developmentExternalApps ? resolver.resolve(MANAGER_TOKENS.developmentConnection) : undefined,
                 ),
         )
         .registerSingleton(

@@ -550,6 +550,44 @@ export function installKawaikaraMock(
     };
 
     const api: KawaikaraRendererApi = {
+        appDistribution: {
+            preview: async () => { throw new Error('No remote manifest in Storybook.'); },
+            act: async () => 'canceled',
+        },
+        downloads: {
+            getStatus: async () => ({
+                installed: false,
+                automaticInstallSupported: true,
+                platform: 'darwin',
+            }),
+            install: async () => ({
+                canceled: false,
+                installerStarted: false,
+                opened: true,
+                status: {
+                    installed: true,
+                    automaticInstallSupported: true,
+                    platform: 'darwin',
+                    version: '0.1.0',
+                    appPath:
+                        '/Users/kawaikara/Applications/YT Section Downloader.app',
+                    message: STORY_MESSAGES.downloader.completed.replace(
+                        '{version}',
+                        '0.1.0',
+                    ),
+                },
+            }),
+            open: async () => ({
+                opened: true,
+                status: {
+                    installed: true,
+                    automaticInstallSupported: true,
+                    platform: 'darwin',
+                    version: '0.1.0',
+                },
+            }),
+            openReleasePage: async () => undefined,
+        },
         logViewer: {
             command: async () => ({
                 detached: false,
@@ -568,9 +606,16 @@ export function installKawaikaraMock(
         },
         application: {
             /** Stories do not register native applications or grant resource access. */
-            externalApps: async () => ({ /** No real external registrations in Storybook. */ registrations: [] }),
+            externalApps: async () => ({
+                /** No real external registrations in Storybook. */ registrations:
+                    [],
+            }),
             /** Browser pairing does not access the OS clipboard in Storybook. */
-            webExtensionConnection: async () => ({connected: false, useDevelopment: true, client: ''}),
+            webExtensionConnection: async () => ({
+                connected: false,
+                useDevelopment: true,
+                client: '',
+            }),
             openDefaultVideoAppSettings: async () => undefined,
             getInfo: async () => ({
                 name: 'Kawaikara',
@@ -1010,6 +1055,7 @@ export function installKawaikaraMock(
                 preferenceHandlers.add(handler);
                 return () => preferenceHandlers.delete(handler);
             },
+            onShowExternalApp: () => () => {},
             onShowUpdate: (handler) => {
                 updateHandlers.add(handler);
                 return () => updateHandlers.delete(handler);

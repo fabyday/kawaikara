@@ -28,6 +28,8 @@ export function isExternalDownloaderSourceUrl(value: string): boolean {
  * again.
  */
 export interface ExternalDownloaderStatus {
+    /** Development discovery reports availability, not whether a packaged app is installed. */
+    readonly development?: boolean;
     /** Whether a launchable downloader installation was found. */
     readonly installed: boolean;
     /** Whether Kawaikara can install the downloader on the current platform. */
@@ -80,4 +82,16 @@ export interface ExternalDownloaderCallbackDescriptor {
     readonly requestId: string;
     /** Request-scoped bearer token. */
     readonly token: string;
+}
+
+/** Trusted Main-to-overlay request. Presentation does not grant executable or installer authority. */
+export interface ExternalAppSetupRequest {
+    /** Registered Provider distribution source, resolved by Main. */
+    readonly distributionUrl?: string;
+    /** App selected by the Provider's trusted adapter. */
+    readonly appId: string;
+    /** Provider that initiated the request. */
+    readonly providerId: string;
+    /** Already validated source passed back through the normal permission boundary on retry. */
+    readonly sourceUrl: string;
 }

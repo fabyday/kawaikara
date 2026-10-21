@@ -12,6 +12,7 @@ import {
 } from '@kawaikara/site-api';
 import type { BrowserProfileInfo } from '../../../../Common/IPC';
 import { validateFileDropDescriptor } from './FileDropDescriptors';
+import { validateExternalAppManifests } from './ExternalAppDescriptors';
 
 /** Describes the registered provider contract. */
 export interface RegisteredProvider {
@@ -96,6 +97,7 @@ export function validateProviderDescriptors(metadata: ProviderMetadata): void {
         metadata.externalApps.some(id => typeof id !== 'string' || !DESCRIPTOR_ID_PATTERN.test(id)) ||
         new Set(metadata.externalApps).size !== metadata.externalApps.length
     )) throw new Error('Invalid Provider external app declarations.');
+    validateExternalAppManifests(metadata);
     if (metadata.webExtension) {
         if (!metadata.permissions?.includes('web-extension'))
             throw new Error(

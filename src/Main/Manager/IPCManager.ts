@@ -1,3 +1,4 @@
+import { connectDistributionIpc } from '../Functional/IPC/DistributionIpc';
 import type { ExternalAppManager } from './ExternalAppManager';
 import { connectExternalAppsIpc } from '../Functional/IPC/ExternalAppsIpc';
 import { connectApplicationIpc } from '../Functional/IPC/ApplicationIpc';
@@ -128,6 +129,7 @@ export class IpcManager {
                     preferences: this.preferences,
                 }),
             );
+            this.connections.push(connectDistributionIpc(() => this.preferences.get().appLocale));
             if (this.externalApps) this.connections.push(connectExternalAppsIpc(this.externalApps, this.sites));
             this.connections.push(
                 connectDownloadsIpc({

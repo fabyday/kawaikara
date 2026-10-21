@@ -85,6 +85,8 @@ export const IPC_CHANNELS = defineIpcChannels({
         webExtensionConnection: 'kawaikara:application:web-extension-connection',
         /** Trusted settings-only adapter registration operations. */
         externalApps: 'kawaikara:application:external-apps',
+        /** Data-only public app distribution lookup and explicit installer actions. */
+        appDistribution: 'kawaikara:application:app-distribution',
         /** Opens Windows' user-controlled default video application settings. */
         openDefaultVideoAppSettings:
             'kawaikara:application:default-video-app-settings',
@@ -180,6 +182,8 @@ export const IPC_CHANNELS = defineIpcChannels({
         showPreferences: 'kawaikara:overlay:show-preferences',
         /** The show update value. */
         showUpdate: 'kawaikara:overlay:show-update',
+        /** Presents a trusted missing-app request over the current Provider. */
+        showExternalApp: 'kawaikara:overlay:show-external-app',
         /** The request close value. */
         requestClose: 'kawaikara:overlay:request-close',
         /** The hidden value. */
@@ -304,7 +308,7 @@ export type IpcChannel = LeafValues<typeof IPC_CHANNELS>;
 export type IpcChannels = typeof IPC_CHANNELS;
 
 /** Defines the overlay view type. */
-export type OverlayView = 'menu' | 'preference' | 'update';
+export type OverlayView = 'menu' | 'preference' | 'update' | 'external-app';
 
 /** Defines the picture in picture status type. */
 export type PictureInPictureStatus =
@@ -1303,6 +1307,10 @@ export interface SiteNavigationState {
 
 /** Describes the Kawaikara renderer API contract. */
 export interface KawaikaraRendererApi {
+    /** Public distribution metadata; separate from registration and permissions. */
+    readonly appDistribution: import('./ExternalAppDistribution').ExternalAppDistributionApi;
+    /** Trusted overlay access to the existing companion actions and permission checks. */
+    readonly downloads: KawaikaraVideoApi['downloads'];
     /** Moves one retained log viewer between native hosts. */
     logViewer: {
         /** Executes a presentation command and returns the actual resulting state. */
@@ -1325,7 +1333,7 @@ export interface KawaikaraRendererApi {
     application: {
         /** Copies an expiring setup code or revokes the current browser connection. */
         /** Reviews and revokes external app registrations; never returns resource values. */
-        externalApps(operation: 'status' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant): Promise<ExternalAppSettingsState>;
+        externalApps(operation: 'status' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic' | 'launch', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant): Promise<ExternalAppSettingsState>;
         /** Trusted browser pairing, consent and connection management. */
         webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{
           /** The browsers value. */
@@ -1528,6 +1536,8 @@ export interface KawaikaraRendererApi {
         onShowUpdate(
             handler: (state: ApplicationUpdatePanelState) => void,
         ): () => void;
+        /** Subscribes to missing-app presentation requests from Main. */
+        onShowExternalApp(handler: (request: import('./Download').ExternalAppSetupRequest) => void): () => void;
         /** Handles the request close. */
         onRequestClose(
             handler: (reason?: 'back' | 'toggle') => void,

@@ -16,6 +16,9 @@
   ],
   "descriptors": {
     "externalApps": ["day.faby.kawai-downloader"],
+    "externalAppManifests": {
+      "day.faby.kawai-downloader": "https://github.com/fabyday/yt-downloader/releases/latest/download/kawaikara.manifest.json"
+    },
     "webExtension": {
       "version": 2,
       "actions": [

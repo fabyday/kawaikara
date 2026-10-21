@@ -1,3 +1,4 @@
+import type { OverlayView } from '../../../Common/IPC';
 import { ownEventConnections } from './EventConnections';
 import type { Input, WebContents } from 'electron';
 import { handleNativeEditingShortcut } from './WindowOperations';
@@ -16,7 +17,7 @@ export interface WindowInputState {
     /** Whether focus is inside an editor. */
     editing: boolean;
     /** Visible application overlay, if any. */
-    overlay?: 'menu' | 'preference' | 'update';
+    overlay?: OverlayView;
     /** Whether Escape may dismiss the menu. */
     closeMenuOnEscape: boolean;
     /** Whether the internal Video provider is active. */
@@ -41,7 +42,9 @@ export function resolveWindowInput(
     if (state.surface === 'overlay') {
         if (
             down &&
-            (state.overlay === 'preference' || state.overlay === 'update')
+            (state.overlay === 'preference' ||
+                state.overlay === 'update' ||
+                state.overlay === 'external-app')
         ) {
             if (key === 'tab' && state.overlay === 'preference')
                 return 'consume';

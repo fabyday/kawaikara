@@ -2,7 +2,7 @@ import { listProviderExternalApps } from '../Functional/Bundle/Provider/Provider
 import type { ExternalAppCookie } from '../Functional/ExternalApps/ExternalAppAdapter';
 import type { ExternalAppManager } from './ExternalAppManager';
 import { dispatchProviderDownload } from '../Functional/Bundle/Provider/ProviderDownloads';
-import type { ProviderDownloadResult } from '@kawaikara/site-api';
+import type { ProviderDownloadDispatchResult } from '../Functional/Bundle/Provider/ProviderDownloads';
 import type { WebExtensionProvider } from '@kawaikara/site-api';
 import {
     SHORT_FORM_PUBLISHER_CAPABILITY,
@@ -327,7 +327,7 @@ export class ProviderManager {
     async requestDownload(
         providerId: string,
         url: string,
-    ): Promise<ProviderDownloadResult> {
+    ): Promise<ProviderDownloadDispatchResult> {
         const registration = this.sites.get(providerId);
         return dispatchProviderDownload(
             registration,

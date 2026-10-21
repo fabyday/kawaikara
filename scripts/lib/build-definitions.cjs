@@ -41,6 +41,8 @@ function createBuildDefinitions(root, environment = process.env) {
   }
   return {
     __KAWAIKARA_BUILD_CHANNEL__: JSON.stringify(channel),
+    __KAWAIKARA_EXTERNAL_APP_TESTING__: JSON.stringify(channel !== 'stable'),
+    __KAWAIKARA_EXTERNAL_APP_TEST_DIRECTORY__: JSON.stringify(channel === 'stable' ? null : path.join(root, 'tmp', 'kawaikara Dev', 'development-connections')),
     __KAWAIKARA_SOCIAL_LINKS__: JSON.stringify(resolveSocialLinks(environment)),
     __KAWAIKARA_DISTRIBUTION_BUILD__: JSON.stringify(
       environment.KAWAIKARA_DISTRIBUTION_BUILD === '1',

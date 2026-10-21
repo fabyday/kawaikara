@@ -5,6 +5,12 @@ import { isExternalDownloaderSourceUrl } from '../../../../Common/Download';
 import { resolveProviderAddress } from './ProviderAddress';
 import type { RegisteredProvider } from './SiteRuntime';
 
+/** Host-resolved installation source; Provider return values cannot override it. */
+export interface ProviderDownloadDispatchResult extends ProviderDownloadResult {
+    /** Manifest selected from the registered Provider descriptor. */
+    readonly distributionUrl?: string;
+}
+
 /**
  * Authorizes a declared static download handler without activating the Provider.
  * @param registration - Current trusted registration; undefined rejects the request.
@@ -26,7 +32,7 @@ export async function dispatchProviderDownload(
         partition: string,
         url: string,
     ) => Promise<readonly ExternalAppCookie[]>,
-): Promise<ProviderDownloadResult> {
+): Promise<ProviderDownloadDispatchResult> {
     const address =
         registration && isExternalDownloaderSourceUrl(url)
             ? resolveProviderAddress(url, [registration])
@@ -56,7 +62,7 @@ export async function dispatchProviderDownload(
                       new Error('Cookie resource host unavailable.'),
                   ),
     });
-    return registration.constructor.onDownload(address.url, {
+    const outcome = await registration.constructor.onDownload(address.url, {
         /** Registration-scoped discovery and dispatch without installer authority. */
         externalApps: {
             /** Discovery is scoped to the originating registration. */
@@ -75,4 +81,12 @@ export async function dispatchProviderDownload(
             },
         },
     });
+    requireRegistered();
+    if (!registration.metadata.externalApps?.includes(outcome.appId))
+        throw new Error('Undeclared external app result.');
+    return {
+        ...outcome,
+        /** Only manifest-owned sources may select installation metadata. */
+        distributionUrl: registration.metadata.externalAppManifests?.[outcome.appId],
+    };
 }

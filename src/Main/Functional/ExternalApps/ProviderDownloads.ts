@@ -14,21 +14,26 @@ import { YOUTUBE_DOWNLOADER_APP_ID } from './YouTubeDownloaderAdapter';
  * @throws Invalid sources, unsupported requests and launch failures; none opens setup.
  */
 export async function openProviderDownload(
-    sites: Pick<ProviderManager, 'requestDownload' | 'load'>,
-    viewer: Pick<ViewerRuntime, 'video' | 'viewer'>,
+    sites: Pick<
+        ProviderManager,
+        'requestDownload' | 'load' | 'getActiveProviderId'
+    >,
+    viewer: Pick<ViewerRuntime, 'viewer'>,
     providerId: string,
     url: string,
     focusSetup = false,
 ) {
     if (!isExternalDownloaderSourceUrl(url))
         throw new TypeError('A safe HTTPS source URL is required.');
-    const { appId, result } = await sites.requestDownload(providerId, url);
+    const { appId, result, distributionUrl } = await sites.requestDownload(providerId, url);
     if (result.accepted) return result;
-    if (result.code !== 'unavailable' || appId !== YOUTUBE_DOWNLOADER_APP_ID)
+    if (result.code !== 'unavailable' || (!distributionUrl && appId !== YOUTUBE_DOWNLOADER_APP_ID))
         throw new Error(`External application request failed: ${result.code}`);
-    viewer.video.queueYouTubeDownloader(url);
-    viewer.viewer.hideOverlay();
-    await sites.load('kawaikara.video');
+    // Keep an already active Provider and its current playback/navigation intact.
+    // Browser-originated requests may need to activate their Provider first.
+    if (sites.getActiveProviderId() !== providerId)
+        await sites.load(providerId);
+    viewer.viewer.showExternalAppOverlay({ appId, providerId, sourceUrl: url, distributionUrl });
     if (focusSetup) viewer.viewer.focusViewer();
     return result;
 }

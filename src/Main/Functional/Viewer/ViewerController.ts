@@ -1,3 +1,4 @@
+import type { ExternalAppSetupRequest } from '../../../Common/Download';
 import {
     app,
     BrowserWindow,
@@ -493,6 +494,16 @@ export class ViewerController {
         this.overlayVisible = true;
         this.syncOverlayBounds();
         overlay.webContents.send(IPC_CHANNELS.overlay.showUpdate, state);
+        this.revealOverlay(overlay);
+    }
+
+    /** Presents setup without switching, reloading or replacing the active Provider surface. */
+    showExternalAppOverlay(request: ExternalAppSetupRequest): void {
+        const overlay = this.requireOverlaySurface();
+        this.overlayView = 'external-app';
+        this.overlayVisible = true;
+        this.syncOverlayBounds();
+        overlay.webContents.send(IPC_CHANNELS.overlay.showExternalApp, request);
         this.revealOverlay(overlay);
     }
 

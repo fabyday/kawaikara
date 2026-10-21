@@ -62,6 +62,8 @@ export class YouTubeDownloader {
             ? (this.development.online(KAWAI_DOWNLOADER_APP_ID) ? {} : null)
             : await findInstalledExternalDownloaderApp();
         return {
+            /** Whether this snapshot describes a running development connection. */
+            development: Boolean(this.development),
             /** The installed value. */
             installed: Boolean(installed),
             /** The automatic install supported value. */

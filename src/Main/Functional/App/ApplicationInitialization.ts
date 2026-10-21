@@ -134,7 +134,7 @@ export async function initializeApplication(
         ipc.setWebExtensionManager(webExtension);
     ipc.initialize();
     const externalApps = managers.resolve(MANAGER_TOKENS.externalApps);
-    if (!app.isPackaged && !__KAWAIKARA_UPDATE_TEST_PROFILE__) {
+    if (externalApps.developmentConnection && !__KAWAIKARA_UPDATE_TEST_PROFILE__) {
         await externalApps.developmentConnection!.start({
             register: async (id) => {
                 const descriptor = externalApps.descriptors().find(item => item.id === id);

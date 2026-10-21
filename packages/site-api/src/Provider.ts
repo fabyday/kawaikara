@@ -238,6 +238,8 @@ export interface SiteAddressDescriptor {
 export interface ProviderMetadata {
     /** External app identities this Provider may discover and invoke. */
     readonly externalApps?: readonly string[];
+    /** Public distribution manifests keyed by a declared external app ID; data only, never executable adapters. */
+    readonly externalAppManifests?: Readonly<Record<string, string>>;
     /** Manifest-owned browser descriptors, separate from in-app script injection. */
     readonly webExtension?: WebExtensionDescriptor;
     /** Manifest-owned OS file-drop registration, available before activation. */
@@ -288,6 +290,7 @@ export type ProviderDecoratorMetadata = Partial<
         | 'fileDrop'
         | 'webExtension'
         | 'externalApps'
+        | 'externalAppManifests'
     >
 > & {
     /** The menu value. */

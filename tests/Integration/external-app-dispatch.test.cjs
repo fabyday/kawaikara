@@ -529,3 +529,10 @@ for (const legacyId of ['yt-downloader', 'com.ytdownloader.app']) test(`retired 
     restored.decide(approval.id, undefined);
     assert.equal((await opening).code, 'permission-denied');
 });
+
+test('Provider-owned app manifest accompanies missing-app results', async () => {
+    const f = fixture();
+    const outcome = await f.sites.requestDownload('kawaikara.youtube', source);
+    assert.equal(outcome.result.code, 'unavailable');
+    assert.equal(outcome.distributionUrl, 'https://github.com/fabyday/yt-downloader/releases/latest/download/kawaikara.manifest.json');
+});

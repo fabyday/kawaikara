@@ -1,0 +1,128 @@
+.external-app-motion-shell {
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+}
+.external-app-setup-panel {
+    width: min(540px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    margin: auto;
+    box-sizing: border-box;
+    overflow: auto;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 20px;
+    color: #ecebf3;
+    background: #191820;
+    box-shadow: 0 28px 90px rgb(0 0 0 / 45%);
+    user-select: none;
+}
+.external-app-setup-panel::-webkit-scrollbar {
+    display: none;
+}
+.external-app-setup-panel::backdrop {
+    background: rgb(7 7 9 / 48%);
+    backdrop-filter: blur(8px);
+}
+.external-app-setup-artwork {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: clamp(96px, 22vh, 180px);
+    background:
+        radial-gradient(ellipse at 50% 80%, #6844a16b, transparent 75%), #252032;
+    border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+.external-app-setup-artwork img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 20px;
+}
+.external-app-setup-artwork > span {
+    font-size: 48px;
+}
+.external-app-setup-close {
+    position: absolute !important;
+    top: 14px;
+    right: 14px;
+    min-width: 46px;
+    height: 44px;
+    padding: 0 !important;
+    font-size: 26px !important;
+}
+.external-app-setup-body {
+    padding: 24px;
+}
+.external-app-setup-heading {
+    text-align: center;
+    margin-bottom: 18px;
+}
+.external-app-setup-heading h1 {
+    margin: 0 0 10px;
+    font-size: 23px;
+    overflow-wrap: anywhere;
+}
+.external-app-setup-status {
+    display: inline-block;
+    margin: 0;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #b580ff26;
+    color: #d1afff;
+    font-size: 13px;
+}
+.external-app-setup-description {
+    text-align: center;
+}
+.external-app-setup-source input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid #ffffff20;
+    border-radius: 10px;
+    background: #ffffff06;
+    color: inherit;
+    user-select: text;
+    font: inherit;
+    font-size: 12px;
+}
+.external-app-setup-actions {
+    padding-top: 4px;
+}
+.kawai-theme-light .external-app-setup-panel {
+    background: #faf9fd;
+    color: #262331;
+    border-color: #32204725;
+}
+.kawai-theme-light .external-app-setup-artwork {
+    background:
+        radial-gradient(ellipse at 50% 80%, #b287e65c, transparent 75%), #eee9f5;
+}
+.kawai-theme-light .external-app-setup-status {
+    color: #6b3c9f;
+}
+.kawai-theme-light .external-app-setup-source input {
+    border-color: #32204730;
+    background: #32204706;
+}
+@media (max-height: 520px) {
+    .external-app-setup-artwork {
+        height: 88px;
+    }
+    .external-app-setup-artwork img {
+        width: 60px;
+        height: 60px;
+        border-radius: 14px;
+    }
+    .external-app-setup-body {
+        padding: 16px 20px;
+    }
+    .external-app-setup-heading {
+        margin-bottom: 12px;
+    }
+}

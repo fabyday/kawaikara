@@ -15,6 +15,7 @@ function load(file, exportName = 'DevelopmentConnection') {
         shell: { openExternal: () => { throw new Error('Must not launch a production app.'); } },
     } : Module.prototype.require.call(loaded, id);
     loaded._compile(buildSync({
+        define: require('../../scripts/lib/build-definitions.cjs').createBuildDefinitions(path.resolve(__dirname, '../..'), {}),
         entryPoints: [file], bundle: true, platform: 'node', format: 'cjs', write: false, external: ['electron'],
     }).outputFiles[0].text, file);
     return loaded.exports[exportName];

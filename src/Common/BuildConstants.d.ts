@@ -7,6 +7,10 @@ import type { ApplicationLinkId } from './IPC';
  * They are not process.env values and must be defined by standalone test builds.
  */
 declare global {
+    /** External-app test transport and local fixtures; compiled out of Stable. */
+    const __KAWAIKARA_EXTERNAL_APP_TESTING__: boolean;
+    /** Repository-local development rendezvous root; null and unused in Stable. */
+    const __KAWAIKARA_EXTERNAL_APP_TEST_DIRECTORY__: string | null;
     /** Public project/community destinations resolved and validated during the build. */
     const __KAWAIKARA_SOCIAL_LINKS__: Readonly<Record<ApplicationLinkId, string>>;
     /** The immutable release/update channel selected by the packager. */

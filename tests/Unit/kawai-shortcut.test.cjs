@@ -88,6 +88,7 @@ test('Escape cancels an active selection but Tab closes the menu in a single pre
         write: false,
         external: ['react'],
     }).outputFiles[0].text;
+    let modals = [];
     let requestClose,
         closed = 0,
         category = 'video';
@@ -111,6 +112,8 @@ test('Escape cancels an active selection but Tab closes the menu in a single pre
         module,
         exports: module.exports,
         require: () => ({ useEffect: (fn) => fn() }),
+        Event,
+        document: { querySelectorAll: () => modals },
         window: {
             clearTimeout: () => {},
             kawaikara: {
@@ -152,6 +155,11 @@ test('Escape cancels an active selection but Tab closes the menu in a single pre
     active.current = true;
     requestClose('toggle');
     assert.equal(closed, 1);
+    let dismissed = 0;
+    modals = [{ dispatchEvent(event) { assert.equal(event.type, 'cancel'); event.preventDefault(); dismissed++; return false; } }];
+    requestClose('back');
+    assert.equal(dismissed, 1);
+    assert.equal(closed, 1, 'A modal dismissal must not close the underlying menu/settings');
 });
 
 test('Kawai Shortcut assigns one numeric key to each of the first ten sites', () => {

@@ -54,7 +54,7 @@ export function ExternalAppRegistrations({
 
     /** Persists each permission immediately; closing the popup never discards a hidden draft. */
     const change = async (
-        operation: 'configure' | 'revoke' | 'status' | 'connect' | 'automatic',
+        operation: 'configure' | 'revoke' | 'status' | 'connect' | 'automatic' | 'launch',
         appId: string,
         grant?: ExternalAppProviderGrant,
     ) => {
@@ -102,6 +102,13 @@ export function ExternalAppRegistrations({
         <Panel padding="md" radius="md">
             <Stack gap="sm">
                 <Text weight="semibold">{messages.title}</Text>
+                <Text size="sm" tone="muted">{messages.manualConnectionHelp}</Text>
+                <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => void change('launch', '')}>
+                    {messages.manualConnection}
+                </Button>
                 {state.development && (
                     <>
                         <Text size="sm" tone="muted">
@@ -124,7 +131,7 @@ export function ExternalAppRegistrations({
                                     setRequested(false);
                                     void change('status', '');
                                 }}>
-                                {messages.manualConnection}
+                                {messages.runningConnections}
                             </Button>
                         </Flex>
                         {choosing && (

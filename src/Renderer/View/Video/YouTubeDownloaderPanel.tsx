@@ -1,236 +1,316 @@
-import type { DownloaderMessages } from '../../../Common/IPC';
-import { useEffect, useState } from 'react';
+import type { AppMessages } from '../../../Common/IPC';
+import { KAWAI_DOWNLOADER_APP_ID } from '../../../Common/Download';
 import {
-  Badge,
-  Button,
-  Flex,
-  Input,
-  Panel,
-  Stack,
-  Text,
-} from '@kawaikara/kawai-ui';
+    type DistributionPreview,
+    type ExternalAppDistributionApi,
+} from '../../../Common/ExternalAppDistribution';
+import { DistributionControls } from '../ExternalApps/DistributionControls';
+import type {
+    DownloaderMessages,
+    KawaikaraVideoApi,
+} from '../../../Common/IPC';
+import { useEffect, useState } from 'react';
+import { Button, Flex, Input, Stack, Text } from '@kawaikara/kawai-ui';
 import type { ExternalDownloaderStatus } from '../../../Common/Download';
+import { ExternalAppSetupPanel } from '../ExternalApps/ExternalAppSetupPanel';
+import downloaderImage from '../../../../imgs/kawai-downloader.png';
 
-/** Describes the you tube downloader panel props contract. */
+/** Inputs shared by the Provider overlay and the legacy internal-video entry. */
 export interface YouTubeDownloaderPanelProps {
-  /** Copy selected by Main. */
-  readonly labels: DownloaderMessages;
-  /** The initial URL value. */
-  readonly initialUrl?: string;
-  /** Callback used to handle on close. */
-  readonly onClose?: () => void;
+    /** Provider-owned source; absent declarations never fall back to a different download host. */
+    readonly distributionUrl?: string;
+    /** Optional trusted distribution lookup; legacy Video can continue with its fixed adapter. */
+    readonly distributionApi?: ExternalAppDistributionApi;
+    /** Localized distribution controls supplied by the application shell. */
+    readonly distributionLabels?: AppMessages['externalApps']['distribution'];
+    /** Main-selected locale messages. */
+    readonly labels: DownloaderMessages;
+    /** Provider-approved URL retained through installation and retry. */
+    readonly initialUrl?: string;
+    /** Trusted preload API for the surface hosting this view. */
+    readonly api?: KawaikaraVideoApi['downloads'];
+    /** Whether the internal video entry may edit the requested URL. */
+    readonly editableSource?: boolean;
+    /** Dismisses the owning overlay; does not activate another Provider. */
+    readonly onClose?: () => void;
 }
 
-/** Performs the you tube downloader panel operation. */
+/** Presents the bundled companion identity and local adapter status. No remote manifest executes here. */
 export function YouTubeDownloaderPanel({
-  initialUrl = '',
-  labels,
-  onClose,
+    distributionApi,
+    distributionLabels,
+    distributionUrl,
+    initialUrl = '',
+    labels,
+    onClose,
+    api = window.kawaikaraVideo.downloads,
+    editableSource = true,
 }: YouTubeDownloaderPanelProps) {
-  const [url, setUrl] = useState(initialUrl);
-  const [status, setStatus] = useState<ExternalDownloaderStatus>();
-  const [error, setError] = useState<string>();
-  const [installing, setInstalling] = useState(false);
-  const [opening, setOpening] = useState(false);
+    const [distributionFailed, setDistributionFailed] = useState(false);
+    const [distributionLoading, setDistributionLoading] = useState(
+        Boolean(distributionUrl),
+    );
+    const [distribution, setDistribution] = useState<DistributionPreview>();
+    useEffect(() => {
+        if (!distributionApi || !distributionUrl) return;
+        let active = true;
+        setDistribution(undefined);
+        setDistributionFailed(false);
+        setDistributionLoading(true);
+        void distributionApi
+            .preview(distributionUrl, KAWAI_DOWNLOADER_APP_ID)
+            .then((value) => {
+                if (active) setDistribution(value);
+            })
+            .catch(() => {
+                if (active) setDistributionFailed(true);
+            })
+            .finally(() => {
+                if (active) setDistributionLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [distributionApi, distributionUrl]);
+    const [url, setUrl] = useState(initialUrl);
+    const [status, setStatus] = useState<ExternalDownloaderStatus>();
+    const [error, setError] = useState<string>();
+    const [installing, setInstalling] = useState(false);
+    const [opening, setOpening] = useState(false);
+    const [checking, setChecking] = useState(true);
+    useEffect(() => {
+        setUrl(initialUrl);
+    }, [initialUrl]);
+    useEffect(() => {
+        let active = true;
+        void api
+            .getStatus()
+            .then((next) => {
+                if (active) setStatus(next);
+            })
+            .catch((reason: unknown) => {
+                if (active) setError(getErrorMessage(reason));
+            })
+            .finally(() => {
+                if (active) setChecking(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [api]);
 
-  useEffect(() => {
-    if (initialUrl) setUrl(initialUrl);
-  }, [initialUrl]);
-
-  useEffect(() => {
-    let active = true;
-    void window.kawaikaraVideo.downloads
-      .getStatus()
-      .then((nextStatus) => {
-        if (active) setStatus(nextStatus);
-      })
-      .catch((reason: unknown) => {
-        if (active) setError(getErrorMessage(reason));
-      });
-    return () => {
-      active = false;
+    /** Refreshes locally observed availability after the user installs or connects the app. */
+    const refresh = async () => {
+        setChecking(true);
+        setError(undefined);
+        try {
+            setStatus(await api.getStatus());
+            if (distributionApi && distributionUrl) {
+                try {
+                    setDistributionFailed(false);
+                    setDistribution(
+                        await distributionApi.preview(
+                            distributionUrl,
+                            KAWAI_DOWNLOADER_APP_ID,
+                        ),
+                    );
+                } catch {
+                    setDistributionFailed(true);
+                }
+            }
+        } catch (reason) {
+            setError(getErrorMessage(reason));
+        } finally {
+            setChecking(false);
+        }
     };
-  }, []);
-
-  /** Opens the downloader. */
-  const openDownloader = async () => {
-    setOpening(true);
-    setError(undefined);
-    try {
-      const result = await window.kawaikaraVideo.downloads.open(url);
-      setStatus(result.status);
-      if (!result.opened) {
-        setError(labels.missing);
-      }
-    } catch (reason) {
-      setError(getErrorMessage(reason));
-    } finally {
-      setOpening(false);
-    }
-  };
-
-  /** Installs the downloader. */
-  const installDownloader = async () => {
-    setInstalling(true);
-    setError(undefined);
-    try {
-      const result = await window.kawaikaraVideo.downloads.install(
-        url.trim() || undefined,
-      );
-      setStatus(result.status);
-      if (!result.canceled && !result.status.installed && !result.installerStarted) {
-        setError(result.status.message ?? labels.installFailed);
-      }
-    } catch (reason) {
-      setError(getErrorMessage(reason));
-    } finally {
-      setInstalling(false);
-    }
-  };
-
-  const installed = status?.installed ?? false;
-  const statusLabel = status
-    ? installed
-      ? labels.installed
-      : labels.notInstalled
-    : labels.checking;
-
-  return (
-    <Panel className="youtube-downloader-panel" padding="md" radius="lg">
-      <Stack gap="md">
-        <DownloaderHeader
-          labels={labels}
-          onClose={onClose}
-          installed={installed}
-          statusLabel={statusLabel}
-        />
-
-        {status?.version ? (
-          <Text size="xs" tone="muted">
-            {labels.version} {status.version} · {status.appPath ?? labels.protocolInstallation}
-          </Text>
-        ) : null}
-
-        <Input
-          label={labels.url}
-          placeholder={labels.urlPlaceholder}
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-        />
-
-        {installed ? (
-          <Button
-            disabled={!url.trim() || opening}
-            isLoading={opening}
-            onClick={openDownloader}
-          >
-            {labels.open}
-          </Button>
-        ) : (
-          <DownloaderInstallActions
-            labels={labels}
-            status={status}
-            installing={installing}
-            installDownloader={installDownloader}
-          />
-        )}
-
-        {status?.message ? (
-          <Text size="xs" tone={installed ? 'primary' : 'muted'}>
-            {status.message}
-          </Text>
-        ) : null}
-        {error ? (
-          <Text size="xs" tone="danger">
-            {error}
-          </Text>
-        ) : null}
-
-        <Text size="xs" tone="muted">
-          {labels.permissionNotice}
-        </Text>
-      </Stack>
-    </Panel>
-  );
+    /** Re-dispatches the retained URL through Main's existing permission checks. */
+    const openDownloader = async () => {
+        setOpening(true);
+        setError(undefined);
+        try {
+            const result = await api.open(url);
+            setStatus(result.status);
+            if (result.opened) onClose?.();
+            else
+                setError(
+                    result.status.development
+                        ? labels.developmentWaiting
+                        : labels.missing,
+                );
+        } catch (reason) {
+            setError(getErrorMessage(reason));
+        } finally {
+            setOpening(false);
+        }
+    };
+    /** Uses the fixed built-in installer and its confirmation; presentation metadata cannot select commands. */
+    const installDownloader = async () => {
+        setInstalling(true);
+        setError(undefined);
+        try {
+            const result = await api.install(url.trim() || undefined);
+            setStatus(result.status);
+            if (result.opened) onClose?.();
+            else if (
+                !result.canceled &&
+                !result.status.installed &&
+                !result.installerStarted
+            )
+                setError(result.status.message ?? labels.installFailed);
+        } catch (reason) {
+            setError(getErrorMessage(reason));
+        } finally {
+            setInstalling(false);
+        }
+    };
+    /** Opens only the adapter's fixed release page and surfaces launch failures. */
+    const openReleases = async () => {
+        try {
+            await api.openReleasePage();
+        } catch (reason) {
+            setError(getErrorMessage(reason));
+        }
+    };
+    const installed = status?.installed ?? false;
+    const busy = checking || installing || opening || distributionLoading;
+    const statusLabel =
+        checking || distributionLoading
+            ? labels.checking
+            : installing
+              ? labels.installing
+              : opening
+                ? labels.opening
+                : status?.development
+                  ? installed
+                      ? labels.developmentConnected
+                      : labels.developmentWaiting
+                  : installed
+                    ? labels.installed
+                    : labels.notInstalled;
+    return (
+        <ExternalAppSetupPanel
+            app={{
+                name: distribution?.descriptor.name ?? labels.title,
+                image: distribution?.icon ?? downloaderImage,
+            }}
+            status={statusLabel}
+            closeLabel={labels.close}
+            onClose={onClose}>
+            <Stack gap="md">
+                <Text
+                    className="external-app-setup-description"
+                    size="sm"
+                    tone="muted">
+                    {labels.description}
+                </Text>
+                {status?.version ? (
+                    <Text size="xs" tone="muted">
+                        {labels.version} {status.version}
+                    </Text>
+                ) : null}
+                {editableSource ? (
+                    <Input
+                        label={labels.url}
+                        placeholder={labels.urlPlaceholder}
+                        value={url}
+                        onChange={(event) => setUrl(event.target.value)}
+                    />
+                ) : null}
+                {!installed &&
+                status &&
+                (status.development || (editableSource && !distribution)) ? (
+                    <Text size="xs" tone="muted">
+                        {status.development
+                            ? labels.developmentHelp
+                            : !status.automaticInstallSupported
+                              ? labels.unsupported
+                              : status.platform === 'darwin'
+                                ? labels.macInstallHelp
+                                : labels.windowsInstallHelp}
+                    </Text>
+                ) : null}
+                {!installed &&
+                status &&
+                !status.development &&
+                distribution &&
+                distributionApi &&
+                distributionLabels ? (
+                    <DistributionControls
+                        preview={distribution}
+                        api={distributionApi}
+                        labels={distributionLabels}
+                        onChanged={() => void refresh()}
+                    />
+                ) : null}
+                <Flex
+                    className="external-app-setup-actions"
+                    align="center"
+                    justify="center"
+                    gap="sm"
+                    wrap>
+                    {installed ? (
+                        <Button
+                            disabled={busy || !url.trim()}
+                            isLoading={opening}
+                            onClick={openDownloader}>
+                            {labels.open}
+                        </Button>
+                    ) : status &&
+                      !distribution &&
+                      editableSource &&
+                      !status.development &&
+                      status.automaticInstallSupported ? (
+                        <Button
+                            disabled={busy}
+                            isLoading={installing}
+                            onClick={installDownloader}>
+                            {labels.install}
+                        </Button>
+                    ) : null}
+                    {status &&
+                    !distribution &&
+                    editableSource &&
+                    !status.development &&
+                    !installed ? (
+                        <Button
+                            variant="secondary"
+                            disabled={busy}
+                            onClick={openReleases}>
+                            {labels.releases}
+                        </Button>
+                    ) : null}
+                    <Button
+                        variant="secondary"
+                        disabled={busy}
+                        isLoading={checking}
+                        onClick={refresh}>
+                        {labels.refresh}
+                    </Button>
+                </Flex>
+                {status?.message ? (
+                    <Text size="xs" tone="muted">
+                        {status.message}
+                    </Text>
+                ) : null}
+                {distributionFailed && distributionLabels ? (
+                    <Text role="alert" size="xs" tone="danger">
+                        {distributionLabels.error}
+                    </Text>
+                ) : null}
+                {error ? (
+                    <div role="alert">
+                        <Text size="xs" tone="danger">
+                            {error}
+                        </Text>
+                    </div>
+                ) : null}
+            </Stack>
+        </ExternalAppSetupPanel>
+    );
 }
 
-/** Returns the error message. */
+/** Converts adapter failures to display text without changing their meaning. */
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/** Downloader identity, installation status, and close action. */
-function DownloaderHeader({
-  labels,
-  onClose,
-  installed,
-  statusLabel,
-}: Pick<YouTubeDownloaderPanelProps, 'labels' | 'onClose'> & {
-  /** installed supplied by the owning composition. */
-  readonly installed: boolean;
-  /** statusLabel supplied by the owning composition. */
-  readonly statusLabel: string;
-}) {
-  return (
-    <Flex align="center" justify="between" gap="md">
-      <Stack gap="xs">
-        <Flex align="center" gap="sm">
-          <Text weight="semibold">{labels.title}</Text>
-          <Badge dot size="sm" tone={installed ? 'success' : 'neutral'}>
-            {statusLabel}
-          </Badge>
-        </Flex>
-        <Text size="xs" tone="muted">
-          {labels.description}
-        </Text>
-      </Stack>
-      {onClose ? (
-        <Button size="sm" variant="ghost" onClick={onClose}>
-          {labels.close}
-        </Button>
-      ) : null}
-    </Flex>
-  );
-}
-
-/** Platform-specific installation guidance and explicit install/release actions. */
-function DownloaderInstallActions({
-  labels,
-  status,
-  installing,
-  installDownloader,
-}: Pick<YouTubeDownloaderPanelProps, 'labels'> & {
-  /** status supplied by the owning composition. */
-  readonly status: ExternalDownloaderStatus | undefined;
-  /** installing supplied by the owning composition. */
-  readonly installing: boolean;
-  /** installDownloader supplied by the owning composition. */
-  readonly installDownloader: () => Promise<void>;
-}) {
-  return (
-    <Stack gap="sm">
-      <Text size="xs" tone="muted">
-        {status?.platform === 'darwin'
-          ? labels.macInstallHelp
-          : labels.windowsInstallHelp}
-      </Text>
-      <Flex align="center" gap="sm">
-        <Button
-          disabled={!status?.automaticInstallSupported || installing}
-          isLoading={installing}
-          onClick={installDownloader}
-        >
-          {labels.install}
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() =>
-            void window.kawaikaraVideo.downloads.openReleasePage()
-          }
-        >
-          {labels.releases}
-        </Button>
-      </Flex>
-    </Stack>
-  );
+    return error instanceof Error ? error.message : String(error);
 }

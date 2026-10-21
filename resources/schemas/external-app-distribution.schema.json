@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kawaikara external app distribution",
+  "description": "Public presentation, OS-specific installation, and advisory connection metadata. Not an adapter or a permission grant.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "targets"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9-]+)+$",
+      "maxLength": 160
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "icon": {
+      "$ref": "#/$defs/url"
+    },
+    "homepage": {
+      "$ref": "#/$defs/url"
+    },
+    "guideUrl": {
+      "$ref": "#/$defs/url"
+    },
+    "connection": {
+      "$ref": "#/$defs/connection"
+    },
+    "targets": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "description": "Absolute public HTTPS URL or a reference relative to the manifest URL."
+    },
+    "connection": {
+      "type": "object",
+      "required": [
+        "protocolVersion",
+        "transport"
+      ],
+      "properties": {
+        "protocolVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "transport": {
+          "const": "loopback"
+        },
+        "launchScheme": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9+.-]*$",
+          "maxLength": 100
+        },
+        "guideUrl": {
+          "$ref": "#/$defs/url"
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "url",
+        "sha256",
+        "format"
+      ],
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/url"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "format": {
+          "enum": [
+            "dmg",
+            "pkg",
+            "zip",
+            "exe",
+            "msi",
+            "appimage",
+            "deb",
+            "rpm",
+            "tar.gz"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "os",
+        "arch"
+      ],
+      "properties": {
+        "os": {
+          "enum": [
+            "darwin",
+            "win32",
+            "linux"
+          ]
+        },
+        "arch": {
+          "enum": [
+            "arm64",
+            "x64",
+            "ia32",
+            "arm",
+            "universal"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "guideUrl": {
+          "$ref": "#/$defs/url"
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact"
+        },
+        "connection": {
+          "$ref": "#/$defs/connection"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

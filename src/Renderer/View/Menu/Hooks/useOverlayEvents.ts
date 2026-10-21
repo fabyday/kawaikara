@@ -9,6 +9,7 @@ type OverlayEventsOptions = Pick<ReturnType<typeof useMenuState>,
   | 'viewRef'
   | 'view'
   | 'updateStateRef'
+  | 'setExternalAppRequest'
   | 'updateState'
   | 'localization'
   | 'closeTimer'
@@ -47,6 +48,7 @@ export function useOverlayEvents({
   view,
   updateStateRef,
   updateState,
+  setExternalAppRequest,
   localization,
   closeTimer,
   shortcutHighlightTimer,
@@ -193,12 +195,29 @@ export function useOverlayEvents({
       setView('update');
       viewRef.current = 'update';
     });
+    const removeExternalAppListener = window.kawaikara.overlay.onShowExternalApp((request) => {
+      if (closeTimer.current !== undefined) { window.clearTimeout(closeTimer.current); closeTimer.current = undefined; }
+      setExternalAppRequest(request);
+      setMenuVisible(true);
+      setView('external-app');
+      viewRef.current = 'external-app';
+    });
     const removeUpdateStateListener =
       window.kawaikara.application.onUpdateStateChanged((state) => {
         setUpdateState(state);
         updateStateRef.current = state;
       });
     const removeCloseListener = window.kawaikara.overlay.onRequestClose((reason) => {
+      const modal = Array.from(document.querySelectorAll<HTMLDialogElement>('dialog:modal')).at(-1);
+      if (modal) {
+        const cancel = new Event('cancel', { cancelable: true });
+        if (modal.dispatchEvent(cancel)) modal.close();
+        return;
+      }
+      if (viewRef.current === 'external-app') {
+        void window.kawaikara.overlay.close();
+        return;
+      }
       if (viewRef.current === 'update') {
         if (updatePanelViewRef.current === 'release-notes') {
           setUpdatePanelView('status');
@@ -253,6 +272,7 @@ export function useOverlayEvents({
       removeMenuListener();
       removePreferenceListener();
       removeUpdateListener();
+      removeExternalAppListener();
       removeUpdateStateListener();
       removeCloseListener();
       removeHiddenListener();

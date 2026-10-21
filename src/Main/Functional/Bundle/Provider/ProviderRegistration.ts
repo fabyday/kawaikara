@@ -205,6 +205,7 @@ function createProviderRegistration(
         ...metadata,
         ...descriptors,
         externalApps: descriptors.externalApps,
+        externalAppManifests: descriptors.externalAppManifests,
         fileDrop: descriptors.fileDrop,
         webExtension: descriptors.webExtension,
         id: manifest.id,

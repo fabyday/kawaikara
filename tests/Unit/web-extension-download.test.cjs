@@ -5,7 +5,7 @@ const path = require('node:path');
 const Module = require('node:module');
 const { buildSync } = require('esbuild');
 
-function createAdapter(open) {
+function createAdapter(open, activeProvider = 'third-party.provider') {
     let bridgeOptions;
     const calls = [];
     const mocks = {
@@ -68,6 +68,7 @@ function createAdapter(open) {
             },
         ],
         subscribeWebExtensions: () => () => {},
+        getActiveProviderId: () => activeProvider,
         load: async (id) => calls.push(['load', id]),
         requestDownload: async (providerId, url) => {
             calls.push(['download', providerId, url]);
@@ -86,7 +87,7 @@ function createAdapter(open) {
     };
     const windows = {
         showPreferencesOverlay: () => calls.push(['preferences']),
-        queueYouTubeDownloader: (url) => calls.push(['queue', url]),
+        showExternalAppOverlay: (request) => calls.push(['setup', request]),
         hideOverlay: () => calls.push(['hideOverlay']),
         focusViewer: () => calls.push(['focusViewer']),
     };
@@ -119,14 +120,20 @@ test('Provider browser download hands the URL to the companion without stealing 
     ]);
 });
 
-test('missing companion opens and focuses the desktop downloader setup', async () => {
+test('missing companion overlays the requesting Provider without reloading or opening video', async () => {
     const adapter = createAdapter(async () => ({ opened: false }));
     await adapter.invoke(source);
     assert.deepEqual(adapter.calls, [
         ['download', 'third-party.provider', source],
-        ['queue', source],
-        ['hideOverlay'],
-        ['load', 'kawaikara.video'],
+        [
+            'setup',
+            {
+                appId: 'day.faby.kawai-downloader',
+                providerId: 'third-party.provider',
+                sourceUrl: source,
+                distributionUrl: undefined,
+            },
+        ],
         ['focusViewer'],
     ]);
 });
@@ -155,4 +162,17 @@ test('approval uses trusted app popup, validates request ID, and disposal reject
     const abandoned = adapter.confirm('Another request');
     await adapter.manager.dispose();
     assert.equal(await abandoned, false);
+});
+
+test('browser request activates its Provider only when it is not already displayed', async () => {
+    const adapter = createAdapter(
+        async () => ({ opened: false }),
+        'other.provider',
+    );
+    await adapter.invoke(source);
+    assert.deepEqual(
+        adapter.calls.map((call) => call[0]),
+        ['download', 'load', 'setup', 'focusViewer'],
+    );
+    assert.deepEqual(adapter.calls[1], ['load', 'third-party.provider']);
 });
