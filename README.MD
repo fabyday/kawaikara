@@ -67,11 +67,18 @@ history are isolated, so Stable, Staging, and Nightly can be installed together.
 | **Staging (Beta)** | Manually promoted beta builds for validating changes before Stable. | [Download Staging](https://github.com/Kawaikara/kawaikara-staging/releases/latest) |
 | **Nightly** | Automated development snapshots from `dev`; newest features and highest change risk. | [Download Nightly](https://github.com/Kawaikara/kawaikara-nightly/releases/latest) |
 
+### For Mac Users
+
+
+#### [Mac Installation Guide](https://github.com/Kawaikara/install-mac)
+```
+curl -fsSL https://raw.githubusercontent.com/Kawaikara/install-mac/main/install.sh | sh
+```
 
 
 
 
-### For more information, visit Home Page
+### For more information, visit the Kawai-like Project Page
 
 [![](https://img.shields.io/badge/kawaikara-webpage-blue?style=for-the-badge&labelColor=gray)](https://kawaikara.faby.day)
 ### See Also 
@@ -87,6 +94,8 @@ history are isolated, so Stable, Staging, and Nightly can be installed together.
 * Open websties directly in **Kawaikara**
 * Easily Share links with your friends
 
+
+## [Docs](./docs/INDEX.MD)
 
 ## MIT License
 
