@@ -82,9 +82,13 @@ export interface DistributionPreview {
     /** Capabilities of this local host, not instructions from the server. */
     readonly action: 'install' | 'download' | 'guide' | 'unsupported';
 }
-/** Outcome never implies installed, paired, or authorized. */
+/** Installed confirms a verified test copy only; no outcome implies pairing or authorization. */
 export type DistributionActionResult =
-    'canceled' | 'downloaded' | 'installer-opened' | 'page-opened';
+    | 'installed'
+    | 'canceled'
+    | 'downloaded'
+    | 'installer-opened'
+    | 'page-opened';
 /** Trusted application UI bridge; all action URLs are resolved by Main. */
 export interface ExternalAppDistributionApi {
     /** Reads a public manifest and previews its matching target. Does not install or register. */

@@ -184,6 +184,8 @@ export const IPC_CHANNELS = defineIpcChannels({
         showUpdate: 'kawaikara:overlay:show-update',
         /** Presents a trusted missing-app request over the current Provider. */
         showExternalApp: 'kawaikara:overlay:show-external-app',
+        /** Displays external-app consent directly above the active webpage. */
+        showExternalAppApproval: 'kawaikara:overlay:show-external-app-approval',
         /** The request close value. */
         requestClose: 'kawaikara:overlay:request-close',
         /** The hidden value. */
@@ -308,7 +310,7 @@ export type IpcChannel = LeafValues<typeof IPC_CHANNELS>;
 export type IpcChannels = typeof IPC_CHANNELS;
 
 /** Defines the overlay view type. */
-export type OverlayView = 'menu' | 'preference' | 'update' | 'external-app';
+export type OverlayView = 'menu' | 'preference' | 'update' | 'external-app' | 'external-app-permission';
 
 /** Defines the picture in picture status type. */
 export type PictureInPictureStatus =
@@ -1333,7 +1335,7 @@ export interface KawaikaraRendererApi {
     application: {
         /** Copies an expiring setup code or revokes the current browser connection. */
         /** Reviews and revokes external app registrations; never returns resource values. */
-        externalApps(operation: 'status' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic' | 'launch', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant): Promise<ExternalAppSettingsState>;
+        externalApps(operation: 'status' | 'approve-choices' | 'approve' | 'deny' | 'revoke' | 'allow-always' | 'configure' | 'connect' | 'automatic' | 'launch', id?: string, grants?: readonly string[] | import('./ExternalApps').ExternalAppProviderGrant | import('./ExternalApps').ExternalAppPermissionChoices): Promise<ExternalAppSettingsState>;
         /** Trusted browser pairing, consent and connection management. */
         webExtensionConnection(operation: 'connect' | 'copy' | 'revoke' | 'status' | 'development-on' | 'development-off' | 'approve' | 'deny' | 'browsers' | 'connect-browser' | 'connect-custom' | 'connect-development' | 'connect-development-custom' | 'connect-development-browser' | 'revoke-client', requestId?: string): Promise<{
           /** The browsers value. */
@@ -1524,8 +1526,8 @@ export interface KawaikaraRendererApi {
     videoLibrary: VideoLibraryApi;
     /** The overlay value. */
     overlay: {
-        /** Closes the operation. */
-        close(): Promise<void>;
+        /** Closes the overlay only if its view still matches an optional completion guard. */
+        close(expectedView?: OverlayView): Promise<void>;
         /** Sets the view. */
         setView(view: OverlayView): Promise<void>;
         /** Handles the show menu. */
@@ -1536,7 +1538,9 @@ export interface KawaikaraRendererApi {
         onShowUpdate(
             handler: (state: ApplicationUpdatePanelState) => void,
         ): () => void;
-        /** Subscribes to missing-app presentation requests from Main. */
+        /** Receives Main-owned requests to show standalone app permission consent. */
+        onShowExternalAppApproval(handler: () => void): () => void;
+        /** Receives Main-owned external application setup requests. */
         onShowExternalApp(handler: (request: import('./Download').ExternalAppSetupRequest) => void): () => void;
         /** Handles the request close. */
         onRequestClose(

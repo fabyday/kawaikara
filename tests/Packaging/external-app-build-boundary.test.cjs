@@ -30,11 +30,11 @@ test('actual main bundles omit external-app test transport and fixture override 
             await new Promise((resolve, reject) => compiler.close(e => e ? reject(e) : resolve()));
         }
         const code = fs.readFileSync(path.join(config.output.path, 'main.js'), 'utf8');
-        for (const marker of ['development-connections', 'external-app-icons-development.json', 'external-apps-development.json', 'KAWAIKARA_EXTERNAL_APP_MODE', 'KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST', 'KAWAIKARA_EXTERNAL_APP_CONNECTION_DIRECTORY']) {
+        for (const marker of ['ExternalAppTest', 'KAWAIKARA_EXTERNAL_APP_INSTALL_TEST', 'development-connections', 'external-app-icons-development.json', 'external-apps-development.json', 'KAWAIKARA_EXTERNAL_APP_MODE', 'KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST', 'KAWAIKARA_EXTERNAL_APP_CONNECTION_DIRECTORY']) {
             assert.equal(code.includes(marker), channel !== 'stable', `${channel}: ${marker}`);
         }
         const modules = JSON.stringify(result.toJson({ all: false, modules: true, nestedModules: true }));
-        for (const name of ['DevelopmentConnectionFactory.ts', 'DevelopmentConnection.ts', 'Distribution/LocalTesting.ts']) {
+        for (const name of ['DevelopmentConnectionFactory.ts', 'DevelopmentConnection.ts', 'Distribution/LocalTesting.ts', 'Distribution/InstallTesting.ts']) {
             assert.equal(modules.includes(name), channel !== 'stable', `${channel}: ${name}`);
         }
     }
@@ -55,7 +55,7 @@ test('OS-specific installed paths and repository-local test paths stay separate'
         for (const item of cases) {
             const paths = item.platform === 'win32' ? path.win32 : path.posix;
             const repo = item.platform === 'win32' ? 'D:/Source/Kawaikara' : '/source/kawaikara';
-            const testRoot = paths.join(repo, 'tmp', 'kawaikara Dev', 'development-connections');
+            const testRoot = paths.join(repo, 'tmp', 'development-connections');
             const definitions = createBuildDefinitions(repo, { KAWAIKARA_BUILD_CHANNEL: channel });
             definitions.__KAWAIKARA_EXTERNAL_APP_TEST_DIRECTORY__ = JSON.stringify(channel === 'stable' ? null : testRoot);
             const code = buildSync({ entryPoints: [filename], bundle: true, platform: 'node', format: 'cjs', write: false, minify: true, define: definitions }).outputFiles[0].text;

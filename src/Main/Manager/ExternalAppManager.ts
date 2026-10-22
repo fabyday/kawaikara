@@ -150,6 +150,13 @@ export class ExternalAppManager implements ExternalApps {
             adapter.descriptor,
             resource?.provider,
         );
+        const once = registration
+            ? this.permissions.takeInvocationGrants(registration)
+            : [];
+        const resourceEpoch = this.permissions.resourceEpoch(
+            appId,
+            resource?.provider?.id,
+        );
         if (
             !registration ||
             (resource?.provider &&
@@ -158,6 +165,7 @@ export class ExternalAppManager implements ExternalApps {
                 )?.enabled) ||
             action.permissions.some(
                 (id) =>
+                    !once.includes(id) &&
                     !this.permissions.allows(
                         adapter.descriptor,
                         id,
@@ -186,6 +194,8 @@ export class ExternalAppManager implements ExternalApps {
         const current = await this.permissions.get(adapter.descriptor);
         if (
             this.permissions.epoch(appId) !== epoch ||
+            this.permissions.resourceEpoch(appId, resource?.provider?.id) !==
+                resourceEpoch ||
             !current ||
             (resource?.provider &&
                 !current.providers?.find(
@@ -193,6 +203,7 @@ export class ExternalAppManager implements ExternalApps {
                 )?.enabled) ||
             action.permissions.some(
                 (id) =>
+                    !once.includes(id) &&
                     !this.permissions.allows(
                         adapter.descriptor,
                         id,
@@ -212,6 +223,7 @@ export class ExternalAppManager implements ExternalApps {
             adapter.descriptor,
             this.permissions,
             resource,
+            once,
         );
         if (action.permissions.some((id) => !host.hasPermission(id)))
             return {

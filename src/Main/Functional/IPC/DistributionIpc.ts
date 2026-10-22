@@ -10,7 +10,14 @@ import { registerIpcBindings, type DisposeIpc } from './IpcBindings';
 /** Registers distribution lookup independently of adapter/permission registration. */
 export function connectDistributionIpc(getLocale: () => AppLocale): DisposeIpc {
     const testing = __KAWAIKARA_EXTERNAL_APP_TESTING__
-        ? (require('../ExternalApps/Distribution/LocalTesting') as typeof import('../ExternalApps/Distribution/LocalTesting')).localDistributionTest(process.env.KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST)
+        ? (
+              require('../ExternalApps/Distribution/LocalTesting') as typeof import('../ExternalApps/Distribution/LocalTesting')
+          ).localDistributionTest(
+              process.env.KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST,
+          )
+        : undefined;
+    const installTest = __KAWAIKARA_EXTERNAL_APP_TESTING__
+        ? (require('../ExternalApps/Distribution/InstallTesting') as typeof import('../ExternalApps/Distribution/InstallTesting'))
         : undefined;
     let catalog: Promise<DistributionCatalog> | undefined;
     /** Defers disk-path initialization until an authorized UI lookup actually needs the cache. */
@@ -19,12 +26,15 @@ export function connectDistributionIpc(getLocale: () => AppLocale): DisposeIpc {
             ({ getKawaiDataPath }) =>
                 new DistributionCatalog(
                     new DistributionRepository(
-                        getKawaiDataPath(
-                            'cache',
-                            __KAWAIKARA_EXTERNAL_APP_TESTING__ && testing
-                                ? 'app-distributions-local-test'
-                                : 'app-distributions',
-                        ),
+                        (testing &&
+                            installTest?.installationTestPaths(testing.appId)
+                                ?.cache) ||
+                            getKawaiDataPath(
+                                'cache',
+                                __KAWAIKARA_EXTERNAL_APP_TESTING__ && testing
+                                    ? 'app-distributions-local-test'
+                                    : 'app-distributions',
+                            ),
                         undefined,
                         testing?.origin,
                     ),

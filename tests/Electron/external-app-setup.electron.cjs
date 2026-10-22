@@ -35,6 +35,7 @@ import {flushSync} from 'react-dom';
 import {KawaiProvider} from '@kawaikara/kawai-ui';
 import {YouTubeDownloaderPanel} from './src/Renderer/View/Video/YouTubeDownloaderPanel';
 import {DistributionLookup} from './src/Renderer/View/ExternalApps/DistributionControls';
+import {ExternalAppApproval} from './src/Renderer/View/Preference/ExternalAppApproval';
 const root=createRoot(document.getElementById('root')), labels=${JSON.stringify(labels)};
 const distributionLabels=${JSON.stringify(distributionLabels)};
 window.kawaikara={appDistribution:{preview:async(url)=>{window.calls.push(['manifest',url]);if(window.manifestDelay)await new Promise(r=>setTimeout(r,window.manifestDelay));return window.manifestFixture},act:async(token,action)=>{window.calls.push([token,action]);return 'installer-opened'}}};
@@ -43,6 +44,15 @@ window.renderLookup=(locale='en')=>{
  flushSync(()=>root.render(<KawaiProvider><div className="kawai-theme kawai-theme-dark"><DistributionLookup labels={distributionLabels[locale]} /></div></KawaiProvider>));
 };
 window.calls=[];
+window.permissionMessages=${JSON.stringify(Object.fromEntries(['en','ko','ja'].map(locale=>[locale,JSON.parse(readFileSync(path.join(root,'locales',locale+'.json'))).app.externalApps])))};
+window.renderApproval=(locale='ko')=>{
+ flushSync(()=>root.render(null));
+ window.kawaikara.application={externalApps:async(operation,id,grants)=>{
+   if(operation==='status') return window.approvalFixture;
+   window.calls.push([operation,id,grants]);return {registrations:[]};
+ }};
+ flushSync(()=>root.render(<KawaiProvider><div className="kawai-theme kawai-theme-dark"><ExternalAppApproval messages={window.permissionMessages[locale]} /></div></KawaiProvider>));
+};
 const api={getStatus:async()=>{window.calls.push('status');return window.statusFixture},
  install:async()=>{window.calls.push('install');return {status:window.statusFixture}},
  open:async(url)=>{window.calls.push(['open',url]);return {opened:true,status:window.statusFixture}},
@@ -71,6 +81,9 @@ const css = [
     require.resolve('@kawaikara/kawai-ui/styles.css'),
     path.join(root, 'src/Renderer/Styles/Overlay.css'),
     path.join(root, 'src/Renderer/Styles/ExternalAppSetup.css'),
+    path.join(root, 'src/Renderer/View/Preference/Tabs/WebExtensionControl.css'),
+    path.join(root, 'src/Renderer/View/Preference/ExternalAppRegistrations.css'),
+    path.join(root, 'src/Renderer/View/Preference/ExternalAppPermissionCards.css'),
 ]
     .map((p) => readFileSync(p, 'utf8'))
     .join('\n');
@@ -184,6 +197,7 @@ app.whenReady()
             [...document.querySelectorAll('button')].find(b=>b.textContent==='Find app').click();await wait();
             const modal=document.querySelector('dialog'),r=modal.getBoundingClientRect();
             results.push({action,fits:r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1&&modal.scrollWidth<=modal.clientWidth+1,
+              download:[...modal.querySelectorAll('button')].some(b=>b.textContent==='Download'),
               install:[...modal.querySelectorAll('button')].some(b=>b.textContent==='Install')});
             if(action==='install') { [...modal.querySelectorAll('button')].find(b=>b.textContent==='Install').click();await wait();
               results.at(-1).notice=modal.textContent.includes('The OS installer has opened'); }
@@ -194,6 +208,7 @@ app.whenReady()
         for (const result of manifestActions.results) {
             assert.ok(result.fits && result.closed, JSON.stringify(result));
             assert.equal(result.install, result.action === 'install');
+            assert.equal(result.download, result.action === 'download');
             if (result.action === 'install') assert.equal(result.notice, true);
         }
         assert.deepEqual(
@@ -229,6 +244,16 @@ app.whenReady()
             `window.statusFixture={installed:false,development:true,automaticInstallSupported:false,platform:'darwin'};renderPanel('ko')`,
         );
         await new Promise((r) => setTimeout(r, 150));
+        const developmentLookups = await win.webContents.executeJavaScript(`(async()=>{
+            window.calls=[];window.useDistribution=true;
+            renderPanel('ko');await new Promise(r=>setTimeout(r,80));
+            const refresh=[...document.querySelectorAll('button')].find(button=>button.textContent.includes(${JSON.stringify(labels.ko.refresh)}));
+            refresh.click();await new Promise(r=>setTimeout(r,80));
+            return window.calls.filter(call=>Array.isArray(call)&&call[0]==='manifest');
+        })()`);
+        assert.ok(developmentLookups.length >= 2, 'manifest lookup and refresh remain independent of connection transport');
+        const hasDownload = await win.webContents.executeJavaScript(`document.querySelector('dialog').textContent.includes(${JSON.stringify(distributionLabels.ko.install)})`);
+        assert.equal(hasDownload, true, 'server artifact installation must remain available in development transport');
         writeFileSync(
             path.join(output, 'setup.png'),
             (await win.webContents.capturePage()).toPNG(),
@@ -237,6 +262,88 @@ app.whenReady()
             'External app setup: 36 companion layouts, 36 cold/reopen frames and 4 distribution action modes; status, URL retry, close/Escape/backdrop passed. Screenshot:',
             path.join(output, 'setup.png'),
         );
+        win.setContentSize(720, 600);
+        const cards = await win.webContents.executeJavaScript(`(async()=>{
+            window.calls=[];
+            window.approvalFixture={registrations:[],approval:{id:'grouped-approval',provider:{id:'youtube',name:'YouTube'},descriptor:{schemaVersion:1,id:'test.app',name:'kawai-downloader',revision:'1',actions:[],permissions:[
+              {id:'url-a',kind:'resource.url',origins:['https://www.youtube.com','https://chzzk.naver.com']},
+              {id:'url-b',kind:'resource.url',origins:['https://www.youtube.com','https://music.youtube.com']},
+              {id:'cookies',kind:'cookies.read',origins:['https://www.youtube.com']}
+            ]}}};
+            const results=[];
+            for(const locale of ['ko','en','ja']) {
+              renderApproval(locale);await new Promise(r=>setTimeout(r,80));
+              const cards=[...document.querySelectorAll('.external-permission-card')];
+              const box=document.querySelector('dialog').getBoundingClientRect();
+              const heading=cards[0].querySelector('.external-permission-copy').getBoundingClientRect(),choice=cards[0].querySelector('.external-permission-choice').getBoundingClientRect();
+              results.push({rightAligned:choice.left>=heading.right,bounds:box.left>=0&&box.right<=innerWidth&&box.bottom<=innerHeight,count:cards.length,sites:cards[0].querySelectorAll('li').length,
+                fits:cards.every(card=>card.scrollWidth<=card.clientWidth+1),
+                denied:cards.every(card=>card.textContent.includes(window.permissionMessages[locale].denied))});
+            }
+            renderApproval('ko');await new Promise(r=>setTimeout(r,80));
+            const combo=document.querySelector('.external-permission-choice [role="combobox"]');
+            combo.click();await new Promise(r=>setTimeout(r,30));
+            const option=[...document.querySelectorAll('[role="option"]')].find(item=>item.textContent.trim()===window.permissionMessages.ko.once);
+            if(!option) throw new Error('Custom permission option missing');
+            option.click();await new Promise(r=>setTimeout(r,30));
+            [...document.querySelectorAll('button')].find(b=>b.textContent===window.permissionMessages.ko.approve).click();
+            await new Promise(r=>setTimeout(r,40));
+            return {results,decision:window.calls.find(call=>call[0]==='approve-choices')};
+        })()`);
+        for(const result of cards.results) assert.deepEqual(result,{rightAligned:true,bounds:true,count:2,sites:3,fits:true,denied:true});
+        assert.deepEqual(cards.decision,['approve-choices','grouped-approval',{'url-a':'once','url-b':'once'}]);
+        const cookieDecision=await win.webContents.executeJavaScript(`(async()=>{
+            window.calls=[];window.approvalFixture.approval.id='cookie-prompt';window.approvalFixture.approval.cookiePermission='cookies';
+            renderApproval('en');await new Promise(r=>setTimeout(r,80));
+            if(document.querySelectorAll('.external-permission-card').length!==1) throw new Error('Cookie prompt scope widened');
+            document.querySelector('[role="combobox"]').click();await new Promise(r=>setTimeout(r,30));
+            [...document.querySelectorAll('[role="option"]')].find(item=>item.textContent.trim()===window.permissionMessages.en.always).click();
+            await new Promise(r=>setTimeout(r,30));
+            [...document.querySelectorAll('button')].find(b=>b.textContent===window.permissionMessages.en.confirmChoice).click();
+            await new Promise(r=>setTimeout(r,40));
+            delete window.approvalFixture.approval.cookiePermission;
+            return window.calls.find(call=>call[0]==='allow-always');
+        })()`);
+        assert.deepEqual(cookieDecision,['allow-always','cookie-prompt',['cookies']]);
+        await win.webContents.executeJavaScript(`window.approvalFixture.approval.id='permission-screenshot';renderApproval('ko')`);
+        await new Promise(r=>setTimeout(r,100));
+        writeFileSync(path.join(output,'permissions.png'),(await win.webContents.capturePage()).toPNG());
+        console.log('Grouped permission cards: localized layouts, exact grouped consent and custom selector passed.',path.join(output,'permissions.png'));
+        for (const height of [440, 600]) {
+            win.setContentSize(720, height);
+            const dropdown = await win.webContents.executeJavaScript(`(async()=>{
+                const dialog=document.querySelector('dialog');dialog.scrollTop=0;
+                const combo=[...document.querySelectorAll('[role="combobox"]')].at(-1);
+                combo.scrollIntoView({block:'end'});combo.click();
+                await new Promise(r=>setTimeout(r,180));
+                const list=document.querySelector('[role="listbox"]');
+                const rect=list.getBoundingClientRect(), trigger=combo.getBoundingClientRect();
+                const options=[...list.querySelectorAll('[role="option"]')];
+                const result={topLayer:list.matches(':popover-open'),count:options.length,
+                    visible:rect.top>=0&&rect.bottom<=innerHeight,
+                    upward:rect.bottom<=trigger.top,
+                    clickable:options.every(option=>{const b=option.getBoundingClientRect();return option.contains(document.elementFromPoint(b.left+b.width/2,b.top+b.height/2));})};
+                combo.click();await new Promise(r=>setTimeout(r,180));return result;
+            })()`);
+            assert.equal(dropdown.topLayer,true);
+            assert.equal(dropdown.count,3);
+            assert.equal(dropdown.visible,true);
+            assert.equal(dropdown.clickable,true, 'all options remain hit-testable outside card clipping');
+            if(height===440) assert.equal(dropdown.upward,true,'small window exercises upward placement');
+        }
+        const preloadSource=readFileSync(path.join(root,'src/Preload/ViewerPreload.ts'),'utf8');
+        const start=preloadSource.indexOf('        .ytp-contextmenu, .ytp-contextmenu * {');
+        const end=preloadSource.indexOf('        *::-webkit-scrollbar {',start);
+        assert.ok(start>=0&&end>start);
+        const firstMenu=await win.webContents.executeJavaScript(`(()=>{
+            const style=document.createElement('style');style.textContent=${JSON.stringify(preloadSource.slice(start,end))};document.head.append(style);
+            const menu=document.createElement('div');menu.className='ytp-contextmenu';menu.style.cssText='height:100px;overflow:auto';
+            document.body.append(menu);const before=getComputedStyle(menu).scrollbarWidth;
+            const item=document.createElement('div');item.style.height='200px';menu.append(item);
+            const after=getComputedStyle(menu).scrollbarWidth;menu.scrollTop=30;
+            return {before,after,scrollable:menu.scrollTop===30};
+        })()`);
+        assert.deepEqual(firstMenu,{before:'none',after:'none',scrollable:true});
         win.destroy();
         clearTimeout(watchdog);
         app.exit(0);

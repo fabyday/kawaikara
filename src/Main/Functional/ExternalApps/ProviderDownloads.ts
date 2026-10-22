@@ -26,7 +26,7 @@ export async function openProviderDownload(
     if (!isExternalDownloaderSourceUrl(url))
         throw new TypeError('A safe HTTPS source URL is required.');
     const { appId, result, distributionUrl } = await sites.requestDownload(providerId, url);
-    if (result.accepted) return result;
+    if (result.accepted || result.code === 'permission-denied') return result;
     if (result.code !== 'unavailable' || (!distributionUrl && appId !== YOUTUBE_DOWNLOADER_APP_ID))
         throw new Error(`External application request failed: ${result.code}`);
     // Keep an already active Provider and its current playback/navigation intact.

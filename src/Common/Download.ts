@@ -50,6 +50,8 @@ export interface ExternalDownloaderStatus {
  * installation state when launching was not possible.
  */
 export interface ExternalDownloaderOpenResult {
+    /** Expected permission refusal, distinct from an unavailable external application. */
+    readonly failureCode?: 'permission-denied';
     /** Whether Kawaikara successfully handed the source URL to the downloader. */
     readonly opened: boolean;
     /** Request ID used for bidirectional lifecycle callbacks, when launched. */

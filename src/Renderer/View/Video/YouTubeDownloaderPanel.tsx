@@ -46,13 +46,17 @@ export function YouTubeDownloaderPanel({
     api = window.kawaikaraVideo.downloads,
     editableSource = true,
 }: YouTubeDownloaderPanelProps) {
+    const [status, setStatus] = useState<ExternalDownloaderStatus>();
     const [distributionFailed, setDistributionFailed] = useState(false);
-    const [distributionLoading, setDistributionLoading] = useState(
-        Boolean(distributionUrl),
-    );
+    const [distributionLoading, setDistributionLoading] = useState(false);
     const [distribution, setDistribution] = useState<DistributionPreview>();
     useEffect(() => {
-        if (!distributionApi || !distributionUrl) return;
+        if (!distributionApi || !distributionUrl || !status || status.installed) {
+            setDistribution(undefined);
+            setDistributionFailed(false);
+            setDistributionLoading(false);
+            return;
+        }
         let active = true;
         setDistribution(undefined);
         setDistributionFailed(false);
@@ -71,9 +75,8 @@ export function YouTubeDownloaderPanel({
         return () => {
             active = false;
         };
-    }, [distributionApi, distributionUrl]);
+    }, [distributionApi, distributionUrl, status?.development, status?.installed]);
     const [url, setUrl] = useState(initialUrl);
-    const [status, setStatus] = useState<ExternalDownloaderStatus>();
     const [error, setError] = useState<string>();
     const [installing, setInstalling] = useState(false);
     const [opening, setOpening] = useState(false);
@@ -104,8 +107,9 @@ export function YouTubeDownloaderPanel({
         setChecking(true);
         setError(undefined);
         try {
-            setStatus(await api.getStatus());
-            if (distributionApi && distributionUrl) {
+            const next = await api.getStatus();
+            setStatus(next);
+            if (!next.installed && distributionApi && distributionUrl) {
                 try {
                     setDistributionFailed(false);
                     setDistribution(
@@ -134,7 +138,9 @@ export function YouTubeDownloaderPanel({
             if (result.opened) onClose?.();
             else
                 setError(
-                    result.status.development
+                    result.failureCode === 'permission-denied'
+                        ? labels.permissionDenied
+                        : result.status.development
                         ? labels.developmentWaiting
                         : labels.missing,
                 );
@@ -219,7 +225,7 @@ export function YouTubeDownloaderPanel({
                 ) : null}
                 {!installed &&
                 status &&
-                (status.development || (editableSource && !distribution)) ? (
+                (!distribution && (status.development || editableSource)) ? (
                     <Text size="xs" tone="muted">
                         {status.development
                             ? labels.developmentHelp
@@ -232,7 +238,6 @@ export function YouTubeDownloaderPanel({
                 ) : null}
                 {!installed &&
                 status &&
-                !status.development &&
                 distribution &&
                 distributionApi &&
                 distributionLabels ? (

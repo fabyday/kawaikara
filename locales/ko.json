@@ -1,7 +1,14 @@
 {
   "app": {
     "externalApps": {
+      "allow": "허용",
+      "sites": "사이트",
+      "confirmChoice": "선택 적용",
+      "urlDescription": "이 Provider에서 앱을 호출할 때 요청한 페이지 주소를 전달합니다.",
+      "cookieDescription": "요청한 페이지의 쿠키를 전달합니다. 로그인 정보가 포함될 수 있습니다.",
       "distribution": {
+        "testInstallConfirm": "외부 앱을 다운로드하고 검증한 뒤 설치 테스트 전용 폴더에 설치합니다. 기존 설치와 연결 권한은 변경하지 않습니다.",
+        "testInstalled": "테스트 폴더에 설치했습니다. 앱을 실행하고 연결을 확인하세요.",
         "title": "Manifest로 앱 찾기",
         "url": "Manifest URL",
         "preview": "앱 찾기",
@@ -18,6 +25,7 @@
         "installConfirm": "이 배포 파일을 다운로드하고 검증한 뒤 OS에서 엽니다. OS의 승인이 필요할 수 있습니다. 앱 등록이나 권한 허용은 별도로 진행됩니다.",
         "cancel": "취소",
         "close": "닫기",
+        "actionError": "작업을 완료하지 못했습니다. 다시 확인을 눌러 정보를 갱신한 뒤 재시도하세요.",
         "error": "작업을 완료하지 못했습니다. Manifest 주소를 확인한 뒤 다시 시도하세요.",
         "loading": "앱 정보를 불러오는 중…",
         "version": "버전",
@@ -46,7 +54,7 @@
       "cancel": "취소",
       "revoke": "연결 해제",
       "review": "외부 앱 등록",
-      "description": "이 Provider의 권한을 선택하세요. 쿠키를 선택하면 앱이 실제로 요청할 때 다시 확인합니다. 고급 설정에서 언제든 변경할 수 있습니다.",
+      "description": "각 권한을 비허용, 이번만 허용 또는 항상 허용으로 선택하세요. 이번만 허용은 현재 요청에만 적용되며 다음 요청에서는 다시 확인합니다.",
       "url": "요청한 페이지 URL 읽기",
       "cookies": "요청한 페이지의 쿠키 읽기",
       "actions": "앱 기능",
@@ -54,7 +62,7 @@
       "enabled": "이 Provider에서 앱 사용 허용",
       "ask": "매번 확인",
       "always": "항상 허용",
-      "denied": "허용 안 함",
+      "denied": "비허용",
       "once": "이번만 허용",
       "cookieReview": "이 앱이 해당 Provider의 쿠키를 요청합니다. 거부해도 URL로 열 수 있지만, 로그인이나 비공개 콘텐츠 접근은 실패할 수 있습니다."
     },
@@ -747,6 +755,7 @@
     "releaseNotesDescription": "새 버전에 포함된 변경 사항을 확인합니다."
   },
   "downloader": {
+    "permissionDenied": "외부 앱을 열 권한이 없습니다. 설정의 외부 앱에서 이 Provider의 앱 사용 허용과 URL 읽기 권한을 확인하세요.",
     "refresh": "다시 확인",
     "developmentWaiting": "앱 연결 대기 중",
     "developmentConnected": "개발 앱 연결됨",

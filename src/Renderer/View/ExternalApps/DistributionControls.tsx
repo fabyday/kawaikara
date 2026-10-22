@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Flex, Input, Stack, Text } from '@kawaikara/kawai-ui';
 import type { AppMessages } from '../../../Common/IPC';
 import type {
@@ -27,6 +27,10 @@ export function DistributionControls({
     const locked = useRef(false);
     const [notice, setNotice] = useState('');
     const [failed, setFailed] = useState(false);
+    useEffect(() => {
+        setFailed(false);
+        setNotice('');
+    }, [preview.token]);
     const guide =
         preview.target?.guideUrl ??
         preview.descriptor.guideUrl ??
@@ -46,8 +50,9 @@ export function DistributionControls({
             const result = await api.act(preview.token, action);
             if (result === 'installer-opened')
                 setNotice(labels.installerOpened);
+            if (result === 'installed') setNotice(labels.testInstalled);
             if (result === 'downloaded') setNotice(labels.downloaded);
-            if (result === 'installer-opened' || result === 'downloaded')
+            if (result === 'installer-opened' || result === 'downloaded' || result === 'installed')
                 onChanged?.();
         } catch {
             setFailed(true);
@@ -81,10 +86,10 @@ export function DistributionControls({
                         {labels.install}
                     </Button>
                 )}
-                {preview.target?.artifact && (
+                {preview.action === 'download' && preview.target?.artifact && (
                     <Button
-                        variant="secondary"
                         disabled={busy}
+                        isLoading={busy}
                         onClick={() => void act('download')}>
                         {labels.download}
                     </Button>
@@ -116,7 +121,7 @@ export function DistributionControls({
             )}
             {failed && (
                 <Text role="alert" tone="danger" size="sm">
-                    {labels.error}
+                    {labels.actionError}
                 </Text>
             )}
         </Stack>

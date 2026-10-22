@@ -226,7 +226,7 @@ For the reference downloader:
 pnpm dev:server:build
 
 # Kawaikara checkout, another terminal: installed transport + port 8765 fixture.
-pnpm dev:external:local
+pnpm dev:external:install-test
 ```
 
 `pnpm dev:server --artifact /absolute/path/app.dmg --os darwin --arch arm64`
@@ -237,7 +237,7 @@ the Kawaikara override as well. `pnpm dev:server` is a distribution HTTP server;
 | Kawaikara | External app | Test setup |
 | --- | --- | --- |
 | Packaged | Packaged | Installed transport; optionally launch the actual host executable with the local manifest override |
-| Development | Packaged | `pnpm dev:external:installed`, or `pnpm dev:external:local` for the fixture |
+| Development | Packaged | `pnpm dev:external:installed`, or `pnpm dev:external:install-test` for the fixture |
 | Development | Development | `pnpm dev:external:development` in Kawaikara and `pnpm start` in the reference downloader; manual/automatic pairing then permission approval |
 | Packaged | Development transport | Not supported by the current mode policy |
 
@@ -256,7 +256,7 @@ The compatible app must request authenticated connection and pass normal consent
 Development sessions also expose **Running apps** to select an existing peer.
 
 Current development discovery already uses private per-user records under
-`<Kawaikara checkout>/tmp/kawaikara Dev/development-connections`. Files advertise peers; loopback carries
+`<Kawaikara checkout>/tmp/development-connections`. Files advertise peers; loopback carries
 actual authenticated communication. Automatic connection does not install apps.
 A general shared-file discovery contract for arbitrary third-party installed apps
 is still not implemented. Do not write into another app's data directory or treat
@@ -297,7 +297,7 @@ The per-user namespaces are separate:
 
 - Installed protocol namespace: `<OS user-data root>/Kawaikara/connections/v1` (reserved; generic
   installed-app shared-file discovery is not yet wired up).
-- Development/test discovery: `<Kawaikara checkout>/tmp/kawaikara Dev/development-connections` (selected explicitly by the development downloader).
+- Development/test discovery: `<Kawaikara checkout>/tmp/development-connections` (selected explicitly by the development downloader).
 
 The path resolver creates no directories. The transport owns presence records;
 permissions and binding state remain in the selected host profile. No existing
@@ -307,7 +307,7 @@ connection records are migrated, deleted or shared between installed and test mo
 ### Repository-local development connections (Windows, macOS and Linux)
 
 Development discovery now lives in
-`<Kawaikara checkout>/tmp/kawaikara Dev/development-connections`. It is resolved
+`<Kawaikara checkout>/tmp/development-connections`. It is resolved
 from the host build root and omitted entirely from Stable. Separate checkouts have
 separate discovery roots. Old home-directory records are neither migrated nor
 removed; fresh approval may be needed in the new namespace.
@@ -332,3 +332,47 @@ Reserved installed-app discovery roots (generic installed discovery is not wired
 - macOS: `~/Library/Application Support/Kawaikara/connections/v1`.
 - Linux: `$XDG_STATE_HOME/kawaikara/connections/v1`, falling back to
   `~/.local/state/kawaikara/connections/v1` when XDG_STATE_HOME is absent or relative.
+
+
+`dev:external:local` (alias: `dev:external:install-test`) tests distribution:
+fetch the local manifest on port 8765, download/install its artifact and use installed
+transport. This is separate from `dev:external:development`, which pairs running
+development apps. Distribution controls remain available independently of the
+connection transport when the Provider declares a manifest.
+
+### Isolated installation tests
+
+The checkout now keeps three independent roots:
+
+```text
+tmp/
+  kawaikara Dev/                 # existing host settings, logs and permissions
+  development-connections/     # development rendezvous and revocations
+  ExternalAppTest/
+    day.faby.kawai-downloader/
+      cache/                    # test manifest/icon cache
+      downloads/                # verified artifacts and temporary extraction
+      installed/                # isolated application copy
+```
+
+Run the downloader distribution server (`pnpm dev:server` in its repository),
+then `pnpm dev:external:install-test` in Kawaikara. This sets
+`KAWAIKARA_EXTERNAL_APP_INSTALL_TEST=1` as well as the local manifest override.
+Only `installed/` is searched: Spotlight, Applications, environment-selected app
+paths and registered protocols cannot make the test appear installed.
+`dev:external:installed` retains normal OS discovery.
+
+macOS DMG/ZIP copies are supported without removing quarantine. Native Windows
+EXE/MSI and Linux system installers cannot be safely redirected by this generic
+flow, so isolated automatic installation rejects them rather than launching a real
+system installer. Download-only artifacts remain confined to `downloads/`.
+
+Quit the companion before removing its test `installed/` directory and refresh
+the setup panel to repeat installation. Remove the product's entire test directory
+only when its download/metadata caches should also be reset. Host grants remain
+independent; revoke the registration separately to test first-time consent.
+Close any normally installed downloader before testing launch: packaged downloader
+instances still share their ordinary user-data/single-instance namespace.
+Existing `kawaikara Dev/development-connections` files are left untouched but are no
+longer read. Restart both development peers with `start:connected` to use the new
+root. Stable builds exclude the installation-test module, paths and environment switch.

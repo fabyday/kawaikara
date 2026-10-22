@@ -46,7 +46,8 @@ export function connectWindowIpc({
         ipc.handle(IPC_CHANNELS.media.toggleGamePictureInPicture, () =>
             viewerRuntime.pip.toggleGamePictureInPicture(),
         );
-        ipc.handle(IPC_CHANNELS.overlay.close, () => {
+        ipc.handle(IPC_CHANNELS.overlay.close, (_event, expectedView: unknown) => {
+            if (expectedView !== undefined && expectedView !== viewerRuntime.viewer.overlayView) return;
             viewerRuntime.viewer.hideOverlay();
         });
         ipc.handle(IPC_CHANNELS.overlay.setView, (_event, view: unknown) => {

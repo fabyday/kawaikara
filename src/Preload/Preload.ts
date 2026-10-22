@@ -366,7 +366,7 @@ const api: KawaikaraRendererApi = {
   /** Presentation events from Main and overlay dismissal. */
   overlay: {
     /** The close value. */
-    close: () => ipcRenderer.invoke(IPC_CHANNELS.overlay.close),
+    close: (expectedView) => ipcRenderer.invoke(IPC_CHANNELS.overlay.close, expectedView),
     /** The set view value. */
     setView: (view: OverlayView) =>
       ipcRenderer.invoke(IPC_CHANNELS.overlay.setView, view),
@@ -396,6 +396,13 @@ const api: KawaikaraRendererApi = {
       return () => ipcRenderer.off(IPC_CHANNELS.overlay.showUpdate, listener);
     },
     /** Delivers only Main-authored external-app setup requests. */
+    onShowExternalAppApproval: (handler) => {
+      /** Does not expose Electron event objects to Renderer callbacks. */
+      const listener = () => handler();
+      ipcRenderer.on(IPC_CHANNELS.overlay.showExternalAppApproval, listener);
+      return () => ipcRenderer.off(IPC_CHANNELS.overlay.showExternalAppApproval, listener);
+    },
+    /** Delivers Main-owned setup requests. */
     onShowExternalApp: (handler) => {
       /** Forwards a Main setup event; removed on unsubscribe. */
       const listener = (_event: Electron.IpcRendererEvent, request: import('../Common/Download').ExternalAppSetupRequest) => handler(request);

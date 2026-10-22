@@ -324,6 +324,17 @@ function installScrollbarTheme(): void {
           scrollbar-color: transparent transparent !important;
           scrollbar-width: auto !important;
         }
+        /* Player menus remain wheel/keyboard scrollable on short windows, but
+           inserted Provider items must not flash a scrollbar on first opening. */
+        .ytp-contextmenu, .ytp-contextmenu * {
+          scrollbar-width: none !important;
+        }
+        .ytp-contextmenu::-webkit-scrollbar,
+        .ytp-contextmenu *::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
         *::-webkit-scrollbar {
           width: 12px !important;
           height: 12px !important;

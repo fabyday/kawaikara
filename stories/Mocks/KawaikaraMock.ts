@@ -1056,6 +1056,7 @@ export function installKawaikaraMock(
                 return () => preferenceHandlers.delete(handler);
             },
             onShowExternalApp: () => () => {},
+            onShowExternalAppApproval: () => () => {},
             onShowUpdate: (handler) => {
                 updateHandlers.add(handler);
                 return () => updateHandlers.delete(handler);

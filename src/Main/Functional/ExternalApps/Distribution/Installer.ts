@@ -23,6 +23,12 @@ export async function prepareDistributionArtifact(
     labels: AppMessages['externalApps']['distribution'],
     testOrigin?: string,
 ): Promise<DistributionActionResult> {
+    const testService =
+        typeof __KAWAIKARA_EXTERNAL_APP_TESTING__ !== 'undefined' &&
+        __KAWAIKARA_EXTERNAL_APP_TESTING__
+            ? (require('./InstallTesting') as typeof import('./InstallTesting'))
+            : undefined;
+    const testPaths = testService?.installationTestPaths(preview.descriptor.id);
     const artifact = preview.target?.artifact;
     if (
         !artifact ||
@@ -30,6 +36,15 @@ export async function prepareDistributionArtifact(
         preview.target?.os !== process.platform
     )
         throw new Error('Unsupported installation target.');
+    if (
+        testPaths &&
+        install &&
+        (process.platform !== 'darwin' ||
+            !['dmg', 'zip'].includes(artifact.format))
+    )
+        throw new Error(
+            'This native installer cannot be isolated; use a portable test artifact.',
+        );
     const filename = `${preview.descriptor.id}-${(preview.target?.version ?? 'release').replace(/[^a-zA-Z0-9._-]/g, '_')}.${artifact.format}`;
     let destination: string | undefined;
     if (install) {
@@ -37,13 +52,15 @@ export async function prepareDistributionArtifact(
             type: 'question',
             title: labels.install,
             message: `${labels.install}: ${preview.descriptor.name}`,
-            detail: `${preview.target.os} / ${preview.target.arch} / ${preview.target.version ?? ''}\n${preview.sourceUrl}\n${artifact.url}\n\n${labels.installConfirm}`,
+            detail: `${testPaths ? labels.testInstallConfirm : labels.installConfirm}\n\n${preview.target.os} / ${preview.target.arch} / ${preview.target.version ?? ''}\n${preview.sourceUrl}\n${artifact.url}`,
             buttons: [labels.install, labels.cancel],
             defaultId: 1,
             cancelId: 1,
             noLink: true,
         });
         if (answer.response !== 0) return 'canceled';
+    } else if (testPaths) {
+        destination = path.join(testPaths.downloads, filename);
     } else {
         const answer = await dialog.showSaveDialog({
             title: labels.download,
@@ -55,7 +72,8 @@ export async function prepareDistributionArtifact(
     // Manual downloads stage on the same filesystem for atomic replacement after verification.
     const parent = destination
         ? path.dirname(destination)
-        : path.join(app.getPath('temp'), 'kawaikara-installers');
+        : (testPaths?.downloads ??
+          path.join(app.getPath('temp'), 'kawaikara-installers'));
     await mkdir(parent, { recursive: true, mode: 0o700 });
     const directory = await mkdtemp(path.join(parent, '.kawaikara-'));
     const temporary = path.join(directory, filename);
@@ -91,6 +109,16 @@ export async function prepareDistributionArtifact(
         if (destination) {
             await rename(temporary, destination);
             return 'downloaded';
+        }
+        if (testPaths && testService) {
+            const saved = path.join(testPaths.downloads, filename);
+            await rename(temporary, saved);
+            await testService.installTestApplication(
+                preview.descriptor.id,
+                saved,
+                artifact.format,
+            );
+            return 'installed';
         }
         const error = await shell.openPath(temporary);
         if (error) throw new Error(error);

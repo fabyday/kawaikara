@@ -93,10 +93,25 @@ interface ExternalAppDecision {
     readonly grants: string[];
     /** Whether a per-use cookie approval should persist for this Provider. */
     readonly remember: boolean;
+    /** Explicit choices from the current approval UI. */
+    readonly choices?: import('../../../Common/ExternalApps').ExternalAppPermissionChoices;
 }
 
 /** Owns serialized consent and durable grants. Closing/canceling a prompt never registers an app. */
 export class ExternalAppPermissions {
+    /** Invocation grants are attached only to the exact result, never global registration state. */
+    private readonly invocationGrants = new WeakMap<
+        ExternalAppRegistration,
+        readonly string[]
+    >();
+    /** Consumes one registration result's temporary authority; callers bind it to their resource. */
+    takeInvocationGrants(
+        registration: ExternalAppRegistration,
+    ): readonly string[] {
+        const grants = this.invocationGrants.get(registration) ?? [];
+        this.invocationGrants.delete(registration);
+        return grants;
+    }
     /** Revocation generations prevent reapproval from resurrecting old host handles. */
     private readonly epochs = new Map<string, number>();
     /** Current revocation generation, invalidating previously issued host facades. */
@@ -208,6 +223,25 @@ export class ExternalAppPermissions {
         return record?.fingerprint === externalAppFingerprint(descriptor)
             ? structuredClone(record)
             : undefined;
+    }
+    /** Checks whether an invocation-only grant still belongs to the live declaration and Provider policy. */
+    allowsOnce(
+        descriptor: ExternalAppDescriptor,
+        permissionId: string,
+        providerId?: string,
+    ): boolean {
+        const record = this.registrations.get(descriptor.id);
+        if (record?.fingerprint !== externalAppFingerprint(descriptor))
+            return false;
+        if (!providerId)
+            return record.askPermissions?.includes(permissionId) === true;
+        const grant = record.providers?.find(
+            (item) => item.providerId === providerId,
+        );
+        return (
+            grant?.enabled === true &&
+            grant.askPermissions?.includes(permissionId) === true
+        );
     }
     /** Checks live, declaration-bound authority for one Provider, without reading any data. */
     allows(
@@ -423,28 +457,61 @@ export class ExternalAppPermissions {
                 const existing = await this.get(descriptor);
                 if (
                     existing &&
-                    (!provider ||
-                        existing.providers?.some(
-                            (item) => item.providerId === provider.id,
-                        ))
+                    (!provider
+                        ? !existing.askPermissions?.length
+                        : existing.providers?.some(
+                              (item) =>
+                                  item.providerId === provider.id &&
+                                  !item.askPermissions?.length,
+                          ))
                 )
                     return existing;
+                const prior = existing?.providers?.find(
+                    (item) => item.providerId === provider?.id,
+                );
+                const initialChoices = Object.fromEntries(
+                    descriptor.permissions.map((item) => [
+                        item.id,
+                        (
+                            item.kind === 'resource.url'
+                                ? (provider
+                                      ? prior?.grants
+                                      : existing?.grants
+                                  )?.includes(item.id)
+                                : prior?.cookies[item.id] === 'allow'
+                        )
+                            ? ('always' as const)
+                            : ('deny' as const),
+                    ]),
+                );
                 const decision = await this.prompt({
                     id: randomUUID(),
                     descriptor: structuredClone(descriptor),
                     provider,
+                    initialChoices,
                 });
                 if (
                     !decision ||
                     this.resourceEpoch(descriptor.id, provider?.id) !== epoch
                 )
                     return undefined;
-                const grants = decision.grants;
+                const grants = decision.grants.filter(
+                    (id) => decision.choices?.[id] !== 'once',
+                );
+                const once = decision.grants.filter(
+                    (id) => decision.choices?.[id] === 'once',
+                );
                 const providerGrant: ExternalAppProviderGrant | undefined =
                     provider
                         ? {
                               providerId: provider.id,
                               enabled: true,
+                              askPermissions: once.filter(
+                                  (id) =>
+                                      descriptor.permissions.find(
+                                          (item) => item.id === id,
+                                      )?.kind === 'resource.url',
+                              ),
                               grants: grants.filter(
                                   (id) =>
                                       descriptor.permissions.find(
@@ -459,9 +526,14 @@ export class ExternalAppPermissions {
                                       )
                                       .map((item) => [
                                           item.id,
-                                          grants.includes(item.id)
-                                              ? 'ask'
-                                              : 'deny',
+                                          decision.choices?.[item.id] ===
+                                          'always'
+                                              ? 'allow'
+                                              : decision.grants.includes(
+                                                      item.id,
+                                                  )
+                                                ? 'ask'
+                                                : 'deny',
                                       ]),
                               ),
                           }
@@ -473,10 +545,11 @@ export class ExternalAppPermissions {
                         : undefined;
                 const record: ExternalAppRegistration = {
                     appId: descriptor.id,
+                    askPermissions: provider ? latest?.askPermissions : once,
                     name: descriptor.name,
                     fingerprint: externalAppFingerprint(descriptor),
                     grants:
-                        latest?.grants ??
+                        (provider ? latest?.grants : undefined) ??
                         grants.filter(
                             (id) =>
                                 descriptor.permissions.find(
@@ -484,7 +557,12 @@ export class ExternalAppPermissions {
                                 )?.kind === 'resource.url',
                         ),
                     providers: providerGrant
-                        ? [...(latest?.providers ?? []), providerGrant]
+                        ? [
+                              ...(latest?.providers ?? []).filter(
+                                  (item) => item.providerId !== provider!.id,
+                              ),
+                              providerGrant,
+                          ]
                         : latest?.providers,
                 };
                 this.registrations.set(descriptor.id, record);
@@ -498,12 +576,53 @@ export class ExternalAppPermissions {
                     this.registrations.delete(descriptor.id);
                     throw error;
                 }
-                return this.resourceEpoch(descriptor.id, provider?.id) === epoch
-                    ? structuredClone(record)
-                    : undefined;
+                if (this.resourceEpoch(descriptor.id, provider?.id) !== epoch)
+                    return undefined;
+                if (prior || (!provider && existing)) {
+                    const key = provider
+                        ? `${descriptor.id}\0${provider.id}`
+                        : descriptor.id;
+                    this.epochs.set(key, this.epoch(key) + 1);
+                }
+                const result = structuredClone(record);
+                this.invocationGrants.set(result, once);
+                return result;
             });
         this.queue = run;
         return run;
+    }
+    /** Validates per-permission choices before resolving a registration prompt. */
+    decideChoices(id: string, value: unknown): void {
+        if (
+            !value ||
+            typeof value !== 'object' ||
+            Array.isArray(value) ||
+            Object.values(value).some(
+                (choice) => !['deny', 'once', 'always'].includes(choice),
+            )
+        )
+            throw new Error('Invalid external app permission choices.');
+        const choices =
+            value as import('../../../Common/ExternalApps').ExternalAppPermissionChoices;
+        if (
+            !this.pending ||
+            this.pending.approval.id !== id ||
+            this.pending.approval.cookiePermission ||
+            Object.keys(choices).some(
+                (key) =>
+                    !this.pending!.approval.descriptor.permissions.some(
+                        (p) => p.id === key,
+                    ),
+            )
+        )
+            throw new Error('Invalid external app approval.');
+        this.pending.resolve({
+            grants: Object.keys(choices).filter(
+                (key) => choices[key] !== 'deny',
+            ),
+            remember: false,
+            choices: { ...choices },
+        });
     }
     /**
      * Resolves the currently displayed single-use registration prompt.

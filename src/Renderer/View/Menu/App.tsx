@@ -1,3 +1,4 @@
+import { ExternalAppApproval } from '../Preference/ExternalAppApproval';
 import { KAWAI_DOWNLOADER_APP_ID } from '../../../Common/Download';
 import { ProviderAppRequirement } from '../ExternalApps/ProviderAppRequirement';
 import { YouTubeDownloaderPanel } from '../Video/YouTubeDownloaderPanel';
@@ -359,6 +360,11 @@ export function App() {
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
+        {view === 'external-app-permission' ? (
+          <div className={`kawai-theme ${(preferences?.appTheme ?? 'dark') === 'dark' ? 'kawai-theme-dark' : 'kawai-theme-light'} external-app-motion-shell`}>
+            <ExternalAppApproval messages={messages.externalApps} onComplete={() => void window.kawaikara.overlay.close('external-app-permission')} />
+          </div>
+        ) : null}
         {view === 'external-app' && externalAppRequest ? (
           <motion.div className={`kawai-theme ${(preferences?.appTheme ?? 'dark') === 'dark' ? 'kawai-theme-dark' : 'kawai-theme-light'} external-app-motion-shell`}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>

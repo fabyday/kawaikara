@@ -497,6 +497,16 @@ export class ViewerController {
         this.revealOverlay(overlay);
     }
 
+    /** Presents permission consent without opening the menu or preferences. */
+    showExternalAppApproval(): void {
+        const overlay = this.requireOverlaySurface();
+        this.overlayView = 'external-app-permission';
+        this.overlayVisible = true;
+        this.syncOverlayBounds();
+        overlay.webContents.send(IPC_CHANNELS.overlay.showExternalAppApproval);
+        this.revealOverlay(overlay);
+    }
+
     /** Presents setup without switching, reloading or replacing the active Provider surface. */
     showExternalAppOverlay(request: ExternalAppSetupRequest): void {
         const overlay = this.requireOverlaySurface();

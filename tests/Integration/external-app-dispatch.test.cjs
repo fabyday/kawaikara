@@ -536,3 +536,59 @@ test('Provider-owned app manifest accompanies missing-app results', async () => 
     assert.equal(outcome.result.code, 'unavailable');
     assert.equal(outcome.distributionUrl, 'https://github.com/fabyday/yt-downloader/releases/latest/download/kawaikara.manifest.json');
 });
+
+test('Provider permission refusal remains a normal result without launching installation UI', async () => {
+    const { openProviderDownload } = load('src/Main/Functional/ExternalApps/ProviderDownloads.ts');
+    const result = { accepted: false, code: 'permission-denied', recoverable: true };
+    const fail = () => { throw new Error('Permission refusal must not navigate or open installation'); };
+    const actual = await openProviderDownload({ requestDownload: async () => ({ appId: 'day.faby.kawai-downloader', result }), load: fail, getActiveProviderId: fail }, { viewer: { showExternalAppOverlay: fail, focusViewer: fail } }, 'youtube', source);
+    assert.deepEqual(actual, result);
+});
+
+test('three-way registration scopes once to one invocation and persists only always', async () => {
+    const permissions = new ExternalAppPermissions(), f = custom(permissions);
+    const first = f.apps.request('custom.app', {action:'open'}, f.resource);
+    permissions.decideChoices((await prompt(permissions)).id, {url:'once', cookies:'always'});
+    assert.equal((await first).accepted, true);
+    assert.equal(f.hosts[0].getUrl('url'), source);
+    assert.equal((await f.hosts[0].getCookies('cookies'))[0].value, 'secret');
+    const saved = (await permissions.status()).registrations[0].providers[0];
+    assert.deepEqual(saved.grants, []);
+    assert.equal(saved.cookies.cookies, 'allow');
+    const second = f.apps.request('custom.app', {action:'open'}, f.resource);
+    permissions.decideChoices((await prompt(permissions)).id, {url:'deny',cookies:'deny'});
+    assert.equal((await second).code, 'permission-denied');
+    assert.throws(() => f.hosts[0].getUrl('url'), /permission denied/);
+});
+
+test('once cookie credit is consumed before asynchronous access and revocation invalidates it', async () => {
+    const permissions = new ExternalAppPermissions(), f = custom(permissions);
+    const request = f.apps.request('custom.app', {action:'open'}, f.resource);
+    permissions.decideChoices((await prompt(permissions)).id, {url:'always',cookies:'once'});
+    assert.equal((await request).accepted,true);
+    assert.equal((await f.hosts[0].getCookies('cookies'))[0].value,'secret');
+    const next = f.hosts[0].getCookies('cookies');
+    permissions.decide((await prompt(permissions)).id,undefined);
+    await assert.rejects(next,/permission denied/);
+    await permissions.revoke('custom.app');
+    assert.throws(() => f.hosts[0].getUrl('url'), /permission denied/);
+});
+
+test('once URL consent survives restart only as a prompt marker while remembered cookies remain preselected', async t => {
+    const dir = await mkdtemp(path.join(os.tmpdir(),'once-consent-'));
+    t.after(()=>rm(dir,{recursive:true,force:true}));
+    const file=path.join(dir,'permissions.json');
+    const first=new ExternalAppPermissions(file), f=custom(first);
+    const request=f.apps.request('custom.app',{action:'open'},f.resource);
+    first.decideChoices((await prompt(first)).id,{url:'once',cookies:'always'});
+    assert.equal((await request).accepted,true);
+    const restored=new ExternalAppPermissions(file), g=custom(restored);
+    const next=g.apps.request('custom.app',{action:'open'},g.resource);
+    const approval=await prompt(restored);
+    assert.deepEqual(approval.initialChoices,{url:'deny',cookies:'always'});
+    assert.equal(restored.allows(g.adapter.descriptor,'url',g.resource.provider.id),false);
+    restored.decideChoices(approval.id,{url:'always',cookies:'always'});
+    assert.equal((await next).accepted,true);
+    assert.equal((await g.apps.request('custom.app',{action:'open'},g.resource)).accepted,true);
+    assert.equal((await restored.status()).approval,undefined);
+});

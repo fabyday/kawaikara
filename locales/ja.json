@@ -1,7 +1,14 @@
 {
   "app": {
     "externalApps": {
+      "allow": "許可",
+      "sites": "サイト",
+      "confirmChoice": "選択を適用",
+      "urlDescription": "このProviderがアプリを呼び出す際、要求したページのURLを渡します。",
+      "cookieDescription": "リクエストしたページのCookieを共有します。ログイン情報が含まれる場合があります。",
       "distribution": {
+        "testInstallConfirm": "外部アプリをダウンロード・検証し、インストールテスト専用フォルダーにインストールします。既存のインストールや接続権限は変更しません。",
+        "testInstalled": "テストフォルダーにインストールしました。アプリを起動して接続を確認してください。",
         "title": "Manifestでアプリを探す",
         "url": "Manifest URL",
         "preview": "アプリを探す",
@@ -18,6 +25,7 @@
         "installConfirm": "リリースをダウンロードして検証し、OSで開きます。OSの承認が必要な場合があります。アプリの登録や権限の許可は別途行います。",
         "cancel": "キャンセル",
         "close": "閉じる",
+        "actionError": "操作を完了できませんでした。情報を再確認してから、もう一度お試しください。",
         "error": "操作を完了できませんでした。Manifest URLを確認して再試行してください。",
         "loading": "アプリ情報を読み込み中…",
         "version": "バージョン",
@@ -46,7 +54,7 @@
       "cancel": "キャンセル",
       "revoke": "接続解除",
       "review": "外部アプリの登録",
-      "description": "このProviderの権限を選択してください。Cookieは実際の要求時に再確認します。詳細設定からいつでも変更できます。",
+      "description": "各権限を許可しない、今回のみ許可、常に許可から選択してください。今回のみ許可は現在のリクエストに適用され、次回は再確認します。",
       "url": "要求したページのURLを読み取る",
       "cookies": "要求したページのCookieを読み取る",
       "actions": "アプリの機能",
@@ -747,6 +755,7 @@
     "releaseNotesDescription": "新しいバージョンに含まれる変更を確認します。"
   },
   "downloader": {
+    "permissionDenied": "このアプリを開く権限がありません。設定の外部アプリで、このProviderのアプリ利用とURL読み取り権限を確認してください。",
     "refresh": "再確認",
     "developmentWaiting": "アプリの接続待ち",
     "developmentConnected": "開発アプリに接続済み",

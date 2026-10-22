@@ -1,7 +1,14 @@
 {
   "app": {
     "externalApps": {
+      "allow": "Allow",
+      "sites": "Sites",
+      "confirmChoice": "Confirm choice",
+      "urlDescription": "Shares the requested page address with the app when this Provider invokes it.",
+      "cookieDescription": "Shares cookies for the requested page. These may include sign-in information.",
       "distribution": {
+        "testInstallConfirm": "Download, verify, and install into the isolated installation test folder. Existing installations and connection permissions are unchanged.",
+        "testInstalled": "Installed in the test folder. Open the app and check its connection.",
         "title": "Find an app by manifest",
         "url": "Manifest URL",
         "preview": "Find app",
@@ -18,6 +25,7 @@
         "installConfirm": "Download and verify this release, then open it with the operating system. The OS may request approval. This does not register the app or grant permissions.",
         "cancel": "Cancel",
         "close": "Close",
+        "actionError": "The action could not be completed. Refresh the app information and try again.",
         "error": "Unable to complete this app action. Check the manifest URL and try again.",
         "loading": "Loading app information…",
         "version": "Version",
@@ -46,7 +54,7 @@
       "cancel": "Cancel",
       "revoke": "Disconnect",
       "review": "Register external application",
-      "description": "Choose permissions for this Provider. Enabling cookies asks again when the app requests them. You can change these choices in Advanced settings.",
+      "description": "Choose deny, allow once, or always allow for each permission. Allow once applies to this request; the next request requires confirmation again.",
       "url": "Read the requested page URL",
       "cookies": "Read cookies for the requested page",
       "actions": "App functions",
@@ -747,6 +755,7 @@
     "releaseNotesDescription": "Review the changes included in the new version."
   },
   "downloader": {
+    "permissionDenied": "Permission to open this app was not granted. Check app access and URL permission for this Provider in External apps settings.",
     "refresh": "Check again",
     "developmentWaiting": "Waiting for app connection",
     "developmentConnected": "Development app connected",

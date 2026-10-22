@@ -195,6 +195,12 @@ export function useOverlayEvents({
       setView('update');
       viewRef.current = 'update';
     });
+    const removeApprovalListener = window.kawaikara.overlay.onShowExternalAppApproval(() => {
+      if (closeTimer.current !== undefined) { window.clearTimeout(closeTimer.current); closeTimer.current = undefined; }
+      setMenuVisible(true);
+      setView('external-app-permission');
+      viewRef.current = 'external-app-permission';
+    });
     const removeExternalAppListener = window.kawaikara.overlay.onShowExternalApp((request) => {
       if (closeTimer.current !== undefined) { window.clearTimeout(closeTimer.current); closeTimer.current = undefined; }
       setExternalAppRequest(request);
@@ -273,6 +279,7 @@ export function useOverlayEvents({
       removePreferenceListener();
       removeUpdateListener();
       removeExternalAppListener();
+      removeApprovalListener();
       removeUpdateStateListener();
       removeCloseListener();
       removeHiddenListener();

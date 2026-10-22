@@ -446,3 +446,36 @@ test('external app modal owns Escape and ordinary keys without triggering site s
     assert.equal(resolveWindowInput(key('Tab'), state({ overlay: 'external-app' })), 'renderer');
     assert.equal(resolveWindowInput(key('p'), state({ overlay: 'external-app' })), 'renderer');
 });
+
+test('closed viewer releases state without reading destroyed native webContents', () => {
+    const { ViewerLifecycle } = loadSource('src/Main/Functional/Viewer/ViewerLifecycle.ts', { electron: {} });
+    const calls = [];
+    const destroyedContents = { isDestroyed: () => true, get id() { throw new Error('Object has been destroyed'); } };
+    const host = {
+        editingWebContentsIds: new Set([1, 2, 3, 4]),
+        logViewer: { dispose: () => calls.push('log') },
+        pictureInPicture: { handleViewerClosed: () => calls.push('pip') },
+        siteView: { webContents: destroyedContents },
+        videoView: { webContents: { isDestroyed: () => false, close: () => calls.push('video'), get id() { throw new Error('Destroyed ID'); } } },
+        overlayVisible: true,
+        clearInternalVideoPictureInPictureReassertions() {},
+        clearInternalVideoPictureInPicturePointerMonitor() {},
+        clearOverlayRevealTimer() {}, stopExternalFullscreenMonitoring() {}, stopVideoInitialization() {},
+        destroySiteView() { calls.push('site'); this.siteView = undefined; },
+        releaseNativeWindow() { calls.push('release'); },
+    };
+    const lifecycle = new ViewerLifecycle(host, { getLogger: () => ({}) });
+    const window = { isDestroyed: () => true, get webContents() { throw new Error('Object has been destroyed'); } };
+    assert.doesNotThrow(() => lifecycle.handleViewerClosed(window, { webContents: destroyedContents }));
+    assert.equal(host.editingWebContentsIds.size, 0);
+    assert.equal(host.videoView, undefined);
+    assert.equal(host.overlayVisible, false);
+    assert.deepEqual(calls, ['log', 'pip', 'site', 'video', 'release']);
+});
+
+
+test('standalone app consent captures navigation without leaking keys to the Provider', () => {
+    assert.equal(resolveWindowInput(key('Escape'), state({ overlay: 'external-app-permission', editing: true })), 'back');
+    assert.equal(resolveWindowInput(key('Tab'), state({ overlay: 'external-app-permission' })), 'renderer');
+    assert.equal(resolveWindowInput(key('p'), state({ overlay: 'external-app-permission' })), 'renderer');
+});

@@ -160,7 +160,7 @@ async function installExternalDownloaderMacArtifact(
 }
 
 /** Performs the inspect mac app operation. */
-async function inspectMacApp(
+export async function inspectMacApp(
     appPath: string,
 ): Promise<InstalledExternalDownloaderApp | null> {
     try {

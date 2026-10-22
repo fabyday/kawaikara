@@ -212,7 +212,7 @@ export function createApplicationManagerContainer(
                         () => {
                             resolver
                                 .resolve(MANAGER_TOKENS.viewerRuntime)
-                                .viewer.showPreferencesOverlay();
+                                .viewer.showExternalAppApproval();
                             app.focus({ steal: true });
                         },
                     ),

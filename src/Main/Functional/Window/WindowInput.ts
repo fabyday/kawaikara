@@ -44,7 +44,8 @@ export function resolveWindowInput(
             down &&
             (state.overlay === 'preference' ||
                 state.overlay === 'update' ||
-                state.overlay === 'external-app')
+                state.overlay === 'external-app' ||
+                state.overlay === 'external-app-permission')
         ) {
             if (key === 'tab' && state.overlay === 'preference')
                 return 'consume';

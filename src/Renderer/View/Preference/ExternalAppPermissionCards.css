@@ -1,0 +1,117 @@
+.web-extension-dialog.external-app-approval {
+    box-sizing: border-box;
+    min-width: 0;
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    user-select: none;
+}
+.external-permission-cards {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+.external-permission-card {
+    border: 1px solid var(--kawai-color-border, #454452);
+    border-radius: 14px;
+    background: var(--kawai-color-surface, #22212c);
+    overflow: hidden;
+}
+.external-permission-heading {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 160px;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+}
+.external-permission-choice {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+}
+.external-permission-choice button {
+    min-height: 42px;
+    width: 100%;
+}
+.external-permission-symbol {
+    grid-column: 1;
+    grid-row: 1;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    background: #af86ee22;
+    color: #b98df3;
+}
+.external-permission-symbol svg {
+    width: 24px;
+    height: 24px;
+}
+.external-permission-copy {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+}
+.external-permission-copy h3 {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 4px;
+}
+.external-permission-copy p {
+    font-size: 12px;
+    line-height: 1.6;
+    opacity: 0.75;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.external-permission-sites {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-top: 1px solid var(--kawai-color-border, #454452);
+    padding: 12px 18px;
+    font-size: 12px;
+}
+.external-permission-sites > span {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+.external-permission-sites ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+.external-permission-sites li {
+    border: 1px solid var(--kawai-color-border, #454452);
+    border-radius: 7px;
+    padding: 4px 8px;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+.external-app-approval .external-app-approval-actions {
+    flex-wrap: wrap;
+}
+.external-app-approval-actions button {
+    min-height: 42px;
+}
+@media (max-width: 560px) {
+    .external-permission-heading {
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 10px;
+        padding: 14px;
+    }
+    .external-permission-choice {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .external-permission-sites {
+        padding: 12px 14px;
+        flex-direction: column;
+        gap: 8px;
+    }
+}

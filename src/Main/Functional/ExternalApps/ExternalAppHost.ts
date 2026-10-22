@@ -10,13 +10,16 @@ import type { ExternalAppPermissions } from './ExternalAppPermissions';
  * @param descriptor - Approved adapter declaration, including exact resource origins.
  * @param permissions - Live grant owner; revocation is checked on every operation.
  * @param resource - Main-selected URL/profile resource, never app-controlled parameters.
+ * @param once - Explicit approval scoped to this invocation, excluded from durable grants.
  * @returns URL/cookie operations that reject absent, wrong-kind and out-of-scope grants.
  */
 export function createExternalAppHost(
     descriptor: ExternalAppDescriptor,
     permissions: ExternalAppPermissions,
     resource?: ExternalAppResource,
+    once: readonly string[] = [],
 ): ExternalAppHost {
+    const cookieCredits = new Set(once);
     const epoch = permissions.resourceEpoch(
         descriptor.id,
         resource?.provider?.id,
@@ -31,7 +34,13 @@ export function createExternalAppHost(
             resource.isActive() &&
             permissions.resourceEpoch(descriptor.id, resource?.provider?.id) ===
                 epoch &&
-            permissions.allows(descriptor, id, resource?.provider?.id) &&
+            ((once.includes(id) &&
+                permissions.allowsOnce(
+                    descriptor,
+                    id,
+                    resource?.provider?.id,
+                )) ||
+                permissions.allows(descriptor, id, resource?.provider?.id)) &&
             !!declaration?.origins.includes(new URL(resource.url).origin)
         );
     };
@@ -60,11 +69,12 @@ export function createExternalAppHost(
             requirePermission(id, 'cookies.read');
             if (
                 !resource?.provider ||
-                !(await permissions.requestCookies(
-                    descriptor,
-                    resource.provider,
-                    id,
-                ))
+                (!cookieCredits.delete(id) &&
+                    !(await permissions.requestCookies(
+                        descriptor,
+                        resource.provider,
+                        id,
+                    )))
             )
                 throw new Error('External app resource permission denied.');
             requirePermission(id, 'cookies.read');

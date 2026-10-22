@@ -49,12 +49,13 @@ export function connectDownloadsIpc({
                       readCookies: async () => [],
                   },
               );
-        if (!result.accepted && result.code !== 'unavailable')
+        if (!result.accepted && result.code !== 'unavailable' && result.code !== 'permission-denied')
             throw new Error(
                 `External application request failed: ${result.code}`,
             );
         return {
             opened: result.accepted,
+            failureCode: !result.accepted && result.code === 'permission-denied' ? 'permission-denied' as const : undefined,
             requestId: result.accepted ? result.requestId : undefined,
             status: await downloads.getStatus(),
         };

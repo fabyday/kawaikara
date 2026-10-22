@@ -37,6 +37,10 @@ export function connectExternalAppsIpc(
                         operation !== 'deny' ? (grants as string[]) : undefined,
                         operation === 'allow-always',
                     );
+                } else if (operation === 'approve-choices') {
+                    if (typeof id !== 'string')
+                        throw new Error('Invalid approval identity.');
+                    externalApps.permissions.decideChoices(id, grants);
                 } else if (operation === 'configure') {
                     const descriptor = externalApps
                         .descriptors()

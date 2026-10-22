@@ -46,8 +46,18 @@ const implementation = selectPlatform({
 });
 
 /** Discover the installed companion on this system. */
-export const findInstalledExternalDownloaderApp =
-    implementation.findInstalledExternalDownloaderApp;
+export async function findInstalledExternalDownloaderApp() {
+    if (
+        typeof __KAWAIKARA_EXTERNAL_APP_TESTING__ !== 'undefined' &&
+        __KAWAIKARA_EXTERNAL_APP_TESTING__
+    ) {
+        const testing =
+            require('../Functional/ExternalApps/Distribution/InstallTesting') as typeof import('../Functional/ExternalApps/Distribution/InstallTesting');
+        if (testing.installationTestPaths('day.faby.kawai-downloader'))
+            return testing.findTestApplication('day.faby.kawai-downloader');
+    }
+    return implementation.findInstalledExternalDownloaderApp();
+}
 
 /** Return the native companion installation mechanism. */
 export const getExternalDownloaderInstallMethod =
@@ -168,6 +178,17 @@ export async function installExternalDownloaderArtifact(
     manifest: ExternalDownloaderReleaseManifest,
     artifact: ExternalDownloaderReleaseArtifact,
 ): Promise<ExternalDownloaderInstallation> {
+    if (
+        typeof __KAWAIKARA_EXTERNAL_APP_TESTING__ !== 'undefined' &&
+        __KAWAIKARA_EXTERNAL_APP_TESTING__
+    ) {
+        const testing =
+            require('../Functional/ExternalApps/Distribution/InstallTesting') as typeof import('../Functional/ExternalApps/Distribution/InstallTesting');
+        if (testing.installationTestPaths('day.faby.kawai-downloader'))
+            throw new Error(
+                'Use the Provider manifest installation flow for isolated installation tests.',
+            );
+    }
     if (
         artifact.platform !== implementation.platform ||
         !implementation.artifactKinds.includes(artifact.kind)

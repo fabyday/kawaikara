@@ -279,3 +279,11 @@ test('automatic discovery never chooses arbitrarily among multiple running hosts
     assert.equal((await client.connect(options.hosts[0])).state, 'connected');
     assert.equal(f.prompts + prompts, 1);
 });
+
+test('local distribution shortcut uses installed transport; development pairing is explicit', () => {
+    const scripts = require('../../package.json').scripts;
+    assert.match(scripts['dev:external:local'], /KAWAIKARA_EXTERNAL_APP_MODE=installed/);
+    assert.match(scripts['dev:external:development'], /KAWAIKARA_EXTERNAL_APP_MODE=development/);
+    assert.match(scripts['dev:external:install-test'], /KAWAIKARA_EXTERNAL_APP_MODE=installed/);
+    assert.match(scripts['dev:external:local'], /KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST=/);
+});

@@ -206,7 +206,7 @@ pnpm dev:server:build
 # 이미 파일이 있으면 pnpm dev:server
 
 # 별도 터미널의 Kawaikara 저장소
-pnpm dev:external:local
+pnpm dev:external:install-test
 ```
 
 기존 파일은 `pnpm dev:server --artifact /absolute/path/app.dmg --os darwin --arch arm64`로
@@ -216,7 +216,7 @@ pnpm dev:external:local
 | Kawaikara | 외부 앱 | 테스트 방법 |
 | --- | --- | --- |
 | 설치본 | 설치본 | installed 연결, 필요하면 실행 파일에 로컬 manifest 환경변수 전달 |
-| 개발본 | 설치본 | `pnpm dev:external:installed` 또는 fixture용 `pnpm dev:external:local` |
+| 개발본 | 설치본 | `pnpm dev:external:installed` 또는 fixture용 `pnpm dev:external:install-test` |
 | 개발본 | 개발본 | Kawaikara에서 `pnpm dev:external:development`, 참조 다운로더에서 `pnpm start` 후 연결·권한 승인 |
 | 설치본 | 개발 연결 | 현재 모드 정책에서 미지원 |
 
@@ -232,7 +232,7 @@ installed 연결을 사용하며, 개발 연결이 실패했다고 설치 앱을
 아닙니다. 호환 앱이 인증된 연결을 요청하고 기존 권한 승인을 거쳐야 합니다.
 개발 연결에서는 **실행 중인 앱**으로 기존 상대를 선택할 수도 있습니다.
 
-현재 개발 검색은 이미 `<Kawaikara checkout>/tmp/kawaikara Dev/development-connections`의 사용자별 비공개
+현재 개발 검색은 이미 `<Kawaikara checkout>/tmp/development-connections`의 사용자별 비공개
 파일을 사용합니다. 파일은 상대 검색용이고 실제 인증·통신은 loopback이 담당합니다.
 자동 연결은 앱 설치 기능이 아닙니다. 임의의 제3자 설치 앱을 위한 범용 공유 파일
 계약은 아직 구현되지 않았습니다. 상대 앱 데이터 디렉터리에 임의로 쓰거나 검색
@@ -268,7 +268,7 @@ Staging/Nightly 호스트로 진행하세요. 설치본의 통신 모드는 여�
 
 - 정식 연결용 공용 경로: `<OS user-data root>/Kawaikara/connections/v1` — 예약된 경로이며 범용 설치 앱
   파일 검색은 아직 연결하지 않았습니다.
-- 개발·테스트 검색 경로: `<Kawaikara checkout>/tmp/kawaikara Dev/development-connections` — 개발 다운로더 실행 시 호스트 저장소를 지정합니다.
+- 개발·테스트 검색 경로: `<Kawaikara checkout>/tmp/development-connections` — 개발 다운로더 실행 시 호스트 저장소를 지정합니다.
 
 경로 조회만으로 폴더를 만들지 않습니다. 실행 상태 기록은 통신 계층이 소유하고,
 승인·연결 상태는 각 호스트 프로필에 보관합니다. 기존 기록을 이동·삭제하거나 정식과
@@ -277,7 +277,7 @@ Staging/Nightly 호스트로 진행하세요. 설치본의 통신 모드는 여�
 
 ### 저장소별 개발 연결 실행 (Windows·macOS·Linux)
 
-개발 검색 경로는 `<Kawaikara 저장소>/tmp/kawaikara Dev/development-connections`입니다.
+개발 검색 경로는 `<Kawaikara 저장소>/tmp/development-connections`입니다.
 호스트의 빌드 경로에서 결정하며 Stable에는 경로와 테스트 코드가 포함되지 않습니다.
 여러 checkout은 서로 다른 검색 폴더를 사용합니다. 이전 홈 폴더 기록을 자동 이동하거나
 삭제하지 않습니다. 새 위치에서는 연결 승인이 다시 필요할 수 있습니다.
@@ -295,3 +295,49 @@ macOS `~/Library/Application Support/Kawaikara/connections/v1`, Linux
 `${XDG_STATE_HOME:-~/.local/state}/kawaikara/connections/v1`입니다. Linux의 상대
 XDG 경로는 사용하지 않으며 기본 경로로 돌아갑니다. 이 정식 폴더를 이용하는 범용
 설치 앱 검색은 아직 구현 전입니다.
+
+
+`dev:external:local` (alias: `dev:external:install-test`) tests distribution:
+fetch the local manifest on port 8765, download/install its artifact and use installed
+transport. This is separate from `dev:external:development`, which pairs running
+development apps. Distribution controls remain available independently of the
+connection transport when the Provider declares a manifest.
+
+### 격리 설치 테스트
+
+저장소의 임시 공간을 세 용도로 분리합니다.
+
+```text
+tmp/
+  kawaikara Dev/                 # 기존 호스트 설정·로그·권한
+  development-connections/     # 개발 연결 검색·해제 동기화
+  ExternalAppTest/
+    day.faby.kawai-downloader/
+      cache/                    # 테스트 Manifest·아이콘 캐시
+      downloads/                # 검증된 배포 파일·임시 압축 해제
+      installed/                # 테스트 설치본
+```
+
+다운로더 저장소에서 `pnpm dev:server`로 배포 서버를 실행한 뒤, Kawaikara에서
+`pnpm dev:external:install-test`를 실행합니다. 이 명령은 로컬 Manifest URL과
+`KAWAIKARA_EXTERNAL_APP_INSTALL_TEST=1`을 함께 지정합니다.
+설치 여부는 `installed/`만 확인하며 Spotlight, Applications, 환경변수로 지정한
+앱 경로, OS 프로토콜 등록으로 대체하지 않습니다.
+`pnpm dev:external:installed`는 기존 OS 설치 감지를 그대로 사용합니다.
+
+macOS DMG를 테스트 설치 위치에 복사하며 격리 속성을 제거하지 않습니다.
+복사 설치 모듈은 ZIP도 검증할 수 있습니다. Windows EXE/MSI와 Linux 시스템
+설치기는 일반적인 방법으로 설치 위치를 보장할 수 없어 격리 자동 설치를
+거부합니다. 실제 시스템 설치기로 대체 실행하지 않습니다. 다운로드 전용
+배포 파일은 `downloads/` 안에 저장합니다.
+
+재설치 테스트는 다운로더를 종료한 뒤 해당 앱의 `installed/`만 삭제하고
+설정 패널에서 다시 확인하면 됩니다. 배포 캐시까지 초기화하려면 앱 ID 폴더를
+삭제합니다. 등록·권한은 호스트 데이터에 별도로 남으므로 최초 승인부터 시험할
+때는 등록도 별도로 해제합니다. 패키징된 다운로더의 사용자 데이터와 단일
+인스턴스 공간은 정식 앱과 공유되므로 실행 테스트 전에 정식 다운로더를 종료하세요.
+
+이전 `kawaikara Dev/development-connections` 파일은 삭제하지 않고 더 이상 읽지
+않습니다. 두 개발 앱을 재시작하고 다운로더의 `start:connected`를 사용하면 새
+경로에 연결됩니다. Stable 번들에는 설치 테스트 모듈·경로·환경변수 분기가
+포함되지 않습니다.

@@ -221,8 +221,6 @@ export class ViewerLifecycle {
         viewerWindow: BrowserWindow,
         overlaySurface: WebContentsView,
     ): void {
-        const overlayWebContentsId = overlaySurface.webContents.id;
-        const viewerWebContentsId = viewerWindow.webContents.id;
 
         this.host.logViewer.dispose();
         this.host.internalVideoPictureInPicture?.disposeDrag?.();
@@ -232,14 +230,9 @@ export class ViewerLifecycle {
         this.host.stopExternalFullscreenMonitoring();
         this.host.stopVideoInitialization();
         this.host.pictureInPicture.handleViewerClosed();
-        const siteWebContentsId = this.host.siteView?.webContents.id;
-        if (siteWebContentsId)
-            this.host.editingWebContentsIds.delete(siteWebContentsId);
-        const videoWebContentsId = this.host.videoView?.webContents.id;
-        if (videoWebContentsId)
-            this.host.editingWebContentsIds.delete(videoWebContentsId);
-        this.host.editingWebContentsIds.delete(overlayWebContentsId);
-        this.host.editingWebContentsIds.delete(viewerWebContentsId);
+        // All viewer-owned editing state expires with the native window. Its
+        // webContents accessor may already throw after Electron emits `closed`.
+        this.host.editingWebContentsIds.clear();
         this.host.destroySiteView();
         if (
             this.host.videoView &&

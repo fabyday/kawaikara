@@ -1,5 +1,10 @@
 import type { ExternalAppDescriptor } from '@kawaikara/site-api';
 
+/** Explicit per-permission approval; once is scoped to the invocation and never a durable grant. */
+export type ExternalAppPermissionChoices = Readonly<
+    Record<string, 'deny' | 'once' | 'always'>
+>;
+
 /** Remembered policy for one Provider's cookie access. */
 export type ExternalAppCookiePolicy = 'ask' | 'allow' | 'deny';
 
@@ -18,6 +23,8 @@ export interface ExternalAppProviderGrant {
     readonly enabled: boolean;
     /** Independently approved URL permissions. */
     readonly grants: readonly string[];
+    /** Permissions requiring fresh approval on the next invocation. */
+    readonly askPermissions?: readonly string[];
     /** Cookie decisions keyed by declared permission identity. */
     readonly cookies: Readonly<Record<string, ExternalAppCookiePolicy>>;
 }
@@ -29,6 +36,8 @@ export interface ExternalAppApproval {
     readonly descriptor: ExternalAppDescriptor;
     /** Provider whose resource is being authorized. */
     readonly provider?: ExternalAppProvider;
+    /** Remembered durable decisions preselected when another permission needs renewed consent. */
+    readonly initialChoices?: ExternalAppPermissionChoices;
     /** Present only for a per-use cookie confirmation. */
     readonly cookiePermission?: string;
 }
@@ -42,6 +51,8 @@ export interface ExternalAppRegistration {
     readonly fingerprint: string;
     /** Individually approved permission IDs; empty is a valid restricted registration. */
     readonly grants: readonly string[];
+    /** Permissions requiring fresh approval on the next invocation. */
+    readonly askPermissions?: readonly string[];
     /** Provider authorizations; legacy app-wide cookies never migrate to these grants. */
     readonly providers?: readonly ExternalAppProviderGrant[];
 }
@@ -53,16 +64,18 @@ export interface ExternalAppSettingsState {
     readonly connectionAutomatic?: boolean;
     /** The connection candidates value. */
     readonly connectionCandidates?: readonly {
-      /** The app ID value. */
-      readonly appId: string;
-      /** The client ID value. */
-      readonly clientId: string }[];
+        /** The app ID value. */
+        readonly appId: string;
+        /** The client ID value. */
+        readonly clientId: string;
+    }[];
     /** The development value. */
     readonly development?: readonly {
-      /** The app ID value. */
-      readonly appId: string;
-      /** Whether the online option is enabled. */
-      readonly online: boolean }[];
+        /** The app ID value. */
+        readonly appId: string;
+        /** Whether the online option is enabled. */
+        readonly online: boolean;
+    }[];
     /** At most one prompt is shown; concurrent requests are serialized. */
     readonly approval?: ExternalAppApproval;
     /** Finalized registrations only. */

@@ -9,6 +9,8 @@ import type { ApplicationLinkId } from './IPC';
 declare global {
     /** External-app test transport and local fixtures; compiled out of Stable. */
     const __KAWAIKARA_EXTERNAL_APP_TESTING__: boolean;
+    /** Isolated installation-test root; omitted from Stable artifacts. */
+    const __KAWAIKARA_EXTERNAL_APP_INSTALL_TEST_ROOT__: string | null;
     /** Repository-local development rendezvous root; null and unused in Stable. */
     const __KAWAIKARA_EXTERNAL_APP_TEST_DIRECTORY__: string | null;
     /** Public project/community destinations resolved and validated during the build. */
