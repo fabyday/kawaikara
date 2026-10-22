@@ -4,8 +4,12 @@ import {
     enableMacOSFullScreenAuxiliary,
 } from './WindowSpaces';
 
+/** Whether PiP already owns the process-wide accessory presentation policy. */
+let pictureInPicturePresentationActive = false;
+
 /** Restore the application to normal task switching and Dock presentation. */
 export async function restoreApplicationPresentation(): Promise<void> {
+    pictureInPicturePresentationActive = false;
     app.setActivationPolicy('regular');
     await app.dock?.show();
 }
@@ -17,6 +21,8 @@ export function activateApplication(): void {
 
 /** Prepare the application to display PiP above native fullscreen Spaces. */
 export function preparePictureInPicturePresentation(): void {
+    if (pictureInPicturePresentationActive) return;
+    pictureInPicturePresentationActive = true;
     app.setActivationPolicy('accessory');
     app.dock?.hide();
 }
@@ -37,7 +43,10 @@ export function configurePictureInPictureWindow(
     auxiliary = true,
 ): void {
     window.setAlwaysOnTop(true, 'screen-saver');
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    window.setVisibleOnAllWorkspaces(true, {
+        visibleOnFullScreen: true,
+        skipTransformProcessType: true,
+    });
     if (auxiliary) enableMacOSFullScreenAuxiliary(window);
 }
 
@@ -64,6 +73,7 @@ export async function restorePictureInPicturePresentation(
         if (resetWorkspaces)
             window.setVisibleOnAllWorkspaces(false, {
                 visibleOnFullScreen: false,
+                skipTransformProcessType: true,
             });
     }
     await restoreApplicationPresentation();

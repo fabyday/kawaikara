@@ -367,3 +367,19 @@ test('unknown operating systems cannot silently inherit Linux behavior', () => {
         /Unsupported operating system: freebsd/,
     );
 });
+
+
+test('darwin: repeated PiP reassertions do not transform application type or request focus', async () => {
+    const { api, calls, window } = presentation('darwin');
+    api.preparePictureInPicturePresentation();
+    api.presentPictureInPicture(window);
+    api.presentPictureInPicture(window);
+    assert.equal(calls.filter(c => c[0] === 'policy').length, 1);
+    assert.equal(calls.filter(c => c[0] === 'dock-hide').length, 1);
+    assert.ok(calls.filter(c => c[0] === 'workspaces').every(c => c[3] === true));
+    assert.ok(!calls.some(c => ['focus','app-focus'].includes(c[0])));
+    await api.restorePictureInPicturePresentation(window);
+    calls.length = 0;
+    api.preparePictureInPicturePresentation();
+    assert.deepEqual(calls.map(c => c[0]), ['policy','dock-hide']);
+});

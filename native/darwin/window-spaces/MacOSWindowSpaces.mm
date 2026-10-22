@@ -1,4 +1,5 @@
 #import <AppKit/AppKit.h>
+#import <objc/runtime.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +30,7 @@ napi_status napi_get_cb_info(
     void**);
 napi_status napi_is_buffer(napi_env, napi_value, bool*);
 napi_status napi_get_buffer_info(napi_env, napi_value, void**, size_t*);
+napi_status napi_create_string_utf8(napi_env, const char*, size_t, napi_value*);
 napi_status napi_get_undefined(napi_env, napi_value*);
 napi_status napi_create_function(
     napi_env,
@@ -41,6 +43,96 @@ napi_status napi_set_named_property(napi_env, napi_value, const char*, napi_valu
 napi_status napi_throw_error(napi_env, const char*, const char*);
 napi_status napi_throw_type_error(napi_env, const char*, const char*);
 }
+
+// Owned by the native PiP window, with weak notification callbacks so closing or
+// leaving PiP releases observers and cancels delayed work without a JS callback.
+@interface KawaikaraPiPSpaceObserver : NSObject
+@property(nonatomic, weak) NSWindow* window;
+@property(nonatomic) NSWindowCollectionBehavior originalBehavior;
+@property(nonatomic) BOOL active;
+@property(nonatomic) NSUInteger generation;
+@property(nonatomic) NSUInteger refreshCount;
+@property(nonatomic, strong) NSMutableArray* workspaceTokens;
+@property(nonatomic, strong) id closeToken;
+- (instancetype)initWithWindow:(NSWindow*)window;
+- (void)apply;
+- (void)stop;
+@end
+
+@implementation KawaikaraPiPSpaceObserver
+- (instancetype)initWithWindow:(NSWindow*)window {
+  if ((self = [super init])) {
+    _window = window;
+    _originalBehavior = window.collectionBehavior;
+    _active = YES;
+    _workspaceTokens = [NSMutableArray array];
+    __weak KawaikaraPiPSpaceObserver* weakSelf = self;
+    NSNotificationCenter* center = NSWorkspace.sharedWorkspace.notificationCenter;
+    for (NSString* name in @[NSWorkspaceActiveSpaceDidChangeNotification,
+                             NSWorkspaceDidActivateApplicationNotification]) {
+      id token = [center addObserverForName:name object:nil queue:NSOperationQueue.mainQueue
+          usingBlock:^(NSNotification* notification) {
+            KawaikaraPiPSpaceObserver* owner = weakSelf;
+            if (!owner.active) return;
+            const NSUInteger generation = ++owner.generation;
+            ++owner.refreshCount;
+            [owner apply];
+            // Native full-screen transitions may finish after the notification.
+            for (NSNumber* delay in @[@0.25, @1.0]) {
+              dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)),
+                  dispatch_get_main_queue(), ^{
+                    KawaikaraPiPSpaceObserver* current = weakSelf;
+                    if (current.active && current.generation == generation) [current apply];
+                  });
+            }
+          }];
+      [_workspaceTokens addObject:token];
+    }
+    _closeToken = [NSNotificationCenter.defaultCenter
+        addObserverForName:NSWindowWillCloseNotification object:window queue:NSOperationQueue.mainQueue
+        usingBlock:^(NSNotification* notification) { [weakSelf stop]; }];
+  }
+  return self;
+}
+- (void)apply {
+  NSWindow* window = self.window;
+  if (!self.active || !window) return;
+  NSWindowCollectionBehavior behavior = window.collectionBehavior;
+  // Electron's fullscreenable:false can leave FullScreenNone set. These policies
+  // are mutually exclusive; OR-ing Auxiliary onto it does not establish a policy.
+  behavior &= ~(NSWindowCollectionBehaviorMoveToActiveSpace |
+                NSWindowCollectionBehaviorFullScreenPrimary |
+                NSWindowCollectionBehaviorFullScreenNone);
+  behavior |= NSWindowCollectionBehaviorCanJoinAllSpaces |
+              NSWindowCollectionBehaviorFullScreenAuxiliary;
+  if (@available(macOS 13.0, *)) {
+    behavior &= ~(NSWindowCollectionBehaviorPrimary | NSWindowCollectionBehaviorAuxiliary);
+    behavior |= NSWindowCollectionBehaviorCanJoinAllApplications;
+  }
+  window.collectionBehavior = behavior;
+  window.level = NSScreenSaverWindowLevel;
+  // Do not resurrect a hidden/closing window or activate its app during a game.
+  if (window.visible && !window.miniaturized) [window orderFrontRegardless];
+}
+- (void)stop {
+  if (!self.active) return;
+  self.active = NO;
+  ++self.generation;
+  for (id token in self.workspaceTokens)
+    [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:token];
+  [self.workspaceTokens removeAllObjects];
+  if (self.closeToken) [NSNotificationCenter.defaultCenter removeObserver:self.closeToken];
+  self.closeToken = nil;
+  if (self.window) self.window.collectionBehavior = self.originalBehavior;
+}
+- (void)dealloc {
+  for (id token in _workspaceTokens)
+    [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:token];
+  if (_closeToken) [NSNotificationCenter.defaultCenter removeObserver:_closeToken];
+}
+@end
+
+static char kPiPSpaceObserverKey;
 
 namespace {
 
@@ -129,10 +221,12 @@ napi_value SetFullScreenAuxiliary(
   NSWindow* window = ResolveWindow(env, info);
   if (!window) return nullptr;
 
-  window.collectionBehavior = window.collectionBehavior |
-      NSWindowCollectionBehaviorCanJoinAllSpaces |
-      NSWindowCollectionBehaviorFullScreenAuxiliary;
-  [window setLevel:NSScreenSaverWindowLevel];
+  KawaikaraPiPSpaceObserver* observer = objc_getAssociatedObject(window, &kPiPSpaceObserverKey);
+  if (!observer.active) {
+    observer = [[KawaikaraPiPSpaceObserver alloc] initWithWindow:window];
+    objc_setAssociatedObject(window, &kPiPSpaceObserverKey, observer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  }
+  [observer apply];
 
   napi_value result = nullptr;
   napi_get_undefined(env, &result);
@@ -145,11 +239,33 @@ napi_value ClearFullScreenAuxiliary(
   NSWindow* window = ResolveWindow(env, info);
   if (!window) return nullptr;
 
-  window.collectionBehavior = window.collectionBehavior &
-      ~NSWindowCollectionBehaviorFullScreenAuxiliary;
+  KawaikaraPiPSpaceObserver* observer = objc_getAssociatedObject(window, &kPiPSpaceObserverKey);
+  [observer stop];
+  objc_setAssociatedObject(window, &kPiPSpaceObserverKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+  window.collectionBehavior &= ~NSWindowCollectionBehaviorFullScreenAuxiliary;
 
   napi_value result = nullptr;
   napi_get_undefined(env, &result);
+  return result;
+}
+
+// Read-only diagnostics for Space transition regression tests and support tooling.
+napi_value GetWindowSpaceState(napi_env env, napi_callback_info info) {
+  NSWindow* window = ResolveWindow(env, info);
+  if (!window) return nullptr;
+  KawaikaraPiPSpaceObserver* observer = objc_getAssociatedObject(window, &kPiPSpaceObserverKey);
+  NSDictionary* state = @{
+    @"visible": @(window.visible),
+    @"onActiveSpace": @(window.onActiveSpace),
+    @"occlusionVisible": @((window.occlusionState & NSWindowOcclusionStateVisible) != 0),
+    @"behavior": @(window.collectionBehavior),
+    @"watching": @(observer.active),
+    @"refreshCount": @(observer.refreshCount),
+    @"appActive": @(NSApp.active)
+  };
+  NSData* json = [NSJSONSerialization dataWithJSONObject:state options:0 error:nil];
+  napi_value result = nullptr;
+  napi_create_string_utf8(env, static_cast<const char*>(json.bytes), json.length, &result);
   return result;
 }
 
@@ -189,5 +305,6 @@ napi_value napi_register_module_v1(napi_env env, napi_value exports) {
       exports,
       "clearFullScreenAuxiliary",
       ClearFullScreenAuxiliary);
+  ExportFunction(env, exports, "getWindowSpaceState", GetWindowSpaceState);
   return exports;
 }
