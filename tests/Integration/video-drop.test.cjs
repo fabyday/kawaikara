@@ -4,6 +4,8 @@ const { test } = require('node:test');
 const path = require('node:path');
 const Module = require('node:module');
 const { buildSync } = require('esbuild');
+const { createBuildDefinitions } = require('../../scripts/lib/build-definitions.cjs');
+const root = path.resolve(__dirname, '../..');
 
 function load(relative, mocks = {}) {
     const filename = path.resolve(__dirname, '../..', relative);
@@ -21,12 +23,7 @@ function load(relative, mocks = {}) {
             platform: 'node',
             format: 'cjs',
             external: Object.keys(mocks),
-            define: {
-                __KAWAIKARA_BUILD_CHANNEL__: '"nightly"',
-                __KAWAIKARA_DISTRIBUTION_BUILD__: 'false',
-                __KAWAIKARA_DISCORD_APP_ID__: '""',
-                __KAWAIKARA_UPDATE_TEST_PROFILE__: 'null',
-            },
+            define: createBuildDefinitions(root, {}),
         }).outputFiles[0].text,
         filename,
     );
