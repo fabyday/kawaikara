@@ -41,6 +41,8 @@ function buildMacOSBridge() {
       '-mmacosx-version-min=12.0',
       '-framework',
       'AppKit',
+      '-framework',
+      'CoreGraphics',
       '-o',
       outputPath,
       path.join(

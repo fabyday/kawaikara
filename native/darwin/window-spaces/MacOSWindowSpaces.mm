@@ -1,5 +1,6 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
+#import "PiPExitRecovery.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -54,6 +55,7 @@ napi_status napi_throw_type_error(napi_env, const char*, const char*);
 @property(nonatomic) NSUInteger refreshCount;
 @property(nonatomic, strong) NSMutableArray* workspaceTokens;
 @property(nonatomic, strong) id closeToken;
+@property(nonatomic, strong) KawaikaraPiPExitRecovery* exitRecovery;
 - (instancetype)initWithWindow:(NSWindow*)window;
 - (void)apply;
 - (void)stop;
@@ -66,6 +68,7 @@ napi_status napi_throw_type_error(napi_env, const char*, const char*);
     _originalBehavior = window.collectionBehavior;
     _active = YES;
     _workspaceTokens = [NSMutableArray array];
+    _exitRecovery = [[KawaikaraPiPExitRecovery alloc] init];
     __weak KawaikaraPiPSpaceObserver* weakSelf = self;
     NSNotificationCenter* center = NSWorkspace.sharedWorkspace.notificationCenter;
     for (NSString* name in @[NSWorkspaceActiveSpaceDidChangeNotification,
@@ -77,12 +80,22 @@ napi_status napi_throw_type_error(napi_env, const char*, const char*);
             const NSUInteger generation = ++owner.generation;
             ++owner.refreshCount;
             [owner apply];
+            // Inspect after this main-loop turn without a fixed settling delay.
+            // A newer notification or PiP teardown cancels obsolete callbacks.
+            dispatch_async(dispatch_get_main_queue(), ^{
+              KawaikaraPiPSpaceObserver* current = weakSelf;
+              if (current.active && current.generation == generation)
+                [current.exitRecovery observeWindow:current.window];
+            });
             // Native full-screen transitions may finish after the notification.
             for (NSNumber* delay in @[@0.25, @1.0]) {
               dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)),
                   dispatch_get_main_queue(), ^{
                     KawaikaraPiPSpaceObserver* current = weakSelf;
-                    if (current.active && current.generation == generation) [current apply];
+                    if (current.active && current.generation == generation) {
+                      [current apply];
+                      [current.exitRecovery observeWindow:current.window];
+                    }
                   });
             }
           }];
