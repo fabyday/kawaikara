@@ -106,7 +106,6 @@ function fixture() {
             get: () => ({ graphicsMode: 'native' }),
             update: async (patch) => patch,
         },
-        {},
         social,
         {},
         {},
@@ -148,10 +147,10 @@ test('all feature groups connect once and fully disconnect, including clipboard 
     const unrelated = () => {};
     f.events.on(f.channels.overlay.editingChanged, unrelated);
     f.manager.initialize();
-    assert.equal(f.handlers.size, 79);
+    assert.equal(f.handlers.size, 75);
     assert.equal(f.subscriptions(), 1);
     f.manager.initialize();
-    assert.equal(f.handlers.size, 79);
+    assert.equal(f.handlers.size, 75);
     assert.equal(f.subscriptions(), 1);
     f.invoke(f.channels.application.copyText, 'copied');
     await f.invoke(f.channels.social.openLink, 'discord');
@@ -190,7 +189,7 @@ test('all feature groups connect once and fully disconnect, including clipboard 
         0,
     );
     f.manager.initialize();
-    assert.equal(f.handlers.size, 79);
+    assert.equal(f.handlers.size, 75);
     f.manager.dispose();
 });
 
@@ -205,7 +204,7 @@ test('partial registration rolls back earlier groups and leaves unrelated handle
     assert.equal(f.events.eventNames().length, 0);
     f.failRegistration(undefined);
     f.manager.initialize();
-    assert.equal(f.handlers.size, 80);
+    assert.equal(f.handlers.size, 76);
     f.manager.dispose();
 });
 

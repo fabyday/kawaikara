@@ -1,10 +1,5 @@
 import type { ExternalAppSettingsState } from './ExternalApps';
 import type { AppWindowPreference, AppWindowLastPosition, AppWindowDisplay } from './AppWindow';
-import type {
-    ExternalDownloaderInstallResult,
-    ExternalDownloaderOpenResult,
-    ExternalDownloaderStatus,
-} from './Download';
 import type { ReleaseChannel } from './BuildConfig';
 import type { DirectoryNavigationDirection } from './VideoDirectoryHistory';
 import type {
@@ -22,7 +17,6 @@ import type {
 export type {
     AppMessages,
     UpdateMessages,
-    DownloaderMessages,
     LogViewerMessages,
     RendererMessages,
     VideoBrowserMessages,
@@ -255,18 +249,10 @@ export const IPC_CHANNELS = defineIpcChannels({
         /** The set volume preference value. */
         setVolumePreference: 'kawaikara:video:set-volume-preference',
     },
-    /** The downloads value. */
-    downloads: {
-        /** The open you tube value. */
-        openYouTube: 'kawaikara:downloads:open-youtube',
-        /** The status value. */
-        status: 'kawaikara:downloads:status',
-        /** The install value. */
-        install: 'kawaikara:downloads:install',
-        /** The open value. */
-        open: 'kawaikara:downloads:open',
-        /** The open release page value. */
-        openReleasePage: 'kawaikara:downloads:open-release-page',
+    /** Provider-owned source actions; no external application implementation is exposed. */
+    providerActions: {
+        /** Dispatches through the registered Provider and its scoped app facade. */
+        request: 'kawaikara:provider-actions:request',
     },
     /** The preferences value. */
     preferences: {
@@ -951,12 +937,7 @@ export type VideoOpenRequest =
           /** The path value. */
           readonly path: string;
       }
-    | {
-          /** The kind value. */
-          readonly kind: 'youtube';
-          /** The URL value. */
-          readonly url: string;
-      };
+;
 
 /** Describes the video library location contract. */
 export interface VideoLibraryLocation {
@@ -1312,7 +1293,10 @@ export interface KawaikaraRendererApi {
     /** Public distribution metadata; separate from registration and permissions. */
     readonly appDistribution: import('./ExternalAppDistribution').ExternalAppDistributionApi;
     /** Trusted overlay access to the existing companion actions and permission checks. */
-    readonly downloads: KawaikaraVideoApi['downloads'];
+    readonly providerActions: {
+        /** Retries an action using its Main-resolved Provider identity. */
+        request(url: string, providerId: string): Promise<import('@kawaikara/site-api').ExternalAppResult>;
+    };
     /** Moves one retained log viewer between native hosts. */
     logViewer: {
         /** Executes a presentation command and returns the actual resulting state. */
@@ -1541,7 +1525,7 @@ export interface KawaikaraRendererApi {
         /** Receives Main-owned requests to show standalone app permission consent. */
         onShowExternalAppApproval(handler: () => void): () => void;
         /** Receives Main-owned external application setup requests. */
-        onShowExternalApp(handler: (request: import('./Download').ExternalAppSetupRequest) => void): () => void;
+        onShowExternalApp(handler: (request: import('./ExternalAppResources').ExternalAppSetupRequest) => void): () => void;
         /** Handles the request close. */
         onRequestClose(
             handler: (reason?: 'back' | 'toggle') => void,
@@ -1661,17 +1645,6 @@ export interface KawaikaraVideoApi {
         >;
         /** Handles the open request. */
         onOpenRequest(handler: (request: VideoOpenRequest) => void): () => void;
-    };
-    /** The downloads value. */
-    downloads: {
-        /** Reads the detected downloader installation and platform capabilities. */
-        getStatus(): Promise<ExternalDownloaderStatus>;
-        /** Starts the supported installation flow and optionally opens `url`. */
-        install(url?: string): Promise<ExternalDownloaderInstallResult>;
-        /** Opens a validated YouTube URL in the installed external downloader. */
-        open(url: string): Promise<ExternalDownloaderOpenResult>;
-        /** Opens the downloader release page for manual installation. */
-        openReleasePage(): Promise<void>;
     };
     /** The preferences value. */
     preferences: {

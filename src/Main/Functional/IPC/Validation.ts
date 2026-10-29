@@ -4,7 +4,6 @@ import type {
     AppTheme,
     DevToolsMode,
 } from '../../../Common/IPC';
-import { isExternalDownloaderSourceUrl } from '../../../Common/Download';
 
 /** Determines whether the application link ID condition applies. */
 export function isApplicationLinkId(
@@ -24,10 +23,6 @@ export function isDevToolsMode(value: unknown): value is DevToolsMode {
     );
 }
 
-/** Determines whether a safe external-downloader transport URL was supplied. */
-export function isExternalDownloaderUrl(value: string): boolean {
-    return isExternalDownloaderSourceUrl(value);
-}
 
 /** Performs the require path string operation. */
 export function requirePathString(value: unknown): string {

@@ -34,7 +34,6 @@ import { VideoBrowser } from './VideoBrowser';
 import { VideoControls } from './VideoControls';
 import { VideoHeader } from './VideoHeader';
 import { VideoPictureInPicture } from './VideoPictureInPicture';
-import { YouTubeDownloaderPanel } from './YouTubeDownloaderPanel';
 
 installMpvSoftwareRenderSizeLimit();
 defineMpvVideoElement();
@@ -71,14 +70,11 @@ export function VideoView() {
     pictureInPicturePointerInside,
     hlsPanelOpen,
     setHlsPanelOpen,
-    downloaderOpen,
-    setDownloaderOpen,
     controlsVisible,
     titleVisible,
     scrubTime,
     hlsSeekRange,
     followingLive,
-    youtubeUrl,
     localization,
     preferences,
   } = videoState;
@@ -246,14 +242,13 @@ export function VideoView() {
       : 'inline';
   const showTitle =
     !pictureInPicture &&
-    (titleVisible || sourcePanelOpen || hlsPanelOpen || downloaderOpen || !source);
+    (titleVisible || sourcePanelOpen || hlsPanelOpen || !source);
   const showControls =
     pictureInPicture ? pictureInPicturePointerInside :
       controlsLayout === 'inline' ||
       controlsVisible ||
       sourcePanelOpen ||
       hlsPanelOpen ||
-      downloaderOpen ||
       !source;
 
   if (!localization) return null;
@@ -358,18 +353,6 @@ export function VideoView() {
           />
         ) : null}
 
-        {downloaderOpen && !pictureInPicture ? (
-          <div className="video-downloader-overlay">
-            <YouTubeDownloaderPanel
-              labels={localization.downloader}
-              initialUrl={youtubeUrl}
-              onClose={() => {
-                setDownloaderOpen(false);
-                if (!source) setSourcePanelOpen(true);
-              }}
-            />
-          </div>
-        ) : null}
 
         {source ? (
           <VideoControls

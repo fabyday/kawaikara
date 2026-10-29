@@ -22,11 +22,11 @@ export const APPLICATION_LOG_SOURCES = {
     'bundle-development',
     'BundleDevelopmentManager',
   ),
-  /** The external downloader integration source. */
-  externalDownloader: defineLogSource(
-    'external-downloader',
-    'external-downloader',
-    'YouTubeDownloader',
+  /** The external application transport source. */
+  externalApps: defineLogSource(
+    'external-apps',
+    'external-apps',
+    'ExternalApps',
   ),
   /** The update manager source. */
   updates: defineLogSource('updates', 'updates', 'UpdateManager'),

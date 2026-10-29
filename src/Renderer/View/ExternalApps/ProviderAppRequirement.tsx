@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Stack, Text } from '@kawaikara/kawai-ui';
-import type { AppMessages, DownloaderMessages } from '../../../Common/IPC';
-import type { ExternalAppSetupRequest } from '../../../Common/Download';
+import type { AppMessages } from '../../../Common/IPC';
+import type { ExternalAppSetupRequest } from '../../../Common/ExternalAppResources';
 import type { DistributionPreview } from '../../../Common/ExternalAppDistribution';
 import { ExternalAppSetupPanel } from './ExternalAppSetupPanel';
 import { DistributionControls } from './DistributionControls';
@@ -10,15 +10,12 @@ import { DistributionControls } from './DistributionControls';
 export function ProviderAppRequirement({
     request,
     labels,
-    downloader,
     onClose,
 }: {
     /** Main-resolved identity, manifest and original Provider source. */
     readonly request: ExternalAppSetupRequest;
     /** Localized distribution presentation. */
     readonly labels: AppMessages['externalApps']['distribution'];
-    /** Localized retry and missing-app messages. */
-    readonly downloader: DownloaderMessages;
     /** Dismisses the requirement and preserves the underlying Provider. */
     readonly onClose: () => void;
 }) {
@@ -26,6 +23,7 @@ export function ProviderAppRequirement({
     const [failed, setFailed] = useState(false);
     const [busy, setBusy] = useState(false);
     const [missing, setMissing] = useState(false);
+    const [denied, setDenied] = useState(false);
     useEffect(() => {
         let active = true;
         if (request.distributionUrl)
@@ -45,13 +43,16 @@ export function ProviderAppRequirement({
     const retry = async () => {
         setBusy(true);
         setFailed(false);
+        setDenied(false);
         try {
-            const result = await window.kawaikara.downloads.open(
+            const result = await window.kawaikara.providerActions.request(
                 request.sourceUrl,
+                request.providerId,
             );
-            if (result.opened) onClose();
+            if (result.accepted) onClose();
             else {
-                setMissing(true);
+                setDenied(result.code === 'permission-denied');
+                setMissing(result.code !== 'permission-denied');
                 if (request.distributionUrl)
                     setPreview(
                         await window.kawaikara.appDistribution.preview(
@@ -73,8 +74,10 @@ export function ProviderAppRequirement({
                 image: preview?.icon,
             }}
             status={
-                missing
-                    ? downloader.missing
+                denied
+                    ? labels.permissionDenied
+                    : missing || !request.distributionUrl
+                    ? labels.missing
                     : failed
                       ? labels.error
                       : preview
@@ -95,7 +98,7 @@ export function ProviderAppRequirement({
                     variant="secondary"
                     disabled={busy}
                     onClick={() => void retry()}>
-                    {downloader.refresh}
+                    {labels.refresh}
                 </Button>
                 {failed && (
                     <Text role="alert" tone="danger">

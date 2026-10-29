@@ -1,7 +1,6 @@
 import type { ProviderManager } from '../../Manager/ProviderManager';
 import type { ViewerRuntime } from '../Viewer/ViewerRuntime';
-import { isExternalDownloaderSourceUrl } from '../../../Common/Download';
-import { YOUTUBE_DOWNLOADER_APP_ID } from './YouTubeDownloaderAdapter';
+import { isExternalAppSourceUrl } from '../../../Common/ExternalAppResources';
 
 /**
  * Connects Provider-owned download selection to the existing companion setup view.
@@ -23,11 +22,11 @@ export async function openProviderDownload(
     url: string,
     focusSetup = false,
 ) {
-    if (!isExternalDownloaderSourceUrl(url))
+    if (!isExternalAppSourceUrl(url))
         throw new TypeError('A safe HTTPS source URL is required.');
     const { appId, result, distributionUrl } = await sites.requestDownload(providerId, url);
     if (result.accepted || result.code === 'permission-denied') return result;
-    if (result.code !== 'unavailable' || (!distributionUrl && appId !== YOUTUBE_DOWNLOADER_APP_ID))
+    if (result.code !== 'unavailable')
         throw new Error(`External application request failed: ${result.code}`);
     // Keep an already active Provider and its current playback/navigation intact.
     // Browser-originated requests may need to activate their Provider first.

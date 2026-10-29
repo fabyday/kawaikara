@@ -10,7 +10,7 @@ import {
 } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { inspectMacApp } from '../../../Platform/Darwin/ExternalDownloader';
+import { inspectMacApp } from '../../../Platform/ExternalApplication';
 import type { DistributionFormat } from '../../../../Common/ExternalAppDistribution';
 
 /** Paths belonging to a single explicit installation test, separate from grants and rendezvous records. */
@@ -48,15 +48,18 @@ async function requirePrivateDirectory(directory: string): Promise<void> {
 export async function findTestApplication(appId: string) {
     const paths = installationTestPaths(appId);
     if (!paths || process.platform !== 'darwin') return null;
-    const candidate = path.join(paths.installed, 'kawai-downloader.app');
     try {
         const root = __KAWAIKARA_EXTERNAL_APP_INSTALL_TEST_ROOT__!;
-        if (
-            (await realpath(candidate)) !==
-            path.join(await realpath(root), path.relative(root, candidate))
-        )
-            return null;
-        return await inspectMacApp(candidate);
+        const entries = await readdir(paths.installed, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory() || !entry.name.endsWith('.app')) continue;
+            const candidate = path.join(paths.installed, entry.name);
+            if ((await realpath(candidate)) !==
+                path.join(await realpath(root), path.relative(root, candidate))) continue;
+            const installed = await inspectMacApp(candidate, appId);
+            if (installed) return installed;
+        }
+        return null;
     } catch {
         return null;
     }
@@ -78,7 +81,6 @@ export async function installTestApplication(
     const paths = installationTestPaths(appId);
     if (
         !paths ||
-        appId !== 'day.faby.kawai-downloader' ||
         process.platform !== 'darwin' ||
         !['dmg', 'zip'].includes(format)
     )
@@ -89,7 +91,7 @@ export async function installTestApplication(
     await requirePrivateDirectory(paths.installed);
     const directory = await mkdtemp(path.join(paths.downloads, '.extract-'));
     const extracted = path.join(directory, 'contents');
-    const staged = path.join(directory, 'kawai-downloader.app');
+    const staged = path.join(directory, `${appId}.app`);
     const run = promisify(execFile);
     let mounted = false;
     try {
@@ -111,12 +113,12 @@ export async function installTestApplication(
         if (apps.length !== 1)
             throw new Error('Expected one application in test artifact.');
         const source = path.join(extracted, apps[0].name);
-        if (!(await inspectMacApp(source)))
+        if (!(await inspectMacApp(source, appId)))
             throw new Error('Test application identity mismatch.');
         await cp(source, staged, { recursive: true, dereference: false });
-        if (!(await inspectMacApp(staged)))
+        if (!(await inspectMacApp(staged, appId)))
             throw new Error('Invalid staged application.');
-        const target = path.join(paths.installed, 'kawai-downloader.app');
+        const target = path.join(paths.installed, `${appId}.app`);
         // Refuse replacement: callers explicitly remove the previous test copy to test reinstall.
         await rename(staged, target);
     } finally {

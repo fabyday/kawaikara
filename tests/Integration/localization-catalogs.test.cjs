@@ -138,7 +138,7 @@ test('Main resolves explicit, regional, system and unsupported locales through o
             'videoLibrary',
             'logViewer',
             'update',
-            'downloader',
+            'providerActions',
         ]) {
             assert.deepEqual(
                 messages[section],
@@ -223,32 +223,6 @@ test('bundle confirmation and project picker copy is selected in Main', () => {
     assert.equal(
         getChooseDevelopmentProjectTitle('system'),
         catalogs.ja.nativeDialogs.chooseDevelopmentProject,
-    );
-});
-
-test('downloader rereads the current language without installing or opening an external app', async () => {
-    let locale = 'ko-KR';
-    const { YouTubeDownloader } = loadSource(
-        'src/Main/Functional/ExternalApps/YouTubeDownloader.ts',
-        {
-            electron: { app: { getLocale: () => 'en-US' } },
-        },
-    );
-    const manager = new YouTubeDownloader(() => locale);
-    manager.getStatus = async (message) => ({
-        installed: false,
-        automaticInstallSupported: false,
-        platform: 'linux',
-        message,
-    });
-    assert.equal(
-        (await manager.install()).status.message,
-        catalogs.ko.downloader.unsupported,
-    );
-    locale = 'ja-JP';
-    assert.equal(
-        (await manager.install()).status.message,
-        catalogs.ja.downloader.unsupported,
     );
 });
 

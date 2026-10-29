@@ -1,3 +1,4 @@
+import { kawaiDownloaderIntegration } from '../../Functional/KawaiDownloaderAdapter';
 import type { ProviderDownloadContext, ProviderDownloadResult } from '@kawaikara/site-api';
 import { requestYouTubeDownloader } from '../../Functional/YouTubeDownloader';
 import { AbstractUrlProvider, provider, matchesSiteUrlHost,
@@ -8,6 +9,8 @@ import { repairIncompleteGoogleSession } from '../Google/SessionRepair';
 /** Site navigation, authentication and PiP policy; Shorts is an attached Plugin. */
 @provider()
 export class YouTubeProvider extends AbstractUrlProvider {
+  /** External app protocol and permissions owned by this Provider Bundle. */
+  static readonly externalAppIntegrations = [kawaiDownloaderIntegration];
   /**
    * Selects the companion for this Provider's download requests.
    * @param url - Validated YouTube source address.

@@ -27,7 +27,6 @@
     "**/locales/*.json"
   ],
   "intentionallyNotExported": [
-    "__object.downloader",
     "__object.update"
   ],
   "exclude": [

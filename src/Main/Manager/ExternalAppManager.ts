@@ -1,3 +1,5 @@
+import { ProviderAppRegistry, type ProviderAppRegistration } from '../Functional/ExternalApps/ProviderAppRegistry';
+import { ExternalAppCallbackServer } from '../Functional/ExternalApps/ExternalAppCallbackServer';
 import type { DevelopmentConnection } from '../Functional/ExternalApps/DevelopmentConnection';
 import type {
     ExternalAppInfo,
@@ -20,6 +22,9 @@ export class ExternalAppManager implements ExternalApps {
     /** Candidates are not registered or authorized until consent completes. */
     private readonly adapters = new Map<string, ExternalAppAdapter>();
 
+    /** Provider ownership prevents unloaded Bundles from leaving executable adapters behind. */
+    private readonly providerAdapters: ProviderAppRegistry;
+
     /**
      * @param adapters - App-supplied integrations offered by trusted application composition.
      * @param permissions - Registration/approval owner; no adapter receives this authority.
@@ -30,7 +35,10 @@ export class ExternalAppManager implements ExternalApps {
         readonly permissions: ExternalAppPermissions,
         /** The development connection value. */
         readonly developmentConnection?: DevelopmentConnection,
+        /** Shared lazy authenticated callback transport. */
+        callbacks = new ExternalAppCallbackServer(console),
     ) {
+        this.providerAdapters = new ProviderAppRegistry(callbacks, developmentConnection);
         for (const adapter of adapters) this.offer(adapter);
     }
     /**
@@ -38,9 +46,10 @@ export class ExternalAppManager implements ExternalApps {
      * @param adapter - Trusted transport implementation and app-owned declaration.
      * @remarks Remote declarations must be bound to an authenticated transport before calling this API.
      */
-    offer(adapter: ExternalAppAdapter): void {
+    offer(adapter: ExternalAppAdapter,
+    ): void {
         const descriptor = validateExternalAppDescriptor(adapter.descriptor);
-        if (this.adapters.has(descriptor.id))
+        if (this.adapters.has(descriptor.id) || this.providerAdapters.get(descriptor.id))
             throw new Error('External application identity must be unique.');
         this.adapters.set(descriptor.id, {
             descriptor,
@@ -48,11 +57,22 @@ export class ExternalAppManager implements ExternalApps {
             execute: (request, host) => adapter.execute(request, host),
         });
     }
+    /** Publishes validated Provider-owned integrations without granting permissions. */
+    offerProviders(providers: readonly ProviderAppRegistration[]): void {
+        for (const provider of providers)
+            for (const integration of provider.integrations)
+                if (this.adapters.has(integration.descriptor.id))
+                    throw new Error('External app identity already belongs to another adapter.');
+        this.providerAdapters.register(providers);
+    }
+
+    /** Withdraws executable adapters belonging to an unloaded Provider. */
+    removeProvider(providerId: string): void { this.providerAdapters.remove(providerId); }
+
     /** Returns detached data declarations for trusted registration settings. */
     descriptors() {
-        return [...this.adapters.values()].map((adapter) =>
-            structuredClone(adapter.descriptor),
-        );
+        return [...this.adapters.values()].map(adapter => structuredClone(adapter.descriptor))
+            .concat(this.providerAdapters.descriptors());
     }
 
     /** Returns live installation metadata; discovery alone never finalizes registration. */
@@ -60,7 +80,7 @@ export class ExternalAppManager implements ExternalApps {
         appId: string,
         providerId?: string,
     ): Promise<ExternalAppInfo | undefined> {
-        const adapter = this.adapters.get(appId);
+        const adapter = this.adapters.get(appId) ?? this.providerAdapters.get(appId, providerId);
         const installed = await adapter?.discover();
         if (!adapter || !installed) return undefined;
         const registration = await this.permissions.get(adapter.descriptor);
@@ -99,7 +119,7 @@ export class ExternalAppManager implements ExternalApps {
         provider?: import('../../Common/ExternalApps').ExternalAppProvider,
     ): Promise<boolean> {
         const epoch = this.permissions.epoch(appId);
-        const adapter = this.adapters.get(appId);
+        const adapter = this.adapters.get(appId) ?? this.providerAdapters.get(appId, provider?.id);
         if (
             !adapter ||
             !(await adapter.discover()) ||
@@ -124,7 +144,7 @@ export class ExternalAppManager implements ExternalApps {
         request: ExternalAppRequest,
         resource?: ExternalAppResource,
     ): Promise<ExternalAppResult> {
-        const adapter = this.adapters.get(appId);
+        const adapter = this.adapters.get(appId) ?? this.providerAdapters.get(appId, resource?.provider?.id);
         if (!adapter || !(await adapter.discover()))
             return {
                 /** Whether the adapter accepted this function invocation. */
@@ -225,7 +245,7 @@ export class ExternalAppManager implements ExternalApps {
             resource,
             once,
         );
-        if (action.permissions.some((id) => !host.hasPermission(id)))
+        if ((resource && !resource.isActive()) || action.permissions.some((id) => !host.hasPermission(id)))
             return {
                 /** Whether the adapter accepted this function invocation. */
                 accepted: false,

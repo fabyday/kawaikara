@@ -88,3 +88,6 @@ export interface ExternalAppSettingsState {
     /** Available adapter declarations, containing no executable code or resource values. */
     readonly descriptors?: readonly ExternalAppDescriptor[];
 }
+
+/** Shared SDK callback capability; retained as a host-side type alias. */
+export type ExternalAppCallbackDescriptor = import('@kawaikara/site-api').ExternalAppCallback;

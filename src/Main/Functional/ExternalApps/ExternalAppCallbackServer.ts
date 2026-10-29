@@ -1,11 +1,9 @@
-import type { ExternalAppHost } from '../ExternalApps/ExternalAppAdapter';
-import { clamp } from '../../Math/Scalar';
-import type { ExternalDownloaderCallbackDescriptor } from '../../../Common/Download';
+import type { ExternalAppHost } from './ExternalAppAdapter';
+import type { ExternalAppCallbackDescriptor } from '../../../Common/ExternalApps';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
     createServer,
     type IncomingMessage,
-    type Server,
     type ServerResponse,
 } from 'node:http';
 
@@ -18,18 +16,8 @@ const TERMINAL_RETENTION_MS = 60_000;
 /** Maximum lifetime of an accepted request that never reaches a terminal event. */
 const REQUEST_RETENTION_MS = 24 * 60 * 60 * 1_000;
 
-/** Lifecycle event names accepted from a companion application. */
-type CompanionEventName =
-    | 'request.received'
-    | 'source.accepted'
-    | 'source.rejected'
-    | 'download.queued'
-    | 'download.progress'
-    | 'download.completed'
-    | 'download.failed';
-
 /** Minimal scoped logger surface required by the callback receiver. */
-interface CallbackLogger {
+export interface ExternalAppCallbackLogger {
     /** Records a failed operation. */
     error(...values: unknown[]): void;
     /** Records normal lifecycle information. */
@@ -40,10 +28,14 @@ interface CallbackLogger {
 
 /** Authentication and acknowledgment state for one launched request. */
 interface PendingCallbackRequest {
-    /** Invocation-scoped host resources; omitted for legacy manual launches. */
+    /** Invocation-scoped host resources; omitted when the app needs no protected resources. */
     host?: ExternalAppHost;
+    /** Adapter-owned validation and lifecycle semantics for this request. */
+    onEvent?: ExternalAppCallbackEventHandler;
     /** Whether at least one valid event has arrived. */
     acknowledged: boolean;
+    /** Whether terminal delivery has already started the fixed grace period. */
+    terminal?: boolean;
     /** Timer used to report a missing initial response. */
     acknowledgmentTimer: NodeJS.Timeout;
     /** Request-scoped bearer token. */
@@ -52,45 +44,44 @@ interface PendingCallbackRequest {
     retentionTimer: NodeJS.Timeout;
 }
 
-/** Validated event received from a companion application. */
-interface CompanionEvent {
-    /** Optional machine-readable result code. */
-    readonly code?: string;
-    /** Lifecycle event name. */
-    readonly event: CompanionEventName;
-    /** Optional bounded human-readable status. */
-    readonly message?: string;
-    /** Optional normalized completion ratio. */
-    readonly progress?: number;
-    /** Optional downloader queue item identity. */
-    readonly queueItemId?: string;
-    /** Owning Kawaikara request identity. */
-    readonly requestId: string;
-    /** Optional downloader stage. */
-    readonly stage?: string;
-    /** External application event timestamp. */
-    readonly timestamp: string;
+/** Adapter-owned event processing; true retires the request after duplicate-delivery grace.
+ * The payload is decoded but untrusted. Implementations must validate their own
+ * event schema and match the host-issued request ID; throwing rejects the callback.
+ */
+export type ExternalAppCallbackEventHandler = (
+    value: unknown,
+    requestId: string,
+) => boolean;
+
+/** Invocation-scoped resources and app-specific callback behavior. */
+export interface ExternalAppCallbackOptions {
+    /** Permission-checked resources; omit for an app that needs no host access. */
+    readonly host?: ExternalAppHost;
+    /** Optional event receiver; event delivery is rejected when omitted. */
+    readonly onEvent?: ExternalAppCallbackEventHandler;
 }
 
-/** Owns the loopback-only, request-authenticated callback endpoint for companion apps. */
-export class ExternalDownloaderCallbackServer {
+/** Owns a loopback-only, authenticated transport without interpreting app actions. */
+export class ExternalAppCallbackServer {
     /** Pending requests keyed by their opaque identities. */
     private readonly pending = new Map<string, PendingCallbackRequest>();
-    /** Lazily-created loopback HTTP server. */
-    private server?: Server;
     /** Shared lazy-start operation and resolved listening port. */
     private startPromise?: Promise<number>;
 
     /** Creates a callback server bound to one scoped application logger. */
     constructor(
         /** Scoped logger receiving callback lifecycle entries. */
-        private readonly logger: CallbackLogger,
+        private readonly logger: ExternalAppCallbackLogger,
     ) {}
 
-    /** Creates an authenticated request descriptor after the server is listening. */
+    /** Creates an authenticated request descriptor after the server is listening.
+     * @param options - Invocation resources and the adapter's event validator/handler.
+     * @returns Request ID, loopback callback URL and bearer token for the external app.
+     * @throws Listener startup errors; no request is retained until startup succeeds.
+     */
     async createRequest(
-        host?: ExternalAppHost,
-    ): Promise<ExternalDownloaderCallbackDescriptor> {
+        options: ExternalAppCallbackOptions = {},
+    ): Promise<ExternalAppCallbackDescriptor> {
         const port = await this.ensureStarted();
         const requestId = randomUUID();
         const token = randomBytes(32).toString('base64url');
@@ -98,7 +89,7 @@ export class ExternalDownloaderCallbackServer {
             const request = this.pending.get(requestId);
             if (!request || request.acknowledged) return;
             this.logger.warn(
-                'External downloader did not acknowledge the request in time.',
+                'External application did not acknowledge the request in time.',
                 {
                     requestId,
                 },
@@ -111,7 +102,8 @@ export class ExternalDownloaderCallbackServer {
         );
         retentionTimer.unref();
         this.pending.set(requestId, {
-            host,
+            host: options.host,
+            onEvent: options.onEvent,
             acknowledged: false,
             acknowledgmentTimer,
             retentionTimer,
@@ -143,7 +135,6 @@ export class ExternalDownloaderCallbackServer {
             const server = createServer((request, response) => {
                 void this.handleRequest(request, response);
             });
-            this.server = server;
             /** Rejects the lazy start operation. */
             const handleError = (error: Error) => {
                 server.off('listening', handleListening);
@@ -157,7 +148,7 @@ export class ExternalDownloaderCallbackServer {
                 if (!address || typeof address === 'string') {
                     reject(
                         new Error(
-                            'External downloader callback address is unavailable.',
+                            'External application callback address is unavailable.',
                         ),
                     );
                     return;
@@ -237,71 +228,35 @@ export class ExternalDownloaderCallbackServer {
                 }
                 return;
             }
-            const event = parseCompanionEvent(
-                await readBody(request),
+            if (!pending.onEvent) {
+                respond(response, 400);
+                return;
+            }
+            const terminal = pending.onEvent(
+                JSON.parse(await readBody(request)),
                 requestId,
             );
             pending.acknowledged = true;
             clearTimeout(pending.acknowledgmentTimer);
-            this.logEvent(event);
             respond(response, 204);
-            if (
-                event.event === 'source.rejected' ||
-                event.event === 'download.completed' ||
-                event.event === 'download.failed'
-            ) {
-                const timer = setTimeout(
+            if (terminal && !pending.terminal) {
+                pending.terminal = true;
+                clearTimeout(pending.retentionTimer);
+                pending.retentionTimer = setTimeout(
                     () => this.cancel(requestId),
                     TERMINAL_RETENTION_MS,
                 );
-                timer.unref();
+                pending.retentionTimer.unref();
             }
         } catch (error) {
             this.logger.warn(
-                'Rejected an invalid external downloader callback.',
+                'Rejected an invalid external application callback.',
                 {
                     message:
                         error instanceof Error ? error.message : String(error),
                 },
             );
             respond(response, 400);
-        }
-    }
-
-    /** Maps a companion lifecycle event to the appropriate Kawaikara log level. */
-    private logEvent(event: CompanionEvent): void {
-        const details = {
-            code: event.code,
-            message: event.message,
-            progress: event.progress,
-            queueItemId: event.queueItemId,
-            requestId: event.requestId,
-            stage: event.stage,
-            timestamp: event.timestamp,
-        };
-        if (event.event === 'download.failed') {
-            this.logger.error('External download failed.', details);
-        } else if (event.event === 'source.rejected') {
-            this.logger.warn(
-                'External downloader rejected the source.',
-                details,
-            );
-        } else if (event.event === 'download.progress') {
-            this.logger.info('External download progress.', details);
-        } else if (event.event === 'download.completed') {
-            this.logger.info('External download completed.', details);
-        } else if (event.event === 'download.queued') {
-            this.logger.info('External download queued.', details);
-        } else if (event.event === 'source.accepted') {
-            this.logger.info(
-                'External downloader accepted the source.',
-                details,
-            );
-        } else {
-            this.logger.info(
-                'External downloader received the request.',
-                details,
-            );
         }
     }
 }
@@ -340,56 +295,6 @@ async function readBody(request: IncomingMessage): Promise<string> {
         chunks.push(chunk);
     }
     return Buffer.concat(chunks).toString('utf8');
-}
-
-/** Parses and bounds an authenticated companion event. */
-function parseCompanionEvent(value: string, requestId: string): CompanionEvent {
-    const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new TypeError('Callback payload must be an object.');
-    }
-    const candidate = parsed as Record<string, unknown>;
-    const events = new Set<CompanionEventName>([
-        'request.received',
-        'source.accepted',
-        'source.rejected',
-        'download.queued',
-        'download.progress',
-        'download.completed',
-        'download.failed',
-    ]);
-    if (
-        candidate.requestId !== requestId ||
-        typeof candidate.event !== 'string' ||
-        !events.has(candidate.event as CompanionEventName) ||
-        typeof candidate.timestamp !== 'string'
-    ) {
-        throw new TypeError('Callback payload identity is invalid.');
-    }
-    return {
-        /** The event value. */
-        event: candidate.event as CompanionEventName,
-        /** The request ID value. */
-        requestId,
-        /** The timestamp value. */
-        timestamp: candidate.timestamp.slice(0, 80),
-        ...(typeof candidate.code === 'string'
-            ? { code: candidate.code.slice(0, 120) }
-            : {}),
-        ...(typeof candidate.message === 'string'
-            ? { message: candidate.message.slice(0, 2_000) }
-            : {}),
-        ...(typeof candidate.progress === 'number' &&
-        Number.isFinite(candidate.progress)
-            ? { progress: clamp(candidate.progress, 0, 1) }
-            : {}),
-        ...(typeof candidate.queueItemId === 'string'
-            ? { queueItemId: candidate.queueItemId.slice(0, 160) }
-            : {}),
-        ...(typeof candidate.stage === 'string'
-            ? { stage: candidate.stage.slice(0, 120) }
-            : {}),
-    };
 }
 
 /** Finishes an empty no-store HTTP response. */

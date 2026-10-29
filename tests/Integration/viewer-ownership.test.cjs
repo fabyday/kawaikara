@@ -226,7 +226,7 @@ test('update preparation is reversible and reuses the current request without du
     await r.lifecycle.prepareForUpdateInstallation();
     assert.equal(before.webContents.isDestroyed(), true);
     assert.throws(
-        () => r.video.queueYouTubeDownloader('https://example.com/'),
+        () => r.video.queueVideoOpenRequest({ kind: 'local', path: 'blocked.mp4' }),
         /not accepting/,
     );
     await r.lifecycle.recoverAfterFailedUpdate();

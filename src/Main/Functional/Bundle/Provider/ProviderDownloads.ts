@@ -1,7 +1,7 @@
 import type { ExternalAppManager } from '../../../Manager/ExternalAppManager';
 import type { ExternalAppCookie } from '../../ExternalApps/ExternalAppAdapter';
 import type { ProviderDownloadResult } from '@kawaikara/site-api';
-import { isExternalDownloaderSourceUrl } from '../../../../Common/Download';
+import { isExternalAppSourceUrl } from '../../../../Common/ExternalAppResources';
 import { resolveProviderAddress } from './ProviderAddress';
 import type { RegisteredProvider } from './SiteRuntime';
 
@@ -34,7 +34,7 @@ export async function dispatchProviderDownload(
     ) => Promise<readonly ExternalAppCookie[]>,
 ): Promise<ProviderDownloadDispatchResult> {
     const address =
-        registration && isExternalDownloaderSourceUrl(url)
+        registration && isExternalAppSourceUrl(url)
             ? resolveProviderAddress(url, [registration])
             : undefined;
     const declared =

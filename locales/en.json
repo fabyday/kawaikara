@@ -32,7 +32,10 @@
         "source": "Source",
         "connection": "Connection",
         "protocol": "Protocol version",
-        "installationHelp": "Installation and connection remain separate. Connect the app after installation and review its permissions."
+        "installationHelp": "Installation and connection remain separate. Connect the app after installation and review its permissions.",
+        "refresh": "Check again",
+        "permissionDenied": "Permission to open this app was not granted. Check app access and URL permission for this Provider in External apps settings.",
+        "missing": "The requested application is unavailable."
       },
       "connectionRequested": "Connection requested. Complete the permission prompt.",
       "noCandidates": "No available apps found. Open a compatible app and try again.",
@@ -754,44 +757,6 @@
     "back": "Back to update",
     "releaseNotesDescription": "Review the changes included in the new version."
   },
-  "downloader": {
-    "permissionDenied": "Permission to open this app was not granted. Check app access and URL permission for this Provider in External apps settings.",
-    "refresh": "Check again",
-    "developmentWaiting": "Waiting for app connection",
-    "developmentConnected": "Development app connected",
-    "developmentHelp": "Start the external app and connect it to Kawaikara, then check again.",
-    "opening": "Opening app…",
-    "installing": "Installing…",
-    "sourceHelp": "The requested address will be sent when you open the app.",
-    "title": "kawai-downloader",
-    "description": "Downloads open in a separate application.",
-    "close": "Close",
-    "version": "Version",
-    "url": "YouTube URL",
-    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
-    "open": "Open in kawai-downloader",
-    "install": "Install kawai-downloader",
-    "releases": "Open releases",
-    "installed": "Installed",
-    "notInstalled": "Not installed",
-    "checking": "Checking",
-    "protocolInstallation": "Protocol installation",
-    "missing": "kawai-downloader is not installed.",
-    "installFailed": "Unable to install kawai-downloader.",
-    "permissionNotice": "Download only content you own or are permitted to save.",
-    "macInstallHelp": "Installation downloads the official release and verifies SHA-256. After confirmation, macOS quarantine attributes are removed from the download and installed app. It is installed only in ~/Applications, without administrator privileges.",
-    "windowsInstallHelp": "Installation downloads the official release, verifies SHA-256, and opens the installer.",
-    "unsupported": "Automatic installation is unavailable on this operating system. Please install from the releases page.",
-    "installTitle": "Install {name}",
-    "installMessage": "Download and install {name}?",
-    "macInstallDetail": "After verifying the release SHA-256, macOS quarantine attributes will be removed from the download and installed app. No administrator privileges are used; installation is limited to ~/Applications.",
-    "windowsInstallDetail": "The release SHA-256 will be verified before launching the Windows installer.",
-    "confirmInstall": "Install",
-    "cancel": "Cancel",
-    "completed": "kawai-downloader {version} has been installed.",
-    "windowsStarted": "The Windows installer has opened. Try again after installation finishes.",
-    "contextMenu": "Open in downloader"
-  },
   "bundle": {
     "install": {
       "chooseTitle": "Choose a Kawaikara Bundle",
@@ -857,5 +822,8 @@
     "details": "Kawaikara OTT Viewer",
     "watching": "Watching…",
     "viewer": "Kawaikara Viewer"
+  },
+  "providerActions": {
+    "contextMenu": "Open in external app"
   }
 }

@@ -11,8 +11,6 @@ import { type useVideoState } from './useVideoState';
 
 /** Inputs used by useVideoRequests. */
 type VideoRequestsOptions = Pick<ReturnType<typeof useVideoState>,
-  | 'setYoutubeUrl'
-  | 'setDownloaderOpen'
   | 'setSourcePanelOpen'
   | 'setRequestedDirectory'
   | 'setLastBrowseDirectory'
@@ -35,8 +33,6 @@ type VideoRequestsOptions = Pick<ReturnType<typeof useVideoState>,
 
 /** Coordinates video requests behavior for this View. */
 export function useVideoRequests({
-  setYoutubeUrl,
-  setDownloaderOpen,
   setSourcePanelOpen,
   setRequestedDirectory,
   setLastBrowseDirectory,
@@ -58,20 +54,14 @@ export function useVideoRequests({
     request: VideoOpenRequest,
     forcePlaybackReload = false,
   ) => {
-    if (request.kind === 'youtube') {
-      setYoutubeUrl(request.url);
-      setDownloaderOpen(true);
-      setSourcePanelOpen(false);
-      return;
-    }
     if (request.kind === 'folder') {
-      setDownloaderOpen(false);
+
       setRequestedDirectory(request.path);
       setLastBrowseDirectory(request.path);
       setSourcePanelOpen(true);
       return;
     }
-    setDownloaderOpen(false);
+
     setHlsPanelOpen(false);
     setSourcePanelOpen(false);
     setError(undefined);

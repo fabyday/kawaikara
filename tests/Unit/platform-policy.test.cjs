@@ -236,79 +236,22 @@ for (const platform of ['darwin', 'win32', 'linux']) {
         );
     });
 
-    test(`${platform}: companion selection and launch resolve the OS inside Platform`, async () => {
-        const { EventEmitter } = require('node:events');
-        const commands = [],
-            opened = [];
-        const api = load('ExternalDownloader.ts', platform, {
-            electron: {
-                shell: { openExternal: async (value) => opened.push(value) },
-            },
+    test(`${platform}: arbitrary external applications use native protocol launch`, async () => {
+        const commands = [], opened = [];
+        const api = load('ExternalApplication.ts', platform, {
+            electron: { shell: { openExternal: async value => opened.push(value) } },
             'node:child_process': {
-                spawn(command, args, options) {
-                    commands.push([command, [...args], options]);
-                    const child = new EventEmitter();
-                    child.stdout = new EventEmitter();
-                    child.stderr = new EventEmitter();
-                    child.stdout.setEncoding = child.stderr.setEncoding =
-                        () => {};
-                    child.unref = () => commands.push('unref');
-                    queueMicrotask(() => {
-                        child.emit('spawn');
-                        child.emit('close', 0);
-                    });
-                    return child;
+                execFile(command, args, options, callback) {
+                    commands.push([command, args, options]); callback(null, '', '');
                 },
             },
         });
-        const artifacts = [
-            { platform: 'darwin', arch: 'universal', kind: 'dmg' },
-            { platform: 'darwin', arch: 'arm64', kind: 'zip' },
-            { platform: 'win32', arch: 'x64', kind: 'exe' },
-        ];
-        const manifest = { version: '1.0.0', artifacts };
-        assert.equal(api.getExternalDownloaderPlatform(), platform);
-        if (platform === 'linux') {
-            assert.throws(
-                () => api.selectExternalDownloaderArtifact(manifest),
-                /No YT Downloader release/,
-            );
-        } else {
-            assert.equal(
-                api.selectExternalDownloaderArtifact(
-                    manifest,
-                    platform === 'darwin' ? 'arm64' : 'x64',
-                ),
-                artifacts[platform === 'darwin' ? 0 : 2],
-            );
-        }
-        const wrongArtifact = artifacts[platform === 'darwin' ? 2 : 0];
-        await assert.rejects(
-            api.installExternalDownloaderArtifact(manifest, wrongArtifact),
-            /unsupported/,
-        );
-        assert.equal(
-            commands.length,
-            0,
-            'incompatible artifacts never start a native command',
-        );
-        const deepLink = 'kawai-downloader://open?url=https%3A%2F%2Fexample.com';
-        await api.launchExternalDownloader(deepLink, '/fixture/companion');
+        const link = 'example-editor://edit?document=fixture';
+        await api.launchExternalApplication(link, '/fixture/editor.app');
         if (platform === 'darwin') {
-            assert.deepEqual(commands[0].slice(0, 2), [
-                '/usr/bin/open',
-                ['-a', '/fixture/companion', deepLink],
-            ]);
-        } else if (platform === 'win32') {
-            assert.deepEqual(commands[0].slice(0, 2), [
-                '/fixture/companion',
-                [deepLink],
-            ]);
-            assert.equal(commands[0][2].detached, true);
-            assert.equal(commands.at(-1), 'unref');
-        } else {
-            assert.deepEqual(opened, [deepLink]);
-        }
+            assert.equal(commands[0][0], '/usr/bin/open');
+            assert.deepEqual(Array.from(commands[0][1]), ['-a', '/fixture/editor.app', link]);
+        } else assert.deepEqual(opened, [link]);
     });
 
     test(`${platform}: native addon loading is deferred until its feature is used`, () => {

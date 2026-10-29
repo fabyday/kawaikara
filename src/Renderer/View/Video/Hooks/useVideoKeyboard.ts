@@ -19,8 +19,6 @@ import { type useVideoVolume } from './useVideoVolume';
 type VideoKeyboardOptions = Pick<ReturnType<typeof useVideoState>,
   | 'pictureInPicture'
   | 'hlsPanelOpen'
-  | 'downloaderOpen'
-  | 'setDownloaderOpen'
   | 'sourcePanelOpen'
   | 'source'
   | 'setSourcePanelOpen'
@@ -51,8 +49,8 @@ export function useVideoKeyboard({
   pictureInPicture,
   hlsPanelOpen,
   closeHlsPanel,
-  downloaderOpen,
-  setDownloaderOpen,
+
+
   sourcePanelOpen,
   source,
   setSourcePanelOpen,
@@ -95,10 +93,6 @@ export function useVideoKeyboard({
             }
             if (hlsPanelOpen) {
               closeHlsPanel();
-              return;
-            }
-            if (downloaderOpen) {
-              setDownloaderOpen(false);
               return;
             }
             if (sourcePanelOpen && source) {
@@ -181,7 +175,7 @@ export function useVideoKeyboard({
     return () => window.removeEventListener('keydown', handleShortcut, true);
   }, [
     closeHlsPanel,
-    downloaderOpen,
+
     hlsPanelOpen,
     labels,
     lastBrowseDirectory,

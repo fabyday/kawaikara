@@ -85,7 +85,6 @@ function managerFixture({
         {},
         {},
         {},
-        {},
         {
             async recordVideo() {
                 events.push('record');

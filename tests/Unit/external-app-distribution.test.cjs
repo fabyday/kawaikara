@@ -212,9 +212,9 @@ test('network requests pin checked DNS, reject redirect-to-private and enforce s
 test('raster dimensions are bounded before native decoding', async () => {
     const { rasterDimensions } = load(dir + 'RasterBounds.ts');
     const png = await fs.readFile(
-        path.resolve(__dirname, '../../imgs/kawai-downloader.png'),
+        path.resolve(__dirname, '../../resources/icons/app-kawaikara.png'),
     );
-    assert.deepEqual(rasterDimensions(png), [64, 64]);
+    assert.deepEqual(rasterDimensions(png), [540, 476]);
     const { normalizeDistributionIcon } = load(dir + 'Repository.ts', {
         electron: {
             nativeImage: {
@@ -237,7 +237,7 @@ test('source-scoped cache survives offline use, revalidates identity and preserv
     );
     t.after(() => fs.rm(directory, { recursive: true, force: true }));
     const png = await fs.readFile(
-        path.resolve(__dirname, '../../imgs/kawai-downloader.png'),
+        path.resolve(__dirname, '../../resources/icons/app-kawaikara.png'),
     );
     const electron = {
         nativeImage: {

@@ -1,3 +1,4 @@
+import { kawaiDownloaderIntegration } from '../../Functional/KawaiDownloaderAdapter';
 import type { ProviderDownloadContext, ProviderDownloadResult } from '@kawaikara/site-api';
 import { requestYouTubeDownloader } from '../../Functional/YouTubeDownloader';
 import { AbstractUrlProvider, provider, webAuthenticationPolicy, matchesSiteUrlHost,
@@ -20,6 +21,8 @@ import { resolveChzzkVideoContent } from './Inject/VideoContent';
   },
 })
 export class ChzzkProvider extends AbstractUrlProvider {
+  /** External app protocol and permissions owned by this Provider Bundle. */
+  static readonly externalAppIntegrations = [kawaiDownloaderIntegration];
   /**
    * Selects the companion for this Provider's download requests.
    * @param url - Validated Chzzk source address.

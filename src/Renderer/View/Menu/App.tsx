@@ -1,7 +1,5 @@
 import { ExternalAppApproval } from '../Preference/ExternalAppApproval';
-import { KAWAI_DOWNLOADER_APP_ID } from '../../../Common/Download';
 import { ProviderAppRequirement } from '../ExternalApps/ProviderAppRequirement';
-import { YouTubeDownloaderPanel } from '../Video/YouTubeDownloaderPanel';
 import '../../Styles/ExternalAppSetup.css';
 import {
   KawaiProvider
@@ -368,14 +366,8 @@ export function App() {
         {view === 'external-app' && externalAppRequest ? (
           <motion.div className={`kawai-theme ${(preferences?.appTheme ?? 'dark') === 'dark' ? 'kawai-theme-dark' : 'kawai-theme-light'} external-app-motion-shell`}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
-            {externalAppRequest.appId === KAWAI_DOWNLOADER_APP_ID ? <YouTubeDownloaderPanel key={`${externalAppRequest.appId}:${externalAppRequest.sourceUrl}`}
-              labels={localization.downloader} initialUrl={externalAppRequest.sourceUrl}
-              api={window.kawaikara.downloads} editableSource={false}
-              distributionUrl={externalAppRequest.distributionUrl}
-              distributionApi={window.kawaikara.appDistribution} distributionLabels={messages.externalApps.distribution}
-              onClose={() => void window.kawaikara.overlay.close()} /> :
-              <ProviderAppRequirement request={externalAppRequest} labels={messages.externalApps.distribution}
-                downloader={localization.downloader} onClose={() => void window.kawaikara.overlay.close()} />}
+            <ProviderAppRequirement request={externalAppRequest} labels={messages.externalApps.distribution}
+                onClose={() => void window.kawaikara.overlay.close()} />
           </motion.div>
         ) : null}
       </AnimatePresence>

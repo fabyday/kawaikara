@@ -147,6 +147,6 @@ export * from './VideoEffects';
 
 export * from './WebExtension';
 
-export type { ExternalAppDescriptor, ExternalAppPermission, ExternalAppPermissionKind, ExternalAppAction, ExternalAppInfo, ExternalAppRequest, ExternalAppResult, ExternalApps } from './ExternalApps';
+export type { ExternalAppCallback, ExternalAppLaunchContext, ExternalAppIntegration, ExternalAppDescriptor, ExternalAppPermission, ExternalAppPermissionKind, ExternalAppAction, ExternalAppInfo, ExternalAppRequest, ExternalAppResult, ExternalApps } from './ExternalApps';
 
 export type { ProviderDownloadContext, ProviderDownloadResult } from './Provider';

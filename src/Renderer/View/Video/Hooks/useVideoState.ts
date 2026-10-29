@@ -118,7 +118,6 @@ export function useVideoState() {
 
   const [hlsPanelOpen, setHlsPanelOpen] = useState(false);
 
-  const [downloaderOpen, setDownloaderOpen] = useState(false);
 
   const [controlsVisible, setControlsVisible] = useState(true);
 
@@ -130,7 +129,6 @@ export function useVideoState() {
 
   const [followingLive, setFollowingLive] = useState(false);
 
-  const [youtubeUrl, setYoutubeUrl] = useState('');
 
   const [volume, setVolume] = useState(100);
 
@@ -278,10 +276,6 @@ export function useVideoState() {
     hlsPanelOpen,
     /** The setHlsPanelOpen value. */
     setHlsPanelOpen,
-    /** The downloaderOpen value. */
-    downloaderOpen,
-    /** The setDownloaderOpen value. */
-    setDownloaderOpen,
     /** The controlsVisible value. */
     controlsVisible,
     /** The setControlsVisible value. */
@@ -302,10 +296,6 @@ export function useVideoState() {
     followingLive,
     /** The setFollowingLive value. */
     setFollowingLive,
-    /** The youtubeUrl value. */
-    youtubeUrl,
-    /** The setYoutubeUrl value. */
-    setYoutubeUrl,
     /** The volume value. */
     volume,
     /** The setVolume value. */

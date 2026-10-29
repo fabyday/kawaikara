@@ -25,7 +25,7 @@ const fixture = buildSync({
   import { createRoot } from 'react-dom/client';
   import { flushSync } from 'react-dom';
   import { App } from './src/Renderer/View/Menu/App';
-  import { YouTubeDownloaderPanel } from './src/Renderer/View/Video/YouTubeDownloaderPanel';
+  import { ProviderAppRequirement } from './src/Renderer/View/ExternalApps/ProviderAppRequirement';
   import { getRendererMessages } from './src/Main/Functional/Localization/RendererMessages';
   import { installKawaikaraMock, STORY_MESSAGES } from './stories/Mocks/KawaikaraMock';
   const api = installKawaikaraMock({ logFileCount: 48 });
@@ -79,16 +79,11 @@ const fixture = buildSync({
   api.sites.open = async id => { window.probe.openedSites.push(id); };
   const root = createRoot(document.getElementById('root'));
   window.render = mounted => flushSync(() => root.render(mounted ? <App /> : null));
-  window.downloaderCalls = 0;
-  window.kawaikaraVideo.downloads = {
-    getStatus: async () => { window.downloaderCalls++; return { installed: false, automaticInstallSupported: true, platform: 'win32' }; },
-    install: async () => ({ canceled: true, status: { installed: false, automaticInstallSupported: true, platform: 'win32' } }),
-    openReleasePage: async () => {},
-  };
-  window.renderDownloader = locale => {
-    const labels = getRendererMessages(locale, 'en-US').downloader;
-    window.downloaderLabels = labels;
-    flushSync(() => root.render(<YouTubeDownloaderPanel labels={labels} initialUrl="https://youtube.com/watch?v=fixture" />));
+  const appRequest = { appId: 'example.editor', providerId: 'example.provider', sourceUrl: 'https://example.com/document' };
+  window.renderRequirement = locale => {
+    const labels = getRendererMessages(locale, 'en-US').app.externalApps.distribution;
+    window.requirementLabels = labels;
+    flushSync(() => root.render(<ProviderAppRequirement labels={labels} request={appRequest} onClose={() => root.render(null)} />));
   };
   window.clickLabel = (label, scope = document) => {
     const button = [...scope.querySelectorAll('button')].find(button =>
@@ -111,7 +106,7 @@ const fixture = buildSync({
     jsx: 'automatic',
     write: false,
     minify: process.argv.includes('--minified'),
-    loader: { '.png': 'dataurl' },
+    loader: { '.png': 'dataurl', '.css': 'empty' },
     define: { 'process.env.NODE_ENV': '"production"' },
 }).outputFiles[0].text;
 const css = [
@@ -371,37 +366,19 @@ async function main() {
             false,
         );
     }
-    stage = 'downloader language changes preserve mounted state';
+    stage = 'generic app requirement localization';
     for (const locale of ['en-US', 'ko-KR', 'ja-JP']) {
-        await evaluate(`renderDownloader(${JSON.stringify(locale)})`);
-        await waitFor(
-            'document.querySelector(".youtube-downloader-panel").textContent.includes(downloaderLabels.notInstalled)',
-        );
-        assert.equal(
-            await evaluate(
-                'document.querySelector(".youtube-downloader-panel input").placeholder === downloaderLabels.urlPlaceholder',
-            ),
-            true,
-        );
-        assert.equal(
-            await evaluate(
-                'document.querySelector(".youtube-downloader-panel input").value',
-            ),
-            'https://youtube.com/watch?v=fixture',
-        );
-        await evaluate('clickLabel(downloaderLabels.install)');
+        await evaluate(`renderRequirement(${JSON.stringify(locale)})`);
+        await waitFor('!!document.querySelector("dialog[open]")');
+        assert.equal(await evaluate('document.querySelector("dialog").textContent.includes(requirementLabels.refresh)'), true);
+        assert.equal(await evaluate('document.querySelector("dialog input") === null'), true);
     }
-    assert.equal(
-        await evaluate('downloaderCalls'),
-        1,
-        'locale changes do not remount the panel or repeat its effect',
-    );
     assert.deepEqual(await evaluate('probe.errors'), []);
     await evaluate('render(false)');
     window.destroy();
     clearTimeout(watchdog);
     console.log(
-        'PASS: Menu input/AOT, all settings tabs, nested log return, search, multi-selection, history scroll, external repository identity, repeated mount/subscription cleanup, and EN/KO/JA downloader state preservation.',
+        'PASS: Menu input/AOT, all settings tabs, nested log return, search, multi-selection, history scroll, external repository identity, repeated mount/subscription cleanup, and EN/KO/JA generic external app requirements.',
     );
     app.exit(0);
 }

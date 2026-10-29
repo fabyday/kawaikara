@@ -149,13 +149,6 @@ if (window.location.protocol === 'file:') {
           ipcRenderer.off(IPC_CHANNELS.video.openRequestChanged, listener);
       },
     },
-    downloads: {
-      getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.downloads.status),
-      install: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.install, url),
-      open: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.open, url),
-      openReleasePage: () =>
-        ipcRenderer.invoke(IPC_CHANNELS.downloads.openReleasePage),
-    },
     preferences: {
       get: () =>
         ipcRenderer.invoke(
@@ -302,7 +295,7 @@ function installYouTubeDownloadMenu(): void {
     'contextmenu',
     () => {
       void (ipcRenderer.invoke(IPC_CHANNELS.application.messages) as Promise<RendererMessages>)
-        .then(({ downloader }) => scheduleDownloadMenuItem(downloader.contextMenu))
+        .then(({ providerActions }) => scheduleDownloadMenuItem(providerActions.contextMenu))
         .catch((error: unknown) => console.warn('Download menu localization failed.', error));
     },
     true,
@@ -441,7 +434,7 @@ function appendDownloadMenuItem(labelText: string): boolean {
     event.stopImmediatePropagation();
     menu.closest<HTMLElement>('.ytp-contextmenu')?.style.setProperty('display', 'none');
     void ipcRenderer.invoke(
-      IPC_CHANNELS.downloads.openYouTube,
+      IPC_CHANNELS.providerActions.request,
       window.location.href,
     );
   };

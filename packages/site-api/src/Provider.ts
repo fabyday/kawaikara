@@ -1,4 +1,4 @@
-import type { ExternalApps, ExternalAppResult } from './ExternalApps';
+import type { ExternalAppIntegration, ExternalApps, ExternalAppResult } from './ExternalApps';
 import type { WebExtensionDescriptor, WebExtensionInvocation, WebExtensionResult } from './WebExtension';
 import { DisposableStore } from './Disposable';
 import type { ProviderFileDropDescriptor } from './DragDrop';
@@ -514,6 +514,8 @@ function isNavigationAborted(error: unknown): boolean {
 export type ProviderConstructor = {
     /** Creates the viewer instance only when Kawaikara opens the Provider. */
     new (context: SiteContext): AbstractProvider;
+    /** App integrations owned by this Provider; IDs must also appear in its manifest. */
+    readonly externalAppIntegrations?: readonly ExternalAppIntegration[];
     /**
      * Handles a declared download action without constructing a viewer instance.
      * @param url - HTTPS source validated against this Provider's declared hosts.

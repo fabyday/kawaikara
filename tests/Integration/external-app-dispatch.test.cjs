@@ -31,9 +31,6 @@ const { ExternalAppManager } = load('src/Main/Manager/ExternalAppManager.ts');
 const { ExternalAppPermissions, validateExternalAppDescriptor } = load(
     'src/Main/Functional/ExternalApps/ExternalAppPermissions.ts',
 );
-const { createYouTubeDownloaderAdapter } = load(
-    'src/Main/Functional/ExternalApps/YouTubeDownloaderAdapter.ts',
-);
 const { ProviderManager } = load('src/Main/Manager/ProviderManager.ts');
 const { builtinBundle } = require('@kawaikara/builtin-sites');
 const source = 'https://www.youtube.com/watch?v=fixture';
@@ -58,24 +55,22 @@ function fixture() {
                 permissions.decide(approval.id, ['source']),
             );
     });
-    const apps = new ExternalAppManager(
-        [
-            createYouTubeDownloaderAdapter({
-                getStatus: async () => ({
-                    installed: state.installed,
-                    version: '1.2.3',
-                    appPath: '/private/app',
-                }),
-                open: async (url, host) => {
-                    calls.push(url);
-                    assert.equal(host.hasPermission('session'), false);
-                    if (state.error) throw state.error;
-                    return { opened: state.opened, requestId: 'job-1' };
-                },
-            }),
-        ],
-        permissions,
-    );
+    const apps = new ExternalAppManager([], permissions, {
+        online: () => state.installed,
+        allowApp() {}, removeApp() {},
+        async launch(id, link, active) {
+            assert.equal(id, 'day.faby.kawai-downloader');
+            assert.equal(active(), true);
+            calls.push(new URL(link).searchParams.get('url'));
+            if (state.error) throw state.error;
+        },
+    }, {
+        async createRequest({ host }) {
+            assert.equal(host.hasPermission('session'), false);
+            return { requestId: 'job-1', callbackUrl: 'http://127.0.0.1:1234/v1/events/job-1', token: 'fixture' };
+        },
+        cancel() {},
+    });
     const sites = new ProviderManager(
         () => {
             throw new Error('No viewer should activate');
@@ -367,10 +362,10 @@ test('declarations cannot request wildcard cookie origins or undefined host oper
 });
 
 test('authenticated callback host API returns cookies only for the exact live request and grant', async () => {
-    const { ExternalDownloaderCallbackServer } = load(
-        'src/Main/Functional/External/ExternalDownloaderCallback.ts',
+    const { ExternalAppCallbackServer } = load(
+        'src/Main/Functional/ExternalApps/ExternalAppCallbackServer.ts',
     );
-    const server = new ExternalDownloaderCallbackServer({
+    const server = new ExternalAppCallbackServer({
         info() {},
         warn() {},
         error() {},
@@ -383,7 +378,7 @@ test('authenticated callback host API returns cookies only for the exact live re
     await run;
     await permissions.configureProvider(f.adapter.descriptor, { providerId: f.resource.provider.id, enabled: true, grants: ['url'], cookies: { cookies: 'allow' } });
     await f.apps.request('custom.app', { action: 'open' }, f.resource);
-    const callback = await server.createRequest(f.hosts[0]);
+    const callback = await server.createRequest({ host: f.hosts[0] });
     const call = (token, permission = 'cookies') =>
         fetch(callback.callbackUrl + '/host', {
             method: 'POST',
@@ -513,7 +508,8 @@ for (const legacyId of ['yt-downloader', 'com.ytdownloader.app']) test(`retired 
     t.after(() => rm(dir, { recursive: true, force: true }));
     const file = path.join(dir, 'apps.json');
     const permissions = new ExternalAppPermissions(file);
-    const adapter = createYouTubeDownloaderAdapter({ getStatus: async () => ({ installed: true }), open: async () => { throw new Error('Must not launch before new consent'); } });
+    const { kawaiDownloaderIntegration } = load('packages/builtin-sites/src/Functional/KawaiDownloaderAdapter.ts');
+    const adapter = { descriptor: kawaiDownloaderIntegration.descriptor, discover: async () => ({}), execute: async () => { throw new Error('Must not launch before new consent'); } };
     const old = { ...adapter.descriptor, id: legacyId, name: 'YT Downloader' };
     const saving = permissions.register(old);
     permissions.decide((await prompt(permissions)).id, ['source']);
@@ -591,4 +587,58 @@ test('once URL consent survives restart only as a prompt marker while remembered
     assert.equal((await next).accepted,true);
     assert.equal((await g.apps.request('custom.app',{action:'open'},g.resource)).accepted,true);
     assert.equal((await restored.status()).approval,undefined);
+});
+
+function editorIntegration(parameters = {}) {
+    return {
+        descriptor: { schemaVersion: 1, id: 'example.editor', name: 'Editor', revision: '1',
+            permissions: [], actions: [{ id: 'annotate', permissions: [] }] },
+        protocol: 'example-editor',
+        createLaunchUrl(request) { return 'example-editor://annotate?data=' + encodeURIComponent(JSON.stringify(request.parameters)); },
+        ...parameters,
+    };
+}
+
+test('generic transport delivers arbitrary Provider action parameters without media semantics', async () => {
+    const { createProviderAppAdapter } = load('src/Main/Functional/ExternalApps/ProviderAppAdapter.ts');
+    const launches = [], callbacks = [], canceled = [];
+    const callback = { requestId: 'test-request', callbackUrl: 'http://127.0.0.1:1234/event', token: 'secret' };
+    const server = { async createRequest(options) { callbacks.push(options); return callback; }, cancel: id => canceled.push(id) };
+    const dev = { online: () => true, async launch(id, link, active) { assert.equal(active(), true); launches.push([id, link]); } };
+    const payload = { document: 'note-1', annotations: [{ line: 3, text: 'hello' }] };
+    const adapter = createProviderAppAdapter(editorIntegration(), server, dev);
+    assert.deepEqual(await adapter.execute({ action: 'annotate', parameters: payload }, { isActive: () => true, hasPermission: () => false }), { accepted: true, requestId: 'test-request' });
+    assert.equal(launches[0][0], 'example.editor');
+    assert.deepEqual(JSON.parse(new URL(launches[0][1]).searchParams.get('data')), payload);
+    assert.equal(callbacks[0].onEvent, undefined);
+    assert.deepEqual(canceled, []);
+    const invalid = createProviderAppAdapter(editorIntegration({ createLaunchUrl: () => 'https://unrelated.example/' }), server, dev);
+    await assert.rejects(invalid.execute({ action: 'annotate' }, { isActive: () => true, hasPermission: () => false }), /protocol mismatch/);
+    assert.deepEqual(canceled, ['test-request']);
+    assert.equal(launches.length, 1);
+    assert.throws(() => createProviderAppAdapter(editorIntegration({ protocol: 'file' }), server, dev), /Invalid/);
+});
+
+test('Provider registry keeps separate protocol implementations and withdraws unloaded owners', () => {
+    const { ProviderAppRegistry } = load('src/Main/Functional/ExternalApps/ProviderAppRegistry.ts');
+    const allowed = [], removed = [];
+    const registry = new ProviderAppRegistry({}, { allowApp: id => allowed.push(id), removeApp: id => removed.push(id) });
+    registry.register([
+        { id: 'provider.first', declared: ['example.editor'], integrations: [editorIntegration()] },
+        { id: 'provider.second', declared: ['example.editor'], integrations: [editorIntegration({ createLaunchUrl: () => 'example-editor://other' })] },
+    ]);
+    assert.equal(registry.descriptors().length, 1);
+    assert.notEqual(registry.get('example.editor', 'provider.first'), registry.get('example.editor', 'provider.second'));
+    assert.equal(registry.get('example.editor', 'unrelated'), undefined);
+    const changed = editorIntegration(); changed.descriptor.revision = '2';
+    assert.throws(() => registry.register([{ id: 'provider.third', declared: ['example.editor'], integrations: [changed] }]), /Conflicting/);
+    assert.equal(registry.get('example.editor', 'provider.third'), undefined);
+    assert.throws(() => registry.register([{ id: 'provider.third', declared: [], integrations: [editorIntegration()] }]), /Undeclared/);
+    registry.remove('provider.first');
+    assert.equal(registry.get('example.editor', 'provider.first'), undefined);
+    assert.ok(registry.get('example.editor', 'provider.second'));
+    assert.deepEqual(removed, []);
+    registry.remove('provider.second');
+    assert.equal(registry.get('example.editor'), undefined);
+    assert.deepEqual(removed, ['example.editor']);
 });

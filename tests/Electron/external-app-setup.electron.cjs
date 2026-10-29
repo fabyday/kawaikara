@@ -10,13 +10,6 @@ const output = mkdtempSync(path.join(getTestTempRoot(), 'external-app-setup-'));
 app.setPath('userData', output);
 if (process.platform === 'darwin') app.setActivationPolicy('accessory');
 app.disableHardwareAcceleration();
-const labels = Object.fromEntries(
-    ['en', 'ko', 'ja'].map((locale) => [
-        locale,
-        JSON.parse(readFileSync(path.join(root, 'locales', locale + '.json')))
-            .downloader,
-    ]),
-);
 const distributionLabels = Object.fromEntries(
     ['en', 'ko', 'ja'].map((locale) => [
         locale,
@@ -33,10 +26,10 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import {KawaiProvider} from '@kawaikara/kawai-ui';
-import {YouTubeDownloaderPanel} from './src/Renderer/View/Video/YouTubeDownloaderPanel';
+import {ProviderAppRequirement} from './src/Renderer/View/ExternalApps/ProviderAppRequirement';
 import {DistributionLookup} from './src/Renderer/View/ExternalApps/DistributionControls';
 import {ExternalAppApproval} from './src/Renderer/View/Preference/ExternalAppApproval';
-const root=createRoot(document.getElementById('root')), labels=${JSON.stringify(labels)};
+const root=createRoot(document.getElementById('root'));
 const distributionLabels=${JSON.stringify(distributionLabels)};
 window.kawaikara={appDistribution:{preview:async(url)=>{window.calls.push(['manifest',url]);if(window.manifestDelay)await new Promise(r=>setTimeout(r,window.manifestDelay));return window.manifestFixture},act:async(token,action)=>{window.calls.push([token,action]);return 'installer-opened'}}};
 window.renderLookup=(locale='en')=>{
@@ -53,18 +46,13 @@ window.renderApproval=(locale='ko')=>{
  }};
  flushSync(()=>root.render(<KawaiProvider><div className="kawai-theme kawai-theme-dark"><ExternalAppApproval messages={window.permissionMessages[locale]} /></div></KawaiProvider>));
 };
-const api={getStatus:async()=>{window.calls.push('status');return window.statusFixture},
- install:async()=>{window.calls.push('install');return {status:window.statusFixture}},
- open:async(url)=>{window.calls.push(['open',url]);return {opened:true,status:window.statusFixture}},
- openReleasePage:async()=>{window.calls.push('releases')}};
+window.kawaikara.providerActions={request:async(url,id)=>{window.calls.push(['request',url,id]);return window.requestResult??{accepted:false,code:'unavailable',recoverable:true}}};
 window.renderPanel=(locale='en',theme='dark')=>{
  flushSync(()=>root.render(null));
  flushSync(()=>root.render(<KawaiProvider><div className={'kawai-theme kawai-theme-'+theme}>
- <YouTubeDownloaderPanel api={api} labels={labels[locale]} initialUrl="https://www.youtube.com/watch?v=retained"
- editableSource={false}
- distributionUrl={window.useDistribution?'https://provider.example/app.json':undefined}
- distributionApi={window.useDistribution?window.kawaikara.appDistribution:undefined}
- distributionLabels={distributionLabels[locale]} onClose={()=>{window.calls.push('close');root.render(null)}} />
+ <ProviderAppRequirement labels={distributionLabels[locale]}
+ request={{appId:'example.editor',providerId:'example.provider',sourceUrl:'https://example.com/document',distributionUrl:window.useDistribution?'https://provider.example/app.json':undefined}}
+ onClose={()=>{window.calls.push('close');root.render(null)}} />
  </div></KawaiProvider>));
 };
 `,
@@ -122,7 +110,7 @@ app.whenReady()
     results.push({locale,theme,development,open:panel.open,inside:rect.x>=0&&rect.y>=0&&rect.right<=innerWidth+1&&rect.bottom<=innerHeight+1,
       centered:Math.abs(rect.x+rect.width/2-innerWidth/2)<2,
       overflow:panel.scrollWidth>panel.clientWidth+1,
-      image:panel.querySelector('img').complete,
+      image:!panel.querySelector('img')||panel.querySelector('img').complete,
       noSource:panel.querySelector('input')===null,
       scrollbar:getComputedStyle(panel).scrollbarWidth,
       closeSize:panel.querySelector('button').getBoundingClientRect().width,
@@ -142,15 +130,13 @@ app.whenReady()
                 );
                 assert.ok(layout.closeSize >= 44, label);
                 assert.equal(
-                    layout.buttons.includes(labels[layout.locale].install),
+                    layout.buttons.includes(distributionLabels[layout.locale].install),
                     false,
                     label,
                 );
                 assert.equal(
                     layout.status,
-                    layout.development
-                        ? labels[layout.locale].developmentWaiting
-                        : labels[layout.locale].notInstalled,
+                    distributionLabels[layout.locale].missing,
                     label,
                 );
             }
@@ -158,16 +144,14 @@ app.whenReady()
         // Only status queries were issued while displaying states.
         assert.ok(
             (await win.webContents.executeJavaScript('window.calls')).every(
-                (call) => call === 'status',
+                (call) => false,
             ),
         );
         const actions = await win.webContents.executeJavaScript(`(async()=>{
   const wait=()=>new Promise(r=>setTimeout(r,30));
-  window.statusFixture={installed:false,development:true,automaticInstallSupported:false,platform:'darwin'};
+  window.requestResult={accepted:true};
   renderPanel();await wait();window.calls=[];
-  window.statusFixture={...window.statusFixture,installed:true};
   [...document.querySelectorAll('button')].find(b=>b.textContent==='Check again').click();await wait();
-  [...document.querySelectorAll('button')].find(b=>b.textContent==='Open in kawai-downloader').click();await wait();
   const actions=[...window.calls];
   renderPanel();await wait();document.querySelector('dialog').dispatchEvent(new Event('cancel',{cancelable:true}));await wait();
   actions.push(document.querySelector('dialog')===null?'escape-closed':'escape-failed');
@@ -175,8 +159,7 @@ app.whenReady()
   actions.push(document.querySelector('dialog')===null?'outside-closed':'outside-failed');
   return actions;})()`);
         assert.deepEqual(actions, [
-            'status',
-            ['open', 'https://www.youtube.com/watch?v=retained'],
+            ['request', 'https://example.com/document', 'example.provider'],
             'close',
             'escape-closed',
             'outside-closed',
@@ -245,9 +228,9 @@ app.whenReady()
         );
         await new Promise((r) => setTimeout(r, 150));
         const developmentLookups = await win.webContents.executeJavaScript(`(async()=>{
-            window.calls=[];window.useDistribution=true;
+            window.calls=[];window.useDistribution=true;window.requestResult={accepted:false,code:'unavailable',recoverable:true};
             renderPanel('ko');await new Promise(r=>setTimeout(r,80));
-            const refresh=[...document.querySelectorAll('button')].find(button=>button.textContent.includes(${JSON.stringify(labels.ko.refresh)}));
+            const refresh=[...document.querySelectorAll('button')].find(button=>button.textContent.includes(${JSON.stringify(distributionLabels.ko.refresh)}));
             refresh.click();await new Promise(r=>setTimeout(r,80));
             return window.calls.filter(call=>Array.isArray(call)&&call[0]==='manifest');
         })()`);

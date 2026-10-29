@@ -171,6 +171,11 @@ export class ProviderManager {
             /** Existing browser profile identifiers. */
             browserProfiles: this.pluginBrowserProfiles,
         });
+        this.externalApps?.offerProviders(prepared.providers.map(registration => ({
+            id: registration.metadata.id,
+            declared: registration.metadata.externalApps ?? [],
+            integrations: registration.constructor.externalAppIntegrations ?? [],
+        })));
         for (const registration of prepared.composedProviders)
             this.sites.set(registration.metadata.id, registration);
         for (const registration of prepared.providers)
@@ -196,6 +201,7 @@ export class ProviderManager {
         if (!registered) return;
         for (const [siteId, site] of this.sites) {
             if (site.bundleId === bundleId) {
+                this.externalApps?.removeProvider(siteId);
                 this.sites.delete(siteId);
                 this.dragDrop.unregisterProvider(siteId);
             }

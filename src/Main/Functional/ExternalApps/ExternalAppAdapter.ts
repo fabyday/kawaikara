@@ -36,6 +36,8 @@ export interface ExternalAppResource {
 
 /** Host API given to adapter functions; every call enforces current registration/grants. */
 export interface ExternalAppHost {
+    /** Checks whether this invocation registration and Provider scope remain current. */
+    isActive(): boolean;
     /** Returns whether one declared permission is currently granted for this resource. */
     hasPermission(permissionId: string): boolean;
     /** Reads the invocation URL under a declared resource.url permission. */

@@ -32,7 +32,10 @@
         "source": "출처",
         "connection": "연결",
         "protocol": "프로토콜 버전",
-        "installationHelp": "설치와 연결은 별도입니다. 설치 후 앱을 연결하고 권한을 확인하세요."
+        "installationHelp": "설치와 연결은 별도입니다. 설치 후 앱을 연결하고 권한을 확인하세요.",
+        "refresh": "다시 확인",
+        "permissionDenied": "외부 앱을 열 권한이 없습니다. 설정의 외부 앱에서 이 Provider의 앱 사용 허용과 URL 읽기 권한을 확인하세요.",
+        "missing": "요청한 외부 앱을 사용할 수 없습니다."
       },
       "connectionRequested": "연결을 요청했습니다. 권한 승인 안내를 확인하세요.",
       "noCandidates": "연결 가능한 앱이 없습니다. 호환 앱을 실행한 뒤 다시 시도하세요.",
@@ -754,44 +757,6 @@
     "back": "업데이트 화면으로 돌아가기",
     "releaseNotesDescription": "새 버전에 포함된 변경 사항을 확인합니다."
   },
-  "downloader": {
-    "permissionDenied": "외부 앱을 열 권한이 없습니다. 설정의 외부 앱에서 이 Provider의 앱 사용 허용과 URL 읽기 권한을 확인하세요.",
-    "refresh": "다시 확인",
-    "developmentWaiting": "앱 연결 대기 중",
-    "developmentConnected": "개발 앱 연결됨",
-    "developmentHelp": "외부 앱을 실행해 Kawaikara에 연결한 뒤 다시 확인하세요.",
-    "opening": "앱을 여는 중…",
-    "installing": "설치 중…",
-    "sourceHelp": "앱을 열 때 요청한 주소를 전달합니다.",
-    "title": "kawai-downloader",
-    "description": "다운로드 화면은 별도 앱에서 열립니다.",
-    "close": "닫기",
-    "version": "버전",
-    "url": "YouTube 주소",
-    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
-    "open": "kawai-downloader에서 열기",
-    "install": "kawai-downloader 설치",
-    "releases": "릴리스 페이지 열기",
-    "installed": "설치됨",
-    "notInstalled": "설치되지 않음",
-    "checking": "확인 중",
-    "protocolInstallation": "프로토콜 설치",
-    "missing": "kawai-downloader가 설치되어 있지 않습니다.",
-    "installFailed": "kawai-downloader를 설치하지 못했습니다.",
-    "permissionNotice": "소유하거나 저장을 허가받은 콘텐츠만 다운로드하세요.",
-    "macInstallHelp": "설치를 누르면 공식 릴리스를 받고 SHA-256을 확인합니다. 확인 창에서 동의하면 다운로드한 파일과 설치 앱의 macOS 격리 속성을 제거하고 ~/Applications에 설치합니다. 관리자 권한은 사용하지 않습니다.",
-    "windowsInstallHelp": "설치를 누르면 공식 릴리스를 받고 SHA-256을 확인한 뒤 설치 프로그램을 엽니다.",
-    "unsupported": "이 운영체제에서는 자동 설치를 지원하지 않습니다. 릴리스 페이지에서 설치해 주세요.",
-    "installTitle": "{name} 설치",
-    "installMessage": "{name}를 다운로드하고 설치할까요?",
-    "macInstallDetail": "릴리스 파일의 SHA-256을 확인한 뒤, 다운로드한 파일과 설치할 앱에서 macOS 격리 속성을 제거합니다. 관리자 권한은 사용하지 않으며 ~/Applications에만 설치합니다.",
-    "windowsInstallDetail": "릴리스 파일의 SHA-256을 확인한 뒤 Windows 설치 프로그램을 실행합니다.",
-    "confirmInstall": "설치",
-    "cancel": "취소",
-    "completed": "kawai-downloader {version} 설치가 완료되었습니다.",
-    "windowsStarted": "Windows 설치 프로그램을 열었습니다. 설치가 끝나면 다시 실행해 주세요.",
-    "contextMenu": "다운로더에서 열기"
-  },
   "bundle": {
     "install": {
       "chooseTitle": "Kawaikara 번들 선택",
@@ -857,5 +822,8 @@
     "details": "Kawaikara OTT 뷰어",
     "watching": "시청 중…",
     "viewer": "Kawaikara 뷰어"
+  },
+  "providerActions": {
+    "contextMenu": "외부 앱에서 열기"
   }
 }

@@ -136,11 +136,18 @@ export class DevelopmentConnection {
      */
     constructor(
         private readonly stateFile: string,
-        private readonly appIds: readonly string[],
+        appIds: readonly string[],
         private readonly directory = DEVELOPMENT_DISCOVERY_DIRECTORY,
         /** The icon cache value. */
         readonly iconCache?: ExternalAppIconCache,
-    ) {}
+    ) { this.appIds = new Set(appIds); }
+
+    /** Allowed identities are supplied by currently loaded Provider integrations. */
+    private readonly appIds: Set<string>;
+    /** Adds a validated Provider-owned app identity without approving its registration. */
+    allowApp(id: string): void { this.appIds.add(id); }
+    /** Stops discovery/handshakes for an integration whose last Provider was unloaded. */
+    removeApp(id: string): void { this.appIds.delete(id); this.live.delete(id); }
 
     /** Loads bindings, starts an IPv4 loopback listener, then publishes this running host. */
     async start(authority: DevelopmentConnectionAuthority): Promise<void> {
@@ -256,7 +263,7 @@ export class DevelopmentConnection {
         return (await clients(this.directory))
             .filter(
                 (item) =>
-                    this.appIds.includes(item.appId) &&
+                    this.appIds.has(item.appId) &&
                     !this.state.bindings[item.appId],
             )
             .map(({ appId, clientId }) => ({ appId, clientId }));
@@ -266,7 +273,7 @@ export class DevelopmentConnection {
     async connect(clientId: string): Promise<void> {
         const candidate = (await clients(this.directory)).find(
             (item) =>
-                item.clientId === clientId && this.appIds.includes(item.appId),
+                item.clientId === clientId && this.appIds.has(item.appId),
         );
         if (!candidate || this.state.bindings[candidate.appId])
             throw new Error('Connection candidate unavailable.');
@@ -392,7 +399,7 @@ export class DevelopmentConnection {
         if (
             this.closed ||
             typeof appId !== 'string' ||
-            !this.appIds.includes(appId) ||
+            !this.appIds.has(appId) ||
             typeof clientId !== 'string' ||
             !/^[a-f0-9-]{36}$/.test(clientId) ||
             typeof key !== 'string' ||

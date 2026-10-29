@@ -32,7 +32,10 @@
         "source": "配布元",
         "connection": "接続",
         "protocol": "プロトコルのバージョン",
-        "installationHelp": "インストールと接続は別です。インストール後にアプリを接続して権限を確認してください。"
+        "installationHelp": "インストールと接続は別です。インストール後にアプリを接続して権限を確認してください。",
+        "refresh": "再確認",
+        "permissionDenied": "このアプリを開く権限がありません。設定の外部アプリで、このProviderのアプリ利用とURL読み取り権限を確認してください。",
+        "missing": "要求された外部アプリを利用できません。"
       },
       "connectionRequested": "接続をリクエストしました。権限の確認画面で承認してください。",
       "noCandidates": "接続可能なアプリがありません。対応アプリを起動して再試行してください。",
@@ -754,44 +757,6 @@
     "back": "アップデート画面に戻る",
     "releaseNotesDescription": "新しいバージョンに含まれる変更を確認します。"
   },
-  "downloader": {
-    "permissionDenied": "このアプリを開く権限がありません。設定の外部アプリで、このProviderのアプリ利用とURL読み取り権限を確認してください。",
-    "refresh": "再確認",
-    "developmentWaiting": "アプリの接続待ち",
-    "developmentConnected": "開発アプリに接続済み",
-    "developmentHelp": "外部アプリを起動してKawaikaraに接続し、再確認してください。",
-    "opening": "アプリを開いています…",
-    "installing": "インストール中…",
-    "sourceHelp": "アプリを開くとリクエストしたURLが渡されます。",
-    "title": "kawai-downloader",
-    "description": "ダウンロード画面は別のアプリで開きます。",
-    "close": "閉じる",
-    "version": "バージョン",
-    "url": "YouTube URL",
-    "urlPlaceholder": "https://www.youtube.com/watch?v=...",
-    "open": "kawai-downloaderで開く",
-    "install": "kawai-downloaderをインストール",
-    "releases": "リリースページを開く",
-    "installed": "インストール済み",
-    "notInstalled": "未インストール",
-    "checking": "確認中",
-    "protocolInstallation": "プロトコルによるインストール",
-    "missing": "kawai-downloaderがインストールされていません。",
-    "installFailed": "kawai-downloaderをインストールできませんでした。",
-    "permissionNotice": "所有している、または保存の許可を得たコンテンツのみダウンロードしてください。",
-    "macInstallHelp": "公式リリースをダウンロードしてSHA-256を検証します。確認後、ダウンロードしたファイルとアプリのmacOS隔離属性を削除し、管理者権限を使わず~/Applicationsにのみインストールします。",
-    "windowsInstallHelp": "公式リリースをダウンロードしてSHA-256を検証し、インストーラーを開きます。",
-    "unsupported": "このOSでは自動インストールに対応していません。リリースページからインストールしてください。",
-    "installTitle": "{name}をインストール",
-    "installMessage": "{name}をダウンロードしてインストールしますか？",
-    "macInstallDetail": "リリースのSHA-256を検証後、ダウンロードしたファイルとアプリのmacOS隔離属性を削除します。管理者権限は使用せず、~/Applicationsにのみインストールします。",
-    "windowsInstallDetail": "リリースのSHA-256を検証してからWindowsインストーラーを起動します。",
-    "confirmInstall": "インストール",
-    "cancel": "キャンセル",
-    "completed": "kawai-downloader {version}をインストールしました。",
-    "windowsStarted": "Windowsインストーラーを開きました。インストール完了後に再度実行してください。",
-    "contextMenu": "ダウンローダーで開く"
-  },
   "bundle": {
     "install": {
       "chooseTitle": "Kawaikara Bundleを選択",
@@ -857,5 +822,8 @@
     "details": "Kawaikara OTT ビューアー",
     "watching": "視聴中…",
     "viewer": "Kawaikara ビューアー"
+  },
+  "providerActions": {
+    "contextMenu": "外部アプリで開く"
   }
 }

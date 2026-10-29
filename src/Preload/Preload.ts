@@ -352,16 +352,10 @@ const api: KawaikaraRendererApi = {
         targetPath,
       ) as Promise<string | undefined>,
   },
-  /** Companion actions through the trusted application preload. */
-  downloads: {
-    /** Queries local companion availability. */
-    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.downloads.status),
-    /** Requests the built-in installer and its explicit confirmation. */
-    install: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.install, url),
-    /** Opens a source through the existing Main permission flow. */
-    open: (url) => ipcRenderer.invoke(IPC_CHANNELS.downloads.open, url),
-    /** Opens the built-in adapter release page. */
-    openReleasePage: () => ipcRenderer.invoke(IPC_CHANNELS.downloads.openReleasePage),
+  /** Provider-owned action dispatch from the trusted setup overlay. */
+  providerActions: {
+    /** Keeps the original Provider identity on retries. */
+    request: (url, providerId) => ipcRenderer.invoke(IPC_CHANNELS.providerActions.request, url, providerId),
   },
   /** Presentation events from Main and overlay dismissal. */
   overlay: {
@@ -405,7 +399,7 @@ const api: KawaikaraRendererApi = {
     /** Delivers Main-owned setup requests. */
     onShowExternalApp: (handler) => {
       /** Forwards a Main setup event; removed on unsubscribe. */
-      const listener = (_event: Electron.IpcRendererEvent, request: import('../Common/Download').ExternalAppSetupRequest) => handler(request);
+      const listener = (_event: Electron.IpcRendererEvent, request: import('../Common/ExternalAppResources').ExternalAppSetupRequest) => handler(request);
       ipcRenderer.on(IPC_CHANNELS.overlay.showExternalApp, listener);
       return () => ipcRenderer.off(IPC_CHANNELS.overlay.showExternalApp, listener);
     },

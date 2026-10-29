@@ -11,12 +11,14 @@
 | --- | --- | --- |
 | `kawaikara.manifest.json` | 외부 앱 제작자가 이름·이미지·OS별 설치 정보 제공 | 공개 HTTPS 조회, 미리보기, 검증된 다운로드 |
 | Provider의 `externalApps` / `externalAppManifests` | Provider 제작자가 사용할 앱과 설치 정보 출처 선언 | Provider별 접근 제한과 설치 패널 |
-| `ExternalAppAdapter` / `ExternalAppDescriptor` | Kawaikara 측 신뢰된 코드가 검색·액션·권한 구현 | 공통 등록/호출 구조와 기본 다운로더 어댑터 |
+| `ExternalAppIntegration` / `ExternalAppDescriptor` | Provider Bundle이 앱별 액션·권한·요청/이벤트 형식 정의 | 본체는 공통 검색·실행·권한 검사 제공 |
 
 **manifest만 공개하면 임의의 앱이 자동으로 연결되는 것은 아닙니다.** 새로운 앱의
-실제 연결에는 Kawaikara에 어댑터를 통합하는 작업이 필요합니다. 원격 manifest로
-JavaScript를 실행하거나 권한을 얻을 수 없습니다. 범용 외부 앱 검색, Native Messaging,
-원격 어댑터 로더는 아직 제공하지 않습니다. 배포 전에 어댑터 통합 범위를 협의하세요.
+실제 연결에는 해당 앱을 사용하는 Provider Bundle이 어댑터를 제공해야 합니다.
+Provider 클래스의 정적 `externalAppIntegrations`에 어댑터를 등록하고, manifest의
+`descriptors.externalApps`에 같은 앱 ID를 선언합니다. Kawaikara 본체의 DI·IPC·View에
+앱별 분기를 추가하지 않습니다. 원격 manifest는 데이터만 제공하며 코드를 실행하거나
+권한을 부여하지 않습니다.
 
 다운로더에 포함된 `kawaikara-companion.json`도 별도의 구체적인 연동 문서이며,
 아래 공개 배포 manifest와 같은 형식이 아닙니다.
@@ -143,8 +145,8 @@ Provider는 범위가 제한된 외부 앱 API를 통해 어댑터가 정의한 
 
 ## 5. 어댑터·권한·연결 수명
 
-[어댑터 계약](../../../../../src/Main/Functional/ExternalApps/ExternalAppAdapter.ts),
-[참조 구현](../../../../../src/Main/Functional/ExternalApps/YouTubeDownloaderAdapter.ts),
+[어댑터 계약](../../../../../packages/site-api/src/ExternalApps.ts),
+[참조 구현](../../../../../packages/builtin-sites/src/Functional/KawaiDownloaderAdapter.ts),
 [등록 위치](../../../../../src/Main/DependencyInjection/ApplicationManagers.ts)를 참고하세요.
 제품별 처리는 어댑터에 두고 `ExternalAppManager`에는 구체적인 기능을 추가하지 않습니다.
 
@@ -341,3 +343,43 @@ macOS DMG를 테스트 설치 위치에 복사하며 격리 속성을 제거하�
 않습니다. 두 개발 앱을 재시작하고 다운로더의 `start:connected`를 사용하면 새
 경로에 연결됩니다. Stable 번들에는 설치 테스트 모듈·경로·환경변수 분기가
 포함되지 않습니다.
+
+
+## Provider 소유 어댑터 경계
+
+`ExternalAppIntegration`의 `descriptor`는 앱 ID·권한·기능을 선언합니다.
+`protocol`은 OS에 등록된 사용자 정의 URL scheme이며, `createLaunchUrl(request,
+context)`에서 앱 전용 요청을 직렬화합니다. `context.getUrl(permissionId)`는 매번
+URL 권한을 검사합니다. 쿠키는 URL에 넣지 않고 외부 앱이 인증된 `/host` API로
+요청하며, 현재 Provider와 프로필에 대한 권한을 다시 검사합니다.
+
+선택적인 `onEvent(value, requestId)`는 앱별 이벤트를 검증하고, 종료 이벤트일 때
+`true`를 반환합니다. 다운로드 상태·진행률·성공 여부는 Provider와 외부 앱의 계약이며
+Kawaikara는 이를 해석하지 않습니다. 어댑터 동작을 변경하면 `revision`도 변경합니다.
+
+여러 Provider가 같은 앱을 사용하면 descriptor와 protocol은 일치해야 하며, 각자의
+요청·응답 함수는 독립적으로 유지합니다. Provider 제거 시 어댑터도 제거되고,
+마지막 사용자가 제거되면 개발 연결 검색에서도 제외됩니다. 설치 화면은 Provider가
+선언한 배포 manifest로 구성하며, 설치 후 요청 재시도도 원래 Provider의 권한 경로를
+거칩니다. 설치 자체가 앱 등록이나 URL·쿠키 권한을 승인하지 않습니다.
+
+## 다운로더의 DEV 연결 대상 선택
+
+`kawaikara://`는 OS에 등록된 앱을 열기 때문에 DEV 체크아웃 대신 Nightly가
+열릴 수 있습니다. 개발 실행한 다운로더(`pnpm start`)의 설정에서 **Kawaikara DEV
+폴더 선택**으로 `package.json`이 있는 호스트 루트를 선택하거나, 다운로더에서
+`pnpm start:connected --kawaikara "/절대경로/kawaikara-checkout"`을 실행합니다.
+
+양쪽 앱이 실행되어 있어야 하며 선택한 체크아웃의 `tmp/development-connections`를
+사용합니다. DEV가 없으면 설치된 앱으로 자동 전환하지 않습니다. 대상은 저장되고
+폴더별 인증 정보는 분리됩니다. 대상 변경 시 이전 연결은 해제됩니다. 설치된 앱을
+쓰려면 별도의 **설치된 Kawaikara 사용**을 선택합니다. DEV 선택 UI는 패키징된
+다운로더에서 숨깁니다. 패키징된 다운로더로 DEV 호스트를 테스트할 때만 실행 환경의
+`KAWAIKARA_EXTERNAL_APP_CONNECTION_DIRECTORY`를 명시할 수 있습니다. 이 설정으로
+Stable 또는 패키징된 Kawaikara의 개발 연결이 활성화되지는 않습니다.
+
+자동 회귀 테스트는 유지합니다. 다운로더의 `pnpm test:connection`은 선택·저장·
+미실행 대상 처리를 검사합니다. Kawaikara에서 `KAWAI_DOWNLOADER_SOURCE`에
+다운로더 소스 절대경로를 지정하고 `node --test tests/Integration/development-connection.test.cjs`를
+실행하면 임시 프로필로 실제 양쪽 연결 코드를 검증합니다. 실사용 권한이나
+`tmp/development-connections`의 해제 기록을 지우는 테스트가 아닙니다.

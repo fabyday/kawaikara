@@ -24,8 +24,8 @@ function loadSource(relative, mocks = {}) {
     return loaded.exports;
 }
 
-const { requireExternalDownloaderSourceUrl } = loadSource(
-    'src/Main/Platform/ExternalDownloader.ts',
+const { isExternalAppSourceUrl } = loadSource(
+    'src/Common/ExternalAppResources.ts',
     { electron: {} },
 );
 
@@ -36,7 +36,7 @@ test('Kawaikara forwards safe HTTPS sources without deciding downloader support'
         'https://netflix.com/watch/12345',
         'https://example.com/media/fixture',
     ]) {
-        assert.equal(requireExternalDownloaderSourceUrl(url), url);
+        assert.equal(isExternalAppSourceUrl(url), true);
     }
 });
 
@@ -47,10 +47,7 @@ test('Kawaikara rejects only unsafe or malformed transport values', () => {
         'https://user:password@youtube.com/watch?v=fixture',
         'https://youtube.com:444/watch?v=fixture',
     ]) {
-        assert.throws(
-            () => requireExternalDownloaderSourceUrl(url),
-            /safe HTTPS source URL/,
-        );
+        assert.equal(isExternalAppSourceUrl(url), false);
     }
 });
 
@@ -81,13 +78,13 @@ test('logging preferences keep hierarchy and validate recording scopes', () => {
                 'updates',
                 'unknown',
                 'updates',
-                'external-downloader',
+                'external-apps',
             ],
         }),
         {
             ...mergeValidatedPreferences({}),
             logLevel: 'all',
-            logSources: ['updates', 'external-downloader'],
+            logSources: ['updates', 'external-apps'],
         },
     );
 });

@@ -4,7 +4,7 @@ import { connectExternalAppsIpc } from '../Functional/IPC/ExternalAppsIpc';
 import { connectApplicationIpc } from '../Functional/IPC/ApplicationIpc';
 import { connectBundlesIpc } from '../Functional/IPC/BundlesIpc';
 import { connectDataIpc } from '../Functional/IPC/DataIpc';
-import { connectDownloadsIpc } from '../Functional/IPC/DownloadsIpc';
+import { connectProviderActionsIpc } from '../Functional/IPC/ProviderActionsIpc';
 import {
     disposeIpcBindings,
     type DisposeIpc,
@@ -21,7 +21,6 @@ import { type ViewerRuntime } from '../Functional/Viewer/ViewerRuntime';
 import type { ApplicationDataManager } from './ApplicationDataManager';
 import type { BundleDevelopmentManager } from './BundleDevelopmentManager';
 import type { BundleManager } from './BundleManager';
-import type { YouTubeDownloader } from '../Functional/ExternalApps/YouTubeDownloader';
 import type { LoggingManager } from './LoggingManager';
 import type { PreferenceManager } from './PreferenceManager';
 import type { ProviderManager } from './ProviderManager';
@@ -48,8 +47,6 @@ export class IpcManager {
         private readonly viewerRuntime: ViewerRuntime,
         /** The preferences value. */
         private readonly preferences: PreferenceManager,
-        /** The downloads value. */
-        private readonly downloads: YouTubeDownloader,
         /** Shared social actions. */
         private readonly social: SocialManager,
         /** The updates value. */
@@ -132,9 +129,7 @@ export class IpcManager {
             this.connections.push(connectDistributionIpc(() => this.preferences.get().appLocale));
             if (this.externalApps) this.connections.push(connectExternalAppsIpc(this.externalApps, this.sites));
             this.connections.push(
-                connectDownloadsIpc({
-                    externalApps: this.externalApps,
-                    downloads: this.downloads,
+                connectProviderActionsIpc({
                     viewerRuntime: this.viewerRuntime,
                     sites: this.sites,
                 }),

@@ -12,14 +12,14 @@ revision are independent values.
 | --- | --- | --- |
 | `kawaikara.manifest.json` | External app publisher: name, icon, installation and advisory connection metadata | Public HTTPS lookup, preview and verified artifact download |
 | Provider `descriptors.externalApps` / `externalAppManifests` | Provider author: which app may be called and where its installation information comes from | Provider-scoped routing and installation panel |
-| `ExternalAppAdapter` / `ExternalAppDescriptor` | Trusted Kawaikara-side integration: discovery, actions and permissions | Registry and dispatch; built-in downloader adapter |
+| `ExternalAppIntegration` / `ExternalAppDescriptor` | Provider Bundle: app actions, permissions, launch URL and event codec | Generic host discovery, authenticated callbacks and permission enforcement |
 
 **Publishing a distribution manifest does not make an arbitrary app connectable.**
-A new app currently needs a trusted adapter integrated into Kawaikara's composition.
-Downloaded manifests cannot supply executable JavaScript or grant permissions.
-General third-party discovery, Native Messaging and a universal remote adapter
-loader are not implemented. Coordinate the adapter integration before promising
-one-click connection to users.
+A new app needs an integration shipped by its consuming Provider Bundle through
+`ProviderConstructor.externalAppIntegrations`. No application-specific change to
+Kawaikara's dependency injection, IPC or renderer is required. Downloaded distribution
+manifests cannot supply executable JavaScript or grant permissions. Generic installed
+rendezvous and Native Messaging remain separate proposed capabilities.
 
 The downloader's packaged `kawaikara-companion.json` is a separate concrete
 integration document; it is not the public distribution manifest format.
@@ -156,18 +156,28 @@ closing it should return to that site, preserving its context.
 
 ## 5. Implement the trusted adapter and permissions
 
-Read the [adapter contract](../../../src/Main/Functional/ExternalApps/ExternalAppAdapter.ts)
-and [reference adapter](../../../src/Main/Functional/ExternalApps/YouTubeDownloaderAdapter.ts).
-Register the adapter through the host's
-[composition](../../../src/Main/DependencyInjection/ApplicationManagers.ts), rather
-than teaching `ExternalAppManager` about product-specific actions.
+Read the [adapter contract](../../../packages/site-api/src/ExternalApps.ts)
+and [reference adapter](../../../packages/builtin-sites/src/Functional/KawaiDownloaderAdapter.ts).
+Expose an `ExternalAppIntegration[]` through the Provider constructor's static
+`externalAppIntegrations` property and declare each ID in `descriptors.externalApps`.
+The integration owns its descriptor, custom `protocol`, `createLaunchUrl(request,
+context)` and optional `onEvent(value, requestId)`. `context.getUrl(permissionId)`
+checks the current grant; cookies are requested by the external app through the
+request-scoped authenticated host endpoint. Never include cookies in a launch URL.
+The host verifies that the returned URL uses exactly the declared custom protocol.
+Missing/unknown event handlers reject callbacks; terminal events return `true` to
+start the fixed callback retirement grace period.
+
+Each Provider keeps its own codec. Multiple Providers may share an app ID only when
+the complete descriptor and protocol match. Unloading the Provider removes its
+integration and invalidates its resource scope. Change `descriptor.revision` when
+adapter behavior changes so existing consent cannot silently authorize new behavior.
 
 - `descriptor` declares schema 1, ID, display name, revision, permissions and actions.
-- `discover()` checks availability without launching an app or reading secrets.
-- `execute(request, host)` validates its action and parameters, then returns an
-  `ExternalAppResult`. Report unavailable/unsupported actions without crashing the host.
-- `host.getUrl(permissionId)` and `host.getCookies(permissionId)` enforce current
-  grants. Use these APIs instead of directly accessing sessions or cookie storage.
+- Generic native discovery and action dispatch are implemented by the host.
+- `createLaunchUrl(request, context)` validates app-specific action parameters.
+- `context.getUrl(permissionId)` enforces current grants. The receiving app uses
+  the authenticated host endpoint for cookies; Providers do not receive cookie values.
 
 The current resource permission kinds are `resource.url` and `cookies.read`,
 scoped to exact HTTPS origins. Kawaikara selects the invocation URL and Provider
@@ -238,7 +248,7 @@ the Kawaikara override as well. `pnpm dev:server` is a distribution HTTP server;
 | --- | --- | --- |
 | Packaged | Packaged | Installed transport; optionally launch the actual host executable with the local manifest override |
 | Development | Packaged | `pnpm dev:external:installed`, or `pnpm dev:external:install-test` for the fixture |
-| Development | Development | `pnpm dev:external:development` in Kawaikara and `pnpm start` in the reference downloader; manual/automatic pairing then permission approval |
+| Development | Development | `pnpm dev:external:development` in Kawaikara; select its checkout in the DEV downloader or use `start:connected` below, then approve permissions |
 | Packaged | Development transport | Not supported by the current mode policy |
 
 For a packaged macOS host, set `KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST` and launch
@@ -376,3 +386,37 @@ instances still share their ordinary user-data/single-instance namespace.
 Existing `kawaikara Dev/development-connections` files are left untouched but are no
 longer read. Restart both development peers with `start:connected` to use the new
 root. Stable builds exclude the installation-test module, paths and environment switch.
+
+## Selecting the reference downloader's DEV host
+
+The installed `kawaikara://` handler cannot identify a source checkout; it may
+open Nightly instead. In the unpackaged downloader (`pnpm start`), choose
+**Select Kawaikara DEV folder** and select the Kawaikara root containing
+`package.json`. Alternatively, from the downloader checkout run:
+
+```sh
+pnpm start:connected --kawaikara "/absolute/path/to/kawaikara-checkout"
+```
+
+Both processes must be running. Discovery uses that checkout's
+`tmp/development-connections`; unavailable DEV targets never fall back to the
+installed handler. The downloader remembers the choice privately and keeps
+credentials separate for each directory. Switching targets revokes the old
+pairing. **Use installed Kawaikara** is an explicit separate choice. The folder
+picker and development controls are hidden in packaged downloader preferences.
+For a packaged downloader against a DEV host, set the explicit
+`KAWAIKARA_EXTERNAL_APP_CONNECTION_DIRECTORY` override when launching it. This
+does not enable development transport in a Stable or packaged Kawaikara host.
+
+Persistent regression tests cover the registry, grants, callbacks and offline
+revocation. For an optional real-client integration check from the Kawaikara
+checkout (macOS/Linux shell):
+
+```sh
+KAWAI_DOWNLOADER_SOURCE=/absolute/path/to/downloader node --test tests/Integration/development-connection.test.cjs
+```
+
+The fixture uses isolated temporary profiles and both projects' actual connection
+code; it does not approve permissions in a user's running app. `pnpm test:connection`
+in the downloader checks target selection and persistence. These reusable tests
+remain in source control; one-off PiP investigation probes do not.

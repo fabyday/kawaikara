@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { mkdtemp, readFile, readdir, rm } = require('node:fs/promises');
+const { mkdtemp, readFile, readdir, rm, writeFile } = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash, randomBytes, randomUUID } = require('node:crypto');
@@ -25,7 +25,7 @@ const IconCache = load(path.resolve(__dirname, '../../src/Main/Functional/Extern
 const appId = 'day.faby.kawai-downloader';
 async function fixture(t) {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'development-connection-'));
-    const discovery = path.join(dir, 'discovery');
+    const discovery = path.join(dir, 'tmp', 'development-connections');
     let approved = false;
     let prompts = 0;
     const authority = {
@@ -123,18 +123,16 @@ test('queued handoffs do not disclose a URL after resource permission is withdra
     await rejected;
 });
 
-test('an offline development downloader never falls back to native discovery or installation', async () => {
-    const Downloader = load(path.resolve(__dirname, '../../src/Main/Functional/ExternalApps/YouTubeDownloader.ts'), 'YouTubeDownloader');
-    const downloader = new Downloader(() => 'en', undefined, {
-        online: () => false,
-        launch: () => { throw new Error('Must not launch an offline app.'); },
+test('an offline development application never falls back to native discovery', async () => {
+    const create = load(path.resolve(__dirname, '../../src/Main/Functional/ExternalApps/ProviderAppAdapter.ts'), 'createProviderAppAdapter');
+    const adapter = create({
+        descriptor: { schemaVersion: 1, id: 'example.editor', name: 'Editor', revision: '1', permissions: [], actions: [{ id: 'edit', permissions: [] }] },
+        protocol: 'example-editor', createLaunchUrl() { throw new Error('Must not serialize offline.'); },
+    }, { createRequest() { throw new Error('Must not start callbacks offline.'); } }, {
+        online: () => false, launch() { throw new Error('Must not launch offline.'); },
     });
-    const status = await downloader.getStatus();
-    assert.equal(status.installed, false);
-    assert.equal(status.automaticInstallSupported, false);
-    assert.equal(typeof status.message, "string");
-    assert.equal((await downloader.open('https://youtube.com/watch?v=fixture')).opened, false);
-    assert.equal((await downloader.install()).installerStarted, false);
+    assert.equal(await adapter.discover(), undefined);
+    assert.equal((await adapter.execute({ action: 'edit' }, {})).code, 'unavailable');
 });
 
 // Optional cross-repository contract test: point at the actual downloader checkout.
@@ -286,4 +284,39 @@ test('local distribution shortcut uses installed transport; development pairing 
     assert.match(scripts['dev:external:development'], /KAWAIKARA_EXTERNAL_APP_MODE=development/);
     assert.match(scripts['dev:external:install-test'], /KAWAIKARA_EXTERNAL_APP_MODE=installed/);
     assert.match(scripts['dev:external:local'], /KAWAIKARA_EXTERNAL_APP_TEST_MANIFEST=/);
+});
+
+
+test('downloader target selection pairs only the selected DEV checkout and never wakes installed Kawaikara', {
+    skip: !process.env.KAWAI_DOWNLOADER_SOURCE,
+}, async t => {
+    const Client = load(path.join(process.env.KAWAI_DOWNLOADER_SOURCE, 'src/Main/DevelopmentConnection.ts'));
+    const Selection = load(path.join(process.env.KAWAI_DOWNLOADER_SOURCE, 'src/Main/KawaikaraConnection.ts'), 'KawaikaraConnection');
+    const selected = await fixture(t), other = await fixture(t);
+    await writeFile(path.join(selected.dir, 'package.json'), JSON.stringify({ name: 'kawaikara' }));
+    let wakes = 0;
+    const received = [];
+    const create = () => new Selection(path.join(selected.dir, 'downloader-profile'), false,
+        (file, directory) => new Client(file, url => received.push(url), directory), async () => { wakes++; });
+    let connection = create();
+    t.after(() => connection.dispose());
+    await connection.start();
+    assert.equal(connection.status().requiresDirectory, true);
+    assert.equal(await connection.open(), false);
+    await connection.selectCheckout(selected.dir);
+    assert.equal((await connection.connect()).state, 'connected');
+    assert.equal(selected.host.online(appId), true);
+    assert.equal(other.host.online(appId), false);
+    const link = 'kawai-downloader://open?url=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3Dtarget-test';
+    await selected.host.launch(appId, link);
+    assert.deepEqual(received, [link]);
+    await connection.dispose();
+    connection = create();
+    await connection.start();
+    assert.equal((await connection.connect()).state, 'connected');
+    assert.equal(selected.prompts, 1);
+    await selected.host.dispose();
+    assert.equal(await connection.open(), false);
+    assert.equal(wakes, 0);
+    assert.equal(other.host.online(appId), false);
 });

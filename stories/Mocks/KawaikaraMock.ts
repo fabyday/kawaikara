@@ -554,39 +554,9 @@ export function installKawaikaraMock(
             preview: async () => { throw new Error('No remote manifest in Storybook.'); },
             act: async () => 'canceled',
         },
-        downloads: {
-            getStatus: async () => ({
-                installed: false,
-                automaticInstallSupported: true,
-                platform: 'darwin',
-            }),
-            install: async () => ({
-                canceled: false,
-                installerStarted: false,
-                opened: true,
-                status: {
-                    installed: true,
-                    automaticInstallSupported: true,
-                    platform: 'darwin',
-                    version: '0.1.0',
-                    appPath:
-                        '/Users/kawaikara/Applications/YT Section Downloader.app',
-                    message: STORY_MESSAGES.downloader.completed.replace(
-                        '{version}',
-                        '0.1.0',
-                    ),
-                },
-            }),
-            open: async () => ({
-                opened: true,
-                status: {
-                    installed: true,
-                    automaticInstallSupported: true,
-                    platform: 'darwin',
-                    version: '0.1.0',
-                },
-            }),
-            openReleasePage: async () => undefined,
+        providerActions: {
+            /** Simulates the Provider handoff without launching an application. */
+            request: async () => ({ accepted: false, code: 'unavailable', recoverable: true }),
         },
         logViewer: {
             command: async () => ({
@@ -1142,40 +1112,6 @@ export function installKawaikaraMock(
                 url: `file://${targetPath.replace(/\\/g, '/')}`,
             }),
             onOpenRequest: () => () => undefined,
-        },
-        downloads: {
-            getStatus: async () => ({
-                installed: false,
-                automaticInstallSupported: true,
-                platform: 'darwin',
-            }),
-            install: async () => ({
-                canceled: false,
-                installerStarted: false,
-                opened: true,
-                status: {
-                    installed: true,
-                    automaticInstallSupported: true,
-                    platform: 'darwin',
-                    version: '0.1.0',
-                    appPath:
-                        '/Users/kawaikara/Applications/YT Section Downloader.app',
-                    message: STORY_MESSAGES.downloader.completed.replace(
-                        '{version}',
-                        '0.1.0',
-                    ),
-                },
-            }),
-            open: async () => ({
-                opened: true,
-                status: {
-                    installed: true,
-                    automaticInstallSupported: true,
-                    platform: 'darwin',
-                    version: '0.1.0',
-                },
-            }),
-            openReleasePage: async () => undefined,
         },
         videoLibrary,
         preferences: {

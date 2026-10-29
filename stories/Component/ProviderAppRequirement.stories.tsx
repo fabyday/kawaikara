@@ -1,13 +1,13 @@
 import { STORY_MESSAGES } from '../Mocks/KawaikaraMock';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { YouTubeDownloaderPanel } from '../../src/Renderer/View/Video/YouTubeDownloaderPanel';
+import { ProviderAppRequirement } from '../../src/Renderer/View/ExternalApps/ProviderAppRequirement';
 
 /** Stores the meta value. */
 const meta = {
   /** The title value. */
-  title: 'Component/YouTube Downloader Panel',
+  title: 'Component/Provider App Requirement',
   /** The component value. */
-  component: YouTubeDownloaderPanel,
+  component: ProviderAppRequirement,
   /** The parameters value. */
   parameters: {
     /** The layout value. */
@@ -23,7 +23,7 @@ const meta = {
   ],
   /** The tags value. */
   tags: ['autodocs'],
-} satisfies Meta<typeof YouTubeDownloaderPanel>;
+} satisfies Meta<typeof ProviderAppRequirement>;
 
 export default meta;
 /** Defines the story type. */
@@ -34,8 +34,16 @@ export const Default: Story = {
   /** The args value. */
   args: {
     /** Main-resolved downloader labels. */
-    labels: STORY_MESSAGES.downloader,
+    labels: STORY_MESSAGES.app.externalApps.distribution,
     /** The initial URL value. */
-    initialUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    request: {
+      /** The app ID value. */
+      appId: 'example.editor',
+      /** The provider ID value. */
+      providerId: 'example.provider',
+      /** The source URL value. */
+      sourceUrl: 'https://example.com/document' },
+    /** The on close value. */
+    onClose: () => undefined,
   },
 };

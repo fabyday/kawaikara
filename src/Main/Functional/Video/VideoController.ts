@@ -228,12 +228,6 @@ export class VideoController {
         return this.videoPlayback.getCapabilities();
     }
 
-    /** Performs the queue you tube downloader operation. */
-    queueYouTubeDownloader(url: string): void {
-        this.host.assertViewerRequestsAccepted();
-        this.pendingVideoOpenRequest = { kind: 'youtube', url };
-    }
-
     /** Returns the current video open request. */
     getCurrentVideoOpenRequest(): VideoOpenRequest | null {
         return this.currentVideoOpenRequest;

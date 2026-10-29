@@ -24,6 +24,9 @@ export function createExternalAppHost(
         descriptor.id,
         resource?.provider?.id,
     );
+    /** Invalidates even actions with no required resource permissions after unload/revocation. */
+    const isActive = () => (!resource || resource.isActive()) &&
+        permissions.resourceEpoch(descriptor.id, resource?.provider?.id) === epoch;
     /** Checks the live registration generation, resource ownership and exact approved origin. */
     const allowed = (id: string) => {
         const declaration = descriptor.permissions.find(
@@ -31,9 +34,7 @@ export function createExternalAppHost(
         );
         return (
             !!resource &&
-            resource.isActive() &&
-            permissions.resourceEpoch(descriptor.id, resource?.provider?.id) ===
-                epoch &&
+            isActive() &&
             ((once.includes(id) &&
                 permissions.allowsOnce(
                     descriptor,
@@ -57,6 +58,8 @@ export function createExternalAppHost(
             throw new Error('External app resource permission denied.');
     };
     return {
+        /** Checks the invocation lifetime without requiring a resource permission. */
+        isActive,
         /** Checks permission without reading or returning resource data. */
         hasPermission: allowed,
         /** Returns only this invocation URL after the live resource.url check. */

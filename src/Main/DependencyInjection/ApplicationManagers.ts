@@ -1,3 +1,4 @@
+import { ExternalAppCallbackServer } from '../Functional/ExternalApps/ExternalAppCallbackServer';
 import { useDevelopmentExternalApps } from '../Functional/ExternalApps/ConnectionMode';
 import type { DevelopmentConnection } from '../Functional/ExternalApps/DevelopmentConnection';
 import { readExternalAppCookies } from '../Functional/ExternalApps/ExternalAppCookies';
@@ -5,7 +6,6 @@ import path from 'node:path';
 import { app } from 'electron';
 import { ExternalAppPermissions } from '../Functional/ExternalApps/ExternalAppPermissions';
 import { ExternalAppManager } from '../Manager/ExternalAppManager';
-import { createYouTubeDownloaderAdapter } from '../Functional/ExternalApps/YouTubeDownloaderAdapter';
 import { createApplicationShortcuts } from '../Functional/Shortcut/ApplicationShortcuts';
 import type { StandardVideoLocation } from '../Functional/Video/VideoLibrary';
 import {
@@ -17,7 +17,6 @@ import { ApplicationDataManager } from '../Manager/ApplicationDataManager';
 import { BundleDevelopmentManager } from '../Manager/BundleDevelopmentManager';
 import { BundleManager } from '../Manager/BundleManager';
 import { ExternalBrowserManager } from '../Manager/ExternalBrowserManager';
-import { YouTubeDownloader } from '../Functional/ExternalApps/YouTubeDownloader';
 import { IpcManager } from '../Manager/IPCManager';
 import { LoggingManager } from '../Manager/LoggingManager';
 import { PreferenceManager } from '../Manager/PreferenceManager';
@@ -45,9 +44,6 @@ export const MANAGER_TOKENS = {
     externalApps: createManagerToken<ExternalAppManager>('ExternalAppManager'),
     /** Running development peers; production never starts this transport. */
     developmentConnection: createManagerToken<DevelopmentConnection>('DevelopmentConnection'),
-    /** Shared installation UI and transport service for the companion adapter. */
-    youtubeDownloader:
-        createManagerToken<YouTubeDownloader>('YouTubeDownloader'),
     /** The external browser value. */
     externalBrowser: createManagerToken<ExternalBrowserManager>(
         'ExternalBrowserManager',
@@ -185,25 +181,10 @@ export function createApplicationManagerContainer(
             throw new Error('External app test transport is not available in this build.');
         })
         .registerSingleton(
-            MANAGER_TOKENS.youtubeDownloader,
-            (resolver) =>
-                new YouTubeDownloader(
-                    () =>
-                        resolver.resolve(MANAGER_TOKENS.preferences).get()
-                            .appLocale,
-                    resolver.resolve(MANAGER_TOKENS.logging),
-                    developmentExternalApps ? resolver.resolve(MANAGER_TOKENS.developmentConnection) : undefined,
-                ),
-        )
-        .registerSingleton(
             MANAGER_TOKENS.externalApps,
             (resolver) =>
                 new ExternalAppManager(
-                    [
-                        createYouTubeDownloaderAdapter(
-                            resolver.resolve(MANAGER_TOKENS.youtubeDownloader),
-                        ),
-                    ],
+                    [],
                     new ExternalAppPermissions(
                         path.join(
                             path.dirname(options.preferenceFilePath),
@@ -217,6 +198,7 @@ export function createApplicationManagerContainer(
                         },
                     ),
                     developmentExternalApps ? resolver.resolve(MANAGER_TOKENS.developmentConnection) : undefined,
+                    new ExternalAppCallbackServer(resolver.resolve(MANAGER_TOKENS.logging).getLogger('externalApps')),
                 ),
         )
         .registerSingleton(
@@ -244,7 +226,6 @@ export function createApplicationManagerContainer(
                     resolver.resolve(MANAGER_TOKENS.sites),
                     resolver.resolve(MANAGER_TOKENS.viewerRuntime),
                     resolver.resolve(MANAGER_TOKENS.preferences),
-                    resolver.resolve(MANAGER_TOKENS.youtubeDownloader),
                     resolver.resolve(MANAGER_TOKENS.social),
                     resolver.resolve(MANAGER_TOKENS.updates),
                     resolver.resolve(MANAGER_TOKENS.shortcuts),

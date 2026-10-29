@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { nativeImage } from 'electron';
-import { KAWAI_DOWNLOADER_APP_ID } from '../../../Common/Download';
 import { DevelopmentConnection } from './DevelopmentConnection';
 import { ExternalAppIconCache } from './ExternalAppIconCache';
 
@@ -13,7 +12,7 @@ import { ExternalAppIconCache } from './ExternalAppIconCache';
 export function createDevelopmentConnection(dataDirectory: string): DevelopmentConnection {
     return new DevelopmentConnection(
         path.join(dataDirectory, 'external-app-development-connections.json'),
-        [KAWAI_DOWNLOADER_APP_ID],
+        [],
         undefined,
         new ExternalAppIconCache(
             path.join(dataDirectory, 'external-app-icons-development.json'),

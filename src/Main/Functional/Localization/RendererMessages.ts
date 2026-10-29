@@ -1006,15 +1006,13 @@ export interface VideoLibraryMessages {
 
 /** Update copy selected in Main from the application catalog. */
 export type UpdateMessages = typeof en.update;
-/** External downloader copy selected in Main. */
-export type DownloaderMessages = typeof en.downloader;
 
 /** Describes the renderer messages contract. */
 export interface RendererMessages {
     /** Localized update panel copy. */
     readonly update: UpdateMessages;
-    /** Localized external downloader copy. */
-    readonly downloader: DownloaderMessages;
+    /** Localized generic Provider action copy. */
+    readonly providerActions: typeof en.providerActions;
     /** The locale value. */
     readonly locale: string;
     /** The app value. */
@@ -1049,8 +1047,8 @@ export function getRendererMessages(
         locale: resolved,
         /** Localized update panel copy. */
         update: messages.update,
-        /** Localized external downloader copy. */
-        downloader: messages.downloader,
+        /** Localized generic Provider action copy. */
+        providerActions: messages.providerActions,
         /** The app value. */
         app: messages.app,
         /** The log viewer value. */

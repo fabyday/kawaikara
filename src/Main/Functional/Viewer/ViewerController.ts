@@ -1,4 +1,4 @@
-import type { ExternalAppSetupRequest } from '../../../Common/Download';
+import type { ExternalAppSetupRequest } from '../../../Common/ExternalAppResources';
 import {
     app,
     BrowserWindow,
