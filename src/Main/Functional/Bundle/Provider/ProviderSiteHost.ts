@@ -33,6 +33,10 @@ import {
     type SiteNavigationState,
     type VideoOpenRequest,
 } from '../../../../Common/IPC';
+import {
+    createPlatformChromeUserAgent,
+    isBrowserIdentityExemptUrl,
+} from './BrowserIdentityExemption';
 import { createSitePagePipeline } from './SitePagePipeline';
 import type { SiteRuntimeProfile } from './SiteRuntime';
 import { getExternalLoginViewData } from '../../Localization/Locale';
@@ -195,6 +199,8 @@ export class ProviderSiteHost {
         readonly requestHosts?: readonly string[];
         /** The client hints value. */
         readonly clientHints?: string;
+        /** True while the main frame shows a web-authentication page. */
+        suspended?: boolean;
     };
 
     /** Sets the site handlers. */
@@ -609,6 +615,7 @@ export class ProviderSiteHost {
             const identity = this.siteBrowserIdentity;
             if (
                 identity &&
+                !identity.suspended &&
                 /^https:\/\//i.test(details.url) &&
                 (!identity.requestHosts?.length ||
                     matchesSiteUrlHost(details.url, identity.requestHosts))
@@ -787,16 +794,59 @@ export class ProviderSiteHost {
         if (clientHints && /[\r\n]/.test(clientHints)) {
             throw new Error('Browser identity contains invalid Client Hints.');
         }
-        const identity = {
+        const identity: NonNullable<ProviderSiteHost['siteBrowserIdentity']> = {
             userAgent,
             requestHosts: options.requestHosts,
             clientHints,
+            suspended: false,
         };
         this.siteBrowserIdentity = identity;
         webContents.setUserAgent(userAgent);
+        // Authentication pages fingerprint the real platform, so they receive
+        // this platform's Chrome UA instead of the Provider identity.
+        const authenticationUserAgent = createPlatformChromeUserAgent(
+            process.versions.chrome,
+            process.platform,
+        );
+        /** Suspends or restores the identity for a main-frame destination. */
+        const syncAuthentication = (url: string): void => {
+            if (this.siteBrowserIdentity !== identity) return;
+            const suspended = isBrowserIdentityExemptUrl(url);
+            if (suspended === identity.suspended) return;
+            identity.suspended = suspended;
+            if (webContents.isDestroyed()) return;
+            webContents.setUserAgent(
+                suspended ? authenticationUserAgent : userAgent,
+            );
+            this.logger.info(
+                suspended
+                    ? 'Browser identity suspended for an authentication page.'
+                    : 'Browser identity restored after an authentication page.',
+            );
+        };
+        /** Handles a renderer-initiated or redirected main-frame navigation. */
+        const onNavigate = (_event: Electron.Event, url: string): void =>
+            syncAuthentication(url);
+        /** Handles every main-frame navigation start, including history. */
+        const onStartNavigation = (
+            _event: Electron.Event,
+            url: string,
+            _isInPlace: boolean,
+            isMainFrame: boolean,
+        ): void => {
+            if (isMainFrame) syncAuthentication(url);
+        };
+        webContents.on('will-navigate', onNavigate);
+        webContents.on('will-redirect', onNavigate);
+        webContents.on('did-start-navigation', onStartNavigation);
         return {
             /** The dispose value. */
             dispose: () => {
+                if (!webContents.isDestroyed()) {
+                    webContents.off('will-navigate', onNavigate);
+                    webContents.off('will-redirect', onNavigate);
+                    webContents.off('did-start-navigation', onStartNavigation);
+                }
                 if (this.siteBrowserIdentity !== identity) return;
                 this.siteBrowserIdentity = undefined;
                 if (!webContents.isDestroyed())
