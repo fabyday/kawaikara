@@ -167,6 +167,9 @@
         "akamaized.net",
         "ntruss.com",
         "naver.net"
+      ],
+      "exemptHosts": [
+        "nid.naver.com"
       ]
     },
     "shortcut": {

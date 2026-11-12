@@ -77,6 +77,10 @@
         "requestHosts": {
           "$ref": "definitions.schema.json#/definitions/stringArray"
         },
+        "exemptHosts": {
+          "description": "Main-frame hosts (and subdomains) where the identity is suspended, such as login pages that fingerprint the real platform.",
+          "$ref": "definitions.schema.json#/definitions/stringArray"
+        },
         "clientHints": {
           "description": "Use auto to derive matching Chromium client hints, or provide a complete value.",
           "type": "string",
