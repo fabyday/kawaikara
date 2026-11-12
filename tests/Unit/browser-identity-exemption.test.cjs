@@ -28,13 +28,24 @@ function load() {
 
 const exemption = load();
 
-test('Naver login pages suspend the Provider browser identity', () => {
+const chzzkExemptHosts = require('../../packages/builtin-sites/src/Providers/Chzzk/manifest.json')
+    .descriptors.browserIdentity.exemptHosts;
+
+test('CHZZK declares the Naver login host as identity-exempt', () => {
+    assert.deepEqual(chzzkExemptHosts, ['nid.naver.com']);
+});
+
+test('Naver login pages suspend the CHZZK browser identity', () => {
     for (const url of [
         'https://nid.naver.com/nidlogin.login?mode=form',
         'https://nid.naver.com/nidlogin.rcaptcha',
         'https://NID.naver.com/',
     ]) {
-        assert.equal(exemption.isBrowserIdentityExemptUrl(url), true, url);
+        assert.equal(
+            exemption.isBrowserIdentityExemptUrl(url, chzzkExemptHosts),
+            true,
+            url,
+        );
     }
 });
 
@@ -48,8 +59,18 @@ test('Provider pages keep their browser identity', () => {
         'about:blank',
         '',
     ]) {
-        assert.equal(exemption.isBrowserIdentityExemptUrl(url), false, url);
+        assert.equal(
+            exemption.isBrowserIdentityExemptUrl(url, chzzkExemptHosts),
+            false,
+            url,
+        );
     }
+});
+
+test('Providers without exempt hosts never suspend their identity', () => {
+    const url = 'https://nid.naver.com/nidlogin.login';
+    assert.equal(exemption.isBrowserIdentityExemptUrl(url, undefined), false);
+    assert.equal(exemption.isBrowserIdentityExemptUrl(url, []), false);
 });
 
 test('authentication UA reports the real platform and Chromium major', () => {

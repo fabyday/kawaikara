@@ -1,25 +1,18 @@
 import { matchesSiteUrlHost } from '@kawaikara/site-api';
 
 /**
- * Authentication hosts whose documents must see the real browser platform.
- *
- * Login services fingerprint the browser in page JavaScript and compare the
- * result with the request User-Agent. A Provider identity that claims another
- * platform (for example CHZZK's macOS Chrome UA on Linux) makes Naver reject
- * correct CAPTCHA answers indefinitely.
- */
-export const BROWSER_IDENTITY_EXEMPT_HOSTS: readonly string[] = [
-    'nid.naver.com',
-];
-
-/**
- * Determines whether a main-frame destination suspends the Provider identity.
+ * Determines whether a main-frame destination suspends a Provider identity.
  *
  * @param url - The main-frame navigation URL.
- * @returns True when the URL belongs to an exempt authentication host.
+ * @param exemptHosts - The Provider's declared `browserIdentity.exemptHosts`.
+ * @returns True when the URL belongs to one of the exempt hosts or their subdomains.
  */
-export function isBrowserIdentityExemptUrl(url: string): boolean {
-    return matchesSiteUrlHost(url, BROWSER_IDENTITY_EXEMPT_HOSTS);
+export function isBrowserIdentityExemptUrl(
+    url: string,
+    exemptHosts: readonly string[] | undefined,
+): boolean {
+    if (!exemptHosts?.length) return false;
+    return matchesSiteUrlHost(url, exemptHosts);
 }
 
 /**

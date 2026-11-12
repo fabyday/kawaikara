@@ -218,7 +218,8 @@ export function validateProviderDescriptors(metadata: ProviderMetadata): void {
                 (typeof identity.clientHints !== 'string' ||
                     !identity.clientHints.trim() ||
                     identity.clientHints.length > 1_000)) ||
-            !isOptionalBoundedStringArray(identity.requestHosts, 100, 253))
+            !isOptionalBoundedStringArray(identity.requestHosts, 100, 253) ||
+            !isOptionalBoundedStringArray(identity.exemptHosts, 100, 253))
     ) {
         throw new Error(
             `Provider ${metadata.id} has invalid browser identity metadata.`,

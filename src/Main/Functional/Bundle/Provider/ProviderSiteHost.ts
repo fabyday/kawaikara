@@ -768,7 +768,7 @@ export class ProviderSiteHost {
     ): Disposable {
         this.requireCurrentSiteContext(webContents);
         if (
-            options.requestHosts?.some(
+            [...(options.requestHosts ?? []), ...(options.exemptHosts ?? [])].some(
                 (host) =>
                     !/^[a-z0-9.-]+$/i.test(host) ||
                     host.startsWith('.') ||
@@ -802,8 +802,8 @@ export class ProviderSiteHost {
         };
         this.siteBrowserIdentity = identity;
         webContents.setUserAgent(userAgent);
-        // Authentication pages fingerprint the real platform, so they receive
-        // this platform's Chrome UA instead of the Provider identity.
+        // Declared exempt hosts (typically login pages that fingerprint the real
+        // platform) receive this platform's Chrome UA instead of the identity.
         const authenticationUserAgent = createPlatformChromeUserAgent(
             process.versions.chrome,
             process.platform,
@@ -811,7 +811,10 @@ export class ProviderSiteHost {
         /** Suspends or restores the identity for a main-frame destination. */
         const syncAuthentication = (url: string): void => {
             if (this.siteBrowserIdentity !== identity) return;
-            const suspended = isBrowserIdentityExemptUrl(url);
+            const suspended = isBrowserIdentityExemptUrl(
+                url,
+                options.exemptHosts,
+            );
             if (suspended === identity.suspended) return;
             identity.suspended = suspended;
             if (webContents.isDestroyed()) return;
@@ -836,13 +839,16 @@ export class ProviderSiteHost {
         ): void => {
             if (isMainFrame) syncAuthentication(url);
         };
-        webContents.on('will-navigate', onNavigate);
-        webContents.on('will-redirect', onNavigate);
-        webContents.on('did-start-navigation', onStartNavigation);
+        const watchesExemptHosts = Boolean(options.exemptHosts?.length);
+        if (watchesExemptHosts) {
+            webContents.on('will-navigate', onNavigate);
+            webContents.on('will-redirect', onNavigate);
+            webContents.on('did-start-navigation', onStartNavigation);
+        }
         return {
             /** The dispose value. */
             dispose: () => {
-                if (!webContents.isDestroyed()) {
+                if (watchesExemptHosts && !webContents.isDestroyed()) {
                     webContents.off('will-navigate', onNavigate);
                     webContents.off('will-redirect', onNavigate);
                     webContents.off('did-start-navigation', onStartNavigation);
