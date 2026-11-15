@@ -120,6 +120,12 @@ export interface SiteBrowserIdentityOptions {
   readonly userAgent: 'chromium' | string;
   /** HTTPS hosts receiving the identity headers. Omit to cover every HTTPS request. */
   readonly requestHosts?: readonly string[];
+  /**
+   * Main-frame hosts that suspend the identity while displayed. Use this for
+   * login pages that fingerprint the real platform and reject a mismatched UA;
+   * they receive the platform's own Chrome UA without header rewriting.
+   */
+  readonly exemptHosts?: readonly string[];
   /** `auto` derives a matching Chromium Client Hint from the UA. */
   readonly clientHints?: 'auto' | string;
 }

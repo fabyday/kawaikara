@@ -33,6 +33,10 @@ import {
     type SiteNavigationState,
     type VideoOpenRequest,
 } from '../../../../Common/IPC';
+import {
+    createPlatformChromeUserAgent,
+    isBrowserIdentityExemptUrl,
+} from './BrowserIdentityExemption';
 import { createSitePagePipeline } from './SitePagePipeline';
 import type { SiteRuntimeProfile } from './SiteRuntime';
 import { getExternalLoginViewData } from '../../Localization/Locale';
@@ -195,6 +199,8 @@ export class ProviderSiteHost {
         readonly requestHosts?: readonly string[];
         /** The client hints value. */
         readonly clientHints?: string;
+        /** True while the main frame shows a web-authentication page. */
+        suspended?: boolean;
     };
 
     /** Sets the site handlers. */
@@ -609,6 +615,7 @@ export class ProviderSiteHost {
             const identity = this.siteBrowserIdentity;
             if (
                 identity &&
+                !identity.suspended &&
                 /^https:\/\//i.test(details.url) &&
                 (!identity.requestHosts?.length ||
                     matchesSiteUrlHost(details.url, identity.requestHosts))
@@ -761,7 +768,7 @@ export class ProviderSiteHost {
     ): Disposable {
         this.requireCurrentSiteContext(webContents);
         if (
-            options.requestHosts?.some(
+            [...(options.requestHosts ?? []), ...(options.exemptHosts ?? [])].some(
                 (host) =>
                     !/^[a-z0-9.-]+$/i.test(host) ||
                     host.startsWith('.') ||
@@ -787,16 +794,65 @@ export class ProviderSiteHost {
         if (clientHints && /[\r\n]/.test(clientHints)) {
             throw new Error('Browser identity contains invalid Client Hints.');
         }
-        const identity = {
+        const identity: NonNullable<ProviderSiteHost['siteBrowserIdentity']> = {
             userAgent,
             requestHosts: options.requestHosts,
             clientHints,
+            suspended: false,
         };
         this.siteBrowserIdentity = identity;
         webContents.setUserAgent(userAgent);
+        // Declared exempt hosts (typically login pages that fingerprint the real
+        // platform) receive this platform's Chrome UA instead of the identity.
+        const authenticationUserAgent = createPlatformChromeUserAgent(
+            process.versions.chrome,
+            process.platform,
+        );
+        /** Suspends or restores the identity for a main-frame destination. */
+        const syncAuthentication = (url: string): void => {
+            if (this.siteBrowserIdentity !== identity) return;
+            const suspended = isBrowserIdentityExemptUrl(
+                url,
+                options.exemptHosts,
+            );
+            if (suspended === identity.suspended) return;
+            identity.suspended = suspended;
+            if (webContents.isDestroyed()) return;
+            webContents.setUserAgent(
+                suspended ? authenticationUserAgent : userAgent,
+            );
+            this.logger.info(
+                suspended
+                    ? 'Browser identity suspended for an authentication page.'
+                    : 'Browser identity restored after an authentication page.',
+            );
+        };
+        /** Handles a renderer-initiated or redirected main-frame navigation. */
+        const onNavigate = (_event: Electron.Event, url: string): void =>
+            syncAuthentication(url);
+        /** Handles every main-frame navigation start, including history. */
+        const onStartNavigation = (
+            _event: Electron.Event,
+            url: string,
+            _isInPlace: boolean,
+            isMainFrame: boolean,
+        ): void => {
+            if (isMainFrame) syncAuthentication(url);
+        };
+        const watchesExemptHosts = Boolean(options.exemptHosts?.length);
+        if (watchesExemptHosts) {
+            webContents.on('will-navigate', onNavigate);
+            webContents.on('will-redirect', onNavigate);
+            webContents.on('did-start-navigation', onStartNavigation);
+        }
         return {
             /** The dispose value. */
             dispose: () => {
+                if (watchesExemptHosts && !webContents.isDestroyed()) {
+                    webContents.off('will-navigate', onNavigate);
+                    webContents.off('will-redirect', onNavigate);
+                    webContents.off('did-start-navigation', onStartNavigation);
+                }
                 if (this.siteBrowserIdentity !== identity) return;
                 this.siteBrowserIdentity = undefined;
                 if (!webContents.isDestroyed())
